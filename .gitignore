@@ -1,0 +1,11 @@
+*.out
+build/
+.gdb_history
+vgcore.*
+.vscode/
+*.gcda
+*.gcno
+*.gcov
+*.o
+.depend
+grammar_peg

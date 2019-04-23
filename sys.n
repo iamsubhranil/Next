@@ -1,0 +1,77 @@
+
+priv native fn loadLibrary0(str n)
+
+pub fn loadLibrary(str name) {
+    loadLibrary0(name)
+}
+
+class range<x> {
+    priv:
+        x from, to, step
+    pub:
+        new(x f, x t, x s) {
+            from = f
+            to = t
+            step = s
+        }
+
+        x fn next() {
+            if(from != to) {
+                from += step
+            }
+            return from
+        }
+}
+
+// all members are static
+static class io {
+    
+    priv:
+        native void fn print0(x)
+        native str fn readline0()
+        native int fn read0()
+        native str fn readString0()
+
+    pub:
+        static {
+            loadLibrary("neoio.so")
+        }
+
+        void fn print(expr ...) {
+            // num = len(expr)
+            /*  range<int> r = range(0, num, 1)
+            *   for(i = 0;i != num;i = r.next())
+            */
+            /*
+            *   for (i in 0..num) {
+            *       print0(expr[i])
+            *   }
+            */
+            for(exp in expr) {
+                print0(exp)
+            }
+            // it will be desugared like 
+            // num = len(expr)
+            // for(i = 0;i < num;i++) {
+            //      exp = expr[i]
+            //      print0(exp)
+            // }
+        }
+
+        str fn readline() {
+            return readline0()
+        }
+
+        int fn read() {
+            return read0()
+        }
+
+        str fn readString() {
+            return readString0()
+        }
+
+        io op <<(x) {
+            print(x)
+            return this
+        }
+}
