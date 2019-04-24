@@ -32,6 +32,8 @@ static void registerParselets(Parser *p) {
 	infixLeft(p, TOKEN_MINUS, Precedence::SUM);
 	infixLeft(p, TOKEN_STAR, Precedence::PRODUCT);
 	infixLeft(p, TOKEN_SLASH, Precedence::PRODUCT);
+
+	infixRight(p, TOKEN_CARET, Precedence::EXPONENT);
 }
 
 int main(int argc, char *argv[]) {

@@ -131,7 +131,7 @@ ExpPtr CallParselet::parse(Parser *parser, ExpPtr &left, Token t) {
 }
 
 ExpPtr ReferenceParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
-	ExpPtr member = parser->parseExpression(Precedence::CALL - 1);
+	ExpPtr member = parser->parseExpression(Precedence::CALL);
 	return unq(GetExpression, obj, t, member);
 }
 

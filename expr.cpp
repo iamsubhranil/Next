@@ -15,9 +15,11 @@ void ExpressionPrinter::visit(AssignExpression *as) {
 }
 
 void ExpressionPrinter::visit(BinaryExpression *be) {
+	out << "(";
 	be->left->accept(this);
 	out << " " << Token::TokenNames[be->token.type] << " ";
 	be->right->accept(this);
+	out << ")";
 }
 
 void ExpressionPrinter::visit(CallExpression *ce) {
@@ -31,9 +33,11 @@ void ExpressionPrinter::visit(CallExpression *ce) {
 }
 
 void ExpressionPrinter::visit(GetExpression *ge) {
+	out << "(";
 	ge->object->accept(this);
 	out << ".";
 	ge->refer->accept(this);
+	out << ")";
 }
 
 void ExpressionPrinter::visit(GroupingExpression *ge) {
@@ -53,14 +57,18 @@ void ExpressionPrinter::visit(LogicalExpression *le) {
 }
 
 void ExpressionPrinter::visit(SetExpression *se) {
+	out << "(";
 	se->object->accept(this);
 	out << " = ";
 	se->value->accept(this);
+	out << ")";
 }
 
 void ExpressionPrinter::visit(PrefixExpression *pe) {
+	out << "(";
 	out << Token::TokenNames[pe->token.type];
 	pe->right->accept(this);
+	out << ")";
 }
 
 void ExpressionPrinter::visit(PostfixExpression *pe) {
