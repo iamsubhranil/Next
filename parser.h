@@ -8,13 +8,16 @@ class Precedence {
 	// Ordered in increasing precedence.
   public:
 	static const int ASSIGNMENT  = 1;
-	static const int CONDITIONAL = 2;
-	static const int SUM         = 3;
-	static const int PRODUCT     = 4;
-	static const int EXPONENT    = 5;
-	static const int PREFIX      = 6;
-	static const int POSTFIX     = 7;
-	static const int CALL        = 8;
+	static const int OR          = 2;
+	static const int AND         = 3;
+	static const int EQUALITY    = 4;
+	static const int COMPARISON  = 5;
+	static const int SUM         = 6;
+	static const int PRODUCT     = 7;
+	static const int EXPONENT    = 8;
+	static const int PREFIX      = 9;
+	static const int POSTFIX     = 10;
+	static const int CALL        = 11;
 };
 
 class Parser;

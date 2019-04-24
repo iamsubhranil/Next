@@ -28,6 +28,15 @@ static void registerParselets(Parser *p) {
 	prefix(p, TOKEN_PLUS, Precedence::PREFIX);
 	prefix(p, TOKEN_MINUS, Precedence::PREFIX);
 
+	infixLeft(p, TOKEN_or, Precedence::OR);
+	infixLeft(p, TOKEN_and, Precedence::AND);
+	infixLeft(p, TOKEN_EQUAL_EQUAL, Precedence::EQUALITY);
+	infixLeft(p, TOKEN_BANG_EQUAL, Precedence::EQUALITY);
+	infixLeft(p, TOKEN_GREATER, Precedence::COMPARISON);
+	infixLeft(p, TOKEN_GREATER_EQUAL, Precedence::COMPARISON);
+	infixLeft(p, TOKEN_LESS, Precedence::COMPARISON);
+	infixLeft(p, TOKEN_LESS_EQUAL, Precedence::COMPARISON);
+
 	infixLeft(p, TOKEN_PLUS, Precedence::SUM);
 	infixLeft(p, TOKEN_MINUS, Precedence::SUM);
 	infixLeft(p, TOKEN_STAR, Precedence::PRODUCT);
