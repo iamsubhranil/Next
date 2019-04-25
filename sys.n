@@ -1,25 +1,60 @@
 
-priv native fn loadLibrary0(str n)
+class sys {
 
-pub fn loadLibrary(str name) {
-    loadLibrary0(name)
+    priv:
+        static native fn loadLibrary0(n)
+
+    pub:
+        static fn loadLibrary(name) {
+            loadLibrary0(name)
+        }
 }
 
-class range<x> {
+class range {
     priv:
-        x from, to, step
+        from, to, step
     pub:
-        new(x f, x t, x s) {
+        new(f, t, s) {
             from = f
             to = t
             step = s
         }
 
-        x fn next() {
+        fn next() {
             if(from != to) {
                 from += step
             }
-            return from
+            ret from
+        }
+}
+
+// Mirrors a native array
+class list {
+    priv:
+        elements
+        native fn arr_new0(size)
+        native fn arr_at0(arr, idx)
+        native fn arr_assign0(arr, idx, val)
+        native fn arr_length0(arr)
+
+    pub:
+        static {
+            sys.loadLibrary("nextarr.so")
+        }
+        new(s) {
+            elements = arr_new0(s)
+        }
+
+        len() {
+            ret arr_length0(elements)
+        }
+
+        op [](x) { // element access -> x = list[i]
+            ret arr_at0(elements, x)
+        }
+
+        op [](x, val) { // element assign -> list[i] = x
+            ret arr_assign0(elements, idx, val)
         }
 }
 
@@ -27,51 +62,42 @@ class range<x> {
 static class io {
     
     priv:
-        native void fn print0(x)
-        native str fn readline0()
-        native int fn read0()
-        native str fn readString0()
+        native fn print0(x)
+        native fn readline0()
+        native fn read0()
+        native fn readString0()
 
     pub:
-        static {
-            loadLibrary("neoio.so")
+        static { // executed when the class is loaded to the vm
+            sys.loadLibrary("nextio.so")
         }
 
-        void fn print(expr ...) {
-            // num = len(expr)
-            /*  range<int> r = range(0, num, 1)
-            *   for(i = 0;i != num;i = r.next())
-            */
-            /*
-            *   for (i in 0..num) {
-            *       print0(expr[i])
-            *   }
-            */
+        fn print(expr...) {
             for(exp in expr) {
                 print0(exp)
             }
             // it will be desugared like 
-            // num = len(expr)
+            // num = expr.len()
             // for(i = 0;i < num;i++) {
             //      exp = expr[i]
             //      print0(exp)
             // }
         }
 
-        str fn readline() {
-            return readline0()
+        fn readline() {
+            ret readline0()
         }
 
-        int fn read() {
-            return read0()
+        fn read() {
+            ret read0()
         }
 
-        str fn readString() {
-            return readString0()
+        fn readString() {
+            ret readString0()
         }
 
-        io op <<(x) {
+        op <<(x) {
             print(x)
-            return this
+            ret this
         }
 }
