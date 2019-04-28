@@ -2,10 +2,10 @@
 
 using namespace std;
 
-ExpressionPrinter::ExpressionPrinter(ostream &os, Expr *e) : out(os), expr(e) {}
+ExpressionPrinter::ExpressionPrinter(ostream &os) : out(os) {}
 
-void ExpressionPrinter::print() {
-	expr->accept(this);
+void ExpressionPrinter::print(Expr *e) {
+	e->accept(this);
 }
 
 void ExpressionPrinter::visit(AssignExpression *as) {
@@ -25,9 +25,15 @@ void ExpressionPrinter::visit(BinaryExpression *be) {
 void ExpressionPrinter::visit(CallExpression *ce) {
 	ce->callee->accept(this);
 	out << "(";
-	for(auto i = ce->arguments.begin(), j = ce->arguments.end(); i != j; i++) {
+	if(!ce->arguments.empty()) {
+		auto i = ce->arguments.begin(), j = ce->arguments.end();
 		(*i)->accept(this);
-		out << ", ";
+		i++;
+		while(i != j) {
+			out << ", ";
+			(*i)->accept(this);
+			i++;
+		}
 	}
 	out << ")";
 }
@@ -77,5 +83,5 @@ void ExpressionPrinter::visit(PostfixExpression *pe) {
 }
 
 void ExpressionPrinter::visit(VariableExpression *v) {
-	out << string(v->token.start, v->token.length);
+	out << v->token;
 }

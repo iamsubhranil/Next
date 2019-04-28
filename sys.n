@@ -1,8 +1,9 @@
+import boot.loader
 
 class sys {
 
     priv:
-        static native fn loadLibrary0(n)
+        static fn native loadLibrary0(n)
 
     pub:
         static fn loadLibrary(name) {
@@ -32,15 +33,18 @@ class range {
 class list {
     priv:
         elements
-        native fn arr_new0(size)
-        native fn arr_at0(arr, idx)
-        native fn arr_assign0(arr, idx, val)
-        native fn arr_length0(arr)
+        fn native arr_new0(size)
+        fn native arr_at0(arr, idx)
+        fn native arr_assign0(arr, idx, val)
+        fn native arr_length0(arr)
 
     pub:
-        static {
+        static { // only static variables, methods
+                // and classes are accessible
             sys.loadLibrary("nextarr.so")
         }
+
+        // constructor
         new(s) {
             elements = arr_new0(s)
         }
@@ -56,16 +60,35 @@ class list {
         op [](x, val) { // element assign -> list[i] = x
             ret arr_assign0(elements, idx, val)
         }
+
+        // typical getter
+        // can be used as member reference directly
+        // e = list.size
+        // Moreover, if it has the same name
+        // as a member of the class, an empty body
+        // will automatically return the value
+        // of the member.
+        // Ideally, the function call should be optimized
+        // in that case.
+        get size {}
+
+        // typical setter
+        // can be used as member reference directly
+        // list.name = "s"
+        // Moreover, if it has the same name
+        // as a member of the class, an empty body
+        // will automatically set the value to the member
+        set name(x) {}
 }
 
 // all members are static
 static class io {
     
     priv:
-        native fn print0(x)
-        native fn readline0()
-        native fn read0()
-        native fn readString0()
+        fn native print0(x)
+        fn native readline0()
+        fn native read0()
+        fn native readString0()
 
     pub:
         static { // executed when the class is loaded to the vm

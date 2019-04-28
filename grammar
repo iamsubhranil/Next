@@ -1,0 +1,57 @@
+program -> moduleStatement* EOF
+
+moduleStatement ->  importStatement     // import
+                |   classStatement      // pub/priv class
+                |   topLevelFnStatement // pub/priv fn native
+                |   topLevelVarDecl     // pub/priv iden
+
+importStatement ->  "import" IDENTIFIER ("." IDENTIFIER)*
+
+classStatement -> ("pub" | "priv")? "class" IDENTIFIER "{" classDecl "}"
+
+classDecl ->    visDecl         // pub/priv :
+            |   constructorDecl // new
+            |   opDecl          // op
+            |   staticBlock     // static {
+            |   methodStatement // static fn
+            |   memDecl         // iden
+
+visDecl ->  ("pub" | "priv") ":"
+
+memDecl ->  IDENTIFIFER ("," IDENTIFIER)*
+
+constructorDecl -> "new" fnBody
+
+opDecl  ->  "op" OPERATOR fnBody
+
+staticBlock -> "static" blockStatement      // static { }
+
+methodStatement -> "static"? fnStatement    // static fn native
+
+fnStatement -> "fn" "native"? IDENTIFIER fnBody
+
+fnBody -> "(" (IDENTIFIER ("," IDENTIFIER)*)? ")" blockStatement
+
+topLevelFnStatement ->  ("pub" | "priv")? fnStatement   // pub native fn
+
+topLevelVarDecl     -> ("pub" | "priv")? IDENTIFIER "=" expression
+
+blockStatement -> "{" statement* "}"
+
+statement ->    ifStatement
+            |   whileStatement
+            |   doStatement
+            |   tryCatchBlock
+            |   expressionStatement
+
+ifStatement -> "if" expression blockStatement ("else" (ifStatement | blockStatement))*
+
+whileStatement -> "while" expression blockStatement
+
+doStatement -> "do" blockStatement "while" expression
+
+tryCatchBlock -> "try" blockStatement catchStatement+
+
+catchStatement -> "catch" "(" IDENTIFIER IDENTIFIER ")" blockStatement
+
+expressionStatement -> expression ("," expression)*

@@ -1,0 +1,5 @@
+import something
+
+pub fn cool(a, b) {
+    c = cool(3, 4)
+}

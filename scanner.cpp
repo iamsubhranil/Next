@@ -1,8 +1,11 @@
 #include "scanner.h"
 #include "display.h"
 #include <iomanip>
+#include <iostream>
 #include <string.h>
 #include <string_view>
+
+using namespace std;
 
 Token Token::from(TokenType type, Scanner *scanner) {
 	Token token;
@@ -11,7 +14,7 @@ Token Token::from(TokenType type, Scanner *scanner) {
 	token.length   = (int)(scanner->current - scanner->tokenStart);
 	token.fileName = scanner->fileName;
 	token.line     = scanner->line;
-
+	token.source   = scanner->source;
 	return token;
 }
 
@@ -21,8 +24,47 @@ Token Token::errorToken(const char *message, Scanner *scanner) {
 	token.start  = strdup(message);
 	token.length = (int)strlen(message);
 	token.line   = scanner->line;
-
+	token.source = scanner->source;
 	return token;
+}
+
+void Token::highlight() const {
+	const char *tokenEnd = start, *tokenStart = start;
+	while(*tokenStart != '\n' && tokenStart != source) tokenStart--;
+	if(*tokenStart == '\n')
+		tokenStart++;
+	const char *bak = tokenStart;
+	while(*tokenEnd != '\0' && *tokenEnd != '\n') tokenEnd++;
+	int ch    = start - tokenStart + 1;
+	int extra = 4; // [:]<space>
+
+	int lbak = line;
+	while(lbak > 0) {
+		extra++;
+		lbak /= 10;
+	}
+	lbak = ch;
+	while(lbak > 0) {
+		extra++;
+		lbak /= 10;
+	}
+
+	cout << "[" << line << ":" << ch << "] ";
+	while(bak < tokenEnd) {
+		cout << *bak;
+		bak++;
+	}
+	cout << endl;
+	while(extra--) cout << " ";
+	while(tokenStart < start) {
+		cout << (type == TOKEN_EOF ? "~" : " ");
+		tokenStart++;
+	}
+	if(type == TOKEN_EOF)
+		cout << "^";
+	else
+		for(int i = 0; i < length; i++) cout << "~";
+	cout << endl;
 }
 
 const char *Token::TokenNames[] = {
@@ -48,12 +90,18 @@ const char *Token::TokenNames[] = {
 
 using namespace std;
 
+#ifdef DEBUG
 ostream &operator<<(ostream &os, const Token &t) {
 	os << setw(15) << std::left << string(t.start, t.length);
 	os << " " << setw(2) << t.length << " " << setw(10) << string(t.fileName)
 	   << setw(3) << t.line << " " << Token::TokenNames[t.type] << endl;
 	return os;
 }
+#else
+ostream &operator<<(ostream &os, const Token &t) {
+    return os << string(t.start, t.length);
+}
+#endif
 
 ostream &operator<<(ostream &os, const vector<Token> &tv) {
 	for(auto i = tv.begin(), j = tv.end(); i != j; i++) os << *i;
@@ -336,7 +384,7 @@ Token Scanner::scanNextToken() {
 		case '"': return str();
 		default:
 			lnerr("Unexpected character %c!",
-			      (Token){TOKEN_EOF, NULL, 0, line, fileName}, c);
+			      (Token){TOKEN_EOF, tokenStart, source, 0, line, fileName}, c);
 			scanErrors++;
 			return Token::from(TOKEN_EOF, this);
 	}

@@ -50,6 +50,7 @@ class Scanner;
 typedef struct Token {
 	TokenType   type;
 	const char *start;
+	const char *source;
 	int         length;
 	int         line;
 	const char *fileName;
@@ -59,7 +60,7 @@ typedef struct Token {
 	friend std::ostream &operator<<(std::ostream &os, const Token &t);
 	friend std::ostream &operator<<(std::ostream &            os,
 	                                const std::vector<Token> &tv);
-
+	void                 highlight() const;
 	static const char *TokenNames[];
 } Token;
 

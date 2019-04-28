@@ -14,12 +14,19 @@ void Parser::registerParselet(TokenType t, InfixParselet *i) {
 	infixParselets[t] = i;
 }
 
-ExpPtr Parser::parseExpression(int precedence) {
-	Token           token  = consume();
+void Parser::registerParselet(TokenType t, DeclarationParselet *i) {
+	declarationParselets[t] = i;
+}
+
+void Parser::registerParselet(TokenType t, StatementParselet *i) {
+	statementParselets[t] = i;
+}
+
+ExpPtr Parser::parseExpression(int precedence, Token token) {
 	PrefixParselet *prefix = prefixParselets[token.type];
 
 	if(prefix == NULL) {
-		throw ParseException(token, "Unable to parse!");
+		throw ParseException(token, "Unable to parse the expression!");
 	}
 
 	ExpPtr left = prefix->parse(this, token);
@@ -34,6 +41,62 @@ ExpPtr Parser::parseExpression(int precedence) {
 	return left;
 }
 
+StmtPtr Parser::parseDeclaration() {
+	Visibility vis      = VIS_PRIV;
+	Token      token    = consume();
+	if(token.type == TOKEN_pub || token.type == TOKEN_priv) {
+		vis   = (Visibility)(VIS_PUB + (token.type != TOKEN_pub));
+		token = consume();
+	}
+	DeclarationParselet *decl = declarationParselets[token.type];
+	if(decl == NULL) {
+		throw ParseException(token, "Unable to parse top level declaration!");
+	}
+	return decl->parse(this, token, vis);
+}
+
+std::vector<StmtPtr> Parser::parseAllDeclarations() {
+	std::vector<StmtPtr> ret;
+	while(lookAhead(0).type != TOKEN_EOF) ret.push_back(parseDeclaration());
+	return ret;
+}
+
+#define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
+
+StmtPtr Parser::parseBlock() {
+	Token t = consume(TOKEN_LEFT_BRACE);
+	std::vector<StmtPtr> s;
+	while(!match(TOKEN_RIGHT_BRACE)) {
+		s.push_back(parseStatement());
+	}
+	return unq(BlockStatement, t, s);
+}
+
+StmtPtr Parser::parseStatement() {
+	Token t = consume();
+
+	StatementParselet *p = statementParselets[t.type];
+
+	if(p == NULL) { // then it may be a expression statement
+		std::vector<ExpPtr> exprs;
+		exprs.push_back(parseExpression(t));
+		while(match(TOKEN_COMMA)) {
+			exprs.push_back(parseExpression());
+		}
+		return unq(ExpressionStatement, t, exprs);
+	}
+
+	return p->parse(this, t);
+}
+
+ExpPtr Parser::parseExpression(Token token) {
+	return parseExpression(0, token);
+}
+
+ExpPtr Parser::parseExpression(int precedence) {
+	return parseExpression(precedence, consume());
+}
+
 ExpPtr Parser::parseExpression() {
 	return parseExpression(0);
 }
@@ -43,7 +106,7 @@ Token Parser::lookAhead(size_t distance) {
 		tokenCache.push_back(scanner.scanNextToken());
 	}
 
-	return tokenCache.back();
+	return tokenCache.at(distance);
 }
 
 Token Parser::consume() {
@@ -57,6 +120,9 @@ Token Parser::consume() {
 Token Parser::consume(TokenType t) {
 	Token token = lookAhead(0);
 	if(token.type != t) {
+		if(token.type == TOKEN_EOF) {
+			throw ParseException(token, "Unexpected end of file!");
+		}
 		throw UnexpectedTokenException(token, t);
 	}
 	return consume();
@@ -78,7 +144,75 @@ int Parser::getPrecedence() {
 	return 0;
 }
 
-#define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
+
+// Statements
+
+StmtPtr ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
+	(void)vis;
+	std::vector<Token> imports;
+	do {
+		imports.push_back(p->consume(TOKEN_IDENTIFIER));
+	} while(p->match(TOKEN_DOT));
+	return unq(ImportStatement, t, imports);
+}
+
+StmtPtr VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
+	p->consume(TOKEN_EQUAL);
+	ExpPtr e = p->parseExpression();
+	return unq(VardeclStatement, t, e, vis);
+}
+
+StmtPtr FnDeclaration::parseFnBody(Parser *p, Token t) {
+	p->consume(TOKEN_LEFT_PAREN);
+	std::vector<Token> args;
+	if(!p->match(TOKEN_RIGHT_PAREN)) {
+		do {
+			args.push_back(p->consume(TOKEN_IDENTIFIER));
+		} while(p->match(TOKEN_COMMA));
+		p->consume(TOKEN_RIGHT_PAREN);
+	}
+	StmtPtr block = p->parseBlock();
+	return unq(FnBodyStatement, t, args, block);
+}
+
+StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,
+                                        Visibility vis) {
+	bool isn = false;
+	if(p->match(TOKEN_native)) {
+		isn = true;
+	}
+	Token name = p->consume(TOKEN_IDENTIFIER);
+	StmtPtr body = FnDeclaration::parseFnBody(p, t);
+	return unq(FnStatement, t, name, body, ism, iss, isn, vis);
+}
+
+StmtPtr FnDeclaration::parse(Parser *p, Token t, Visibility vis) {
+	return parseFnStatement(p, t, false, false, vis);
+}
+
+StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
+	Token name = p->consume(TOKEN_IDENTIFIER);
+	p->consume(TOKEN_LEFT_BRACE);
+
+	std::vector<StmtPtr> classDecl;
+
+	while(!p->match(TOKEN_RIGHT_BRACE)) {
+		classDecl.push_back(parseClassBody(p));
+	}
+
+	return unq(ClassStatement, t, name, classDecl, vis);
+}
+
+StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
+	Token t = p->consume();
+	DeclarationParselet *decl = classBodyParselets[t.type];
+	if(decl == NULL) {
+		throw ParseException(t, "Invalid class body!");
+	}
+	return decl->parse(p, t, VIS_PRIV);
+}
+
+// Expressions
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {
 	(void)parser;

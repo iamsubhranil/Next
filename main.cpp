@@ -43,14 +43,28 @@ static void registerParselets(Parser *p) {
 	infixLeft(p, TOKEN_SLASH, Precedence::PRODUCT);
 
 	infixRight(p, TOKEN_CARET, Precedence::EXPONENT);
+
+	p->registerParselet(TOKEN_fn, new FnDeclaration());
+	p->registerParselet(TOKEN_import, new ImportDeclaration());
+	p->registerParselet(TOKEN_IDENTIFIER, new VarDeclaration());
 }
 
 int main(int argc, char *argv[]) {
 	if(argc > 1) {
 		Scanner s(argv[1]);
 		Parser  p(s);
+		StatementPrinter sp(cout);
 		registerParselets(&p);
-		ExpPtr e = p.parseExpression();
+		try {
+			vector<StmtPtr> decls = p.parseAllDeclarations();
+			for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
+				sp.print(i->get());
+				cout << "\n";
+			}
+			cout << "Parsed successfully!" << endl;
+		} catch(runtime_error &r) {
+			cout << r.what();
+		}
 		// cout << s.scanAllTokens();
 	} else {
 		string line;
@@ -58,13 +72,20 @@ int main(int argc, char *argv[]) {
 		while(getline(cin, line)) {
 			Scanner s(line.c_str(), "<stdin>");
 			Parser  p(s);
+			StatementPrinter sp(cout);
 			registerParselets(&p);
-			ExpPtr            e = p.parseExpression();
-			ExpressionPrinter ep(cout, e.get());
-			cout << endl;
-			ep.print();
+			try {
+				vector<StmtPtr> decls = p.parseAllDeclarations();
+				for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
+					sp.print(i->get());
+					cout << "\n";
+				}
+			} catch(runtime_error &r) {
+				cout << r.what();
+			}
 			cout << endl << ">> ";
 		}
 	}
+	cout << endl;
 	return 0;
 }

@@ -148,11 +148,10 @@ class PostfixExpression : public Expr {
 class ExpressionPrinter : public ExpressionVisitor {
   private:
 	std::ostream &out;
-	Expr *        expr;
 
   public:
-	ExpressionPrinter(std::ostream &os, Expr *e);
-	void print();
+	ExpressionPrinter(std::ostream &os);
+	void print(Expr *e);
 	void visit(AssignExpression *as);
 	void visit(BinaryExpression *bin);
 	void visit(CallExpression *cal);
