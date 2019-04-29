@@ -51,7 +51,7 @@ class IfStatement : public Statement {
 	StmtPtr elseBlock;
 	IfStatement(Token it, ExpPtr &cond, StmtPtr &then, StmtPtr &else_)
 	    : Statement(it), condition(cond.release()), thenBlock(then.release()),
-	      elseBlock(else_.release()) {}
+	      elseBlock(else_ == nullptr ? nullptr : else_.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -132,7 +132,8 @@ class TryStatement : public Statement {
   public:
 	StmtPtr              tryBlock;
 	std::vector<StmtPtr> catchBlocks;
-	TryStatement(Token t, std::vector<StmtPtr> &catches) : Statement(t) {
+	TryStatement(Token t, StmtPtr &tr, std::vector<StmtPtr> &catches)
+	    : Statement(t), tryBlock(tr.release()) {
 		for(auto i = catches.begin(), j = catches.end(); i != j; i++) {
 			catchBlocks.push_back(StmtPtr(i->release()));
 		}

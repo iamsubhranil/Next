@@ -49,10 +49,18 @@ void StatementPrinter::visit(FnBodyStatement *ifs) {
 	os << ")";
 	ifs->body->accept(this);
 }
-
-void StatementPrinter::visit(ClassStatement *ifs) {}
-void StatementPrinter::visit(TryStatement *ifs) {}
-void StatementPrinter::visit(CatchStatement *ifs) {}
+void StatementPrinter::visit(TryStatement *ifs) {
+	os << "try";
+	ifs->tryBlock->accept(this);
+	for(auto i = ifs->catchBlocks.begin(), j = ifs->catchBlocks.end(); i != j;
+	    i++) {
+		(*i)->accept(this);
+	}
+}
+void StatementPrinter::visit(CatchStatement *ifs) {
+	os << "catch (" << ifs->typeName << " " << ifs->varName << ")";
+	ifs->block->accept(this);
+}
 void StatementPrinter::visit(ImportStatement *ifs) {
 	os << "import ";
 	auto i = ifs->import.begin(), j = ifs->import.end();
@@ -88,3 +96,5 @@ void StatementPrinter::visit(VardeclStatement *ifs) {
 	ep.print(ifs->expr.get());
 }
 void StatementPrinter::visit(MemberVariableStatement *ifs) {}
+
+void StatementPrinter::visit(ClassStatement *ifs) {}

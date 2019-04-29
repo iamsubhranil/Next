@@ -62,6 +62,7 @@ typedef struct Token {
 	                                const std::vector<Token> &tv);
 	void                 highlight() const;
 	static const char *TokenNames[];
+	static const char *  FormalNames[];
 } Token;
 
 class Scanner {

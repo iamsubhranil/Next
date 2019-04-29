@@ -2,4 +2,12 @@ import something
 
 pub fn cool(a, b) {
     c = cool(3, 4)
+    if(i < j) {
+        print("Hello world!")
+    }
+    try {
+        mightThrowAnException()
+    } catch(SomeType s) {
+
+    }
 }

@@ -19,6 +19,7 @@ static void infixRight(Parser *p, TokenType t, int prec) {
 static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
 	p->registerParselet(TOKEN_NUMBER, new NameParselet());
+	p->registerParselet(TOKEN_STRING, new NameParselet());
 
 	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());
@@ -44,9 +45,16 @@ static void registerParselets(Parser *p) {
 
 	infixRight(p, TOKEN_CARET, Precedence::EXPONENT);
 
+	// Top level declarations
 	p->registerParselet(TOKEN_fn, new FnDeclaration());
 	p->registerParselet(TOKEN_import, new ImportDeclaration());
 	p->registerParselet(TOKEN_IDENTIFIER, new VarDeclaration());
+
+	// Statements
+	p->registerParselet(TOKEN_if, new IfStatementParselet());
+	p->registerParselet(TOKEN_while, new WhileStatementParselet());
+	p->registerParselet(TOKEN_do, new DoStatementParselet());
+	p->registerParselet(TOKEN_try, new TryStatementParselet());
 }
 
 int main(int argc, char *argv[]) {

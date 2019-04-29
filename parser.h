@@ -137,6 +137,31 @@ class StatementParselet {
 	virtual StmtPtr parse(Parser *p, Token t) = 0;
 };
 
+class IfStatementParselet : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class WhileStatementParselet : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class DoStatementParselet : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class TryStatementParselet : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class CatchStatementParselet : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
 class Parser {
   private:
 	std::unordered_map<TokenType, PrefixParselet *>      prefixParselets;
@@ -147,13 +172,13 @@ class Parser {
 	std::deque<Token>                               tokenCache;
 
 	int   getPrecedence();
-	Token lookAhead(size_t distance);
 
   public:
 	Parser(Scanner &sc);
+	Token lookAhead(size_t distance);
 	bool    match(TokenType expected);
 	Token   consume();
-	Token   consume(TokenType expected);
+	Token                consume(TokenType expected, const char *message);
 	void    registerParselet(TokenType type, PrefixParselet *p);
 	void    registerParselet(TokenType type, InfixParselet *p);
 	void    registerParselet(TokenType type, DeclarationParselet *p);
@@ -174,21 +199,11 @@ class ParseException : public std::runtime_error {
 	const char *message;
 
   public:
+	ParseException() : runtime_error("Error occurred while parsing!") {}
 	ParseException(Token to, const char *msg)
 	    : runtime_error(msg), t(to), message(msg) {}
 	virtual const char *what() const throw() {
 		t.highlight();
 		return message;
-	}
-};
-
-class UnexpectedTokenException : public ParseException {
-  private:
-	TokenType t;
-
-  public:
-	UnexpectedTokenException(Token t, TokenType expected)
-	    : ParseException(t, "Unexpected token!") {
-		(void)expected;
 	}
 };

@@ -44,7 +44,7 @@ statement ->    ifStatement
             |   tryCatchBlock
             |   expressionStatement
 
-ifStatement -> "if" expression blockStatement ("else" (ifStatement | blockStatement))*
+ifStatement -> "if" expression blockStatement ("else" (ifStatement | blockStatement))
 
 whileStatement -> "while" expression blockStatement
 

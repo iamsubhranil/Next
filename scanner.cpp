@@ -88,6 +88,18 @@ const char *Token::TokenNames[] = {
 
     "TOKEN_ERROR",         "TOKEN_EOF"};
 
+const char *Token::FormalNames[] = {
+    "(",     ")",          "{",  "}",          "[",      "]",      "!",
+    "!=",    ",",          ".",  ":",          "=",      "==",     ">",
+    ">=",    "<",          "<=", "-",          "+",      ";",      "/",
+    "*",     "%",          "^",  "identifier", "string", "number",
+
+#define KEYWORD(x, y) #x,
+#include "keywords.h"
+#undef KEYWORD
+
+    "error", "end of file"};
+
 using namespace std;
 
 #ifdef DEBUG

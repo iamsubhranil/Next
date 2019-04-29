@@ -64,7 +64,8 @@ std::vector<StmtPtr> Parser::parseAllDeclarations() {
 #define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
 
 StmtPtr Parser::parseBlock() {
-	Token t = consume(TOKEN_LEFT_BRACE);
+	Token t =
+	    consume(TOKEN_LEFT_BRACE, "Expected '{' on the starting of a block!");
 	std::vector<StmtPtr> s;
 	while(!match(TOKEN_RIGHT_BRACE)) {
 		s.push_back(parseStatement());
@@ -117,13 +118,13 @@ Token Parser::consume() {
 	return t;
 }
 
-Token Parser::consume(TokenType t) {
+Token Parser::consume(TokenType t, const char *message) {
 	Token token = lookAhead(0);
 	if(token.type != t) {
 		if(token.type == TOKEN_EOF) {
 			throw ParseException(token, "Unexpected end of file!");
 		}
-		throw UnexpectedTokenException(token, t);
+		throw ParseException(token, message);
 	}
 	return consume();
 }
@@ -144,32 +145,35 @@ int Parser::getPrecedence() {
 	return 0;
 }
 
-
-// Statements
+// Top level declarations
 
 StmtPtr ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	(void)vis;
 	std::vector<Token> imports;
 	do {
-		imports.push_back(p->consume(TOKEN_IDENTIFIER));
+		imports.push_back(
+		    p->consume(TOKEN_IDENTIFIER, "Expected package/member name!"));
 	} while(p->match(TOKEN_DOT));
 	return unq(ImportStatement, t, imports);
 }
 
 StmtPtr VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
-	p->consume(TOKEN_EQUAL);
+	p->consume(TOKEN_EQUAL,
+	           "Expected '=' after top level variable declaration!");
 	ExpPtr e = p->parseExpression();
 	return unq(VardeclStatement, t, e, vis);
 }
 
 StmtPtr FnDeclaration::parseFnBody(Parser *p, Token t) {
-	p->consume(TOKEN_LEFT_PAREN);
+	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after function name!");
 	std::vector<Token> args;
 	if(!p->match(TOKEN_RIGHT_PAREN)) {
 		do {
-			args.push_back(p->consume(TOKEN_IDENTIFIER));
+			args.push_back(
+			    p->consume(TOKEN_IDENTIFIER, "Expected argument name!"));
 		} while(p->match(TOKEN_COMMA));
-		p->consume(TOKEN_RIGHT_PAREN);
+		p->consume(TOKEN_RIGHT_PAREN,
+		           "Expected ')' after argument declaration!");
 	}
 	StmtPtr block = p->parseBlock();
 	return unq(FnBodyStatement, t, args, block);
@@ -181,7 +185,7 @@ StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 	if(p->match(TOKEN_native)) {
 		isn = true;
 	}
-	Token name = p->consume(TOKEN_IDENTIFIER);
+	Token   name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
 	StmtPtr body = FnDeclaration::parseFnBody(p, t);
 	return unq(FnStatement, t, name, body, ism, iss, isn, vis);
 }
@@ -191,8 +195,8 @@ StmtPtr FnDeclaration::parse(Parser *p, Token t, Visibility vis) {
 }
 
 StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
-	Token name = p->consume(TOKEN_IDENTIFIER);
-	p->consume(TOKEN_LEFT_BRACE);
+	Token name = p->consume(TOKEN_IDENTIFIER, "Expected name of the class!");
+	p->consume(TOKEN_LEFT_BRACE, "Expected '{' after class name!");
 
 	std::vector<StmtPtr> classDecl;
 
@@ -212,6 +216,55 @@ StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
 	return decl->parse(p, t, VIS_PRIV);
 }
 
+// Statements
+
+StmtPtr IfStatementParselet::parse(Parser *p, Token t) {
+	ExpPtr expr = p->parseExpression();
+	StmtPtr thenBlock = p->parseBlock();
+	StmtPtr elseBlock = nullptr;
+	if(p->lookAhead(0).type == TOKEN_else) {
+		if(p->lookAhead(1).type == TOKEN_if) {
+			p->consume();
+			elseBlock = p->parseStatement();
+		} else {
+			elseBlock = p->parseBlock();
+		}
+	}
+	return unq(IfStatement, t, expr, thenBlock, elseBlock);
+}
+
+StmtPtr WhileStatementParselet::parse(Parser *p, Token t) {
+	ExpPtr  cond      = p->parseExpression();
+	StmtPtr thenBlock = p->parseBlock();
+	return unq(WhileStatement, t, cond, thenBlock, false);
+}
+
+StmtPtr DoStatementParselet::parse(Parser *p, Token t) {
+	StmtPtr thenBlock = p->parseBlock();
+	p->consume(TOKEN_while, "Expected 'while' after 'do' block!");
+	ExpPtr  cond      = p->parseExpression();
+	return unq(WhileStatement, t, cond, thenBlock, true);
+}
+
+StmtPtr TryStatementParselet::parse(Parser *p, Token t) {
+	StmtPtr tryBlock = p->parseBlock();
+	std::vector<StmtPtr> catchBlocks;
+	do {
+		Token c =
+		    p->consume(TOKEN_catch, "Expected 'catch' after 'try' block!");
+		p->consume(TOKEN_LEFT_PAREN, "Expected '(' after catch!");
+		Token typ     = p->consume(TOKEN_IDENTIFIER,
+                               "Expected type name to catch after 'catch'!");
+		Token varName =
+		    p->consume(TOKEN_IDENTIFIER,
+		               "Expected variable name after type name to catch!");
+		p->consume(TOKEN_RIGHT_PAREN, "Expected ')' after catch argument!");
+		StmtPtr catchBlock = p->parseBlock();
+		catchBlocks.push_back(unq(CatchStatement, c, typ, varName, catchBlock));
+	} while(p->lookAhead(0).type == TOKEN_catch);
+	return unq(TryStatement, t, tryBlock, catchBlocks);
+}
+
 // Expressions
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {
@@ -226,7 +279,8 @@ ExpPtr PrefixOperatorParselet::parse(Parser *parser, Token t) {
 
 ExpPtr GroupParselet::parse(Parser *parser, Token t) {
 	ExpPtr expr = parser->parseExpression();
-	parser->consume(TOKEN_RIGHT_PAREN);
+	parser->consume(TOKEN_RIGHT_PAREN,
+	                "Expected ')' at the end of the group expression!");
 	return unq(GroupingExpression, t, expr);
 }
 
@@ -258,7 +312,8 @@ ExpPtr CallParselet::parse(Parser *parser, ExpPtr &left, Token t) {
 		do {
 			args.push_back(parser->parseExpression());
 		} while(parser->match(TOKEN_COMMA));
-		parser->consume(TOKEN_RIGHT_PAREN);
+		parser->consume(TOKEN_RIGHT_PAREN,
+		                "Expected ')' at the end of the call expression!");
 	}
 
 	return unq(CallExpression, left, t, args);
