@@ -14,11 +14,12 @@ classDecl ->    visDecl         // pub/priv :
             |   opDecl          // op
             |   staticBlock     // static {
             |   methodStatement // static fn
-            |   memDecl         // iden
+            |   memDecl         // static iden
+
 
 visDecl ->  ("pub" | "priv") ":"
 
-memDecl ->  IDENTIFIFER ("," IDENTIFIER)*
+memDecl -> "static"? IDENTIFIFER ("," IDENTIFIER)*
 
 constructorDecl -> "new" fnBody
 
@@ -27,6 +28,7 @@ opDecl  ->  "op" OPERATOR fnBody
 staticBlock -> "static" blockStatement      // static { }
 
 methodStatement -> "static"? fnStatement    // static fn native
+
 
 fnStatement -> "fn" "native"? IDENTIFIER fnBody
 
