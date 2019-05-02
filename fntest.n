@@ -20,6 +20,7 @@ class sys {
 
         new() {
             // empty constructor
+            print("Hello, Nil!")
         }
 
         new(a, b, c){

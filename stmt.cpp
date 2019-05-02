@@ -130,3 +130,16 @@ void StatementPrinter::visit(MemberVariableStatement *ifs) {
 void StatementPrinter::visit(VisibilityStatement *ifs) {
 	os << (ifs->token.type == TOKEN_pub ? "pub: " : "priv: ");
 }
+
+void StatementPrinter::visit(PrintStatement *ifs) {
+	os << "print(";
+	auto i = ifs->exprs.begin(), j = ifs->exprs.end();
+	ep.print(i->get());
+	i++;
+	while(i != j) {
+		os << ", ";
+		ep.print(i->get());
+		i++;
+	}
+	os << ")";
+}

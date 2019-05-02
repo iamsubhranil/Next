@@ -42,6 +42,7 @@ blockStatement -> "{" statement* "}"
 
 statement ->    ifStatement
             |   whileStatement
+            |   printStatement
             |   doStatement
             |   tryCatchBlock
             |   expressionStatement
@@ -55,5 +56,7 @@ doStatement -> "do" blockStatement "while" expression
 tryCatchBlock -> "try" blockStatement catchStatement+
 
 catchStatement -> "catch" "(" IDENTIFIER IDENTIFIER ")" blockStatement
+
+printStatement -> "print" "(" expr ("," expr)* ")"
 
 expressionStatement -> expression ("," expression)*
