@@ -51,7 +51,8 @@ void StatementPrinter::visit(FnBodyStatement *ifs) {
 		}
 	}
 	os << ")";
-	ifs->body->accept(this);
+	if(ifs->body != nullptr)
+		ifs->body->accept(this);
 }
 void StatementPrinter::visit(TryStatement *ifs) {
 	os << "try";

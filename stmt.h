@@ -95,7 +95,8 @@ class FnBodyStatement : public Statement {
 	std::vector<Token> args;
 	StmtPtr            body;
 	FnBodyStatement(Token t, std::vector<Token> &ar, StmtPtr &b)
-	    : Statement(t), args(ar.begin(), ar.end()), body(b.release()) {}
+	    : Statement(t), args(ar.begin(), ar.end()),
+	      body(b == nullptr ? nullptr : b.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 

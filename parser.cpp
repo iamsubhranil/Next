@@ -164,7 +164,7 @@ StmtPtr VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	return unq(VardeclStatement, t, e, vis);
 }
 
-StmtPtr FnDeclaration::parseFnBody(Parser *p, Token t) {
+StmtPtr FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after function name!");
 	std::vector<Token> args;
 	if(!p->match(TOKEN_RIGHT_PAREN)) {
@@ -175,7 +175,14 @@ StmtPtr FnDeclaration::parseFnBody(Parser *p, Token t) {
 		p->consume(TOKEN_RIGHT_PAREN,
 		           "Expected ')' after argument declaration!");
 	}
-	StmtPtr block = p->parseBlock();
+	StmtPtr block = nullptr;
+	if(!isNative) {
+		block = p->parseBlock();
+	} else {
+		if(p->lookAhead(0).type == TOKEN_LEFT_BRACE) {
+			p->consume(TOKEN_fn, "Native functions should not have a body!");
+		}
+	}
 	return unq(FnBodyStatement, t, args, block);
 }
 

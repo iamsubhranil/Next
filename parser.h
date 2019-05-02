@@ -125,7 +125,7 @@ class ClassDeclaration : public DeclarationParselet {
 class FnDeclaration : public DeclarationParselet {
   public:
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis);
-	static StmtPtr  parseFnBody(Parser *p, Token t);
+	static StmtPtr  parseFnBody(Parser *p, Token t, bool isNative = false);
 	static StmtPtr  parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 	                                 Visibility vis);
 };
