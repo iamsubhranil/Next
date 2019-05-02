@@ -55,6 +55,16 @@ static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_while, new WhileStatementParselet());
 	p->registerParselet(TOKEN_do, new DoStatementParselet());
 	p->registerParselet(TOKEN_try, new TryStatementParselet());
+
+	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
+	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(TOKEN_priv, new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(TOKEN_static, new StaticDeclaration());
+	ClassDeclaration::registerParselet(TOKEN_fn, new MethodDeclaration());
+	ClassDeclaration::registerParselet(TOKEN_IDENTIFIER,
+	                                   new MemberDeclaration());
+
+	p->registerParselet(TOKEN_class, new ClassDeclaration());
 }
 
 int main(int argc, char *argv[]) {

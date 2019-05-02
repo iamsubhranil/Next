@@ -63,14 +63,14 @@ std::vector<StmtPtr> Parser::parseAllDeclarations() {
 
 #define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
 
-StmtPtr Parser::parseBlock() {
+StmtPtr Parser::parseBlock(bool isStatic) {
 	Token t =
 	    consume(TOKEN_LEFT_BRACE, "Expected '{' on the starting of a block!");
 	std::vector<StmtPtr> s;
 	while(!match(TOKEN_RIGHT_BRACE)) {
 		s.push_back(parseStatement());
 	}
-	return unq(BlockStatement, t, s);
+	return unq(BlockStatement, t, s, isStatic);
 }
 
 StmtPtr Parser::parseStatement() {
@@ -187,11 +187,15 @@ StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 	}
 	Token   name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
 	StmtPtr body = FnDeclaration::parseFnBody(p, t);
-	return unq(FnStatement, t, name, body, ism, iss, isn, vis);
+	return unq(FnStatement, t, name, body, ism, iss, isn, false, vis);
 }
 
 StmtPtr FnDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	return parseFnStatement(p, t, false, false, vis);
+}
+
+void ClassDeclaration::registerParselet(TokenType t, StatementParselet *p) {
+	classBodyParselets[t] = p;
 }
 
 StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
@@ -207,13 +211,57 @@ StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	return unq(ClassStatement, t, name, classDecl, vis);
 }
 
+std::unordered_map<TokenType, StatementParselet *>
+    ClassDeclaration::classBodyParselets = {};
+
 StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
 	Token t = p->consume();
-	DeclarationParselet *decl = classBodyParselets[t.type];
+	StatementParselet *decl = classBodyParselets[t.type];
 	if(decl == NULL) {
 		throw ParseException(t, "Invalid class body!");
 	}
-	return decl->parse(p, t, VIS_PRIV);
+	return decl->parse(p, t);
+}
+
+StmtPtr ConstructorDeclaration::parse(Parser *p, Token t) {
+	StmtPtr body = FnDeclaration::parseFnBody(p, t);
+	// isMethod = true and isConstructor = true
+	return unq(FnStatement, t, t, body, true, false, false, true, VIS_PUB);
+}
+
+StmtPtr VisibilityDeclaration::parse(Parser *p, Token t) {
+	p->consume(TOKEN_COLON, "Expected ':' after access modifier!");
+	return unq(VisibilityStatement, t);
+}
+
+StmtPtr StaticDeclaration::parse(Parser *p, Token t) {
+	Token next = p->lookAhead(0);
+	if(next.type == TOKEN_IDENTIFIER) { // it's a static variable
+		next = p->consume();
+		return MemberDeclaration::parse(p, next, true);
+	} else if(next.type == TOKEN_fn) { // it's a static function
+		p->consume();
+		return FnDeclaration::parseFnStatement(p, t, true, true, VIS_PRIV);
+	}
+	// it must be a block
+	return p->parseBlock(true);
+}
+
+StmtPtr MethodDeclaration::parse(Parser *p, Token t) {
+	return FnDeclaration::parseFnStatement(p, t, true, false, VIS_PRIV);
+}
+
+StmtPtr MemberDeclaration::parse(Parser *p, Token t) {
+	return parse(p, t, false);
+}
+
+StmtPtr MemberDeclaration::parse(Parser *p, Token t, bool iss) {
+	std::vector<Token> members;
+	members.push_back(t);
+	while(p->match(TOKEN_COMMA)) {
+		members.push_back(p->consume());
+	}
+	return unq(MemberVariableStatement, t, members, iss);
 }
 
 // Statements
@@ -227,6 +275,7 @@ StmtPtr IfStatementParselet::parse(Parser *p, Token t) {
 			p->consume();
 			elseBlock = p->parseStatement();
 		} else {
+			p->consume();
 			elseBlock = p->parseBlock();
 		}
 	}

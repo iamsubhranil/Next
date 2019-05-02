@@ -23,11 +23,15 @@ void StatementPrinter::visit(WhileStatement *ifs) {
 }
 
 void StatementPrinter::visit(FnStatement *ifs) {
-	os << (ifs->visibility == VIS_PUB ? "pub " : "priv ");
+	if(!ifs->isMethod) {
+		os << (ifs->visibility == VIS_PUB ? "pub " : "priv ");
+	}
 	if(ifs->isStatic) {
 		os << "static ";
 	}
-	os << "fn ";
+	if(!ifs->isConstructor) {
+		os << "fn ";
+	}
 	if(ifs->isNative) {
 		os << "native ";
 	}
@@ -71,6 +75,9 @@ void StatementPrinter::visit(ImportStatement *ifs) {
 	}
 }
 void StatementPrinter::visit(BlockStatement *ifs) {
+	if(ifs->isStatic) {
+		os << "static ";
+	}
 	os << "{\n";
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++) {
@@ -95,6 +102,30 @@ void StatementPrinter::visit(VardeclStatement *ifs) {
 	os << " = ";
 	ep.print(ifs->expr.get());
 }
-void StatementPrinter::visit(MemberVariableStatement *ifs) {}
 
-void StatementPrinter::visit(ClassStatement *ifs) {}
+void StatementPrinter::visit(ClassStatement *ifs) {
+	os << (ifs->vis == VIS_PUB ? "pub " : "priv ");
+	os << "class ";
+	os << ifs->name << "{\n";
+	for(auto i = ifs->declarations.begin(), j = ifs->declarations.end(); i != j;
+	    i++) {
+		(*i)->accept(this);
+		os << "\n";
+	}
+	os << "}";
+}
+void StatementPrinter::visit(MemberVariableStatement *ifs) {
+	if(ifs->isStatic)
+		os << "static ";
+	auto i = ifs->members.begin(), j = ifs->members.end();
+	os << *i;
+	i++;
+	while(i != j) {
+		os << ", ";
+		os << *i;
+		i++;
+	}
+}
+void StatementPrinter::visit(VisibilityStatement *ifs) {
+	os << (ifs->token.type == TOKEN_pub ? "pub: " : "priv: ");
+}

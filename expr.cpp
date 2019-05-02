@@ -17,7 +17,7 @@ void ExpressionPrinter::visit(AssignExpression *as) {
 void ExpressionPrinter::visit(BinaryExpression *be) {
 	out << "(";
 	be->left->accept(this);
-	out << " " << Token::TokenNames[be->token.type] << " ";
+	out << " " << Token::FormalNames[be->token.type] << " ";
 	be->right->accept(this);
 	out << ")";
 }
@@ -58,7 +58,7 @@ void ExpressionPrinter::visit(LiteralExpression *le) {
 
 void ExpressionPrinter::visit(LogicalExpression *le) {
 	le->left->accept(this);
-	out << " " << Token::TokenNames[le->token.type] << " ";
+	out << " " << Token::FormalNames[le->token.type] << " ";
 	le->right->accept(this);
 }
 
@@ -72,14 +72,14 @@ void ExpressionPrinter::visit(SetExpression *se) {
 
 void ExpressionPrinter::visit(PrefixExpression *pe) {
 	out << "(";
-	out << Token::TokenNames[pe->token.type];
+	out << Token::FormalNames[pe->token.type];
 	pe->right->accept(this);
 	out << ")";
 }
 
 void ExpressionPrinter::visit(PostfixExpression *pe) {
 	pe->left->accept(this);
-	out << Token::TokenNames[pe->token.type];
+	out << Token::FormalNames[pe->token.type];
 }
 
 void ExpressionPrinter::visit(VariableExpression *v) {

@@ -19,7 +19,7 @@ classDecl ->    visDecl         // pub/priv :
 
 visDecl ->  ("pub" | "priv") ":"
 
-memDecl -> "static"? IDENTIFIFER ("," IDENTIFIER)*
+memDecl -> "static"? IDENTIFIFER ("," IDENTIFIER)* // members can't have default values for now
 
 constructorDecl -> "new" fnBody
 

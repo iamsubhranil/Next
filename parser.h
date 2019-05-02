@@ -98,6 +98,11 @@ class DeclarationParselet {
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis) = 0;
 };
 
+class StatementParselet {
+  public:
+	virtual StmtPtr parse(Parser *p, Token t) = 0;
+};
+
 class ImportDeclaration : public DeclarationParselet {
   public:
 	StmtPtr
@@ -108,9 +113,11 @@ class ImportDeclaration : public DeclarationParselet {
 class ClassDeclaration : public DeclarationParselet {
   private:
 	StmtPtr parseClassBody(Parser *p);
-	std::unordered_map<TokenType, DeclarationParselet *> classBodyParselets;
+	static std::unordered_map<TokenType, StatementParselet *>
+	    classBodyParselets;
 
   public:
+	static void registerParselet(TokenType t, StatementParselet *parselet);
 	Visibility memberVisibility;
 	StmtPtr parse(Parser *p, Token t, Visibility vis);
 };
@@ -130,11 +137,6 @@ class OperatorMethodDeclaration : public DeclarationParselet {
 
 class VarDeclaration : public DeclarationParselet {
 	StmtPtr parse(Parser *p, Token t, Visibility vis);
-};
-
-class StatementParselet {
-  public:
-	virtual StmtPtr parse(Parser *p, Token t) = 0;
 };
 
 class IfStatementParselet : public StatementParselet {
@@ -162,6 +164,38 @@ class CatchStatementParselet : public StatementParselet {
 	StmtPtr parse(Parser *p, Token t);
 };
 
+// Class Body Statements
+
+class ConstructorDeclaration : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class VisibilityDeclaration : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+// it can either be a static block, or a static function,
+// or a static variable
+class StaticDeclaration : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class MethodDeclaration : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class MemberDeclaration : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+	static StmtPtr parse(Parser *p, Token t, bool isStatic);
+};
+
+// Parser
+
 class Parser {
   private:
 	std::unordered_map<TokenType, PrefixParselet *>      prefixParselets;
@@ -187,10 +221,10 @@ class Parser {
 	ExpPtr  parseExpression();
 	ExpPtr  parseExpression(int precedence, Token token);
 	ExpPtr  parseExpression(int precedence);
-	StmtPtr parseDeclaration();
+	StmtPtr              parseDeclaration();
 	std::vector<StmtPtr> parseAllDeclarations();
 	StmtPtr parseStatement();
-	StmtPtr parseBlock();
+	StmtPtr              parseBlock(bool isStatic = false);
 };
 
 class ParseException : public std::runtime_error {

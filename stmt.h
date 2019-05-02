@@ -15,6 +15,7 @@ class BlockStatement;
 class ExpressionStatement;
 class VardeclStatement;
 class MemberVariableStatement;
+class VisibilityStatement;
 
 class StatementVisitor {
   public:
@@ -30,6 +31,7 @@ class StatementVisitor {
 	virtual void visit(ExpressionStatement *ifs) = 0;
 	virtual void visit(VardeclStatement *ifs)    = 0;
 	virtual void visit(MemberVariableStatement *ifs) = 0;
+	virtual void visit(VisibilityStatement *ifs)     = 0;
 };
 
 typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV } Visibility;
@@ -70,12 +72,12 @@ class FnStatement : public Statement {
   public:
 	Token      name;
 	StmtPtr    body;
-	bool       isMethod, isStatic, isNative;
+	bool       isMethod, isStatic, isNative, isConstructor;
 	Visibility visibility;
 	FnStatement(Token fn, Token n, StmtPtr &fnBody, bool ism, bool iss,
-	            bool isn, Visibility vis)
+	            bool isn, bool isc, Visibility vis)
 	    : Statement(fn), name(n), body(fnBody.release()), isMethod(ism),
-	      isStatic(iss), isNative(isn), visibility(vis) {}
+	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -111,12 +113,18 @@ class ClassStatement : public Statement {
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
+class VisibilityStatement : public Statement {
+  public:
+	VisibilityStatement(Token t) : Statement(t) {}
+	void accept(StatementVisitor *vis) { vis->visit(this); }
+};
+
 class MemberVariableStatement : public Statement {
   public:
 	std::vector<Token> members;
-	Visibility         vis;
-	MemberVariableStatement(Token t, std::vector<Token> &mem, Visibility v)
-	    : Statement(t), members(mem.begin(), mem.end()), vis(v) {}
+	bool               isStatic;
+	MemberVariableStatement(Token t, std::vector<Token> &mem, bool iss)
+	    : Statement(t), members(mem.begin(), mem.end()), isStatic(iss) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -153,8 +161,10 @@ class CatchStatement : public Statement {
 class BlockStatement : public Statement {
   public:
 	std::vector<StmtPtr> statements;
-	BlockStatement(Token t) : Statement(t) {}
-	BlockStatement(Token t, std::vector<StmtPtr> &sts) : Statement(t) {
+	bool                 isStatic;
+	BlockStatement(Token t) : Statement(t), isStatic(false) {}
+	BlockStatement(Token t, std::vector<StmtPtr> &sts, bool iss = false)
+	    : Statement(t), isStatic(iss) {
 		for(auto i = sts.begin(), j = sts.end(); i != j; i++) {
 			statements.push_back(StmtPtr(i->release()));
 		}
@@ -194,4 +204,5 @@ class StatementPrinter : public StatementVisitor {
 	void visit(ExpressionStatement *ifs);
 	void visit(VardeclStatement *ifs);
 	void visit(MemberVariableStatement *ifs);
+	void visit(VisibilityStatement *ifs);
 };

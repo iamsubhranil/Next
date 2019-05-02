@@ -11,3 +11,46 @@ pub fn cool(a, b) {
 
     }
 }
+
+class sys {
+    priv:
+        aMember, anotherMember
+
+        static aStaticMember
+
+        new() {
+            // empty constructor
+        }
+
+        new(a, b, c){
+            if(a < b) {
+                aMember = a
+            } else if(someThing) {
+                aMember = c
+            } else {
+                prin("Hello!")
+            }
+        }
+    pub:
+        new(a, b, c, d) {
+            sys(a, b, c, 0)
+        }
+
+        static fn aStaticFn() {
+
+        }
+
+        fn nonStaticFn() {
+
+        }
+
+        fn native nsNativeFn() {
+
+        }
+
+        static fn native sNativeFn() {
+
+        }
+
+        static {}
+}
