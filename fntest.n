@@ -45,13 +45,9 @@ class sys {
 
         }
 
-        fn native nsNativeFn() {
+        fn native nsNativeFn()
 
-        }
-
-        static fn native sNativeFn() {
-
-        }
+        static fn native sNativeFn()
 
         static {}
 }

@@ -193,7 +193,7 @@ StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 		isn = true;
 	}
 	Token   name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
-	StmtPtr body = FnDeclaration::parseFnBody(p, t);
+	StmtPtr body = FnDeclaration::parseFnBody(p, t, isn);
 	return unq(FnStatement, t, name, body, ism, iss, isn, false, vis);
 }
 
