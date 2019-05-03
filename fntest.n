@@ -1,5 +1,9 @@
 import something
 
+fn mightThrowAnException() {
+    throw AnException("A sample exception!")
+}
+
 pub fn cool(a, b) {
     c = cool(3, 4)
     if(i < j) {

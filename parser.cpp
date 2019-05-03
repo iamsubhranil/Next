@@ -332,6 +332,11 @@ StmtPtr PrintStatementParselet::parse(Parser *p, Token t) {
 	return unq(PrintStatement, t, exprs);
 }
 
+StmtPtr ThrowStatementParselet::parse(Parser *p, Token t) {
+	ExpPtr th = p->parseExpression();
+	return unq(ThrowStatement, t, th);
+}
+
 // Expressions
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {

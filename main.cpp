@@ -56,6 +56,7 @@ static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_do, new DoStatementParselet());
 	p->registerParselet(TOKEN_try, new TryStatementParselet());
 	p->registerParselet(TOKEN_print, new PrintStatementParselet());
+	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
 
 	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());

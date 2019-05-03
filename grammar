@@ -44,6 +44,7 @@ statement ->    ifStatement
             |   whileStatement
             |   printStatement
             |   doStatement
+            |   throwStatement
             |   tryCatchBlock
             |   expressionStatement
 
@@ -52,6 +53,8 @@ ifStatement -> "if" expression blockStatement ("else" (ifStatement | blockStatem
 whileStatement -> "while" expression blockStatement
 
 doStatement -> "do" blockStatement "while" expression
+
+throwStatement -> "throw" expression
 
 tryCatchBlock -> "try" blockStatement catchStatement+
 
