@@ -9,3 +9,4 @@ vgcore.*
 *.o
 .depend
 grammar_peg
+next
