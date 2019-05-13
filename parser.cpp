@@ -344,6 +344,24 @@ ExpPtr NameParselet::parse(Parser *parser, Token t) {
 	return unq(VariableExpression, t);
 }
 
+ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
+	(void)parser;
+	switch(t.type) {
+		case TOKEN_STRING:
+			return unq(LiteralExpression,
+			           Value(StringLibrary::insert(t.start, t.length)), t);
+		case TOKEN_NUMBER: {
+			char * end = NULL;
+			double val = strtod(t.start, &end);
+			if(end == NULL || end - t.start < t.length) {
+				throw ParseException(t, "Not a valid number!");
+			}
+			return unq(LiteralExpression, Value(val), t);
+		}
+		default: throw ParseException(t, "Invalid literal value!");
+	}
+}
+
 ExpPtr PrefixOperatorParselet::parse(Parser *parser, Token t) {
 	ExpPtr right = parser->parseExpression(getPrecedence());
 	return unq(PrefixExpression, t, right);

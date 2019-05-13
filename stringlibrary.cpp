@@ -4,7 +4,7 @@
 
 using namespace std;
 
-StringLibrary::StringLibrary() : strings() {}
+unordered_map<size_t, string> StringLibrary::strings = {};
 
 size_t StringLibrary::insert(const string &s) {
 	size_t hash_ = hash<string>{}(s);
@@ -29,9 +29,8 @@ const char *StringLibrary::get_raw(size_t idx) {
 	return get(idx).c_str();
 }
 
-ostream &operator<<(ostream &os, const StringLibrary &sl) {
-	for(auto i = sl.strings.begin(), j = sl.strings.end(); i != j; i++) {
+void StringLibrary::print(ostream &os) {
+	for(auto i = strings.begin(), j = strings.end(); i != j; i++) {
 		os << setw(10) << i->second << "\t" << i->first << endl;
 	}
-	return os;
 }

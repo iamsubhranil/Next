@@ -53,13 +53,7 @@ void ExpressionPrinter::visit(GroupingExpression *ge) {
 }
 
 void ExpressionPrinter::visit(LiteralExpression *le) {
-	out << string(le->value.val, le->value.len);
-}
-
-void ExpressionPrinter::visit(LogicalExpression *le) {
-	le->left->accept(this);
-	out << " " << Token::FormalNames[le->token.type] << " ";
-	le->right->accept(this);
+	out << le->value;
 }
 
 void ExpressionPrinter::visit(SetExpression *se) {

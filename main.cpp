@@ -18,8 +18,8 @@ static void infixRight(Parser *p, TokenType t, int prec) {
 
 static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
-	p->registerParselet(TOKEN_NUMBER, new NameParselet());
-	p->registerParselet(TOKEN_STRING, new NameParselet());
+	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
+	p->registerParselet(TOKEN_STRING, new LiteralParselet());
 
 	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());

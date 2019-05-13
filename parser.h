@@ -33,6 +33,11 @@ class NameParselet : public PrefixParselet {
 	ExpPtr parse(Parser *parser, Token t);
 };
 
+class LiteralParselet : public PrefixParselet {
+  public:
+	ExpPtr parse(Parser *parser, Token t);
+};
+
 class PrefixOperatorParselet : public PrefixParselet {
   private:
 	int precedence;

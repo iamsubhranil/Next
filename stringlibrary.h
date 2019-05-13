@@ -6,13 +6,12 @@
 
 class StringLibrary {
   private:
-	std::unordered_map<size_t, std::string> strings;
+	static std::unordered_map<size_t, std::string> strings;
 
   public:
-	StringLibrary();
-	size_t               insert(const std::string &s);
-	size_t               insert(const char *s, size_t length);
-	const std::string &  get(size_t hash_);
-	const char *         get_raw(size_t hash_);
-	friend std::ostream &operator<<(std::ostream &os, const StringLibrary &sl);
+	static size_t        insert(const std::string &s);
+	static size_t        insert(const char *s, size_t length);
+	static const std::string &get(size_t hash_);
+	static const char *       get_raw(size_t hash_);
+	static void               print(std::ostream &os);
 };

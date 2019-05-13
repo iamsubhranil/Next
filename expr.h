@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scanner.h"
+#include "value.h"
 #include <memory>
 #include <vector>
 
@@ -10,16 +11,10 @@ class CallExpression;
 class GetExpression;
 class GroupingExpression;
 class LiteralExpression;
-class LogicalExpression;
 class SetExpression;
 class PrefixExpression;
 class PostfixExpression;
 class VariableExpression;
-
-typedef struct Value {
-	const char *val;
-	size_t      len;
-} Value;
 
 class ExpressionVisitor {
   public:
@@ -29,7 +24,6 @@ class ExpressionVisitor {
 	virtual void visit(GetExpression *get)        = 0;
 	virtual void visit(GroupingExpression *group) = 0;
 	virtual void visit(LiteralExpression *lit)    = 0;
-	virtual void visit(LogicalExpression *logic)  = 0;
 	virtual void visit(SetExpression *sete)       = 0;
 	virtual void visit(PrefixExpression *pe)      = 0;
 	virtual void visit(PostfixExpression *pe)     = 0;
@@ -114,14 +108,6 @@ class LiteralExpression : public Expr {
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
-class LogicalExpression : public Expr {
-  public:
-	ExpPtr left, right;
-	LogicalExpression(ExpPtr &l, Token op, ExpPtr &r)
-	    : Expr(op), left(l.release()), right(r.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-};
-
 class SetExpression : public Expr {
   public:
 	ExpPtr object, value;
@@ -158,7 +144,6 @@ class ExpressionPrinter : public ExpressionVisitor {
 	void visit(GetExpression *get);
 	void visit(GroupingExpression *group);
 	void visit(LiteralExpression *lit);
-	void visit(LogicalExpression *logic);
 	void visit(SetExpression *sete);
 	void visit(PrefixExpression *pe);
 	void visit(PostfixExpression *pe);
