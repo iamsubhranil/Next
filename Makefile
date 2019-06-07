@@ -15,7 +15,7 @@ release: LDFLAGS += -s
 release: next
 
 debug: CXXFLAGS += -g3 -DDEBUG
-debug: clean next
+debug: | clean next
 
 next: $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o next
