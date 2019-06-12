@@ -23,6 +23,7 @@ void ExpressionPrinter::visit(BinaryExpression *be) {
 }
 
 void ExpressionPrinter::visit(CallExpression *ce) {
+	out << "(";
 	ce->callee->accept(this);
 	out << "(";
 	if(!ce->arguments.empty()) {
@@ -35,6 +36,7 @@ void ExpressionPrinter::visit(CallExpression *ce) {
 			i++;
 		}
 	}
+	out << ")";
 	out << ")";
 }
 

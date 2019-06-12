@@ -7,23 +7,23 @@ Parser::Parser(Scanner &s) : scanner(s) {
 }
 
 void Parser::registerParselet(TokenType t, PrefixParselet *p) {
-	prefixParselets[t] = p;
+	prefixParselets[t] = PrefixParseletPtr(p);
 }
 
 void Parser::registerParselet(TokenType t, InfixParselet *i) {
-	infixParselets[t] = i;
+	infixParselets[t] = InfixParseletPtr(i);
 }
 
 void Parser::registerParselet(TokenType t, DeclarationParselet *i) {
-	declarationParselets[t] = i;
+	declarationParselets[t] = DeclarationParseletPtr(i);
 }
 
 void Parser::registerParselet(TokenType t, StatementParselet *i) {
-	statementParselets[t] = i;
+	statementParselets[t] = StatementParseletPtr(i);
 }
 
 ExpPtr Parser::parseExpression(int precedence, Token token) {
-	PrefixParselet *prefix = prefixParselets[token.type];
+	PrefixParselet *prefix = prefixParselets[token.type].get();
 
 	if(prefix == NULL) {
 		throw ParseException(token, "Unable to parse the expression!");
@@ -34,7 +34,7 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 	while(precedence < getPrecedence()) {
 		token = consume();
 
-		InfixParselet *infix = infixParselets[token.type];
+		InfixParselet *infix = infixParselets[token.type].get();
 		left                 = infix->parse(this, left, token);
 	}
 
@@ -42,13 +42,13 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 }
 
 StmtPtr Parser::parseDeclaration() {
-	Visibility vis      = VIS_PRIV;
-	Token      token    = consume();
+	Visibility vis   = VIS_PRIV;
+	Token      token = consume();
 	if(token.type == TOKEN_pub || token.type == TOKEN_priv) {
 		vis   = (Visibility)(VIS_PUB + (token.type != TOKEN_pub));
 		token = consume();
 	}
-	DeclarationParselet *decl = declarationParselets[token.type];
+	DeclarationParselet *decl = declarationParselets[token.type].get();
 	if(decl == NULL) {
 		throw ParseException(token, "Unable to parse top level declaration!");
 	}
@@ -60,8 +60,6 @@ std::vector<StmtPtr> Parser::parseAllDeclarations() {
 	while(lookAhead(0).type != TOKEN_EOF) ret.push_back(parseDeclaration());
 	return ret;
 }
-
-#define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
 
 StmtPtr Parser::parseBlock(bool isStatic) {
 	Token t =
@@ -76,7 +74,7 @@ StmtPtr Parser::parseBlock(bool isStatic) {
 StmtPtr Parser::parseStatement() {
 	Token t = consume();
 
-	StatementParselet *p = statementParselets[t.type];
+	StatementParselet *p = statementParselets[t.type].get();
 
 	if(p == NULL) { // then it may be a expression statement
 		std::vector<ExpPtr> exprs;
@@ -139,7 +137,7 @@ bool Parser::match(TokenType t) {
 }
 
 int Parser::getPrecedence() {
-	InfixParselet *p = infixParselets[lookAhead(0).type];
+	InfixParselet *p = infixParselets[lookAhead(0).type].get();
 	if(p != NULL)
 		return p->getPrecedence();
 	return 0;
@@ -164,7 +162,8 @@ StmtPtr VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	return unq(VardeclStatement, t, e, vis);
 }
 
-StmtPtr FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative) {
+std::unique_ptr<FnBodyStatement> FnDeclaration::parseFnBody(Parser *p, Token t,
+                                                            bool isNative) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after function name!");
 	std::vector<Token> args;
 	if(!p->match(TOKEN_RIGHT_PAREN)) {
@@ -192,8 +191,9 @@ StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 	if(p->match(TOKEN_native)) {
 		isn = true;
 	}
-	Token   name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
-	StmtPtr body = FnDeclaration::parseFnBody(p, t, isn);
+	Token name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
+	std::unique_ptr<FnBodyStatement> body =
+	    FnDeclaration::parseFnBody(p, t, isn);
 	return unq(FnStatement, t, name, body, ism, iss, isn, false, vis);
 }
 
@@ -222,7 +222,7 @@ std::unordered_map<TokenType, StatementParselet *>
     ClassDeclaration::classBodyParselets = {};
 
 StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
-	Token t = p->consume();
+	Token              t    = p->consume();
 	StatementParselet *decl = classBodyParselets[t.type];
 	if(decl == NULL) {
 		throw ParseException(t, "Invalid class body!");
@@ -231,7 +231,7 @@ StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
 }
 
 StmtPtr ConstructorDeclaration::parse(Parser *p, Token t) {
-	StmtPtr body = FnDeclaration::parseFnBody(p, t);
+	std::unique_ptr<FnBodyStatement> body = FnDeclaration::parseFnBody(p, t);
 	// isMethod = true and isConstructor = true
 	return unq(FnStatement, t, t, body, true, false, false, true, VIS_PUB);
 }
@@ -274,7 +274,7 @@ StmtPtr MemberDeclaration::parse(Parser *p, Token t, bool iss) {
 // Statements
 
 StmtPtr IfStatementParselet::parse(Parser *p, Token t) {
-	ExpPtr expr = p->parseExpression();
+	ExpPtr  expr      = p->parseExpression();
 	StmtPtr thenBlock = p->parseBlock();
 	StmtPtr elseBlock = nullptr;
 	if(p->lookAhead(0).type == TOKEN_else) {
@@ -298,19 +298,19 @@ StmtPtr WhileStatementParselet::parse(Parser *p, Token t) {
 StmtPtr DoStatementParselet::parse(Parser *p, Token t) {
 	StmtPtr thenBlock = p->parseBlock();
 	p->consume(TOKEN_while, "Expected 'while' after 'do' block!");
-	ExpPtr  cond      = p->parseExpression();
+	ExpPtr cond = p->parseExpression();
 	return unq(WhileStatement, t, cond, thenBlock, true);
 }
 
 StmtPtr TryStatementParselet::parse(Parser *p, Token t) {
-	StmtPtr tryBlock = p->parseBlock();
+	StmtPtr              tryBlock = p->parseBlock();
 	std::vector<StmtPtr> catchBlocks;
 	do {
 		Token c =
 		    p->consume(TOKEN_catch, "Expected 'catch' after 'try' block!");
 		p->consume(TOKEN_LEFT_PAREN, "Expected '(' after catch!");
-		Token typ     = p->consume(TOKEN_IDENTIFIER,
-                               "Expected type name to catch after 'catch'!");
+		Token typ = p->consume(TOKEN_IDENTIFIER,
+		                       "Expected type name to catch after 'catch'!");
 		Token varName =
 		    p->consume(TOKEN_IDENTIFIER,
 		               "Expected variable name after type name to catch!");
@@ -337,6 +337,11 @@ StmtPtr ThrowStatementParselet::parse(Parser *p, Token t) {
 	return unq(ThrowStatement, t, th);
 }
 
+StmtPtr ReturnStatementParselet::parse(Parser *p, Token t) {
+	ExpPtr th = p->parseExpression();
+	return unq(ReturnStatement, t, th);
+}
+
 // Expressions
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {
@@ -344,12 +349,34 @@ ExpPtr NameParselet::parse(Parser *parser, Token t) {
 	return unq(VariableExpression, t);
 }
 
+std::string Parser::buildNextString(Token &t) {
+	std::string s;
+	for(int i = 1; i < t.length - 1; i++) {
+		char c = t.start[i];
+		if(c == '\\') {
+			switch(t.start[i + 1]) {
+				case 'n':
+					s.append(1, '\n');
+					i++;
+					break;
+				case 't':
+					s.append(1, '\t');
+					i++;
+					break;
+			}
+		} else
+			s.append(1, t.start[i]);
+	}
+	return s;
+}
+
 ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 	(void)parser;
 	switch(t.type) {
 		case TOKEN_STRING:
 			return unq(LiteralExpression,
-			           Value(StringLibrary::insert(t.start, t.length)), t);
+			           Value(StringLibrary::insert(parser->buildNextString(t))),
+			           t);
 		case TOKEN_NUMBER: {
 			char * end = NULL;
 			double val = strtod(t.start, &end);
@@ -410,7 +437,7 @@ ExpPtr CallParselet::parse(Parser *parser, ExpPtr &left, Token t) {
 }
 
 ExpPtr ReferenceParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
-	ExpPtr member = parser->parseExpression(Precedence::CALL);
+	ExpPtr member = parser->parseExpression(Precedence::REFERENCE);
 	return unq(GetExpression, obj, t, member);
 }
 

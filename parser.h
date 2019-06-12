@@ -18,7 +18,9 @@ class Precedence {
 	static const int EXPONENT   = 8;
 	static const int PREFIX     = 9;
 	static const int POSTFIX    = 10;
-	static const int CALL       = 11;
+	static const int REFERENCE  = 11;
+	static const int CALL       = 12;
+	static const int PRIMARY    = 13;
 };
 
 class Parser;
@@ -26,6 +28,7 @@ class Parser;
 class PrefixParselet {
   public:
 	virtual ExpPtr parse(Parser *parser, Token t) = 0;
+	virtual ~PrefixParselet() {}
 };
 
 class NameParselet : public PrefixParselet {
@@ -61,6 +64,7 @@ class InfixParselet {
 	InfixParselet(int prec) : precedence(prec) {}
 	virtual ExpPtr parse(Parser *parser, ExpPtr &left, Token t) = 0;
 	int            getPrecedence() { return precedence; }
+	virtual ~InfixParselet() {}
 };
 
 class BinaryOperatorParselet : public InfixParselet {
@@ -93,7 +97,7 @@ class CallParselet : public InfixParselet {
 
 class ReferenceParselet : public InfixParselet {
   public:
-	ReferenceParselet() : InfixParselet(Precedence::CALL) {}
+	ReferenceParselet() : InfixParselet(Precedence::REFERENCE) {}
 	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
 };
 
@@ -101,11 +105,13 @@ class DeclarationParselet {
   public:
 	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_PRIV); }
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis) = 0;
+	virtual ~DeclarationParselet() {}
 };
 
 class StatementParselet {
   public:
 	virtual StmtPtr parse(Parser *p, Token t) = 0;
+	virtual ~StatementParselet() {}
 };
 
 class ImportDeclaration : public DeclarationParselet {
@@ -123,16 +129,17 @@ class ClassDeclaration : public DeclarationParselet {
 
   public:
 	static void registerParselet(TokenType t, StatementParselet *parselet);
-	Visibility memberVisibility;
-	StmtPtr parse(Parser *p, Token t, Visibility vis);
+	Visibility  memberVisibility;
+	StmtPtr     parse(Parser *p, Token t, Visibility vis);
 };
 
 class FnDeclaration : public DeclarationParselet {
   public:
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis);
-	static StmtPtr  parseFnBody(Parser *p, Token t, bool isNative = false);
-	static StmtPtr  parseFnStatement(Parser *p, Token t, bool ism, bool iss,
-	                                 Visibility vis);
+	static std::unique_ptr<FnBodyStatement> parseFnBody(Parser *p, Token t,
+	                                                    bool isNative = false);
+	static StmtPtr parseFnStatement(Parser *p, Token t, bool ism, bool iss,
+	                                Visibility vis);
 };
 
 class OperatorMethodDeclaration : public DeclarationParselet {
@@ -179,6 +186,11 @@ class ThrowStatementParselet : public StatementParselet {
 	StmtPtr parse(Parser *p, Token t);
 };
 
+class ReturnStatementParselet : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
 // Class Body Statements
 
 class ConstructorDeclaration : public StatementParselet {
@@ -205,29 +217,34 @@ class MethodDeclaration : public StatementParselet {
 
 class MemberDeclaration : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	StmtPtr        parse(Parser *p, Token t);
 	static StmtPtr parse(Parser *p, Token t, bool isStatic);
 };
 
 // Parser
 
+using PrefixParseletPtr      = std::unique_ptr<PrefixParselet>;
+using InfixParseletPtr       = std::unique_ptr<InfixParselet>;
+using DeclarationParseletPtr = std::unique_ptr<DeclarationParselet>;
+using StatementParseletPtr   = std::unique_ptr<StatementParselet>;
+
 class Parser {
   private:
-	std::unordered_map<TokenType, PrefixParselet *>      prefixParselets;
-	std::unordered_map<TokenType, InfixParselet *>       infixParselets;
-	std::unordered_map<TokenType, DeclarationParselet *> declarationParselets;
-	std::unordered_map<TokenType, StatementParselet *>   statementParselets;
-	Scanner &                                       scanner;
-	std::deque<Token>                               tokenCache;
+	std::unordered_map<TokenType, PrefixParseletPtr>      prefixParselets;
+	std::unordered_map<TokenType, InfixParseletPtr>       infixParselets;
+	std::unordered_map<TokenType, DeclarationParseletPtr> declarationParselets;
+	std::unordered_map<TokenType, StatementParseletPtr>   statementParselets;
+	Scanner &                                             scanner;
+	std::deque<Token>                                     tokenCache;
 
-	int   getPrecedence();
+	int getPrecedence();
 
   public:
 	Parser(Scanner &sc);
-	Token lookAhead(size_t distance);
+	Token   lookAhead(size_t distance);
 	bool    match(TokenType expected);
 	Token   consume();
-	Token                consume(TokenType expected, const char *message);
+	Token   consume(TokenType expected, const char *message);
 	void    registerParselet(TokenType type, PrefixParselet *p);
 	void    registerParselet(TokenType type, InfixParselet *p);
 	void    registerParselet(TokenType type, DeclarationParselet *p);
@@ -236,10 +253,11 @@ class Parser {
 	ExpPtr  parseExpression();
 	ExpPtr  parseExpression(int precedence, Token token);
 	ExpPtr  parseExpression(int precedence);
-	StmtPtr              parseDeclaration();
+	StmtPtr parseDeclaration();
 	std::vector<StmtPtr> parseAllDeclarations();
-	StmtPtr parseStatement();
+	StmtPtr              parseStatement();
 	StmtPtr              parseBlock(bool isStatic = false);
+	std::string          buildNextString(Token &t);
 };
 
 class ParseException : public std::runtime_error {

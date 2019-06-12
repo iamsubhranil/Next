@@ -7,33 +7,65 @@
 using NextString = size_t;
 
 class Value {
-    public:
-	  const union val {
-		  val(double dval) : d(dval) {}
-		  val(NextString sval) : s(sval) {}
-		  val(void *vval) : v(vval) {}
-		  double     d;
-		  NextString s;
-		  void *     v;
-	  } to;
-	  enum Type { STRING, NUMBER, OTHER };
-	  const Type t;
+  public:
+	union val {
+#define TYPE(r, n) \
+	r val##n;      \
+	val(r v##n) : val##n(v##n) {}
+#include "valuetypes.h"
+	} to;
+	enum Type {
+#define TYPE(r, n) VAL_##n,
+#include "valuetypes.h"
+		VAL_UNINITIALIZED
+	};
+	Type t;
 
-	  Value(NextString s) : to(s), t(STRING) {}
-	  Value(double d) : to(d), t(NUMBER) {}
-	  Value(void *v) : to(v), t(OTHER) {}
+	Value() : to(0.0), t(VAL_UNINITIALIZED) {}
+#define TYPE(r, n) \
+	Value(r s) : to(s), t(VAL_##n) {}
+#include "valuetypes.h"
 
-	  inline bool is(Type ty) const { return ty == t; }
-	  inline bool isString() const { return is(STRING); }
-	  inline bool isNumber() const { return is(NUMBER); }
-	  inline bool isOther() const { return is(OTHER); }
+	inline bool is(Type ty) const { return ty == t; }
+#define TYPE(r, n) \
+	inline bool is##n() const { return is(VAL_##n); }
+#include "valuetypes.h"
 
-	  friend std::ostream &operator<<(std::ostream &o, const Value &v) {
-		  switch(v.t) {
-			  case STRING: o << StringLibrary::get(v.to.s); break;
-			  case NUMBER: o << v.to.d; break;
-			  case OTHER: o << "Pointer : " << v.to.v; break;
-		  }
-		  return o;
-	  }
+#define TYPE(r, n) \
+	inline r to##n() const { return to.val##n; }
+#include "valuetypes.h"
+
+	friend std::ostream &operator<<(std::ostream &o, const Value &v) {
+		switch(v.t) {
+			case Value::VAL_String:
+				o << StringLibrary::get(v.to.valString);
+				break;
+			case Value::VAL_Number: o << v.to.valNumber; break;
+			case Value::VAL_Other: o << "Pointer : " << v.to.valOther; break;
+			case Value::VAL_Boolean:
+				o << (v.to.valBoolean ? "true" : "false");
+				break;
+			case Value::VAL_UNINITIALIZED: o << "<uninitialized>"; break;
+		}
+		return o;
+	}
+
+#define TYPE(r, n)           \
+	Value &operator=(r d) {  \
+		t         = VAL_##n; \
+		to.val##n = d;       \
+		return *this;        \
+	}
+#include "valuetypes.h"
+
+	Value &operator=(const Value &v) {
+		t            = v.t;
+		to.valNumber = v.to.valNumber;
+		return *this;
+	}
+
+	bool operator==(const Value &v) const {
+		// double is the geatest type, hence compare with that
+		return t == v.t && (toNumber() == v.toNumber());
+	}
 };

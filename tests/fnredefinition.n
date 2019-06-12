@@ -1,0 +1,7 @@
+fn sayhello(name) { // First defined here
+    print("Hello World! I am ", name)
+}
+
+fn sayhello(arg) { // Then defined here
+    print("Hi there! Nice to meet you! I am ", arg)
+}

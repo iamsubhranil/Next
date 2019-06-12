@@ -4,6 +4,8 @@
 #include <ostream>
 #include <vector>
 
+#define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
+
 typedef enum {
 	TOKEN_LEFT_PAREN,
 	TOKEN_RIGHT_PAREN,
@@ -61,7 +63,7 @@ typedef struct Token {
 	friend std::ostream &operator<<(std::ostream &            os,
 	                                const std::vector<Token> &tv);
 	void                 highlight() const;
-	static const char *TokenNames[];
+	static const char *  TokenNames[];
 	static const char *  FormalNames[];
 } Token;
 

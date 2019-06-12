@@ -18,24 +18,26 @@ class MemberVariableStatement;
 class VisibilityStatement;
 class PrintStatement;
 class ThrowStatement;
+class ReturnStatement;
 
 class StatementVisitor {
   public:
-	virtual void visit(IfStatement *ifs)         = 0;
-	virtual void visit(WhileStatement *ifs)      = 0;
-	virtual void visit(FnStatement *ifs)         = 0;
-	virtual void visit(FnBodyStatement *ifs)     = 0;
-	virtual void visit(ClassStatement *ifs)      = 0;
-	virtual void visit(TryStatement *ifs)        = 0;
-	virtual void visit(CatchStatement *ifs)      = 0;
-	virtual void visit(ImportStatement *ifs)     = 0;
-	virtual void visit(BlockStatement *ifs)      = 0;
-	virtual void visit(ExpressionStatement *ifs) = 0;
-	virtual void visit(VardeclStatement *ifs)    = 0;
+	virtual void visit(IfStatement *ifs)             = 0;
+	virtual void visit(WhileStatement *ifs)          = 0;
+	virtual void visit(FnStatement *ifs)             = 0;
+	virtual void visit(FnBodyStatement *ifs)         = 0;
+	virtual void visit(ClassStatement *ifs)          = 0;
+	virtual void visit(TryStatement *ifs)            = 0;
+	virtual void visit(CatchStatement *ifs)          = 0;
+	virtual void visit(ImportStatement *ifs)         = 0;
+	virtual void visit(BlockStatement *ifs)          = 0;
+	virtual void visit(ExpressionStatement *ifs)     = 0;
+	virtual void visit(VardeclStatement *ifs)        = 0;
 	virtual void visit(MemberVariableStatement *ifs) = 0;
 	virtual void visit(VisibilityStatement *ifs)     = 0;
 	virtual void visit(PrintStatement *ifs)          = 0;
 	virtual void visit(ThrowStatement *ifs)          = 0;
+	virtual void visit(ReturnStatement *ifs)         = 0;
 };
 
 typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV } Visibility;
@@ -72,28 +74,6 @@ class WhileStatement : public Statement {
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
-class FnStatement : public Statement {
-  public:
-	Token      name;
-	StmtPtr    body;
-	bool       isMethod, isStatic, isNative, isConstructor;
-	Visibility visibility;
-	FnStatement(Token fn, Token n, StmtPtr &fnBody, bool ism, bool iss,
-	            bool isn, bool isc, Visibility vis)
-	    : Statement(fn), name(n), body(fnBody.release()), isMethod(ism),
-	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class VardeclStatement : public Statement {
-  public:
-	ExpPtr expr;
-	Visibility vis;
-	VardeclStatement(Token name, ExpPtr &e, Visibility v)
-	    : Statement(name), expr(e.release()), vis(v) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
 class FnBodyStatement : public Statement {
   public:
 	std::vector<Token> args;
@@ -101,6 +81,30 @@ class FnBodyStatement : public Statement {
 	FnBodyStatement(Token t, std::vector<Token> &ar, StmtPtr &b)
 	    : Statement(t), args(ar.begin(), ar.end()),
 	      body(b == nullptr ? nullptr : b.release()) {}
+	void accept(StatementVisitor *vis) { vis->visit(this); }
+};
+
+class FnStatement : public Statement {
+  public:
+	Token                            name;
+	std::unique_ptr<FnBodyStatement> body;
+	bool       isMethod, isStatic, isNative, isConstructor;
+	Visibility visibility;
+	size_t     arity;
+	FnStatement(Token fn, Token n, std::unique_ptr<FnBodyStatement> &fnBody,
+	            bool ism, bool iss, bool isn, bool isc, Visibility vis)
+	    : Statement(fn), name(n), body(fnBody.release()), isMethod(ism),
+	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
+	      arity(body->args.size()) {}
+	void accept(StatementVisitor *vis) { vis->visit(this); }
+};
+
+class VardeclStatement : public Statement {
+  public:
+	ExpPtr     expr;
+	Visibility vis;
+	VardeclStatement(Token name, ExpPtr &e, Visibility v)
+	    : Statement(name), expr(e.release()), vis(v) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -207,9 +211,16 @@ class ThrowStatement : public Statement {
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
+class ReturnStatement : public Statement {
+  public:
+	ExpPtr expr;
+	ReturnStatement(Token t, ExpPtr &e) : Statement(t), expr(e.release()) {}
+	void accept(StatementVisitor *vis) { vis->visit(this); }
+};
+
 class StatementPrinter : public StatementVisitor {
   private:
-	std::ostream &os;
+	std::ostream &    os;
 	ExpressionPrinter ep;
 
   public:
@@ -230,4 +241,5 @@ class StatementPrinter : public StatementVisitor {
 	void visit(VisibilityStatement *ifs);
 	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
+	void visit(ReturnStatement *ifs);
 };

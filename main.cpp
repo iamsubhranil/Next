@@ -1,3 +1,5 @@
+#include "codegen.h"
+#include "engine.h"
 #include "parser.h"
 #include "scanner.h"
 #include <iostream>
@@ -57,6 +59,7 @@ static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_try, new TryStatementParselet());
 	p->registerParselet(TOKEN_print, new PrintStatementParselet());
 	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
+	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
 
 	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());
@@ -70,18 +73,29 @@ static void registerParselets(Parser *p) {
 }
 
 int main(int argc, char *argv[]) {
+	Module           module(StringLibrary::insert("root"));
+	CodeGenerator    c;
+#ifdef DEBUG
+	StatementPrinter sp(cout);
+#endif
+	ExecutionEngine  ex;
 	if(argc > 1) {
 		Scanner s(argv[1]);
 		Parser  p(s);
-		StatementPrinter sp(cout);
 		registerParselets(&p);
 		try {
 			vector<StmtPtr> decls = p.parseAllDeclarations();
+#ifdef DEBUG
 			for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
 				sp.print(i->get());
 				cout << "\n";
 			}
 			cout << "Parsed successfully!" << endl;
+#endif
+			c.compile(&module, decls);
+			ex.execute(
+			    &module,
+			    module.functions[StringLibrary::insert("main()")]->frame.get());
 		} catch(runtime_error &r) {
 			cout << r.what();
 		}
@@ -92,14 +106,16 @@ int main(int argc, char *argv[]) {
 		while(getline(cin, line)) {
 			Scanner s(line.c_str(), "<stdin>");
 			Parser  p(s);
-			StatementPrinter sp(cout);
 			registerParselets(&p);
 			try {
 				vector<StmtPtr> decls = p.parseAllDeclarations();
+#ifdef DEBUG
 				for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
 					sp.print(i->get());
 					cout << "\n";
 				}
+#endif
+				c.compile(&module, decls);
 			} catch(runtime_error &r) {
 				cout << r.what();
 			}

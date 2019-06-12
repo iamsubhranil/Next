@@ -111,7 +111,7 @@ ostream &operator<<(ostream &os, const Token &t) {
 }
 #else
 ostream &operator<<(ostream &os, const Token &t) {
-    return os << string(t.start, t.length);
+	return os << string(t.start, t.length);
 }
 #endif
 
@@ -254,7 +254,7 @@ Token Scanner::str() {
 
 	// Unterminated str.
 	if(isAtEnd())
-		return Token::errorToken("Unterminated str.", this);
+		return Token::from(TOKEN_ERROR, this);
 
 	// The closing ".
 	advance();

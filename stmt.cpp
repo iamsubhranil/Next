@@ -148,3 +148,8 @@ void StatementPrinter::visit(ThrowStatement *ifs) {
 	os << "throw ";
 	ep.print(ifs->expr.get());
 }
+
+void StatementPrinter::visit(ReturnStatement *ifs) {
+	os << "ret ";
+	ep.print(ifs->expr.get());
+}

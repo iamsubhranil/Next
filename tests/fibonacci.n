@@ -1,0 +1,17 @@
+fn fib(n) {
+    if(n < 2) {
+        ret n
+    }
+    else {
+        ret fib(n - 2) + fib(n - 1)
+    }
+}
+
+fn main() {
+    print("\nCalling fib(28) 5 times..")
+    a = 0
+    while(a < 5) {
+        print("\nFib(28) : ", fib(28))
+        a = a + 1
+    }
+}
