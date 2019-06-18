@@ -118,7 +118,15 @@ void CodeGenerator::visit(CallExpression *call) {
 	// module
 	if(module->functions.find(signature) != module->functions.end()) {
 		frame->insertdebug(call->callee->token);
-		bytecode->call(signature, call->arguments.size());
+		// Search for the frame in the module
+		Frame *searching = module->functions[signature]->frame.get();
+		int    k         = 0;
+		for(auto i = module->frames.begin(), j = module->frames.end(); i != j;
+		    i++, k++) {
+			if(*i == searching)
+				break;
+		}
+		bytecode->call(k, call->arguments.size());
 	} else {
 		lnerr(
 		    "No function with the specified signature found in present module!",
@@ -360,6 +368,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			f->token                       = ifs->name;
 			f->arity                       = ifs->arity;
 			f->frame                       = unq(Frame, frame);
+			module->frames.push_back(f->frame.get());
 			module->symbolTable[signature] = f.get();
 			module->functions[signature]   = FnPtr(f.release());
 			if(!isInClass() && (ifs->isConstructor || ifs->isStatic)) {

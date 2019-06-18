@@ -59,6 +59,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define next_string()                          \
 	(presentFrame->code += sizeof(NextString), \
 	 *(NextString *)(presentFrame->code - sizeof(NextString) + 1))
+#define next_ptr()                            \
+	(presentFrame->code += sizeof(uintptr_t), \
+	 *(uintptr_t *)(presentFrame->code - sizeof(uintptr_t) + 1))
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
@@ -115,8 +118,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(jumpiftrue) : {
 				Value v   = POP();
 				int   dis = next_int();
-				bool  tr  = (v.isBoolean() && !v.toBoolean()) ||
-				          (v.isNumber() && !v.toNumber());
+				bool  tr  = (v.isBoolean() && v.toBoolean()) ||
+				          (v.isNumber() && v.toNumber());
 				if(tr) {
 					JUMPTO(dis -
 					       sizeof(int)); // offset the relative jump address
@@ -143,8 +146,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call) : {
-				NextString       fn = next_string();
-				FrameInstance *  f = newinstance(m->functions[fn]->frame.get());
+				// NextString       fn = next_string();
+				FrameInstance *f = newinstance(m->frames[next_int()]);
 				// Copy the arguments
 				int numArg = next_int() - 1;
 				while(numArg >= 0) {

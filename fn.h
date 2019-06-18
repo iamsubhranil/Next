@@ -153,6 +153,7 @@ class Module {
 	VariableMap variables;
 	FramePtr    frame;
 	ImportMap   importedModules;
+	std::vector<Frame *> frames; // collection of frames in the module
 	bool        hasSignature(NextString n) {
         return symbolTable.find(n) != symbolTable.end();
 	}

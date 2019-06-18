@@ -14,4 +14,5 @@ fn main() {
         print("a is now : ", a, "\n")
         a = a + 1
     } while(a < b)
+    print("\nAfter the loop, a is : ", a)
 }
