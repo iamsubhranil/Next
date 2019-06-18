@@ -47,12 +47,12 @@ class Frame {
 	std::vector<DebugInfo>              lineInfos;
 	int declareVariable(const char *name, int len) {
 		slots[StringLibrary::insert(name, len)] = slotSize++;
-		code->stackMaxSize++;
-		return slotSize - 1;
+        code->insertSlot();
+        return slotSize - 1;
 	}
 	int declareVariable(NextString name) {
 		slots[name] = slotSize++;
-		code->stackMaxSize++;
+		code->insertSlot();
 		return slotSize - 1;
 	}
 	void insertdebug(Token t) {
@@ -88,19 +88,19 @@ class FrameInstance {
   public:
 	FrameInstance(Frame *f) {
 		frame = f;
-		stack_.resize(f->slotSize);
-		stack_.reserve(f->code->maxStackSize());
-		stackPointer       = 0;
-		instructionPointer = 0;
+		stack_       = (Value *)malloc(sizeof(Value) * f->code->maxStackSize());
+		stackPointer = f->slotSize;
+		// instructionPointer = 0;
 		code               = f->code->raw();
 		enclosingFrame     = nullptr;
 	}
 	Frame *            frame;
-	FrameInstancePtr   enclosingFrame;
-	std::vector<Value> stack_;
+	FrameInstance *    enclosingFrame;
+	Value *            stack_;
 	unsigned char *    code;
+	~FrameInstance() { free(stack_); }
 	int                stackPointer;
-	int                instructionPointer;
+	// int                instructionPointer;
 };
 
 class ModuleEntity {

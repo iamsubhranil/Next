@@ -24,6 +24,12 @@ class BytecodeHolder {
 #include "opcodes.h"
 	};
 
+	void insertSlot() {
+		presentStackSize++;
+		if(presentStackSize > stackMaxSize)
+			stackMaxSize = presentStackSize;
+	}
+
 #define OPCODE0(x, y)                        \
 	int x() {                                \
 		presentStackSize += y;               \

@@ -10,3 +10,4 @@ vgcore.*
 .depend
 grammar_peg
 next
+perf.*

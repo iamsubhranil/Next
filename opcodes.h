@@ -60,7 +60,7 @@ OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 // Since 'call' creates a separate stack for the callee,
 // the number of parameters is needed to copy the old arguments
 // from the caller stack to callee stack
-OPCODE2(call, -1, NextString, int) // <name> <arity>
+OPCODE2(call, 0, NextString, int) // <name> <arity>
 OPCODE0(ret, 0)
 
 OPCODE0(halt, 0)

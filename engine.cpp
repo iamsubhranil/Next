@@ -5,8 +5,8 @@ using namespace std;
 
 ExecutionEngine::ExecutionEngine() {}
 
-FrameInstancePtr ExecutionEngine::newinstance(Frame *f) {
-	return unq(FrameInstance, f);
+FrameInstance *ExecutionEngine::newinstance(Frame *f) {
+	return new FrameInstance(f);
 }
 
 // using BytecodeHolder::Opcodes;
@@ -15,13 +15,14 @@ void ExecutionEngine::printStackTrace(FrameInstance *f) {
 		f->frame->lineInfos.begin()->t.highlight();
 		if(f->enclosingFrame == nullptr)
 			return;
-		f = f->enclosingFrame.get();
+		f = f->enclosingFrame;
 	}
 }
 
 void ExecutionEngine::execute(Module *m, Frame *f) {
 	(void)m;
-	FrameInstancePtr presentFrame = newinstance(f);
+	// FrameInstancePtr presentFramePtr = newinstance(f);
+	FrameInstance *presentFrame = newinstance(f);
 
 #define LOOP() while(*presentFrame->code != BytecodeHolder::CODE_halt)
 
@@ -34,12 +35,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	}
 #define DISPATCH_WINC() \
 	{ continue; }
-#define TOP presentFrame->stack_.back()
-#define PUSH(x) presentFrame->stack_.push_back((x));
-#define POP() presentFrame->stack_.pop_back()
+#define TOP presentFrame->stack_[presentFrame->stackPointer - 1]
+#define PUSH(x) presentFrame->stack_[presentFrame->stackPointer++] = (x);
+#define POP() presentFrame->stack_[--presentFrame->stackPointer]
 #define RERR(x)                                                          \
 	{                                                                    \
-		printStackTrace(presentFrame.get());                             \
+		printStackTrace(presentFrame);                                   \
 		lnerr(x, presentFrame->frame->findLineInfo(presentFrame->code)); \
 	}
 
@@ -63,8 +64,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define binary(op, name, type)                                         \
 	{                                                                  \
-		Value v = TOP;                                                 \
-		POP();                                                         \
+		Value v = POP();                                               \
 		if(v.is##type() && TOP.is##type()) {                           \
 			TOP = Value(TOP.to##type() op v.to##type());               \
 			DISPATCH();                                                \
@@ -113,11 +113,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jumpiftrue) : {
-				Value v = TOP;
-				POP();
-				int dis = next_int();
-				if((v.isBoolean() && v.toBoolean()) ||
-				   (v.isNumber() && v.toNumber() != 0)) {
+				Value v   = POP();
+				int   dis = next_int();
+				bool  tr  = (v.isBoolean() && !v.toBoolean()) ||
+				          (v.isNumber() && !v.toNumber());
+				if(tr) {
 					JUMPTO(dis -
 					       sizeof(int)); // offset the relative jump address
 				}
@@ -125,11 +125,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jumpiffalse) : {
-				Value v = TOP;
-				POP();
-				int dis = next_int();
-				if((v.isBoolean() && !v.toBoolean()) ||
-				   (v.isNumber() && v.toNumber() == 0)) {
+				Value v   = POP();
+				int   dis = next_int();
+				bool  tr  = (v.isBoolean() && !v.toBoolean()) ||
+				          (v.isNumber() && !v.toNumber());
+				if(tr) {
 					JUMPTO(dis -
 					       sizeof(int)); // offset the relative jump address
 				}
@@ -137,32 +137,31 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(print) : {
-				Value v = TOP;
-				POP();
+				Value v = POP();
 				std::cout << v;
 				DISPATCH();
 			}
 
 			CASE(call) : {
 				NextString       fn = next_string();
-				FrameInstancePtr f = newinstance(m->functions[fn]->frame.get());
+				FrameInstance *  f = newinstance(m->functions[fn]->frame.get());
 				// Copy the arguments
 				int numArg = next_int() - 1;
 				while(numArg >= 0) {
-					f->stack_[numArg] = TOP;
-					POP();
+					f->stack_[numArg] = POP();
 					numArg--;
 				}
-				f->enclosingFrame   = FrameInstancePtr(presentFrame.release());
-				presentFrame        = FrameInstancePtr(f.release());
+				f->enclosingFrame = presentFrame;
+				presentFrame      = f;
 				DISPATCH_WINC();
 			}
 
 			CASE(ret) : {
 				// Pop the return value
-				Value v = TOP;
-				presentFrame =
-				    FrameInstancePtr(presentFrame->enclosingFrame.release());
+				Value          v   = POP();
+				FrameInstance *bak = presentFrame->enclosingFrame;
+				delete presentFrame;
+				presentFrame = bak;
 				PUSH(v);
 				DISPATCH();
 			}
@@ -173,8 +172,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(store_slot) : {
-				Value v = TOP;
-				POP();
+				Value v                          = POP();
 				presentFrame->stack_[next_int()] = v;
 				DISPATCH();
 			}

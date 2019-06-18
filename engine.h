@@ -6,7 +6,7 @@ class ExecutionEngine {
 
 	std::unordered_map<NextString, Module *> loadedModules;
 
-	FrameInstancePtr                         newinstance(Frame *f);
+	FrameInstance *                          newinstance(Frame *f);
 	std::unordered_map<NextString, NextType> registeredClasses;
 
   public:
