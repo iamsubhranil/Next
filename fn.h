@@ -35,31 +35,31 @@ class Frame {
 		slotSize = 0;
 		handlers = unq(std::vector<ExHandler>, 0);
 		slots.clear();
-		code = unq(BytecodeHolder);
+		code = BytecodeHolder();
 	}
 	Frame() : Frame(nullptr) {}
 	Frame *                             parent;
 	int                                 slotSize;
 	int                                 scopeDepth;
-	Bytecode                            code;
+	BytecodeHolder                      code;
 	ExceptionHandler                    handlers;
 	std::unordered_map<NextString, int> slots;
 	std::vector<DebugInfo>              lineInfos;
 	int declareVariable(const char *name, int len) {
 		slots[StringLibrary::insert(name, len)] = slotSize++;
-        code->insertSlot();
+        code.insertSlot();
         return slotSize - 1;
 	}
 	int declareVariable(NextString name) {
 		slots[name] = slotSize++;
-		code->insertSlot();
+		code.insertSlot();
 		return slotSize - 1;
 	}
 	void insertdebug(Token t) {
 		if(lineInfos.size()) {
-			lineInfos.back().to = code->getip() - 1;
+			lineInfos.back().to = code.getip() - 1;
 		}
-		lineInfos.push_back(DebugInfo(code->getip(), code->getip(), t));
+		lineInfos.push_back(DebugInfo(code.getip(), code.getip(), t));
 	}
 	void insertdebug(int from, Token t) {
 		lineInfos.push_back(DebugInfo(from, from, t));
@@ -68,7 +68,7 @@ class Frame {
 		lineInfos.push_back(DebugInfo(from, to, t));
 	}
 	Token findLineInfo(const uint8_t *data) {
-		int ip = data - code->bytecodes.data();
+		int ip = data - code.bytecodes.data();
 		for(auto i = lineInfos.begin(), j = lineInfos.end(); i != j; i++) {
 			if(i->from >= ip && i->to <= ip)
 				return i->t;
@@ -88,10 +88,10 @@ class FrameInstance {
   public:
 	FrameInstance(Frame *f) {
 		frame = f;
-		stack_       = (Value *)malloc(sizeof(Value) * f->code->maxStackSize());
+		stack_       = (Value *)malloc(sizeof(Value) * f->code.maxStackSize());
 		stackPointer = f->slotSize;
 		// instructionPointer = 0;
-		code               = f->code->raw();
+		code               = f->code.raw();
 		enclosingFrame     = nullptr;
 	}
 	Frame *            frame;

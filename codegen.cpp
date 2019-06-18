@@ -31,7 +31,7 @@ void CodeGenerator::compileAll(vector<StmtPtr> &stmts) {
 void CodeGenerator::initFrame(Frame *f) {
 	f->parent = frame;
 	frame     = f;
-	bytecode  = f->code.get();
+	bytecode  = &f->code;
 }
 
 CodeGenerator::CompilationState CodeGenerator::getState() {
@@ -43,7 +43,7 @@ void CodeGenerator::popFrame() {
 		return;
 	frame = frame->parent;
 	if(frame)
-		bytecode = frame->code.get();
+		bytecode = &frame->code;
 }
 
 Module *CodeGenerator::compile(NextString name, vector<StmtPtr> &stmts) {
@@ -399,7 +399,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			cout << "Code generated for function : "
 			     << StringLibrary::get(signature) << endl;
 			cout << "Max stack size : " << bytecode->maxStackSize() << endl;
-			frame->code->disassemble();
+			frame->code.disassemble();
 #endif
 			popFrame();
 		}
