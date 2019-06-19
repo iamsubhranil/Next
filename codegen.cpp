@@ -211,7 +211,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 	if(var.isLocal) {
 		bytecode->store_slot(var.slot);
 	} else {
-		bytecode->store_parent_slot(var.scopeDepth, var.slot);
+		// bytecode->store_parent_slot(var.scopeDepth, var.slot);
 	}
 }
 
@@ -312,7 +312,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	if(var.isLocal) {
 		bytecode->load_slot(var.slot);
 	} else {
-		bytecode->load_parent_slot(var.scopeDepth, var.slot);
+		// bytecode->load_parent_slot(var.scopeDepth, var.slot);
 	}
 }
 

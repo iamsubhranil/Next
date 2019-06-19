@@ -45,19 +45,19 @@ OPCODE1(pushd, 1, double)              // <double>
 OPCODE1(pushs, 1, NextString)          // <NextString>
 OPCODE0(pop, -1)
 
-OPCODE1(registerfn, -1, NextString)    // <function_id>
-OPCODE1(registerclass, -1, NextString) // <class_id>
+// OPCODE1(registerfn, -1, NextString)    // <function_id>
+// OPCODE1(registerclass, -1, NextString) // <class_id>
 
 OPCODE1(load_slot, 1, int)               // <slot_number>
 OPCODE1(store_slot, 0, int)              // <slot_number>
 
-OPCODE2(load_parent_slot, 1, int, int)   // <scope_depth> <slot_number>
-OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
+// OPCODE2(load_parent_slot, 1, int, int)   // <scope_depth> <slot_number>
+// OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
 
-OPCODE2(load_module_slot, 1, NextString,
-        NextString) // <module_name> <variable_name>
-OPCODE2(store_module_slot, -1, NextString,
-        NextString) // <module_name> <variable_name>
+// OPCODE2(load_module_slot, 1, NextString,
+//        NextString) // <module_name> <variable_name>
+// OPCODE2(store_module_slot, -1, NextString,
+//        NextString) // <module_name> <variable_name>
 
 OPCODE1(jump, -1, int)        // <relative_jump_offset>
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>

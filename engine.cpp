@@ -13,8 +13,6 @@ FrameInstance *ExecutionEngine::newinstance(Frame *f) {
 void ExecutionEngine::printStackTrace(FrameInstance *f) {
 	while(f != NULL) {
 		f->frame->lineInfos.begin()->t.highlight();
-		if(f->enclosingFrame == nullptr)
-			return;
 		f = f->enclosingFrame;
 	}
 }
@@ -24,8 +22,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// FrameInstancePtr presentFramePtr = newinstance(f);
 	FrameInstance *presentFrame = newinstance(f);
 
-#define LOOP() while(*presentFrame->code != BytecodeHolder::CODE_halt)
+#ifdef NEXT_USE_COMPUTED_GOTO
+	static const void *dispatchTable[] = {
+#define OPCODE0(x, y) &&EXEC_CODE_##x,
+#define OPCODE1(x, y, z) OPCODE0(x, y)
+#define OPCODE2(w, x, y, z) OPCODE0(w, x)
+#include "opcodes.h"
+	};
 
+#define LOOP() while(1)
+#define SWITCH() \
+	{ goto *dispatchTable[*presentFrame->code]; }
+#define CASE(x) EXEC_CODE_##x
+#define DISPATCH() \
+	{ goto *dispatchTable[*(++presentFrame->code)]; }
+#define DISPATCH_WINC() \
+	{ goto *dispatchTable[*presentFrame->code]; }
+#else
+#define LOOP() while(*presentFrame->code != BytecodeHolder::CODE_halt)
 #define SWITCH() switch(*presentFrame->code)
 #define CASE(x) case BytecodeHolder::CODE_##x
 #define DISPATCH()            \
@@ -35,6 +49,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	}
 #define DISPATCH_WINC() \
 	{ continue; }
+#endif
+
 #define TOP presentFrame->stack_[presentFrame->stackPointer - 1]
 #define PUSH(x) presentFrame->stack_[presentFrame->stackPointer++] = (x);
 #define POP() presentFrame->stack_[--presentFrame->stackPointer]
@@ -93,6 +109,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean);
 			CASE(power) : RERR("Yet not implemented!");
+
+			CASE(lnot) : {
+				if(TOP.isBoolean()) {
+					TOP.setBoolean(!TOP.toBoolean());
+					DISPATCH();
+				}
+				RERR("'!' can only be applied over boolean value!");
+			}
 
 			CASE(neg) : {
 				if(TOP.isNumber()) {
