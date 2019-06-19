@@ -434,8 +434,12 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	for(auto i = ifs->exprs.begin(), j = ifs->exprs.end(); i != j; i++)
+	for(auto i = ifs->exprs.begin(), j = ifs->exprs.end(); i != j; i++) {
 		i->get()->accept(this);
+		// An expression should always return a value.
+		// Pop the value to minimize the stack length
+		bytecode->pop();
+	}
 }
 
 void CodeGenerator::visit(PrintStatement *ifs) {

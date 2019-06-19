@@ -110,6 +110,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
+			CASE(pop) : {
+				POP();
+				DISPATCH();
+			}
+
 			CASE(jump) : {
 				JUMPTO(next_int() -
 				       sizeof(int)); // offset the relative jump address
@@ -175,8 +180,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(store_slot) : {
-				Value v                          = POP();
-				presentFrame->stack_[next_int()] = v;
+				// Do not pop the value off the stack yet
+				presentFrame->stack_[next_int()] = TOP;
 				DISPATCH();
 			}
 
