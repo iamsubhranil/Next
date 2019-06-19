@@ -242,20 +242,63 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 	dinfo("");
 	pe->token.highlight();
 #endif
+	// TODO: Assumed only VariableExpression on the right
+	// for ++
 	pe->right->accept(this);
 	switch(pe->token.type) {
-		case TOKEN_PLUS: break;
+		case TOKEN_PLUS: pe->right->accept(this); break;
 		case TOKEN_MINUS:
 			frame->insertdebug(pe->token);
 			bytecode->neg();
+			break;
+		case TOKEN_PLUS_PLUS:
+			if(!pe->right->isAssignable()) {
+				lnerr("Cannot apply '++' on a non-assignable expression!",
+				      pe->token);
+				pe->token.highlight();
+			} else {
+				frame->insertdebug(pe->token);
+				// TODO: Will not work for references
+				// Replace load_slot with incr_prefix
+				bytecode->setLastIns(BytecodeHolder::CODE_incr_prefix);
+			}
+			break;
+		case TOKEN_MINUS_MINUS:
+			if(!pe->right->isAssignable()) {
+				lnerr("Cannot apply '--' on a non-assignable expression!",
+				      pe->token);
+				pe->token.highlight();
+			} else {
+				frame->insertdebug(pe->token);
+				// TODO: Will not work for references
+				// Replace load_slot with incr_prefix
+				bytecode->setLastIns(BytecodeHolder::CODE_decr_prefix);
+			}
 			break;
 		default: panic("Bad prefix operator!");
 	}
 }
 
 void CodeGenerator::visit(PostfixExpression *pe) {
-	(void)pe;
-	panic("Not yet implemented!");
+#ifdef DEBUG
+	dinfo("");
+	pe->token.highlight();
+#endif
+	if(!pe->left->isAssignable()) {
+		lnerr("Cannot apply postfix operator on a non-assignable expression!",
+		      pe->token);
+		pe->token.highlight();
+	}
+	pe->left->accept(this);
+	switch(pe->token.type) {
+		case TOKEN_PLUS_PLUS:
+			bytecode->setLastIns(BytecodeHolder::CODE_incr_postfix);
+			break;
+		case TOKEN_MINUS_MINUS:
+			bytecode->setLastIns(BytecodeHolder::CODE_decr_postfix);
+			break;
+		default: panic("Bad postfix operator!");
+	}
 }
 
 void CodeGenerator::visit(VariableExpression *vis) {

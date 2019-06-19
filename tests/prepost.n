@@ -1,0 +1,10 @@
+fn main() {
+    a = 2
+    print("a is initialized as : ", a)
+    print("\na++ : ", a++)
+    print("\na : ", a)
+    print("\n++a : ", ++a)
+    print("\na-- : ", a--)
+    print("\na : ", a)
+    print("\n--a : ", --a)
+}

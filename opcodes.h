@@ -21,6 +21,11 @@ OPCODE0(mul, -1)
 OPCODE0(div, -1)
 OPCODE0(power, -1)
 
+OPCODE1(incr_prefix, 1, int) // <slot>
+OPCODE1(incr_postfix, 1, int) // <slot>
+OPCODE1(decr_prefix, 1, int)  // <slot>
+OPCODE1(decr_postfix, 1, int) // <slot>
+
 OPCODE0(neg, 0)
 
 OPCODE0(land, -1)

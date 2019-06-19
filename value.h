@@ -35,6 +35,13 @@ class Value {
 	inline r to##n() const { return to.val##n; }
 #include "valuetypes.h"
 
+#define TYPE(r, n)            \
+	inline void set##n(r v) { \
+		to.val##n = v;        \
+		t         = VAL_##n;  \
+	}
+#include "valuetypes.h"
+
 	friend std::ostream &operator<<(std::ostream &o, const Value &v) {
 		switch(v.t) {
 			case Value::VAL_String:

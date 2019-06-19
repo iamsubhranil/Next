@@ -185,6 +185,46 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
+			CASE(incr_prefix) : {
+				Value &v = presentFrame->stack_[next_int()];
+				if(v.isNumber()) {
+					v.setNumber(v.toNumber() + 1);
+					PUSH(v);
+					DISPATCH();
+				}
+				RERR("'++' can only be applied on a number!");
+			}
+
+			CASE(decr_prefix) : {
+				Value &v = presentFrame->stack_[next_int()];
+				if(v.isNumber()) {
+					v.setNumber(v.toNumber() - 1);
+					PUSH(v);
+					DISPATCH();
+				}
+				RERR("'--' can only be applied on a number!");
+			}
+
+			CASE(incr_postfix) : {
+				Value &v = presentFrame->stack_[next_int()];
+				if(v.isNumber()) {
+					PUSH(v);
+					v.setNumber(v.toNumber() + 1);
+					DISPATCH();
+				}
+				RERR("'++' can only be applied on a number!");
+			}
+
+			CASE(decr_postfix) : {
+				Value &v = presentFrame->stack_[next_int()];
+				if(v.isNumber()) {
+					PUSH(v);
+					v.setNumber(v.toNumber() - 1);
+					DISPATCH();
+				}
+				RERR("'--' can only be applied on a number!");
+			}
+
 			CASE(halt) : { break; }
 		}
 	}

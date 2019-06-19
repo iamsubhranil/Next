@@ -11,8 +11,7 @@ fn main() {
     }
     print("Looping!\n")
     do {
-        print("a is now : ", a, "\n")
-        a = a + 1
+        print("a is now : ", a++, "\n")
     } while(a < b)
     print("\nAfter the loop, a is : ", a)
 }

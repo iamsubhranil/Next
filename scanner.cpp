@@ -351,8 +351,18 @@ Token Scanner::scanNextToken() {
 		case ':': return Token::from(TOKEN_COLON, this);
 		case ',': return Token::from(TOKEN_COMMA, this);
 		case '.': return Token::from(TOKEN_DOT, this);
-		case '-': return Token::from(TOKEN_MINUS, this);
-		case '+': return Token::from(TOKEN_PLUS, this);
+		case '-':
+			if(peek() == '-') {
+				advance();
+				return Token::from(TOKEN_MINUS_MINUS, this);
+			}
+			return Token::from(TOKEN_MINUS, this);
+		case '+':
+			if(peek() == '+') {
+				advance();
+				return Token::from(TOKEN_PLUS_PLUS, this);
+			}
+			return Token::from(TOKEN_PLUS, this);
 		case '/':
 			if(match('/')) {
 				while(peek() != '\n' && peek() != '\0') advance();

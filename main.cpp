@@ -10,6 +10,10 @@ static void prefix(Parser *p, TokenType op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
 }
 
+static void postfix(Parser *p, TokenType op, int prec) {
+	p->registerParselet(op, new PostfixOperatorParselet(prec));
+}
+
 static void infixLeft(Parser *p, TokenType t, int prec) {
 	p->registerParselet(t, new BinaryOperatorParselet(prec, false));
 }
@@ -30,6 +34,11 @@ static void registerParselets(Parser *p) {
 
 	prefix(p, TOKEN_PLUS, Precedence::PREFIX);
 	prefix(p, TOKEN_MINUS, Precedence::PREFIX);
+	prefix(p, TOKEN_PLUS_PLUS, Precedence::PREFIX);
+	prefix(p, TOKEN_MINUS_MINUS, Precedence::PREFIX);
+
+	postfix(p, TOKEN_PLUS_PLUS, Precedence::POSTFIX);
+	postfix(p, TOKEN_MINUS_MINUS, Precedence::POSTFIX);
 
 	infixLeft(p, TOKEN_or, Precedence::OR);
 	infixLeft(p, TOKEN_and, Precedence::AND);

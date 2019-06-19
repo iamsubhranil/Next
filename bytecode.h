@@ -14,8 +14,9 @@ class BytecodeHolder {
 	std::vector<uint8_t> bytecodes;
 	int                  stackMaxSize;
 	int                  presentStackSize;
-
-	BytecodeHolder() : bytecodes(), stackMaxSize(0), presentStackSize(0) {}
+	int                  lastInsPos;
+	BytecodeHolder()
+	    : bytecodes(), stackMaxSize(0), presentStackSize(0), lastInsPos(0) {}
 
 	enum Opcode : uint8_t {
 #define OPCODE0(x, y) CODE_##x,
@@ -35,15 +36,17 @@ class BytecodeHolder {
 		presentStackSize += y;               \
 		if(presentStackSize > stackMaxSize)  \
 			stackMaxSize = presentStackSize; \
+		lastInsPos = bytecodes.size();       \
 		bytecodes.push_back(CODE_##x);       \
-		return bytecodes.size() - 1;         \
+		return lastInsPos;                   \
 	};                                       \
 	int x(int pos) {                         \
 		presentStackSize += y;               \
 		if(presentStackSize > stackMaxSize)  \
 			stackMaxSize = presentStackSize; \
-		bytecodes[pos] = CODE_##x;           \
-		return pos;                          \
+		lastInsPos            = pos;         \
+		bytecodes[lastInsPos] = CODE_##x;    \
+		return lastInsPos;                   \
 	};
 
 #define OPCODE1(x, y, z)                     \
@@ -51,15 +54,16 @@ class BytecodeHolder {
 		presentStackSize += y;               \
 		if(presentStackSize > stackMaxSize)  \
 			stackMaxSize = presentStackSize; \
-		int pos = bytecodes.size();          \
+		lastInsPos = bytecodes.size();       \
 		bytecodes.push_back(CODE_##x);       \
 		insert_##z(arg);                     \
-		return pos;                          \
+		return lastInsPos;                   \
 	};                                       \
 	int x(int pos, z arg) {                  \
 		presentStackSize += y;               \
 		if(presentStackSize > stackMaxSize)  \
 			stackMaxSize = presentStackSize; \
+		lastInsPos     = pos;                \
 		bytecodes[pos] = CODE_##x;           \
 		insert_##z(pos + 1, arg);            \
 		return pos;                          \
@@ -70,16 +74,17 @@ class BytecodeHolder {
 		presentStackSize += y;                 \
 		if(presentStackSize > stackMaxSize)    \
 			stackMaxSize = presentStackSize;   \
-		int pos = bytecodes.size();            \
+		lastInsPos = bytecodes.size();         \
 		bytecodes.push_back(CODE_##x);         \
 		insert_##z(arg1);                      \
 		insert_##w(arg2);                      \
-		return pos;                            \
+		return lastInsPos;                     \
 	};                                         \
 	int x(int pos, z arg1, w arg2) {           \
 		presentStackSize += y;                 \
 		if(presentStackSize > stackMaxSize)    \
 			stackMaxSize = presentStackSize;   \
+		lastInsPos     = pos;                  \
 		bytecodes[pos] = CODE_##x;             \
 		insert_##z(pos + 1, arg1);             \
 		insert_##w(pos + 1 + sizeof(z), arg2); \
@@ -106,6 +111,10 @@ class BytecodeHolder {
 	insert_type(uintptr_t);
 
 #undef insert_type
+
+	int getLastInsPos() { return lastInsPos; }
+
+	void setLastIns(uint8_t ins) { bytecodes[lastInsPos] = ins; }
 
 	void disassemble_int(uint8_t *data) { std::cout << "\t" << *(int *)data; }
 
