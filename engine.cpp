@@ -65,31 +65,33 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, name, type)                                         \
-	{                                                                  \
-		Value v = POP();                                               \
-		if(v.is##type() && TOP.is##type()) {                           \
-			TOP = Value(TOP.to##type() op v.to##type());               \
-			DISPATCH();                                                \
-		}                                                              \
-		RERR("Both of the operands of " #name " must be a " #type "!") \
+#define binary(op, name, argtype, restype)                                \
+	{                                                                     \
+		Value v = POP();                                                  \
+		if(v.is##argtype() && TOP.is##argtype()) {                        \
+			TOP.set##restype(TOP.to##argtype() op v.to##argtype());       \
+			DISPATCH();                                                   \
+		}                                                                 \
+		RERR("Both of the operands of " #name " must be a " #argtype "!") \
 	}
 
 	LOOP() {
 		SWITCH() {
 
-			CASE(add) : binary(+, addition, Number);
-			CASE(sub) : binary(-, subtraction, Number);
-			CASE(mul) : binary(*, multiplication, Number);
-			CASE(div) : binary(/, division, Number);
-			CASE(lor) : binary(||, or, Boolean);
-			CASE(land) : binary(&&, and, Boolean);
-			CASE(eq) : binary(==, equals to, Number);
-			CASE(neq) : binary(!=, not equals to, Number);
-			CASE(greater) : binary(>, greater than, Number);
-			CASE(greatereq) : binary(>=, greater than or equals to, Number);
-			CASE(less) : binary(<, lesser than, Number);
-			CASE(lesseq) : binary(<=, lesser than or equals to, Number);
+			CASE(add) : binary(+, addition, Number, Number);
+			CASE(sub) : binary(-, subtraction, Number, Number);
+			CASE(mul) : binary(*, multiplication, Number, Number);
+			CASE(div) : binary(/, division, Number, Number);
+			CASE(lor) : binary(||, or, Boolean, Boolean);
+			CASE(land) : binary(&&, and, Boolean, Boolean);
+			CASE(eq) : binary(==, equals to, Number, Boolean);
+			CASE(neq) : binary(!=, not equals to, Number, Boolean);
+			CASE(greater) : binary(>, greater than, Number, Boolean);
+			CASE(greatereq)
+			    : binary(>=, greater than or equals to, Number, Boolean);
+			CASE(less) : binary(<, lesser than, Number, Boolean);
+			CASE(lesseq)
+			    : binary(<=, lesser than or equals to, Number, Boolean);
 			CASE(power) : RERR("Yet not implemented!");
 
 			CASE(neg) : {
