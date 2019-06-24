@@ -2,6 +2,4 @@ fn hello() {
     print("\nHello from a function!")
 }
 
-fn main() {
-    hello()
-}
+hello()

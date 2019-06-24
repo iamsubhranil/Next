@@ -9,6 +9,15 @@ FrameInstance *ExecutionEngine::newinstance(Frame *f) {
 	return new FrameInstance(f);
 }
 
+std::unordered_map<NextString, Module *> ExecutionEngine::loadedModules = {};
+
+void ExecutionEngine::registerModule(Module *m) {
+	if(loadedModules.find(m->name) != loadedModules.end()) {
+		warn("Module already loaded : '%s'!", StringLibrary::get_raw(m->name));
+	}
+	loadedModules[m->name] = m;
+}
+
 // using BytecodeHolder::Opcodes;
 void ExecutionEngine::printStackTrace(FrameInstance *f) {
 	while(f != NULL) {
@@ -18,10 +27,19 @@ void ExecutionEngine::printStackTrace(FrameInstance *f) {
 }
 
 void ExecutionEngine::execute(Module *m, Frame *f) {
-	(void)m;
-	// FrameInstancePtr presentFramePtr = newinstance(f);
-	FrameInstance *presentFrame = newinstance(f);
-
+	FrameInstance *presentFrame;
+	// Check if it is the root frame of the module,
+	// and if so, restore the instance from the
+	// module if there is one
+	if(m->frame.get() == f) {
+		if(m->frameInstance != NULL) {
+			m->reAdjust(f);
+			presentFrame = m->frameInstance;
+		} else {
+			presentFrame = m->topLevelInstance();
+		}
+	} else
+		presentFrame = newinstance(f);
 #ifdef NEXT_USE_COMPUTED_GOTO
 	static const void *dispatchTable[] = {
 #define OPCODE0(x, y) &&EXEC_CODE_##x,
@@ -39,7 +57,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define DISPATCH_WINC() \
 	{ goto *dispatchTable[*presentFrame->code]; }
 #else
-#define LOOP() while(*presentFrame->code != BytecodeHolder::CODE_halt)
+#define LOOP() while(1)
 #define SWITCH() switch(*presentFrame->code)
 #define CASE(x) case BytecodeHolder::CODE_##x
 #define DISPATCH()            \
@@ -211,47 +229,60 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
-			CASE(incr_prefix) : {
+			CASE(incr) : {
 				Value &v = presentFrame->stack_[next_int()];
 				if(v.isNumber()) {
-					v.setNumber(v.toNumber() + 1);
-					PUSH(v);
-					DISPATCH();
-				}
-				RERR("'++' can only be applied on a number!");
-			}
-
-			CASE(decr_prefix) : {
-				Value &v = presentFrame->stack_[next_int()];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() - 1);
-					PUSH(v);
-					DISPATCH();
-				}
-				RERR("'--' can only be applied on a number!");
-			}
-
-			CASE(incr_postfix) : {
-				Value &v = presentFrame->stack_[next_int()];
-				if(v.isNumber()) {
-					PUSH(v);
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
 				}
 				RERR("'++' can only be applied on a number!");
 			}
 
-			CASE(decr_postfix) : {
+			CASE(incr_module) : {
+				Value &v = presentFrame->moduleStack[next_int()];
+				if(v.isNumber()) {
+					v.setNumber(v.toNumber() + 1);
+					DISPATCH();
+				}
+				RERR("'++' can only be applied on a number!");
+			}
+
+			CASE(decr) : {
 				Value &v = presentFrame->stack_[next_int()];
 				if(v.isNumber()) {
-					PUSH(v);
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
 				}
 				RERR("'--' can only be applied on a number!");
 			}
 
-			CASE(halt) : { break; }
+			CASE(decr_module) : {
+				Value &v = presentFrame->moduleStack[next_int()];
+				if(v.isNumber()) {
+					v.setNumber(v.toNumber() - 1);
+					DISPATCH();
+				}
+				RERR("'--' can only be applied on a number!");
+			}
+
+			CASE(load_module_slot) : {
+				int        slot = next_int();
+				PUSH(presentFrame->moduleStack[slot]);
+				DISPATCH();
+			}
+
+			CASE(store_module_slot) : {
+				int        slot = next_int();
+				presentFrame->moduleStack[slot] = TOP;
+				DISPATCH();
+			}
+
+			CASE(halt) : {
+				presentFrame->instructionPointer =
+				    presentFrame->code -
+				    presentFrame->frame->code.bytecodes.data();
+				return;
+			}
 		}
 	}
 }

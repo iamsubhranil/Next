@@ -1,25 +1,68 @@
 #include "codegen.h"
 #include "bytecode.h"
 #include "display.h"
+#include "engine.h"
 
 using namespace std;
 
 CodeGenerator::CodeGenerator() {
 	frame = nullptr;
 	state = COMPILE_DECLARATION;
+	onLHS = false;
+	scopeID = 0;
 }
 
+#ifdef DEBUG
+void CodeGenerator::disassembleFrame(Frame *f, NextString name) {
+	cout << "Frame : " << StringLibrary::get(name)
+	     << " (slots : " << f->slotSize
+	     << " stacksize : " << f->code.maxStackSize() << ")" << endl;
+	f->code.disassemble();
+	cout << endl;
+}
+#endif
+
 void CodeGenerator::compile(Module *compileIn, vector<StmtPtr> &stmts) {
+	frame  = nullptr;
 	module = compileIn;
 	initFrame(module->frame.get());
 	compileAll(stmts);
+	bytecode->halt();
+
+#ifdef DEBUG
+	cout << "Code generated for module " << StringLibrary::get(module->name)
+	     << endl;
+	disassembleFrame(module->frame.get(), StringLibrary::insert("TopLevel"));
+	for(auto i = module->functions.begin(), j = module->functions.end(); i != j;
+	    i++) {
+		disassembleFrame(i->second->frame.get(), i->first);
+	}
+#endif
+	ExecutionEngine::registerModule(compileIn);
+}
+
+int CodeGenerator::pushScope() {
+	return ++scopeID;
+}
+
+void CodeGenerator::popScope() {
+	if(frame == nullptr)
+		return;
+	for(auto i = frame->slots.begin(), j = frame->slots.end(); i != j; i++) {
+		if(i->second.scopeID >= scopeID) {
+			i->second.isValid = false;
+		}
+	}
+	--scopeID;
 }
 
 void CodeGenerator::compileAll(vector<StmtPtr> &stmts) {
 	// First compile all declarations
 	state = COMPILE_DECLARATION;
 	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
-		(*i)->accept(this);
+		// Pass only declaration statements
+		if((*i)->isDeclaration())
+			(*i)->accept(this);
 	}
 	// Then compile all bodies
 	state = COMPILE_BODY;
@@ -149,23 +192,20 @@ void CodeGenerator::visit(CallExpression *call) {
 
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
                                                       bool       declare) {
-	int slot = 0, isLocal = 1, scopeDepth = 0;
+	int slot = 0, isLocal = 1;
 	// first check the present frame
-	if(frame->slots.find(name) != frame->slots.end()) {
-		slot = frame->slots[name];
-		return (VarInfo){slot, 1, scopeDepth};
+	if(frame->hasVariable(name)) {
+		slot = frame->slots[name].slot;
+		return (VarInfo){slot, 1};
 	} else { // It's in a parent frame or another module
 
 		// Check if it is in a parent frame
 		Frame *f   = frame->parent;
-		scopeDepth = f == nullptr ? 0 : f->scopeDepth;
 		if(f != nullptr) {
-			while(f != nullptr && f->slots.find(name) == f->slots.end())
-				f = f->parent;
+			while(f != nullptr && !f->hasVariable(name)) f = f->parent;
 			if(f != nullptr) {
-				scopeDepth = f->scopeDepth;
 				isLocal    = 0;
-				return (VarInfo){f->slots.find(name)->second, 0, scopeDepth};
+				return (VarInfo){f->slots.find(name)->second.slot, 0};
 			}
 		}
 
@@ -186,8 +226,8 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 		*/
 		if(declare) {
 			// Finally, declare the variable in the present frame
-			slot = frame->declareVariable(name);
-			return (VarInfo){slot, 1, scopeDepth};
+			slot = frame->declareVariable(name, scopeID);
+			return (VarInfo){slot, 1};
 		}
 	}
 	panic("No such variable found : '%s'", StringLibrary::get_raw(name));
@@ -211,7 +251,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 	if(var.isLocal) {
 		bytecode->store_slot(var.slot);
 	} else {
-		// bytecode->store_parent_slot(var.scopeDepth, var.slot);
+		bytecode->store_module_slot(var.slot);
 	}
 }
 
@@ -244,10 +284,10 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 #endif
 	// TODO: Assumed only VariableExpression on the right
 	// for ++
-	pe->right->accept(this);
 	switch(pe->token.type) {
 		case TOKEN_PLUS: pe->right->accept(this); break;
 		case TOKEN_MINUS:
+			pe->right->accept(this);
 			frame->insertdebug(pe->token);
 			bytecode->neg();
 			break;
@@ -257,10 +297,15 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				      pe->token);
 				pe->token.highlight();
 			} else {
-				frame->insertdebug(pe->token);
-				// TODO: Will not work for references
-				// Replace load_slot with incr_prefix
-				bytecode->setLastIns(BytecodeHolder::CODE_incr_prefix);
+				onLHS = true;
+				pe->right->accept(this);
+				if(variableInfo.isLocal) {
+					bytecode->incr(variableInfo.slot);
+					bytecode->load_slot(variableInfo.slot);
+				} else {
+					bytecode->incr_module(variableInfo.slot);
+					bytecode->load_module_slot(variableInfo.slot);
+				}
 			}
 			break;
 		case TOKEN_MINUS_MINUS:
@@ -270,9 +315,15 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				pe->token.highlight();
 			} else {
 				frame->insertdebug(pe->token);
-				// TODO: Will not work for references
-				// Replace load_slot with incr_prefix
-				bytecode->setLastIns(BytecodeHolder::CODE_decr_prefix);
+				onLHS = true;
+				pe->right->accept(this);
+				if(variableInfo.isLocal) {
+					bytecode->decr(variableInfo.slot);
+					bytecode->load_slot(variableInfo.slot);
+				} else {
+					bytecode->decr_module(variableInfo.slot);
+					bytecode->load_module_slot(variableInfo.slot);
+				}
 			}
 			break;
 		default: panic("Bad prefix operator!");
@@ -289,13 +340,26 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 		      pe->token);
 		pe->token.highlight();
 	}
+	onLHS = true;
 	pe->left->accept(this);
 	switch(pe->token.type) {
 		case TOKEN_PLUS_PLUS:
-			bytecode->setLastIns(BytecodeHolder::CODE_incr_postfix);
+			if(variableInfo.isLocal) {
+				bytecode->load_slot(variableInfo.slot);
+				bytecode->incr(variableInfo.slot);
+			} else {
+				bytecode->load_module_slot(variableInfo.slot);
+				bytecode->incr_module(variableInfo.slot);
+			}
 			break;
 		case TOKEN_MINUS_MINUS:
-			bytecode->setLastIns(BytecodeHolder::CODE_decr_postfix);
+			if(variableInfo.isLocal) {
+				bytecode->load_slot(variableInfo.slot);
+				bytecode->decr(variableInfo.slot);
+			} else {
+				bytecode->load_module_slot(variableInfo.slot);
+				bytecode->decr_module(variableInfo.slot);
+			}
 			break;
 		default: panic("Bad postfix operator!");
 	}
@@ -309,10 +373,15 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	VarInfo var = lookForVariable(
 	    StringLibrary::insert(string(vis->token.start, vis->token.length)));
 	frame->insertdebug(vis->token);
-	if(var.isLocal) {
-		bytecode->load_slot(var.slot);
+	if(onLHS) { // in case of LHS, just pass on the information
+		variableInfo = var;
+		onLHS        = false;
 	} else {
-		// bytecode->load_parent_slot(var.scopeDepth, var.slot);
+		if(var.isLocal) {
+			bytecode->load_slot(var.slot);
+		} else {
+			bytecode->load_module_slot(var.slot);
+		}
 	}
 }
 
@@ -431,19 +500,13 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			ifs->body->accept(this);
 
 			// Each function returns 0 by default
-			// Only main() emits 'halt'
-			if(signature == StringLibrary::insert("main()")) {
-				bytecode->halt();
-			} else {
+			// Only module root emits 'halt'
+
+			if(bytecode->getLastIns() != BytecodeHolder::CODE_ret) {
 				bytecode->pushd(0.0);
 				bytecode->ret();
 			}
-#ifdef DEBUG
-			cout << "Code generated for function : "
-			     << StringLibrary::get(signature) << endl;
-			cout << "Max stack size : " << bytecode->maxStackSize() << endl;
-			frame->code.disassemble();
-#endif
+
 			popFrame();
 		}
 	}
@@ -457,7 +520,10 @@ void CodeGenerator::visit(FnBodyStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	for(auto i = ifs->args.begin(), j = ifs->args.end(); i != j; i++) {
-		frame->declareVariable((*i).start, (*i).length);
+		// body will automatically contain a block statement,
+		// which will obviously push a new scope.
+		// So we speculatively do that here.
+		frame->declareVariable((*i).start, (*i).length, scopeID + 1);
 	}
 	ifs->body->accept(this);
 }
@@ -467,9 +533,11 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
+	pushScope();
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++)
 		(*i)->accept(this);
+	popScope();
 }
 
 void CodeGenerator::visit(ExpressionStatement *ifs) {
@@ -538,8 +606,12 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	(void)ifs;
-	panic("Not yet implemented!");
+	VarInfo v = lookForVariable(
+	    StringLibrary::insert(ifs->token.start, ifs->token.length), true);
+	if(getState() != COMPILE_DECLARATION) {
+		ifs->expr->accept(this);
+		bytecode->store_slot(v.slot);
+	}
 }
 
 void CodeGenerator::visit(MemberVariableStatement *ifs) {

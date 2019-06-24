@@ -1,17 +1,15 @@
-fn main() {
-    print("Hello World!\n")
-    a = 2
-    b = 5
-    c = a + b
-    if(a > b) {
-        print("Next is broken!\n")
-    }
-    if(a < b) {
-        print("Next is alright!\n")
-    }
-    print("Looping!\n")
-    do {
-        print("a is now : ", a++, "\n")
-    } while(a < b)
-    print("\nAfter the loop, a is : ", a)
+print("Hello World!\n")
+a = 2
+b = 5
+c = a + b
+if(a > b) {
+    print("Next is broken!\n")
 }
+if(a < b) {
+    print("Next is alright!\n")
+}
+print("Looping!\n")
+do {
+    print("a is now : ", a++, "\n")
+} while(a < b)
+print("\nAfter the loop, a is : ", a)

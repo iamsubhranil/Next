@@ -48,6 +48,7 @@ class Statement {
 	Statement(Token to) : token(to) {}
 	virtual ~Statement() {}
 	virtual void accept(StatementVisitor *vis) = 0;
+	virtual bool isDeclaration() { return false; }
 };
 
 using StmtPtr = std::unique_ptr<Statement>;
@@ -97,6 +98,7 @@ class FnStatement : public Statement {
 	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
 	      arity(body->args.size()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
+	bool isDeclaration() { return true; }
 };
 
 class VardeclStatement : public Statement {
@@ -106,6 +108,7 @@ class VardeclStatement : public Statement {
 	VardeclStatement(Token name, ExpPtr &e, Visibility v)
 	    : Statement(name), expr(e.release()), vis(v) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
+	bool isDeclaration() { return true; }
 };
 
 class ClassStatement : public Statement {
@@ -120,6 +123,7 @@ class ClassStatement : public Statement {
 		}
 	}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
+	bool isDeclaration() { return true; }
 };
 
 class VisibilityStatement : public Statement {
@@ -143,6 +147,7 @@ class ImportStatement : public Statement {
 	ImportStatement(Token t, std::vector<Token> &imp)
 	    : Statement(t), import(imp.begin(), imp.end()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
+	bool isDeclaration() { return true; }
 };
 
 class TryStatement : public Statement {

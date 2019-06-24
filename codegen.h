@@ -10,10 +10,26 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// the bodies, making it effectively a two pass compiler.
 	enum CompilationState { COMPILE_DECLARATION, COMPILE_BODY };
 
+	typedef struct VarInfo {
+		int slot, isLocal;
+	} VarInfo;
+
 	BytecodeHolder * bytecode;
 	Module *         module;
 	Frame *          frame;
 	CompilationState state;
+	// Denotes logical scope ordering. Popping a scope with scopeID x
+	// marks all variables declared in scopeID(s) >= x invalid, so that
+	// they can't be referenced from a scope with ID < x, i.e. an
+	// outside scope.
+	int              scopeID;
+	// to denote whether we are compiling an LHS expression right
+	// now, so that the compiler does not emit spontaneous bytecodes
+	// to push the value on the stack
+	bool    onLHS;
+	// in an LHS, this will contain information about the variable
+	VarInfo variableInfo;
+
 	// Expression generator
 	void visit(AssignExpression *as);
 	void visit(BinaryExpression *bin);
@@ -43,10 +59,6 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 
-	typedef struct VarInfo {
-		int slot, isLocal, scopeDepth;
-	} VarInfo;
-
 	NextString       generateSignature(Token &name, int arity);
 	VarInfo          lookForVariable(NextString name, bool declare = false);
 	void             compileAll(std::vector<StmtPtr> &statements);
@@ -54,6 +66,13 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void             initFrame(Frame *f);
 	void             popFrame();
 	CompilationState getState();
+#ifdef DEBUG
+	void disassembleFrame(Frame *f, NextString name);
+#endif
+
+	int  pushScope();
+	void popScope(); // discard all variables in present frame with
+	                 // scopeID >= present scope
 
   public:
 	CodeGenerator();

@@ -4,6 +4,7 @@ moduleStatement ->  importStatement     // import
                 |   classStatement      // pub/priv class
                 |   topLevelFnStatement // pub/priv fn native
                 |   topLevelVarDecl     // pub/priv iden
+                |   expressionStatement
 
 importStatement ->  "import" IDENTIFIER ("." IDENTIFIER)*
 

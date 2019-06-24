@@ -21,10 +21,10 @@ OPCODE0(mul, -1)
 OPCODE0(div, -1)
 OPCODE0(power, -1)
 
-OPCODE1(incr_prefix, 1, int) // <slot>
-OPCODE1(incr_postfix, 1, int) // <slot>
-OPCODE1(decr_prefix, 1, int)  // <slot>
-OPCODE1(decr_postfix, 1, int) // <slot>
+OPCODE1(incr, 1, int)        // <slot>
+OPCODE1(incr_module, 1, int) // <slot>
+OPCODE1(decr, 1, int)        // <slot>
+OPCODE1(decr_module, 1, int) // <slot>
 
 OPCODE0(neg, 0)
 
@@ -54,10 +54,9 @@ OPCODE1(store_slot, 0, int)              // <slot_number>
 // OPCODE2(load_parent_slot, 1, int, int)   // <scope_depth> <slot_number>
 // OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
 
-// OPCODE2(load_module_slot, 1, NextString,
-//        NextString) // <module_name> <variable_name>
-// OPCODE2(store_module_slot, -1, NextString,
-//        NextString) // <module_name> <variable_name>
+// FrameInstance carries module stack
+OPCODE1(load_module_slot, 1, int)   // <slot>
+OPCODE1(store_module_slot, -1, int) // <slot>
 
 OPCODE1(jump, -1, int)        // <relative_jump_offset>
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>

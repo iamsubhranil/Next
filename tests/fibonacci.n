@@ -7,11 +7,9 @@ fn fib(n) {
     }
 }
 
-fn main() {
-    print("\nCalling fib(28) 5 times..")
-    a = 0
-    while(a < 5) {
-        print("\nFib(28) : ", fib(28))
-        a = a + 1
-    }
+print("\nCalling fib(28) 5 times..")
+a = 0
+while(a < 5) {
+    print("\nFib(28) : ", fib(28))
+    a = a + 1
 }

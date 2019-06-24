@@ -24,6 +24,12 @@ class DebugInfo {
 
 using ExceptionHandler = std::unique_ptr<std::vector<ExHandler>>;
 
+struct SlotVariable {
+	int  slot;
+	bool isValid;
+	int  scopeID;
+};
+
 class Frame {
   public:
 	Frame(Frame *p) {
@@ -36,6 +42,7 @@ class Frame {
 		handlers = unq(std::vector<ExHandler>, 0);
 		slots.clear();
 		code = BytecodeHolder();
+		moduleStack = NULL;
 	}
 	Frame() : Frame(nullptr) {}
 	Frame *                             parent;
@@ -43,17 +50,24 @@ class Frame {
 	int                                 scopeDepth;
 	BytecodeHolder                      code;
 	ExceptionHandler                    handlers;
-	std::unordered_map<NextString, int> slots;
+	std::unordered_map<NextString, SlotVariable> slots;
 	std::vector<DebugInfo>              lineInfos;
-	int declareVariable(const char *name, int len) {
-		slots[StringLibrary::insert(name, len)] = slotSize++;
-        code.insertSlot();
+	Value *moduleStack; // should be initialized by the module
+	int declareVariable(const char *name, int len, int scope) {
+		slots[StringLibrary::insert(name, len)] = {slotSize++, true, scope};
+		code.insertSlot();
         return slotSize - 1;
 	}
-	int declareVariable(NextString name) {
-		slots[name] = slotSize++;
+	int declareVariable(NextString name, int scope) {
+		slots[name] = {slotSize++, true, scope};
 		code.insertSlot();
 		return slotSize - 1;
+	}
+	bool hasVariable(NextString name) {
+		if(slots.find(name) != slots.end()) {
+			return slots.find(name)->second.isValid;
+		}
+		return false;
 	}
 	void insertdebug(Token t) {
 		if(lineInfos.size()) {
@@ -90,17 +104,49 @@ class FrameInstance {
 		frame = f;
 		stack_       = (Value *)malloc(sizeof(Value) * f->code.maxStackSize());
 		stackPointer = f->slotSize;
-		// instructionPointer = 0;
+		presentSlotSize = f->slotSize;
+		instructionPointer = 0;
 		code               = f->code.raw();
 		enclosingFrame     = nullptr;
+		moduleStack        = f->moduleStack;
+	}
+	void readjust(Frame *f) {
+		// reallocate the stack
+		stack_ =
+		    (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
+		// if there are new slots in the stack, make room
+		if(presentSlotSize != f->slotSize) {
+			// Calculate the number of new slots
+			int moveup = f->slotSize - presentSlotSize;
+			// Move stackpointer accordingly
+			stackPointer += moveup;
+			// Move all non-slot values up
+			for(int i = stackPointer - 1; i > presentSlotSize; i--) {
+				stack_[i] = stack_[i + 1];
+			}
+			presentSlotSize = f->slotSize;
+		}
+		// If there was an instance, it was halted
+		// using 'halt', which does not increase
+		// the pointer to point to next instruction.
+		// We should do that first.
+		// Also since 'bytecodes' vector can get
+		// reallocated, especially in case of an REPL,
+		// we recalculate that based on the saved
+		// instruction pointer.
+		code = &f->code.bytecodes.data()[instructionPointer + 1];
 	}
 	Frame *            frame;
 	FrameInstance *    enclosingFrame;
 	Value *            stack_;
+	Value *            moduleStack; // copy of module stack
 	unsigned char *    code;
 	~FrameInstance() { free(stack_); }
+	int                presentSlotSize;
 	int                stackPointer;
-	// int                instructionPointer;
+	// to back up the pointer for consecutive
+	// calls on the same frame instance
+	int instructionPointer;
 };
 
 class ModuleEntity {
@@ -146,15 +192,41 @@ class Module {
 	Module(NextString n)
 	    : name(n), symbolTable(), functions(), variables(), importedModules() {
 		frame = unq(Frame, nullptr);
+		frameInstance = NULL;
+	}
+	FrameInstance *topLevelInstance() {
+		if(frameInstance == NULL) {
+			frameInstance = new FrameInstance(frame.get());
+			initializeFramesWithModuleStack();
+		}
+		return frameInstance;
+	}
+	FrameInstance *reAdjust(Frame *f) {
+		Value *oldStack = frameInstance->stack_;
+		frameInstance->readjust(f);
+		if(oldStack != frameInstance->stack_) {
+			initializeFramesWithModuleStack();
+		}
+		return frameInstance;
+	}
+	void initializeFramesWithModuleStack() {
+		for(auto i = frames.begin(), j = frames.end(); i != j; i++) {
+			(*i)->moduleStack = frameInstance->stack_;
+		}
 	}
 	NextString  name;
 	SymbolTable symbolTable;
 	FunctionMap functions;
 	VariableMap variables;
 	FramePtr    frame;
+	// each module should carry its own frameinstance
+	FrameInstance *      frameInstance;
 	ImportMap   importedModules;
 	std::vector<Frame *> frames; // collection of frames in the module
-	bool        hasSignature(NextString n) {
-        return symbolTable.find(n) != symbolTable.end();
+	bool hasCode() { // denotes whether the module has any top level code
+		return !frame->code.bytecodes.empty();
+	}
+	bool hasSignature(NextString n) {
+		return symbolTable.find(n) != symbolTable.end();
 	}
 };

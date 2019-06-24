@@ -43,15 +43,25 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 
 StmtPtr Parser::parseDeclaration() {
 	Visibility vis   = VIS_PRIV;
-	Token      token = consume();
+	Token      token = lookAhead(0);
 	if(token.type == TOKEN_pub || token.type == TOKEN_priv) {
+		consume();
 		vis   = (Visibility)(VIS_PUB + (token.type != TOKEN_pub));
-		token = consume();
+		token = lookAhead(0);
+	} else if(token.type == TOKEN_IDENTIFIER &&
+	          lookAhead(1).type != TOKEN_EQUAL) {
+		// specifically skip member access and function call
+		// because like variable declaration they too start with
+		// an identifier
+		return parseStatement();
 	}
 	DeclarationParselet *decl = declarationParselets[token.type].get();
 	if(decl == NULL) {
-		throw ParseException(token, "Unable to parse top level declaration!");
+		return parseStatement();
+		// throw ParseException(token, "Unable to parse top level
+		// declaration!");
 	}
+	consume();
 	return decl->parse(this, token, vis);
 }
 

@@ -102,9 +102,7 @@ int main(int argc, char *argv[]) {
 			cout << "Parsed successfully!" << endl;
 #endif
 			c.compile(&module, decls);
-			ex.execute(
-			    &module,
-			    module.functions[StringLibrary::insert("main()")]->frame.get());
+			ex.execute(&module, module.frame.get());
 		} catch(runtime_error &r) {
 			cout << r.what();
 		}
@@ -125,6 +123,7 @@ int main(int argc, char *argv[]) {
 				}
 #endif
 				c.compile(&module, decls);
+				ex.execute(&module, module.frame.get());
 			} catch(runtime_error &r) {
 				cout << r.what();
 			}

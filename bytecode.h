@@ -116,6 +116,8 @@ class BytecodeHolder {
 
 	void setLastIns(uint8_t ins) { bytecodes[lastInsPos] = ins; }
 
+	uint8_t getLastIns() { return bytecodes[lastInsPos]; }
+
 	void disassemble_int(uint8_t *data) { std::cout << "\t" << *(int *)data; }
 
 	void disassemble_double(uint8_t *data) {
