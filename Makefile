@@ -10,6 +10,9 @@ OBJS := $(patsubst %.cpp,%.o,$(SRCS))
 
 all: release
 
+cgoto: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO
+cgoto: release
+
 release: CXXFLAGS += -O3
 release: LDFLAGS += -s
 release: next
