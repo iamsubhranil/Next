@@ -367,6 +367,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(less) : binary(<, lesser than, Number, Boolean, less);
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
+
 			CASE(power) : RERR("Yet not implemented!");
 
 			CASE(eq) : {
@@ -432,12 +433,32 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				       sizeof(int)); // offset the relative jump address
 			}
 
+			CASE(jumpiftrue_direct) : {
+				Value v   = POP();
+				int   dis = next_int();
+				if(v.toBoolean()) {
+					JUMPTO(dis -
+					       sizeof(int)); // offset the relative jump address
+				}
+				DISPATCH();
+			}
+
 			CASE(jumpiftrue) : {
 				Value v   = POP();
 				int   dis = next_int();
 				bool  tr  = (v.isBoolean() && v.toBoolean()) ||
 				          (v.isNumber() && v.toNumber());
 				if(tr) {
+					JUMPTO(dis -
+					       sizeof(int)); // offset the relative jump address
+				}
+				DISPATCH();
+			}
+
+			CASE(jumpiffalse_direct) : {
+				Value v   = POP();
+				int   dis = next_int();
+				if(!v.toBoolean()) {
 					JUMPTO(dis -
 					       sizeof(int)); // offset the relative jump address
 				}

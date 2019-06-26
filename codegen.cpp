@@ -118,6 +118,12 @@ void CodeGenerator::popFrame() {
 		bytecode = &frame->code;
 }
 
+bool CodeGenerator::isLogical(uint8_t code) {
+#define OP(x) code == BytecodeHolder::CODE_##x
+	return OP(eq) || OP(neq) || OP(greater) || OP(greatereq) || OP(less) ||
+	       OP(lesseq);
+}
+
 Module *CodeGenerator::compile(NextString name, const vector<StmtPtr> &stmts) {
 	module = new Module(name);
 	frame  = module->frame.get();
@@ -769,7 +775,13 @@ void CodeGenerator::visit(IfStatement *ifs) {
 #endif
 	ifs->condition->accept(this);
 	frame->insertdebug(ifs->token);
-	int jif = bytecode->jumpiffalse(0), jumpto = 0, exitif = -1;
+	bool isDirect = isLogical(bytecode->getLastIns());
+	int  jif = 0, jumpto = 0, exitif = -1;
+	if(isDirect) {
+		jif = bytecode->jumpiffalse_direct(0);
+	} else {
+		jif = bytecode->jumpiffalse(0);
+	}
 	ifs->thenBlock->accept(this);
 	if(ifs->elseBlock != nullptr) {
 		exitif = bytecode->jump(0);
@@ -778,7 +790,10 @@ void CodeGenerator::visit(IfStatement *ifs) {
 	} else
 		jumpto = bytecode->getip();
 	// patch the conditional jump
-	bytecode->jumpiffalse(jif, jumpto - jif);
+	if(isDirect) {
+		bytecode->jumpiffalse_direct(jif, jumpto - jif);
+	} else
+		bytecode->jumpiffalse(jif, jumpto - jif);
 	// if there is an else block, patch the
 	// exit jump
 	if(exitif != -1)
@@ -793,17 +808,30 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 	if(!ifs->isDo) {
 		int pos = bytecode->getip();
 		ifs->condition->accept(this);
+		bool isDirect = isLogical(bytecode->getLastIns());
+		int  loopexit = 0;
 		frame->insertdebug(ifs->token);
-		int loopexit = bytecode->jumpiffalse(0);
+		if(isDirect) {
+			loopexit = bytecode->jumpiffalse_direct(0);
+		} else
+			loopexit = bytecode->jumpiffalse(0);
 		ifs->thenBlock->accept(this);
 		bytecode->jump(pos - bytecode->getip());
-		bytecode->jumpiffalse(loopexit, bytecode->getip() - loopexit);
+		if(isDirect) {
+			bytecode->jumpiffalse_direct(loopexit,
+			                             bytecode->getip() - loopexit);
+		} else
+			bytecode->jumpiffalse(loopexit, bytecode->getip() - loopexit);
 	} else {
 		int pos = bytecode->getip();
 		ifs->thenBlock->accept(this);
 		ifs->condition->accept(this);
+		bool isDirect = isLogical(bytecode->getLastIns());
 		frame->insertdebug(ifs->token);
-		bytecode->jumpiftrue(pos - bytecode->getip());
+		if(isDirect) {
+			bytecode->jumpiftrue_direct(pos - bytecode->getip());
+		} else
+			bytecode->jumpiftrue(pos - bytecode->getip());
 	}
 }
 

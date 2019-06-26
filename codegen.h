@@ -116,6 +116,8 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void             compileAll(const std::vector<StmtPtr> &statements);
 	void             initFrame(Frame *f);
 	void             popFrame();
+	// denotes whether the opcodes is a logical operation
+	bool             isLogical(uint8_t code);
 	CompilationState getState();
 #ifdef DEBUG
 	void disassembleFrame(Frame *f, NextString name);

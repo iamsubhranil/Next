@@ -80,9 +80,14 @@ OPCODE1(store_module_slot, 0, int) // <slot>
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
-// Pop, verify and jump
+// Normal jumpif*, which checks the TOS for boolean value
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
+// When a logical op preceeds the jumpif*, we know the
+// TOS is going to be boolean value, and hence we can
+// skip that check.
+OPCODE1(jumpiftrue_direct, -1, int)  // <relative_jump_offset>
+OPCODE1(jumpiffalse_direct, -1, int) // <relative_jump_offset>
 
 // Since 'call' creates a separate stack for the callee,
 // the number of parameters is needed to copy the old arguments

@@ -32,14 +32,14 @@ class Value {
 		value = QNAN_##n | value;                                \
 	}
 #include "valuetypes.h"
-
   public:
 	enum Type : int {
 		VAL_Number = 0,
 		VAL_NIL    = 1,
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
-	};
+	} to;
+
 	Value() : value(QNAN_NIL) {}
 	Value(double d) : value(*(uint64_t *)&d) {}
 #ifdef DEBUG
