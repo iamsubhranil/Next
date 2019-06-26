@@ -1,0 +1,5 @@
+a = 0
+fn loop(x) {
+    while(a++ < x) {}
+}
+loop(500000000)
