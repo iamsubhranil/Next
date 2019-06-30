@@ -10,8 +10,10 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// the bodies, making it effectively a two pass compiler.
 	enum CompilationState { COMPILE_DECLARATION, COMPILE_BODY };
 
+	enum VariablePosition { LOCAL, CLASS, MODULE /*, OBJECT*/ };
 	typedef struct VarInfo {
-		int slot, isLocal;
+		int              slot;
+		VariablePosition position;
 	} VarInfo;
 
 	BytecodeHolder * bytecode;
@@ -29,6 +31,19 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	bool    onLHS;
 	// in an LHS, this will contain information about the variable
 	VarInfo variableInfo;
+	// to denote whether we are compiling a reference expression
+	bool onRefer;
+	// When we are on LHS and the expression is a reference expression,
+	// this variable will hold the name of the ultimate member in that
+	// expression
+	NextString                         lastMemberReferenced;
+
+	// Denotes whether we are in a class
+	bool       inClass;
+	// Current class pointer if we are in a class
+	NextClass *currentClass;
+	// Current visibility when we are in a class
+	AccessModifiableEntity::Visibility currentVisibility;
 
 	// Expression generator
 	void visit(AssignExpression *as);
@@ -59,10 +74,11 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 
-	NextString       generateSignature(Token &name, int arity);
+	int              getFrameIndex(std::vector<Frame *> &col, Frame *f);
+	NextString       generateSignature(const Token &name, int arity);
+	NextString       generateSignature(const std::string &name, int arity);
 	VarInfo          lookForVariable(NextString name, bool declare = false);
 	void             compileAll(std::vector<StmtPtr> &statements);
-	bool             isInClass();
 	void             initFrame(Frame *f);
 	void             popFrame();
 	CompilationState getState();

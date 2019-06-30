@@ -115,6 +115,7 @@ class SetExpression : public Expr {
 	    : Expr(name), object(obj.release()), value(val.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 	bool isAssignable() { return true; }
+	bool isMemberAccess() { return true; }
 };
 
 class PrefixExpression : public Expr {

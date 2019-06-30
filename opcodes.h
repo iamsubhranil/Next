@@ -21,10 +21,14 @@ OPCODE0(mul, -1)
 OPCODE0(div, -1)
 OPCODE0(power, -1)
 
-OPCODE1(incr, 1, int)        // <slot>
-OPCODE1(incr_module, 1, int) // <slot>
-OPCODE1(decr, 1, int)        // <slot>
-OPCODE1(decr_module, 1, int) // <slot>
+OPCODE1(incr_slot, 1, int)   // <slot>
+OPCODE1(incr_module_slot, 1, int) // <slot>
+OPCODE1(incr_object_slot, 1, int) // <slot>
+OPCODE1(incr_field, 1, NextString) // <field>
+OPCODE1(decr_slot, 1, int)        // <slot>
+OPCODE1(decr_module_slot, 1, int) // <slot>
+OPCODE1(decr_object_slot, 1, int) // <slot>
+OPCODE1(decr_field, 1, NextString) // <field>
 
 OPCODE0(neg, 0)
 
@@ -43,6 +47,7 @@ OPCODE0(print, -1)
 
 OPCODE1(pushd, 1, double)              // <double>
 OPCODE1(pushs, 1, NextString)          // <NextString>
+OPCODE0(pushn, 1)
 OPCODE0(pop, -1)
 
 // OPCODE1(registerfn, -1, NextString)    // <function_id>
@@ -56,7 +61,7 @@ OPCODE1(store_slot, 0, int)              // <slot_number>
 
 // FrameInstance carries module stack
 OPCODE1(load_module_slot, 1, int)   // <slot>
-OPCODE1(store_module_slot, -1, int) // <slot>
+OPCODE1(store_module_slot, 0, int)  // <slot>
 
 OPCODE1(jump, -1, int)        // <relative_jump_offset>
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
@@ -67,6 +72,35 @@ OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 // from the caller stack to callee stack
 OPCODE2(call, 0, int, int) // <frame_pointer_index> <arity>
 OPCODE0(ret, 0)
+
+OPCODE2(construct, 0, NextString, NextString) // <module_name> <class_name>
+OPCODE0(construct_ret, 0)
+
+// Load <slot> from slot 0
+OPCODE1(load_object_slot, 1, int)
+// Store TOS to <slot> of slot 0
+OPCODE1(store_object_slot, 0, int)
+// Pop the object from TOS and push
+// the required field
+OPCODE1(load_field, 0, NextString)
+// incr/decr_field always expects the object
+// on TOS, which certainly is not the
+// case for postfix operations, where,
+// a load_field happens before the
+// actual incr/decr_field.
+// Hence this special opcode is introduced
+// which will load the specified field,
+// but also push the object back to the TOS
+OPCODE1(load_field_pushback, 1, NextString)
+// Pop the object from TOS and assign
+// the value at present TOS to the field
+OPCODE1(store_field, -1, NextString)
+
+OPCODE2(call_method, 1, NextString, int) // <signature> <slot>
+// Optimized 'call' for intraclass
+// calls (i.e. call between two methods
+// of the same class)
+OPCODE2(call_intraclass, 1, int, int)
 
 OPCODE0(halt, 0)
 

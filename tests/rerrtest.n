@@ -1,0 +1,15 @@
+fn good() {
+    a = 5
+    medium()
+}
+
+fn medium() {
+    a = nil
+    bad()
+}
+
+fn bad() {
+    a = nil + nil
+}
+
+good()

@@ -1,0 +1,42 @@
+class LinkedList {
+    pub:
+        mem
+        static mem2
+        new(x) {
+            print("\nin constructor\n")
+            mem = x
+            mem2 = 8
+            print("\nreturn constructor\n")
+        }
+
+        fn test() {
+            print("\nin test\n")
+            print(mem)
+            print("\nreturn test\n")
+        }
+
+        fn some() {
+            print("\nin some\n")
+            a = 2 + 3
+            mem = 4
+            mem = test()
+            print("\nreturn some\n")
+            ret 6
+        }
+
+        fn loop(x, y) {
+            while(mem++ < x) {
+                print("\nmem : ", mem)
+            }
+        }
+}
+x = LinkedList(2)
+print("x.mem : ", x.mem, "\tx.mem2 : ", x.mem2)
+x.mem = 5
+x.some()
+x.mem2 = x.some()
+print("\nx.mem : ", x.mem, "\tx.mem2 : ", x.mem2)
+x.mem = 1
+x.loop(10, 20)
+print("\nx.mem : ", x.mem, "\tx.mem++ : ", x.mem++)
+print("\nx.mem : ", x.mem, "\t++x.mem : ", ++x.mem)

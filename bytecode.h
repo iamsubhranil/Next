@@ -7,10 +7,8 @@
 #include <vector>
 
 class BytecodeHolder {
-  private:
-	static const char *OpcodeNames[];
-
   public:
+	static const char *OpcodeNames[];
 	std::vector<uint8_t> bytecodes;
 	int                  stackMaxSize;
 	int                  presentStackSize;
@@ -27,53 +25,42 @@ class BytecodeHolder {
 
 	void insertSlot() {
 		presentStackSize++;
-		if(presentStackSize > stackMaxSize)
-			stackMaxSize = presentStackSize;
+		stackMaxSize++;
 	}
 
-#define OPCODE0(x, y)                        \
-	int x() {                                \
-		presentStackSize += y;               \
-		if(presentStackSize > stackMaxSize)  \
-			stackMaxSize = presentStackSize; \
-		lastInsPos = bytecodes.size();       \
-		bytecodes.push_back(CODE_##x);       \
-		return lastInsPos;                   \
-	};                                       \
-	int x(int pos) {                         \
-		presentStackSize += y;               \
-		if(presentStackSize > stackMaxSize)  \
-			stackMaxSize = presentStackSize; \
-		lastInsPos            = pos;         \
-		bytecodes[lastInsPos] = CODE_##x;    \
-		return lastInsPos;                   \
+#define OPCODE0(x, y)                     \
+	int x() {                             \
+		stackEffect(y);                   \
+		lastInsPos = bytecodes.size();    \
+		bytecodes.push_back(CODE_##x);    \
+		return lastInsPos;                \
+	};                                    \
+	int x(int pos) {                      \
+		stackEffect(y);                   \
+		lastInsPos            = pos;      \
+		bytecodes[lastInsPos] = CODE_##x; \
+		return lastInsPos;                \
 	};
 
-#define OPCODE1(x, y, z)                     \
-	int x(z arg) {                           \
-		presentStackSize += y;               \
-		if(presentStackSize > stackMaxSize)  \
-			stackMaxSize = presentStackSize; \
-		lastInsPos = bytecodes.size();       \
-		bytecodes.push_back(CODE_##x);       \
-		insert_##z(arg);                     \
-		return lastInsPos;                   \
-	};                                       \
-	int x(int pos, z arg) {                  \
-		presentStackSize += y;               \
-		if(presentStackSize > stackMaxSize)  \
-			stackMaxSize = presentStackSize; \
-		lastInsPos     = pos;                \
-		bytecodes[pos] = CODE_##x;           \
-		insert_##z(pos + 1, arg);            \
-		return pos;                          \
+#define OPCODE1(x, y, z)               \
+	int x(z arg) {                     \
+		stackEffect(y);                \
+		lastInsPos = bytecodes.size(); \
+		bytecodes.push_back(CODE_##x); \
+		insert_##z(arg);               \
+		return lastInsPos;             \
+	};                                 \
+	int x(int pos, z arg) {            \
+		stackEffect(y);                \
+		lastInsPos     = pos;          \
+		bytecodes[pos] = CODE_##x;     \
+		insert_##z(pos + 1, arg);      \
+		return pos;                    \
 	};
 
 #define OPCODE2(x, y, z, w)                    \
 	int x(z arg1, w arg2) {                    \
-		presentStackSize += y;                 \
-		if(presentStackSize > stackMaxSize)    \
-			stackMaxSize = presentStackSize;   \
+		stackEffect(y);                        \
 		lastInsPos = bytecodes.size();         \
 		bytecodes.push_back(CODE_##x);         \
 		insert_##z(arg1);                      \
@@ -81,9 +68,7 @@ class BytecodeHolder {
 		return lastInsPos;                     \
 	};                                         \
 	int x(int pos, z arg1, w arg2) {           \
-		presentStackSize += y;                 \
-		if(presentStackSize > stackMaxSize)    \
-			stackMaxSize = presentStackSize;   \
+		stackEffect(y);                        \
 		lastInsPos     = pos;                  \
 		bytecodes[pos] = CODE_##x;             \
 		insert_##z(pos + 1, arg1);             \
@@ -112,31 +97,39 @@ class BytecodeHolder {
 
 #undef insert_type
 
-	int getLastInsPos() { return lastInsPos; }
+	int getLastInsPos() const { return lastInsPos; }
 
 	void setLastIns(uint8_t ins) { bytecodes[lastInsPos] = ins; }
 
-	uint8_t getLastIns() { return bytecodes[lastInsPos]; }
+	uint8_t getLastIns() const { return bytecodes[lastInsPos]; }
 
-	void disassemble_int(uint8_t *data) { std::cout << "\t" << *(int *)data; }
+	void stackEffect(int effect) {
+		presentStackSize += effect;
+		if(presentStackSize > stackMaxSize)
+			stackMaxSize = presentStackSize;
+	}
 
-	void disassemble_double(uint8_t *data) {
+	void disassemble_int(const uint8_t *data) const {
+		std::cout << "\t" << *(int *)data;
+	}
+
+	void disassemble_double(const uint8_t *data) const {
 		std::cout << "\t" << *(double *)data;
 	}
 
-	void disassemble_uintptr_t(uint8_t *data) {
+	void disassemble_uintptr_t(const uint8_t *data) const {
 		std::cout << "\t" << *(uintptr_t *)data;
 	}
 
-	void disassemble_NextString(uint8_t *data) {
+	void disassemble_NextString(const uint8_t *data) const {
 		std::cout << "\t\"" << StringLibrary::get(*(NextString *)data) << "\"";
 	}
 
-	void disassemble() {
-		uint8_t *data = bytecodes.data();
+	void disassemble() const {
+		const uint8_t *data = bytecodes.data();
 		size_t   size = bytecodes.size();
 		for(size_t i = 0; i < size;) {
-			std::cout << std::setw(3) << i << ": " << std::setw(17)
+			std::cout << std::setw(3) << i << ": " << std::setw(20)
 			          << OpcodeNames[data[i]];
 			switch(data[i]) {
 #define OPCODE1(x, y, z)           \
@@ -161,8 +154,8 @@ class BytecodeHolder {
 	}
 
 	unsigned char *raw() { return bytecodes.data(); }
-	int            maxStackSize() { return stackMaxSize; }
-	int            getip() { return bytecodes.size(); }
+	int            maxStackSize() const { return stackMaxSize; }
+	int            getip() const { return bytecodes.size(); }
 };
 
 using Bytecode = std::unique_ptr<BytecodeHolder>;

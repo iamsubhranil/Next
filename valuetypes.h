@@ -6,5 +6,5 @@ TYPE(double, Number)
 TYPE(NextString, String)
 TYPE(void *, Other)
 TYPE(bool, Boolean)
-
+TYPE(NextObject *, Object)
 #undef TYPE

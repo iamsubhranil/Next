@@ -26,6 +26,8 @@ static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
 	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
 	p->registerParselet(TOKEN_STRING, new LiteralParselet());
+	p->registerParselet(TOKEN_nil, new LiteralParselet());
+	// p->registerParselet(TOKEN_this, new LiteralParselet());
 
 	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());

@@ -64,6 +64,7 @@ class InfixParselet {
 	InfixParselet(int prec) : precedence(prec) {}
 	virtual ExpPtr parse(Parser *parser, ExpPtr &left, Token t) = 0;
 	int            getPrecedence() { return precedence; }
+	virtual bool   isAssignment() { return false; }
 	virtual ~InfixParselet() {}
 };
 
@@ -81,12 +82,16 @@ class PostfixOperatorParselet : public InfixParselet {
   public:
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
 	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+	bool   isAssignment() {
+		return true; // only ++/--
+	}
 };
 
 class AssignParselet : public InfixParselet {
   public:
 	AssignParselet() : InfixParselet(Precedence::ASSIGNMENT) {}
 	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+	bool   isAssignment() { return true; }
 };
 
 class CallParselet : public InfixParselet {

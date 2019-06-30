@@ -65,9 +65,11 @@ typedef struct Token {
 	friend std::ostream &operator<<(std::ostream &os, const Token &t);
 	friend std::ostream &operator<<(std::ostream &            os,
 	                                const std::vector<Token> &tv);
-	void                 highlight() const;
+	void highlight(bool showFileName = false, const char *prefix = NULL) const;
 	static const char *  TokenNames[];
 	static const char *  FormalNames[];
+
+	static Token PlaceholderToken;
 } Token;
 
 class Scanner {

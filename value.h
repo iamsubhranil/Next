@@ -6,6 +6,8 @@
 
 using NextString = size_t;
 
+class NextObject;
+
 class Value {
   public:
 	union val {
@@ -15,21 +17,22 @@ class Value {
 #include "valuetypes.h"
 	} to;
 	enum Type {
+		VAL_NIL = 0,
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
-		VAL_UNINITIALIZED
 	};
 	Type t;
 
-	Value() : to(0.0), t(VAL_UNINITIALIZED) {}
+	Value() : to(0.0), t(VAL_NIL) {}
 #define TYPE(r, n) \
 	Value(r s) : to(s), t(VAL_##n) {}
 #include "valuetypes.h"
 
 	inline bool is(Type ty) const { return ty == t; }
 #define TYPE(r, n) \
-	inline bool is##n() const { return is(VAL_##n); }
+	inline bool is##n() const { return t == VAL_##n; }
 #include "valuetypes.h"
+	inline bool isNil() const { return t == VAL_NIL; }
 
 #define TYPE(r, n) \
 	inline r to##n() const { return to.val##n; }
@@ -52,7 +55,8 @@ class Value {
 			case Value::VAL_Boolean:
 				o << (v.to.valBoolean ? "true" : "false");
 				break;
-			case Value::VAL_UNINITIALIZED: o << "<uninitialized>"; break;
+			case Value::VAL_Object: o << "<object>"; break;
+			case Value::VAL_NIL: o << "nil"; break;
 		}
 		return o;
 	}
@@ -75,4 +79,6 @@ class Value {
 		// double is the geatest type, hence compare with that
 		return t == v.t && (toNumber() == v.toNumber());
 	}
+
+	static Value nil;
 };

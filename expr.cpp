@@ -67,15 +67,17 @@ void ExpressionPrinter::visit(SetExpression *se) {
 }
 
 void ExpressionPrinter::visit(PrefixExpression *pe) {
+	out << pe->token;
 	out << "(";
-	out << Token::FormalNames[pe->token.type];
 	pe->right->accept(this);
 	out << ")";
 }
 
 void ExpressionPrinter::visit(PostfixExpression *pe) {
+	out << "(";
 	pe->left->accept(this);
-	out << Token::FormalNames[pe->token.type];
+	out << ")";
+	out << pe->token;
 }
 
 void ExpressionPrinter::visit(VariableExpression *v) {

@@ -7,6 +7,8 @@
 
 using namespace std;
 
+Token Token::PlaceholderToken = {TOKEN_ERROR, NULL, NULL, 0, 0, NULL};
+
 Token Token::from(TokenType type, Scanner *scanner) {
 	Token token;
 	token.type     = type;
@@ -28,7 +30,7 @@ Token Token::errorToken(const char *message, Scanner *scanner) {
 	return token;
 }
 
-void Token::highlight() const {
+void Token::highlight(bool showFileName, const char *prefix) const {
 	const char *tokenEnd = start, *tokenStart = start;
 	while(*tokenStart != '\n' && tokenStart != source) tokenStart--;
 	if(*tokenStart == '\n')
@@ -37,6 +39,13 @@ void Token::highlight() const {
 	while(*tokenEnd != '\0' && *tokenEnd != '\n') tokenEnd++;
 	int ch    = start - tokenStart + 1;
 	int extra = 4; // [:]<space>
+
+	if(showFileName) {
+		extra += strlen(fileName) + 1; // <filename>:
+	}
+	if(prefix != NULL) {
+		extra += strlen(prefix);
+	}
 
 	int lbak = line;
 	while(lbak > 0) {
@@ -49,9 +58,20 @@ void Token::highlight() const {
 		lbak /= 10;
 	}
 
-	cout << "[" << line << ":" << ch << "] ";
+	if(prefix != NULL) {
+		cout << prefix;
+	}
+	cout << "[";
+	if(showFileName) {
+		cout << fileName << ":";
+	}
+	cout << line << ":" << ch << "] ";
 	while(bak < tokenEnd) {
-		cout << *bak;
+		if(bak >= start && (bak - start) < length) {
+			cout << ANSI_FONT_BOLD << ANSI_COLOR_GREEN << *bak
+			     << ANSI_COLOR_RESET;
+		} else
+			cout << *bak;
 		bak++;
 	}
 	cout << endl;
@@ -62,8 +82,11 @@ void Token::highlight() const {
 	}
 	if(type == TOKEN_EOF)
 		cout << "^";
-	else
+	else {
+		cout << ANSI_FONT_BOLD ANSI_COLOR_GREEN;
 		for(int i = 0; i < length; i++) cout << "~";
+		cout << ANSI_COLOR_RESET;
+	}
 	cout << endl;
 }
 
@@ -102,7 +125,7 @@ const char *Token::FormalNames[] = {
 
 using namespace std;
 
-#ifdef DEBUG
+#ifdef DEBUG_SCANNER
 ostream &operator<<(ostream &os, const Token &t) {
 	os << setw(15) << std::left << string(t.start, t.length);
 	os << " " << setw(2) << t.length << " " << setw(10) << string(t.fileName)

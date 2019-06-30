@@ -32,9 +32,16 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 	ExpPtr left = prefix->parse(this, token);
 
 	while(precedence < getPrecedence()) {
-		token = consume();
+		token = lookAhead(0);
 
 		InfixParselet *infix = infixParselets[token.type].get();
+		// if this infix parselet is an assignment, but the
+		// left of it isn't assignable, 'token' is probably
+		// part of the next expression, so bail out
+		if(infix->isAssignment() && !left->isAssignable()) {
+			return left;
+		}
+		token                = consume();
 		left                 = infix->parse(this, left, token);
 	}
 
@@ -395,6 +402,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			}
 			return unq(LiteralExpression, Value(val), t);
 		}
+		case TOKEN_nil: return unq(LiteralExpression, Value::nil, t);
 		default: throw ParseException(t, "Invalid literal value!");
 	}
 }
