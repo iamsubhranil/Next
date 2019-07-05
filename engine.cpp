@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "display.h"
+#include "primitive.h"
 
 using namespace std;
 
@@ -108,6 +109,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define next_ptr()                            \
 	(presentFrame->code += sizeof(uintptr_t), \
 	 *(uintptr_t *)(presentFrame->code - sizeof(uintptr_t) + 1))
+#define next_value()                      \
+	(presentFrame->code += sizeof(Value), \
+	 *(Value *)(presentFrame->code - sizeof(Value) + 1))
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
@@ -168,6 +172,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					DISPATCH();
 				}
 				RERR("'-' must only be applied over a number!");
+			}
+
+			CASE(push) : {
+				PUSH(next_value());
+				DISPATCH();
 			}
 
 			CASE(pushd) : {
@@ -481,8 +490,26 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					RERR("Method '%s' not found in class '%s'!",
 					     StringLibrary::get_raw(method),
 					     StringLibrary::get_raw(obj->Class->name));
+				} else {
+					if(Primitives::hasPrimitive(v.getType(), method)) {
+						Value ret = Primitives::invokePrimitive(
+						    v.getType(), method,
+						    &presentFrame->stack_[presentFrame->stackPointer -
+						                          numArg - 1]);
+
+						// Pop the arguments
+						while(numArg >= 0) {
+							POP(); // TODO: Potential memory leak?
+							numArg--;
+						}
+
+						PUSH(ret);
+						DISPATCH();
+					}
 				}
-				RERR("'.' can only be applied over an object!");
+				RERR("Primitive method '%s' not found in type '%s'!",
+				     StringLibrary::get_raw(method),
+				     StringLibrary::get_raw(v.getTypeString()));
 			}
 
 			CASE(call_intraclass) : {

@@ -45,6 +45,8 @@ OPCODE0(greatereq, -1)
 
 OPCODE0(print, -1)
 
+// Pushes a Value to the stack
+OPCODE1(push, 1, Value)
 OPCODE1(pushd, 1, double)              // <double>
 OPCODE1(pushs, 1, NextString)          // <NextString>
 OPCODE0(pushn, 1)

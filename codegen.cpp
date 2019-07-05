@@ -163,9 +163,13 @@ void CodeGenerator::visit(CallExpression *call) {
 		bytecode->stackEffect(-1);
 		bytecode->pushd(0);
 	}
+	// Reset the referral status for arguments
+	bool bak = onRefer;
+	onRefer  = false;
 	for(auto i = call->arguments.begin(), j = call->arguments.end(); i != j;
 	    i++)
 		(*i)->accept(this);
+	onRefer = bak;
 	frame->insertdebug(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
 	if(onRefer) {
@@ -300,12 +304,14 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 	lit->token.highlight();
 #endif
 	frame->insertdebug(lit->token);
+	bytecode->push(lit->value);
+	/*
 	switch(lit->value.t) {
-		case Value::VAL_Number: bytecode->pushd(lit->value.toNumber()); break;
-		case Value::VAL_String: bytecode->pushs(lit->value.toString()); break;
-		case Value::VAL_NIL: bytecode->pushn(); break;
-		default: panic("Handling other values not implemented!");
-	}
+	    case Value::VAL_Number: bytecode->pushd(lit->value.toNumber()); break;
+	    case Value::VAL_String: bytecode->pushs(lit->value.toString()); break;
+	    case Value::VAL_NIL: bytecode->pushn(); break;
+	    default: panic("Handling other values not implemented!");
+	}*/
 }
 
 void CodeGenerator::visit(SetExpression *sete) {

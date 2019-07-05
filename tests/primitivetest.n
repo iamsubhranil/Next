@@ -1,0 +1,15 @@
+print("Testing boolean primitives..")
+v = true
+print("\n", v, ".str() : ", v.str())
+
+print("\n\nTesting number primitives..")
+d = 2.8284382828899812898938298
+print("\n", d, ".str() : ", d.str())
+
+print("\n\nTesting string primitives..")
+s = "Hello World!"
+print("\n", s, ".str() : ", s.str())
+print("\n", s, ".len() : ", s.len())
+
+print("\n\nThis should fail!")
+s.badPrimitive(d)

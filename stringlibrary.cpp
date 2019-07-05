@@ -14,6 +14,11 @@ size_t StringLibrary::insert(const string &s) {
 	return hash_;
 }
 
+size_t StringLibrary::insert(const char *s) {
+	string str(s);
+	return insert(str);
+}
+
 size_t StringLibrary::insert(const char *s, size_t len) {
 	string str(s, len);
 	return insert(str);

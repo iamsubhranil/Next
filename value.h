@@ -28,6 +28,9 @@ class Value {
 	Value(r s) : to(s), t(VAL_##n) {}
 #include "valuetypes.h"
 
+	Type getType() { return t; }
+	NextString getTypeString() { return ValueTypeStrings[t]; }
+
 	inline bool is(Type ty) const { return ty == t; }
 #define TYPE(r, n) \
 	inline bool is##n() const { return t == VAL_##n; }
@@ -81,4 +84,5 @@ class Value {
 	}
 
 	static Value nil;
+	static NextString ValueTypeStrings[];
 };

@@ -94,6 +94,7 @@ class BytecodeHolder {
 	insert_type(NextString);
 	insert_type(double);
 	insert_type(uintptr_t);
+	insert_type(Value);
 
 #undef insert_type
 
@@ -123,6 +124,10 @@ class BytecodeHolder {
 
 	void disassemble_NextString(const uint8_t *data) const {
 		std::cout << "\t\"" << StringLibrary::get(*(NextString *)data) << "\"";
+	}
+
+	void disassemble_Value(const uint8_t *data) const {
+		std::cout << "\t" << *(Value *)data;
 	}
 
 	void disassemble() const {
