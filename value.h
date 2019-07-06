@@ -48,37 +48,23 @@ class Value {
 	}
 #include "valuetypes.h"
 
-	friend std::ostream &operator<<(std::ostream &o, const Value &v) {
-		switch(v.t) {
-			case Value::VAL_String:
-				o << StringLibrary::get(v.to.valString);
-				break;
-			case Value::VAL_Number: o << v.to.valNumber; break;
-			case Value::VAL_Other: o << "Pointer : " << v.to.valOther; break;
-			case Value::VAL_Boolean:
-				o << (v.to.valBoolean ? "true" : "false");
-				break;
-			case Value::VAL_Object: o << "<object>"; break;
-			case Value::VAL_NIL: o << "nil"; break;
-		}
-		return o;
-	}
+	friend std::ostream &operator<<(std::ostream &o, const Value &v);
 
-#define TYPE(r, n)           \
-	Value &operator=(r d) {  \
-		t         = VAL_##n; \
-		to.val##n = d;       \
-		return *this;        \
+#define TYPE(r, n)                 \
+	inline Value &operator=(r d) { \
+		t         = VAL_##n;       \
+		to.val##n = d;             \
+		return *this;              \
 	}
 #include "valuetypes.h"
 
-	Value &operator=(const Value &v) {
+	inline Value &operator=(const Value &v) {
 		t            = v.t;
 		to.valNumber = v.to.valNumber;
 		return *this;
 	}
 
-	bool operator==(const Value &v) const {
+	inline bool operator==(const Value &v) const {
 		// double is the geatest type, hence compare with that
 		return t == v.t && (toNumber() == v.toNumber());
 	}

@@ -45,6 +45,9 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// Current visibility when we are in a class
 	AccessModifiableEntity::Visibility currentVisibility;
 
+	// try markers
+	int tryBlockStart, tryBlockEnd;
+
 	// Expression generator
 	void visit(AssignExpression *as);
 	void visit(BinaryExpression *bin);
@@ -78,7 +81,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	NextString       generateSignature(const Token &name, int arity);
 	NextString       generateSignature(const std::string &name, int arity);
 	VarInfo          lookForVariable(NextString name, bool declare = false);
-	void             compileAll(std::vector<StmtPtr> &statements);
+	void             compileAll(const std::vector<StmtPtr> &statements);
 	void             initFrame(Frame *f);
 	void             popFrame();
 	CompilationState getState();
@@ -92,6 +95,6 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 
   public:
 	CodeGenerator();
-	Module *compile(NextString name, std::vector<StmtPtr> &statements);
-	void    compile(Module *compileIn, std::vector<StmtPtr> &statements);
+	Module *compile(NextString name, const std::vector<StmtPtr> &statements);
+	void    compile(Module *compileIn, const std::vector<StmtPtr> &statements);
 };

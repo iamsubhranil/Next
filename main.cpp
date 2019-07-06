@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "core.h"
 #include "engine.h"
 #include "parser.h"
 #include "scanner.h"
@@ -22,7 +23,7 @@ static void infixRight(Parser *p, TokenType t, int prec) {
 	p->registerParselet(t, new BinaryOperatorParselet(prec, true));
 }
 
-static void registerParselets(Parser *p) {
+void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
 	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
 	p->registerParselet(TOKEN_STRING, new LiteralParselet());
@@ -85,8 +86,28 @@ static void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_class, new ClassDeclaration());
 }
 
+NextString generateModuleName(const char *inp) {
+	size_t len = strlen(inp);
+	int    last = len - 1;
+	// find the '.'
+	while(inp[last] != '.' && inp[last] != '\0') last--;
+	if(inp[last] == '\0')
+		return StringLibrary::insert(inp);
+	// escape the '.'
+	--last;
+	int first = last;
+	while(inp[first] != '\\' && inp[first] != '/' && inp[first] != '\0')
+		--first;
+	if(inp[first] != '\0')
+		first++;
+	return StringLibrary::insert(&inp[first], (last - first) + 1);
+}
+
 int main(int argc, char *argv[]) {
-	Module           module(StringLibrary::insert("root"));
+	// load the core module first
+	CoreModule::init();
+	Module           module(argc > 1 ? generateModuleName(argv[1])
+                           : StringLibrary::insert("repl"));
 	CodeGenerator    c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);

@@ -11,6 +11,7 @@ FrameInstance *ExecutionEngine::newinstance(Frame *f) {
 }
 
 std::unordered_map<NextString, Module *> ExecutionEngine::loadedModules = {};
+Value ExecutionEngine::pendingException = Value::nil;
 
 void ExecutionEngine::registerModule(Module *m) {
 	if(loadedModules.find(m->name) != loadedModules.end()) {
@@ -31,6 +32,91 @@ void ExecutionEngine::printStackTrace(FrameInstance *root) {
 			err("<source not found>");
 		f = f->enclosingFrame;
 	}
+}
+
+void ExecutionEngine::setPendingException(Value v) {
+	pendingException = v;
+}
+
+#define PUSH(x) presentFrame->stack_[presentFrame->stackPointer++] = (x);
+#define RERR(x, ...)                                                    \
+	{                                                                   \
+		cout << "\n";                                                   \
+		Value v = newObject(StringLibrary::insert("core"),              \
+		                    StringLibrary::insert("RuntimeException")); \
+		char  message[1024];                                            \
+		snprintf(message, 1024, x, ##__VA_ARGS__);                      \
+		v.toObject()->slots[0] = Value(StringLibrary::insert(message)); \
+		throwException(v, presentFrame);                                \
+	}
+
+#define set_instruction_pointer(x) \
+	x->instructionPointer = x->code - x->frame->code.bytecodes.data()
+
+FrameInstance *ExecutionEngine::throwException(Value          v,
+                                               FrameInstance *presentFrame) {
+
+	// Get the type
+	NextType t = NextType::getType(v);
+	// Now find the frame by unwinding the stack
+	FrameInstance *matched   = NULL;
+	FrameInstance *searching = presentFrame;
+	while(searching != NULL && matched == NULL) {
+		// find the current instruction pointer
+		set_instruction_pointer(searching);
+		for(auto i = searching->frame->handlers->begin(),
+		         j = searching->frame->handlers->end();
+		    i != j; i++) {
+			if((*i).from <= (searching->instructionPointer - 1) &&
+			   (*i).to >= (searching->instructionPointer - 1) &&
+			   (*i).caughtType == t) {
+				matched                     = searching;
+				matched->instructionPointer = (*i).instructionPointer;
+				break;
+			}
+		}
+		searching = searching->enclosingFrame;
+	}
+	if(matched == NULL) {
+		// no handlers matched, unwind stack
+		err("Uncaught exception occurred of type '%s.%s'!",
+		    StringLibrary::get_raw(t.module), StringLibrary::get_raw(t.name));
+		// if it's a runtime exception, there is a message
+		if(NextType::getType(v) ==
+		   (NextType){StringLibrary::insert("core"),
+		              StringLibrary::insert("RuntimeException")}) {
+			cout << StringLibrary::get(v.toObject()->slots[0].toString())
+			     << endl;
+		}
+		printStackTrace(presentFrame);
+		exit(1);
+	} else {
+		// pop all but the matched frame
+		while(presentFrame != matched) {
+			FrameInstance *bak = presentFrame->enclosingFrame;
+			delete presentFrame;
+			presentFrame = bak;
+		}
+		PUSH(v);
+		presentFrame->code = &presentFrame->frame->code
+		                          .bytecodes[presentFrame->instructionPointer];
+		return presentFrame;
+	}
+}
+
+Value ExecutionEngine::newObject(NextString mod, NextString c) {
+	if(loadedModules.find(mod) != loadedModules.end()) {
+		ClassMap &cm = loadedModules[mod]->classes;
+		if(cm.find(c) != cm.end()) {
+			return Value(new NextObject(cm[c].get()));
+		} else {
+			panic("Class '%s' not found in module '%s'!",
+			      StringLibrary::get_raw(c), StringLibrary::get_raw(mod));
+		}
+	} else {
+		panic("Module '%s' is not loaded!", StringLibrary::get_raw(c));
+	}
+	return Value::nil;
 }
 
 void ExecutionEngine::execute(Module *m, Frame *f) {
@@ -79,17 +165,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #endif
 
 #define TOP presentFrame->stack_[presentFrame->stackPointer - 1]
-#define PUSH(x) presentFrame->stack_[presentFrame->stackPointer++] = (x);
 #define POP() presentFrame->stack_[--presentFrame->stackPointer]
-#define RERR(x, ...)                                                    \
-	{                                                                   \
-		cout << "\n";                                                   \
-		err("Runtime error!");                                          \
-		lnerr(x, presentFrame->frame->findLineInfo(presentFrame->code), \
-		      ##__VA_ARGS__);                                           \
-		printStackTrace(presentFrame);                                  \
-		exit(1);                                                        \
-	}
 
 #define JUMPTO(x)                \
 	{                            \
@@ -559,10 +635,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
+			CASE(throw_) : {
+				// POP the thrown object
+				Value v = POP();
+				presentFrame = throwException(v, presentFrame);
+				DISPATCH_WINC();
+			}
+
 			CASE(halt) : {
-				presentFrame->instructionPointer =
-				    presentFrame->code -
-				    presentFrame->frame->code.bytecodes.data();
+				set_instruction_pointer(presentFrame);
 				return;
 			}
 

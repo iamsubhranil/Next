@@ -1,0 +1,45 @@
+fn badfn(x) {
+    if(x < 4) {
+        throw 2
+    } else {
+        throw Exception("This is an exception")
+    }
+}
+
+class Exception {
+    priv:
+        msg
+    pub:
+        new(x) {
+           msg = x 
+        }
+
+        fn str() {
+            ret msg
+        }
+}
+
+fn recur(x) {
+    if(x < 100) {
+        recur(x + 1)
+    } else {
+        throw Exception("Too many recurs")
+    }
+}
+
+try {
+    badfn(4)
+} catch(Number n) {
+    print("\nNumber Exception caught : ", n, " \n")
+} catch(String s) {
+    print("\nString Exception caught : ", s, "\n")
+} catch(Exception e) {
+    print("\nCustom Exception caught : ", e.str(), "\n")
+}
+try {
+    recur(50)
+} catch(Exception f) {
+    print("\nException caught : ", f)
+} catch(RuntimeException re) {
+
+}

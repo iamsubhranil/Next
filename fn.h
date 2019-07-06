@@ -2,6 +2,7 @@
 
 #include "bytecode.h"
 #include "scanner.h"
+#include "type.h"
 #include "value.h"
 #include <cstring>
 #include <memory>
@@ -18,7 +19,7 @@ class AccessModifiableEntity {
 	enum Visibility { PUB, PRIV, PROC };
 	Visibility vis;
 	AccessModifiableEntity(Visibility v) : vis(v) {}
-	virtual Type getType() = 0;
+	virtual Type getEntityType() = 0;
 	virtual ~AccessModifiableEntity() {}
 };
 
@@ -32,7 +33,7 @@ class Fn : public AccessModifiableEntity {
 	NextString name;
 	Token      token; // for error reporting purposes
 	size_t     arity;
-	Type       getType() { return FN; }
+	Type       getEntityType() { return FN; }
 	bool       isNative, isStatic, isConstructor;
 
 	friend std::ostream &operator<<(std::ostream &os, const Fn &f);
@@ -48,7 +49,7 @@ class Variable : public AccessModifiableEntity {
 	Token token;
 	bool  isStatic; // for classes
 	int   slot;
-	Type  getType() { return VAR; }
+	Type  getEntityType() { return VAR; }
 
 	friend std::ostream &operator<<(std::ostream &os, const Variable &f);
 };
@@ -64,8 +65,6 @@ using VariableMap = std::unordered_map<NextString, Variable>;
 using ImportMap   = std::unordered_map<NextString, Module *>;
 using ClassMap    = std::unordered_map<NextString, ClassPtr>;
 
-class NextType {};
-
 class NextClass : AccessModifiableEntity {
   public:
 	NextClass(Visibility v, Module *m, NextString name)
@@ -78,17 +77,11 @@ class NextClass : AccessModifiableEntity {
 	VariableMap members;
 	int         slotNum;
 	std::vector<Frame *> frames; // collection of frames in the class to speed
-	                             // up intra-method calls
-	void declareVariable(NextString name, Visibility vis, bool iss, Token t) {
-		Variable v(vis, t);
-		v.isStatic    = iss;
-		members[name] = v;
-        members[name].slot = slotNum++;
-	}
-	bool hasVariable(NextString name) {
-		return members.find(name) != members.end();
-	}
-	Type getType() { return CLASS; }
+	                             // up intra-class calls
+	void declareVariable(NextString name, Visibility vis, bool iss, Token t);
+	bool hasVariable(NextString name);
+	Type     getEntityType();
+	NextType getClassType();
 
 	friend std::ostream &operator<<(std::ostream &os, const NextClass &f);
 };
@@ -137,22 +130,13 @@ class NextObject : public GcObject {
   public:
 	NextClass *Class;
 	Value *    slots;
-	NextObject(NextClass *c) {
-		Class = c;
-		slots = new Value[c->slotNum];
-	}
-	void release() {
-		for(int i = 0; i < Class->slotNum; i++) {
-			if(slots[i].isObject())
-				slots[i].toObject()->decrCount();
-		}
-		delete[] slots;
-	}
+	NextObject(NextClass *c);
+	void release();
 };
 
-class ExHandler {
+struct ExHandler {
   public:
-	int      from, to;
+	int      from, to, instructionPointer;
 	NextType caughtType;
 };
 
@@ -163,7 +147,7 @@ class DebugInfo {
 	Token t;
 };
 
-using ExceptionHandler = std::unique_ptr<std::vector<ExHandler>>;
+using ExceptionHandlers = std::unique_ptr<std::vector<ExHandler>>;
 
 struct SlotVariable {
 	int  slot;
@@ -175,69 +159,24 @@ struct SlotVariable {
 
 class Frame {
   public:
-	Frame(Frame *p) {
-		parent = p;
-		if(parent == nullptr) {
-			scopeDepth = 0;
-		} else
-			scopeDepth = p->scopeDepth + 1;
-		slotSize = 0;
-		handlers = unq(std::vector<ExHandler>, 0);
-		slots.clear();
-		code        = BytecodeHolder();
-		moduleStack = NULL;
-	}
+	Frame(Frame *p);
 	Frame() : Frame(nullptr) {}
 	Frame *                                      parent;
 	int                                          slotSize;
 	int                                          scopeDepth;
 	BytecodeHolder                               code;
-	ExceptionHandler                             handlers;
+	ExceptionHandlers                            handlers;
 	std::unordered_map<NextString, SlotVariable> slots;
 	std::vector<DebugInfo>                       lineInfos;
 	Value *moduleStack; // should be initialized by the module
-	int    declareVariable(const char *name, int len, int scope) {
-        slots[StringLibrary::insert(name, len)] = {slotSize++, true, scope};
-        code.insertSlot();
-        return slotSize - 1;
-	}
-	int declareVariable(NextString name, int scope) {
-		slots[name] = {slotSize++, true, scope};
-		code.insertSlot();
-		return slotSize - 1;
-	}
-	bool hasVariable(NextString name) {
-		if(slots.find(name) != slots.end()) {
-			return slots.find(name)->second.isValid;
-		}
-		return false;
-	}
-	void insertdebug(Token t) {
-		if(lineInfos.size()) {
-			lineInfos.back().to = code.getip() - 1;
-		}
-		lineInfos.push_back(DebugInfo(code.getip(), code.getip(), t));
-	}
-	void finalizeDebug() {
-		if(lineInfos.size()) {
-			lineInfos.back().to = code.getip() - 1;
-		}
-	}
-	void insertdebug(int from, Token t) {
-		lineInfos.push_back(DebugInfo(from, from, t));
-	}
-	void insertdebug(int from, int to, Token t) {
-		lineInfos.push_back(DebugInfo(from, to, t));
-	}
-	Token findLineInfo(const uint8_t *data) {
-		int ip = data - code.bytecodes.data();
-		for(auto i = lineInfos.begin(), j = lineInfos.end(); i != j; i++) {
-			if(i->from <= ip && i->to >= ip)
-				return i->t;
-		}
-		// TODO: THIS IS JUST WRONG
-		return Token::PlaceholderToken;
-	}
+	int    declareVariable(const char *name, int len, int scope);
+	int   declareVariable(NextString name, int scope);
+	bool  hasVariable(NextString name);
+	void  insertdebug(Token t);
+	void  finalizeDebug();
+	void  insertdebug(int from, Token t);
+	void  insertdebug(int from, int to, Token t);
+	Token findLineInfo(const uint8_t *data);
 
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f);
 };
@@ -248,43 +187,10 @@ using FrameInstancePtr = std::unique_ptr<FrameInstance>;
 
 class FrameInstance {
   public:
-	FrameInstance(Frame *f) {
-		frame        = f;
-		stack_       = (Value *)malloc(sizeof(Value) * f->code.maxStackSize());
-		memset(stack_, 0, sizeof(Value) * f->code.maxStackSize());
-		stackPointer = f->slotSize;
-		presentSlotSize    = f->slotSize;
-		instructionPointer = 0;
-		code               = f->code.raw();
-		enclosingFrame     = nullptr;
-		moduleStack        = f->moduleStack;
-	}
-	void readjust(Frame *f) {
-		// reallocate the stack
-		stack_ =
-		    (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
-		// if there are new slots in the stack, make room
-		if(presentSlotSize < f->slotSize) {
-			// Calculate the number of new slots
-			int moveup = f->slotSize - presentSlotSize;
-			// Move stackpointer accordingly
-			stackPointer += moveup;
-			// Move all non-slot values up
-			for(int i = stackPointer - 1; i > presentSlotSize; i--) {
-				stack_[i] = stack_[i + 1];
-			}
-			presentSlotSize = f->slotSize;
-		}
-		// If there was an instance, it was halted
-		// using 'halt', which does not increase
-		// the pointer to point to next instruction.
-		// We should do that first.
-		// Also since 'bytecodes' vector can get
-		// reallocated, especially in case of an REPL,
-		// we recalculate that based on the saved
-		// instruction pointer.
-		code = &f->code.bytecodes.data()[instructionPointer + 1];
-	}
+	FrameInstance(Frame *f);
+	// Re adjust the same instance for a modified frame
+	void           readjust(Frame *f);
+	~FrameInstance();
 	Frame *        frame;
 	FrameInstance *enclosingFrame;
 	Value *        stack_;
@@ -292,13 +198,6 @@ class FrameInstance {
 	Value *objectStack; // if this is a method, this will contain the slots of
 	                    // the object
 	unsigned char *code;
-	~FrameInstance() {
-		for(int i = 0; i < stackPointer; i++) {
-			if(stack_[i].isObject())
-				stack_[i].toObject()->decrCount();
-		}
-		free(stack_);
-	}
 	int presentSlotSize;
 	int stackPointer;
 	// to back up the pointer for consecutive
@@ -308,32 +207,14 @@ class FrameInstance {
 
 class Module {
   public:
-	Module(NextString n)
-	    : name(n), symbolTable(), functions(), variables(), importedModules(),
-	      classes() {
-		frame         = unq(Frame, nullptr);
-		frameInstance = NULL;
-	}
-	FrameInstance *topLevelInstance() {
-		if(frameInstance == NULL) {
-			frameInstance = new FrameInstance(frame.get());
-			initializeFramesWithModuleStack();
-		}
-		return frameInstance;
-	}
-	FrameInstance *reAdjust(Frame *f) {
-		Value *oldStack = frameInstance->stack_;
-		frameInstance->readjust(f);
-		if(oldStack != frameInstance->stack_) {
-			initializeFramesWithModuleStack();
-		}
-		return frameInstance;
-	}
-	void initializeFramesWithModuleStack() {
-		for(auto i = frames.begin(), j = frames.end(); i != j; i++) {
-			(*i)->moduleStack = frameInstance->stack_;
-		}
-	}
+	Module(NextString n);
+	FrameInstance *topLevelInstance();
+	FrameInstance *reAdjust(Frame *f);
+	void           initializeFramesWithModuleStack();
+	bool           hasCode();
+	bool           hasSignature(NextString n);
+	bool           hasType(const NextString &n);
+	NextType       resolveType(const NextString &n);
 	NextString  name;
 	SymbolTable symbolTable;
 	FunctionMap functions;
@@ -344,12 +225,6 @@ class Module {
 	// each module should carry its own frameinstance
 	FrameInstance *      frameInstance;
 	std::vector<Frame *> frames; // collection of frames in the module
-	bool hasCode() { // denotes whether the module has any top level code
-		return !frame->code.bytecodes.empty();
-	}
-	bool hasSignature(NextString n) {
-		return symbolTable.find(n) != symbolTable.end();
-	}
 
 	friend std::ostream &operator<<(std::ostream &os, const Module &f);
 };

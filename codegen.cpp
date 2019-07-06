@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "bytecode.h"
+#include "core.h"
 #include "display.h"
 #include "engine.h"
 
@@ -14,12 +15,17 @@ CodeGenerator::CodeGenerator() {
 	currentClass      = NULL;
 	currentVisibility = AccessModifiableEntity::PUB;
 	onRefer           = false;
+	tryBlockStart        = 0;
+	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
 }
 
-void CodeGenerator::compile(Module *compileIn, vector<StmtPtr> &stmts) {
+void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	frame  = nullptr;
 	module = compileIn;
+	if(compileIn->name != StringLibrary::insert("core"))
+		module->importedModules[StringLibrary::insert("core")] =
+		    &CoreModule::core;
 	initFrame(module->frame.get());
 	compileAll(stmts);
 	bytecode->halt();
@@ -47,7 +53,7 @@ void CodeGenerator::popScope() {
 	--scopeID;
 }
 
-void CodeGenerator::compileAll(vector<StmtPtr> &stmts) {
+void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 	// Backup current state
 	CompilationState bak = state;
 	// First compile all declarations
@@ -84,7 +90,7 @@ void CodeGenerator::popFrame() {
 		bytecode = &frame->code;
 }
 
-Module *CodeGenerator::compile(NextString name, vector<StmtPtr> &stmts) {
+Module *CodeGenerator::compile(NextString name, const vector<StmtPtr> &stmts) {
 	module = new Module(name);
 	frame  = module->frame.get();
 	compileAll(stmts);
@@ -791,24 +797,6 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	}
 }
 
-void CodeGenerator::visit(TryStatement *ifs) {
-#ifdef DEBUG
-	dinfo("");
-	ifs->token.highlight();
-#endif
-	(void)ifs;
-	panic("Not yet implemented!");
-}
-
-void CodeGenerator::visit(CatchStatement *ifs) {
-#ifdef DEBUG
-	dinfo("");
-	ifs->token.highlight();
-#endif
-	(void)ifs;
-	panic("Not yet implemented!");
-}
-
 void CodeGenerator::visit(ImportStatement *ifs) {
 #ifdef DEBUG
 	dinfo("");
@@ -869,11 +857,68 @@ void CodeGenerator::visit(VisibilityStatement *ifs) {
 	                        : AccessModifiableEntity::PRIV;
 }
 
+void CodeGenerator::visit(TryStatement *ifs) {
+#ifdef DEBUG
+	dinfo("");
+	ifs->token.highlight();
+#endif
+	int from = bytecode->getip();
+	ifs->tryBlock->accept(this);
+	int to = bytecode->getip() - 1;
+	int bf = tryBlockStart, bt = tryBlockEnd;
+	tryBlockStart = from;
+	tryBlockEnd   = to;
+	// there will be a value pushed on to the stack
+	// if an exception occurs, so count for it
+	bytecode->insertSlot();
+	// after one catch block is executed, the control
+	// should get out of remaining catch blocks
+	vector<int> jumpAddresses;
+	for(auto i = ifs->catchBlocks.begin(), j = ifs->catchBlocks.end(); i != j;
+	    i++) {
+		(*i)->accept(this);
+		// keep a backup of the jump opcode address
+		jumpAddresses.push_back(bytecode->jump(0));
+	}
+	for(auto i = jumpAddresses.begin(), j = jumpAddresses.end(); i != j; i++) {
+		// patch the jump addresses
+		bytecode->jump((*i), bytecode->getip() - (*i));
+	}
+	tryBlockStart = bf;
+	tryBlockEnd   = bt;
+}
+
+void CodeGenerator::visit(CatchStatement *ifs) {
+#ifdef DEBUG
+	dinfo("");
+	ifs->token.highlight();
+#endif
+	NextString tname =
+	    StringLibrary::insert(ifs->typeName.start, ifs->typeName.length);
+	NextType t;
+	if(NextType::isPrimitive(tname)) {
+		t = NextType::getPrimitiveType(tname);
+	} else {
+		t = module->resolveType(tname);
+		if(t == NextType::Error) {
+			lnerr("No such type found in present module!", ifs->typeName);
+			ifs->typeName.highlight();
+		}
+	}
+	// catch block will push a new scope
+	int slot = frame->declareVariable(ifs->varName.start, ifs->varName.length,
+	                                  scopeID + 1);
+	frame->handlers->push_back(
+	    (ExHandler){tryBlockStart, tryBlockEnd, bytecode->getip(), t});
+	bytecode->store_slot(slot); // store the thrown object
+	ifs->block->accept(this);
+}
+
 void CodeGenerator::visit(ThrowStatement *ifs) {
 #ifdef DEBUG
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	(void)ifs;
-	panic("Not yet implemented!");
+	ifs->expr->accept(this);
+	bytecode->throw_();
 }

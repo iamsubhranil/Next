@@ -104,6 +104,11 @@ OPCODE2(call_method, 1, NextString, int) // <signature> <slot>
 // of the same class)
 OPCODE2(call_intraclass, 1, int, int)
 
+// Pops the value at TOS and starts stack unwinding
+// until a frame with matching exception handler is
+// found
+OPCODE0(throw_, -1)
+
 OPCODE0(halt, 0)
 
 #undef OPCODE0

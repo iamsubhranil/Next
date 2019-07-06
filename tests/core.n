@@ -1,0 +1,25 @@
+class BadArgumentTypeException {
+    priv:
+        msg
+    pub:
+        new(x) {
+            msg = x
+        }
+
+        fn str() {
+            ret msg
+        }
+}
+
+class RuntimeException {
+    priv:
+        msg
+    pub:
+        new(x) {
+            msg = x
+        }
+
+        fn str() {
+            ret msg
+        }
+}
