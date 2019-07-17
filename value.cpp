@@ -4,7 +4,7 @@
 Value Value::nil = Value();
 
 NextString Value::ValueTypeStrings[] = {
-    StringLibrary::insert("Uninitialized"),
+    StringLibrary::insert("Nil"),
 #define TYPE(r, n) StringLibrary::insert(#n),
 #include "valuetypes.h"
 };
@@ -23,6 +23,9 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 			  << StringLibrary::get(v.toObject()->Class->name) << ">";
 			break;
 		case Value::VAL_NIL: o << "nil"; break;
+		case Value::VAL_Module:
+			o << "<module " << StringLibrary::get(v.toModule()->name) << ">";
+			break;
 	}
 	return o;
 }

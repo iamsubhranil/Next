@@ -6,15 +6,28 @@
 
 class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
   private:
+	int errorsOccurred; // number of errors occurred while compilation
+
 	// Because first we compile all declarations, then we compile
 	// the bodies, making it effectively a two pass compiler.
-	enum CompilationState { COMPILE_DECLARATION, COMPILE_BODY };
+	enum CompilationState {
+		COMPILE_DECLARATION,
+		COMPILE_IMPORTS,
+		COMPILE_BODY
+	};
 
-	enum VariablePosition { LOCAL, CLASS, MODULE /*, OBJECT*/ };
+	enum VariablePosition { LOCAL, CLASS, MODULE, UNDEFINED /*, OBJECT*/ };
 	typedef struct VarInfo {
 		int              slot;
 		VariablePosition position;
 	} VarInfo;
+
+	// Holds the status of a resolved call
+	struct CallInfo {
+		enum CallType { INTRA_MODULE, INTRA_CLASS, IMPORTED, UNDEFINED } type;
+		Fn *fn;
+		int frameIdx;
+	};
 
 	BytecodeHolder * bytecode;
 	Module *         module;
@@ -77,9 +90,15 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 
+	CallInfo         resolveCall(NextString signature, bool isImported = false,
+	                             Module *mod = NULL);
+	void             emitCall(CallExpression *call, bool isImported = false,
+	                          Module *mod = NULL);
 	int              getFrameIndex(std::vector<Frame *> &col, Frame *f);
 	NextString       generateSignature(const Token &name, int arity);
 	NextString       generateSignature(const std::string &name, int arity);
+	VarInfo          lookForVariable(Token t, bool declare = false,
+	                                 bool showError = true);
 	VarInfo          lookForVariable(NextString name, bool declare = false);
 	void             compileAll(const std::vector<StmtPtr> &statements);
 	void             initFrame(Frame *f);
@@ -97,4 +116,20 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	CodeGenerator();
 	Module *compile(NextString name, const std::vector<StmtPtr> &statements);
 	void    compile(Module *compileIn, const std::vector<StmtPtr> &statements);
+};
+
+class CodeGeneratorException : public std::runtime_error {
+  private:
+	int                count;
+	char               message[100];
+
+  public:
+	CodeGeneratorException(int c) : runtime_error("Error"), count(c) {
+		snprintf(message, 100,
+		         "\n%d error%s occurred while compilation!\nFix them, and try "
+		         "again.",
+		         count, count > 1 ? "s" : "");
+	}
+
+	const char *what() const throw() { return message; }
 };

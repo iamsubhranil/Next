@@ -1,0 +1,7 @@
+import fibonacci
+import classtest
+import it.testmodule
+
+testmodule.helloworld()
+print("\nfib(2) from another module : ", fibonacci.fib(10))
+print("\nobject of LinkedList from another module : ", classtest.LinkedList(3))

@@ -95,3 +95,29 @@ fn main() {
     sys.load_library("random")  // will call MyClass.load_library
 }
 ```
+
+#### Present State (July 20, 2019)
+Till now, only import of a whole module is supported. And calling an imported 
+function doesn't require to specify the module name.
+```
+import fibonacci
+
+fib(2) // as if fibonacci.fib was directly imported
+```
+There is a slight problem with the folllowing :
+```
+fibonacci.fib(2)
+```
+How would the compiler know it's not a member reference?
+
+One thing that can be done is introducing a Module* as a new value type, and 
+then registering each of the imported module to a variable of the same name, 
+with the Value being the Module* itself. Then, everything can work as it 
+should, i.e. that expression can be freely parsed as a reference expression, 
+and then at runtime `fib(2)` will be *dynamically dispatched*, which is the 
+exact thing I'm trying to avoid. I'm trying to statically bind the call to the 
+module compile-time, so that there is no runtime overhead at all.
+
+#### Update (July 21, 2019)
+Route 2 is taken, i.e. Module* as a new type and dynamic dispatch. Will work 
+on optimizing the original approach, binding calls at compile time if possible.

@@ -15,6 +15,10 @@
 #define OPCODE2(name, stackEffect, type1, type2)
 #endif
 
+#ifndef OPCODE3
+#define OPCODE3(name, stackEffect, type1, type2, type3)
+#endif
+
 OPCODE0(add, -1) // 1 pop + inplace add
 OPCODE0(sub, -1) // 1 pop + inplace sub
 OPCODE0(mul, -1)
@@ -73,6 +77,8 @@ OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 // the number of parameters is needed to copy the old arguments
 // from the caller stack to callee stack
 OPCODE2(call, 0, int, int) // <frame_pointer_index> <arity>
+// Call a function from another module
+OPCODE2(call_imported, 0, int, int) // <frame_pointer_index> <arity>
 OPCODE0(ret, 0)
 
 OPCODE2(construct, 0, NextString, NextString) // <module_name> <class_name>

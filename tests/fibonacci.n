@@ -1,4 +1,4 @@
-fn fib(n) {
+pub fn fib(n) {
     if(n < 2) {
         ret n
     }

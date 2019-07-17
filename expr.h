@@ -32,12 +32,30 @@ class ExpressionVisitor {
 
 class Expr {
   public:
+	enum Type {
+		ASSIGN,
+		BINARY,
+		CALL,
+		VARIABLE,
+		GET,
+		GROUPING,
+		LITERAL,
+		SET,
+		PREFIX,
+		POSTFIX
+	};
 	Token token;
-	Expr(Token tok) : token(tok){};
+	Type  type;
+	Expr(Token tok, Type t) : token(tok), type(t){};
 	virtual ~Expr() {}
 	virtual void accept(ExpressionVisitor *visitor) = 0;
-	virtual bool isAssignable() { return false; }
-	virtual bool isMemberAccess() { return false; }
+	Type         getType() { return type; }
+	bool         isAssignable() {
+		return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
+		       (type == SET);
+	}
+	bool         isMemberAccess() { return (type == GET) || (type == SET); }
+	bool         isVariable() { return (type == VARIABLE); }
 	friend class ExpressionVisitor;
 };
 
@@ -47,18 +65,16 @@ class AssignExpression : public Expr {
   public:
 	ExpPtr target, val;
 	AssignExpression(ExpPtr &lvalue, Token eq, ExpPtr &rvalue)
-	    : Expr(eq), target(lvalue.release()), val(rvalue.release()) {}
+	    : Expr(eq, ASSIGN), target(lvalue.release()), val(rvalue.release()) {}
 
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-
-	bool isAssignable() { return true; }
 };
 
 class BinaryExpression : public Expr {
   public:
 	ExpPtr left, right;
 	BinaryExpression(ExpPtr &l, Token op, ExpPtr &r)
-	    : Expr(op), left(l.release()), right(r.release()) {}
+	    : Expr(op, BINARY), left(l.release()), right(r.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -67,7 +83,7 @@ class CallExpression : public Expr {
 	ExpPtr              callee;
 	std::vector<ExpPtr> arguments;
 	CallExpression(ExpPtr &cle, Token paren, std::vector<ExpPtr> &args)
-	    : Expr(paren), callee(cle.release()) {
+	    : Expr(paren, CALL), callee(cle.release()) {
 		for(auto i = args.begin(), j = args.end(); i != j; i++) {
 			arguments.push_back(ExpPtr(i->release()));
 		}
@@ -77,9 +93,9 @@ class CallExpression : public Expr {
 
 class VariableExpression : public Expr {
   public:
-	VariableExpression(Token t) : Expr(t) {}
+	VariableExpression(Token t) : Expr(t, VARIABLE) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-	bool isAssignable() { return true; }
+	bool isVariable() { return true; }
 };
 
 class GetExpression : public Expr {
@@ -87,24 +103,22 @@ class GetExpression : public Expr {
 	ExpPtr object;
 	ExpPtr refer;
 	GetExpression(ExpPtr &obj, Token name, ExpPtr &r)
-	    : Expr(name), object(obj.release()), refer(r.release()) {}
+	    : Expr(name, GET), object(obj.release()), refer(r.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-	bool isAssignable() { return true; }
-	bool isMemberAccess() { return true; }
 };
 
 class GroupingExpression : public Expr {
   public:
 	ExpPtr exp;
 	GroupingExpression(Token brace, ExpPtr &expr)
-	    : Expr(brace), exp(expr.release()) {}
+	    : Expr(brace, GROUPING), exp(expr.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
 class LiteralExpression : public Expr {
   public:
 	Value value;
-	LiteralExpression(Value val, Token lit) : Expr(lit), value(val) {}
+	LiteralExpression(Value val, Token lit) : Expr(lit, LITERAL), value(val) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -112,23 +126,23 @@ class SetExpression : public Expr {
   public:
 	ExpPtr object, value;
 	SetExpression(ExpPtr &obj, Token name, ExpPtr &val)
-	    : Expr(name), object(obj.release()), value(val.release()) {}
+	    : Expr(name, SET), object(obj.release()), value(val.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-	bool isAssignable() { return true; }
-	bool isMemberAccess() { return true; }
 };
 
 class PrefixExpression : public Expr {
   public:
 	ExpPtr right;
-	PrefixExpression(Token op, ExpPtr &r) : Expr(op), right(r.release()) {}
+	PrefixExpression(Token op, ExpPtr &r)
+	    : Expr(op, PREFIX), right(r.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
 class PostfixExpression : public Expr {
   public:
 	ExpPtr left;
-	PostfixExpression(ExpPtr &l, Token t) : Expr(t), left(l.release()) {}
+	PostfixExpression(ExpPtr &l, Token t)
+	    : Expr(t, POSTFIX), left(l.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
