@@ -160,7 +160,7 @@ Scanner::Scanner(const char *source, const char *file) {
 	this->source = source;
 	tokenStart   = source;
 	current      = source;
-	fileName     = file;
+	fileName     = strdup(file);
 	line         = 1;
 }
 
@@ -182,7 +182,7 @@ Scanner::Scanner(const char *file) {
 		this->source = c;
 		tokenStart   = c;
 		current      = c;
-		fileName     = file;
+		fileName     = strdup(file);
 		line         = 1;
 	}
 }
@@ -328,17 +328,18 @@ int Scanner::skipEmptyLine() {
 	return 0;
 }
 
+/*
 static int startsWith(const char *source, const char *predicate) {
-	int i = 0;
-	while(source[i] != 0) {
-		if(source[i] != predicate[i])
-			return 0;
-		i++;
-	}
+    int i = 0;
+    while(source[i] != 0) {
+        if(source[i] != predicate[i])
+            return 0;
+        i++;
+    }
 
-	return 1;
+    return 1;
 }
-
+*/
 Token Scanner::scanNextToken() {
 
 	// The next token starts with the current character.

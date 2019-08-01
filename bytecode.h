@@ -36,7 +36,7 @@ class BytecodeHolder {
 		return lastInsPos;                \
 	};                                    \
 	int x(int pos) {                      \
-		stackEffect(y);                   \
+		/*stackEffect(y);*/               \
 		lastInsPos            = pos;      \
 		bytecodes[lastInsPos] = CODE_##x; \
 		return lastInsPos;                \
@@ -51,7 +51,7 @@ class BytecodeHolder {
 		return lastInsPos;             \
 	};                                 \
 	int x(int pos, z arg) {            \
-		stackEffect(y);                \
+		/*stackEffect(y);*/            \
 		lastInsPos     = pos;          \
 		bytecodes[pos] = CODE_##x;     \
 		insert_##z(pos + 1, arg);      \
@@ -68,7 +68,7 @@ class BytecodeHolder {
 		return lastInsPos;                     \
 	};                                         \
 	int x(int pos, z arg1, w arg2) {           \
-		stackEffect(y);                        \
+		/*stackEffect(y);*/                    \
 		lastInsPos     = pos;                  \
 		bytecodes[pos] = CODE_##x;             \
 		insert_##z(pos + 1, arg1);             \
@@ -110,23 +110,23 @@ class BytecodeHolder {
 			stackMaxSize = presentStackSize;
 	}
 
-	void disassemble_int(const uint8_t *data) const {
+	static void disassemble_int(const uint8_t *data) {
 		std::cout << "\t" << *(int *)data;
 	}
 
-	void disassemble_double(const uint8_t *data) const {
+	static void disassemble_double(const uint8_t *data) {
 		std::cout << "\t" << *(double *)data;
 	}
 
-	void disassemble_uintptr_t(const uint8_t *data) const {
+	static void disassemble_uintptr_t(const uint8_t *data) {
 		std::cout << "\t" << *(uintptr_t *)data;
 	}
 
-	void disassemble_NextString(const uint8_t *data) const {
+	static void disassemble_NextString(const uint8_t *data) {
 		std::cout << "\t\"" << StringLibrary::get(*(NextString *)data) << "\"";
 	}
 
-	void disassemble_Value(const uint8_t *data) const {
+	static void disassemble_Value(const uint8_t *data) {
 		std::cout << "\t" << *(Value *)data;
 	}
 
@@ -134,9 +134,21 @@ class BytecodeHolder {
 		const uint8_t *data = bytecodes.data();
 		size_t   size = bytecodes.size();
 		for(size_t i = 0; i < size;) {
-			std::cout << std::setw(3) << i << ": " << std::setw(20)
-			          << OpcodeNames[data[i]];
-			switch(data[i]) {
+			disassemble(data, &i);
+		}
+	}
+
+	static void disassemble(const uint8_t *data, size_t *p = NULL) {
+		size_t i = 0;
+		if(p != NULL)
+			i = *p;
+		std::cout << std::setw(3);
+		if(p != NULL)
+			std::cout << i << ": ";
+		else
+			std::cout << "->";
+		std::cout << std::setw(20) << OpcodeNames[data[i]];
+		switch(data[i]) {
 #define OPCODE1(x, y, z)           \
 	case CODE_##x:                 \
 		i++;                       \
@@ -152,15 +164,23 @@ class BytecodeHolder {
 		i += sizeof(z);            \
 		break;
 #include "opcodes.h"
-				default: i++; break;
-			}
-			std::cout << "\n";
+			default: i++; break;
 		}
+		std::cout << "\n";
+		if(p != NULL)
+			*p = i;
 	}
 
 	unsigned char *raw() { return bytecodes.data(); }
 	int            maxStackSize() const { return stackMaxSize; }
+	int            stackSize() const { return presentStackSize; }
 	int            getip() const { return bytecodes.size(); }
+	void           restoreStackSize(int present) {
+        /*if(max > stackMaxSize) {
+		    stackMaxSize = max;
+		}*/
+		presentStackSize = present;
+	}
 };
 
 using Bytecode = std::unique_ptr<BytecodeHolder>;

@@ -229,14 +229,14 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	dinfo("Generating call for");
 	call->callee->token.highlight();
 #endif
-	bytecode->stackEffect(-call->arguments.size() + 1);
+	int argSize = call->arguments.size();
+	// bytecode->stackEffect(-argSize + 1);
 	// Since CALL has higher precedence than REFERENCE,
 	// a CallExpression will necessarily contain an identifier
 	// as its callee.
 	// Hence 'call->callee->accept(this)' is not required. We
 	// can directly use the token to generate the signature.
-	NextString signature =
-	    generateSignature(call->callee->token, call->arguments.size());
+	NextString signature = generateSignature(call->callee->token, argSize);
 
 	CallInfo info;
 
@@ -261,27 +261,29 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	frame->insertdebug(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
 	if(onRefer) {
-		bytecode->call_method(signature, call->arguments.size());
+		bytecode->call_method(signature, argSize);
+		bytecode->stackEffect(-argSize);
 		return;
 	} else {
 		switch(info.type) {
 			case CallInfo::INTRA_CLASS:
-				bytecode->call_intraclass(info.frameIdx,
-				                          call->arguments.size());
+				bytecode->call_intraclass(info.frameIdx, argSize);
+				bytecode->stackEffect(-argSize + 1);
 				break;
 			case CallInfo::INTRA_MODULE:
 				bytecode->call(info.frameIdx,
-				               call->arguments.size()
+				               argSize
 				                   // if this is a constructor call, reserve
 				                   // slot 0 for the dummy value which will be
 				                   // replaced by the instance itself
 				                   + info.fn->isConstructor);
+				bytecode->stackEffect(-argSize + 1);
 				break;
-			case CallInfo::IMPORTED:
+			/*case CallInfo::IMPORTED:
 				bytecode->call_imported(info.frameIdx,
 				                        call->arguments.size() +
 				                            info.fn->isConstructor);
-				break;
+				break;*/
 			default: {
 
 				// Function is not found
@@ -298,8 +300,7 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 						lninfo("Found similar function (takes %zu arguments, "
 						       "provided "
 						       "%zu)",
-						       i->second->token, i->second->arity,
-						       call->arguments.size());
+						       i->second->token, i->second->arity, argSize);
 						i->second->token.highlight();
 					}
 				}
@@ -876,9 +877,12 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	pushScope();
+	// Back up the previous stack specifications
+	int present = bytecode->stackSize();
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++)
 		(*i)->accept(this);
+	bytecode->restoreStackSize(present);
 	popScope();
 }
 
@@ -968,7 +972,8 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 			       ifs->token);
 		}
 		ImportStatus is = import(ifs->import);
-		Token        t  = ifs->import[is.toHighlight - 1];
+		Token        t =
+		    ifs->import[is.toHighlight ? is.toHighlight - 1 : is.toHighlight];
 		switch(is.res) {
 			case ImportStatus::BAD_IMPORT: {
 				lnerr_("Folder does not exist or is not accessible!", t);
@@ -981,7 +986,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				break;
 			}
 			case ImportStatus::FILE_NOT_FOUND: {
-				lnerr_("No such file found in the given folder!", t);
+				lnerr_("No such module found in the given folder!", t);
 				t.highlight();
 				break;
 			}

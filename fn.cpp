@@ -78,7 +78,8 @@ ostream& operator<<(ostream& os, const Frame &f) {
 		os << "Slot #" << (*i).second << " : " << StringLibrary::get((*i).first)
 		   << endl;
 	}
-	os << "Exception handlers : " << endl;
+	os << "Exception handlers : " << (f.handlers->empty() ? "<empty>" : "")
+	   << endl;
 	for(auto i = f.handlers->begin(), j = f.handlers->end(); i != j; i++) {
 		os << "From : " << (*i).from << "\tTo : " << (*i).to
 		   << "\tType : " << StringLibrary::get((*i).caughtType.module) << "."
@@ -102,7 +103,7 @@ FrameInstance::FrameInstance(Frame *f) {
 	// for module level instance,
 	// f->module->frameInstance would be NULL
 	if(f->module->frameInstance)
-		moduleStack = f->module->frameInstance->moduleStack;
+		moduleStack = f->module->frameInstance->stack_;
 }
 
 void FrameInstance::readjust(Frame *f) {
@@ -185,11 +186,11 @@ AccessModifiableEntity::Type NextClass::getEntityType() {
 ostream &operator<<(ostream &os, const NextClass &n) {
 	os << "Class " << StringLibrary::get(n.name) << endl;
 	os << "==================" << endl;
-	os << "Members : " << endl;
+	os << "Members : " << (n.members.empty() ? "<empty>" : "") << endl;
 	for(auto i = n.members.begin(), j = n.members.end(); i != j; i++) {
 		os << (*i).second << " : " << StringLibrary::get((*i).first) << endl;
 	}
-	os << "Methods : " << endl;
+	os << "Methods : " << (n.functions.empty() ? "<empty>" : "") << endl;
 	for(auto i = n.functions.begin(), j = n.functions.end(); i != j; i++) {
 		os << "Method " << StringLibrary::get((*i).first) << " : " << endl;
 		os << *((*i).second.get());
@@ -291,12 +292,12 @@ NextType Module::resolveType(const NextString &n) {
 ostream &operator<<(ostream &os, const Module &m) {
 	os << "Module " << StringLibrary::get(m.name) << endl;
 	os << *(m.frame.get());
-	os << "Functions : " << endl;
+	os << "Functions : " << (m.functions.empty() ? "<empty>" : "") << endl;
 	for(auto i = m.functions.begin(), j = m.functions.end(); i != j; i++) {
 		os << "Function " << StringLibrary::get((*i).first) << endl;
 		os << *((*i).second.get());
 	}
-	os << "Classes : " << endl;
+	os << "Classes : " << (m.classes.empty() ? "<empty>" : "") << endl;
 	for(auto i = m.classes.begin(), j = m.classes.end(); i != j; i++) {
 		os << *((*i).second.get());
 	}

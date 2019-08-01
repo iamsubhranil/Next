@@ -181,7 +181,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		continue;                \
 	}
 
-#define CALL_INSTANCE(fIns, n, x)            \
+#define CALL_INSTANCE(fIns, n, x, p)         \
 	{                                        \
 		FrameInstance *f      = fIns;        \
 		int            numArg = n;           \
@@ -191,13 +191,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			ref_incr(f->stack_[numArg + x]); \
 			numArg--;                        \
 		}                                    \
+		/* Denotes whether or not to pop     \
+		 * the object itself, like dynamic   \
+		 * imported function calls */        \
+		if(p) {                              \
+			POP();                           \
+		}                                    \
 		f->enclosingFrame = presentFrame;    \
 		presentFrame      = f;               \
 		DISPATCH_WINC();                     \
 	}
 
 #define CALL(frame, n) \
-	{ CALL_INSTANCE(newinstance(frame), n, 0); }
+	{ CALL_INSTANCE(newinstance(frame), n, 0, 0); }
 
 #define next_int()                      \
 	(presentFrame->code += sizeof(int), \
@@ -242,6 +248,23 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	}
 
 	LOOP() {
+#ifdef DEBUG_INS
+		set_instruction_pointer(presentFrame);
+		cout << "Slots: " << presentFrame->presentSlotSize
+		     << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
+		     << " IP: " << setw(4) << presentFrame->instructionPointer
+		     << " SP: " << presentFrame->stackPointer
+		    /*<< "\n"*/;
+		BytecodeHolder::disassemble(presentFrame->code);
+		if(presentFrame->stackPointer >
+		   presentFrame->frame->code.maxStackSize()) {
+			RERR("Invalid stack access!");
+		}
+#ifdef DEBUG_INS
+		fflush(stdin);
+		getchar();
+#endif
+#endif
 		SWITCH() {
 
 			CASE(add) : binary(+, addition, Number, Number);
@@ -354,11 +377,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				CALL(presentFrame->frame->module->frames[next_int()],
 				     next_int() - 1);
 			}
-
+			/*
 			CASE(call_imported) : {
-				CALL(presentFrame->frame->module->importedFrames[next_int()],
-				     next_int() - 1);
-			}
+			    CALL(presentFrame->frame->module->importedFrames[next_int()],
+			         next_int() - 1);
+			}*/
 
 			CASE(ret) : {
 				// Pop the return value
@@ -586,9 +609,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					    v.toModule()->functions[method]->frame.get());
 					if(v.toModule()->functions[method]->isConstructor) {
 						fi->stack_[0] = Value();
-						CALL_INSTANCE(fi, numArg_ - 1, 1);
+						CALL_INSTANCE(fi, numArg_ - 1, 1, 1);
 					} else {
-						CALL_INSTANCE(fi, numArg_ - 1, 0);
+						CALL_INSTANCE(fi, numArg_ - 1, 0, 1);
 					}
 				} else {
 					if(Primitives::hasPrimitive(v.getType(), method)) {
