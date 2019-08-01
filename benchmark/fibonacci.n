@@ -1,0 +1,8 @@
+pub fn fib(n) {
+    if(n < 2) {
+        ret n
+    }
+    else {
+        ret fib(n - 2) + fib(n - 1)
+    }
+}

@@ -7,6 +7,7 @@
 using NextString = size_t;
 
 class NextObject;
+class Module;
 
 class Value {
   public:

@@ -6,7 +6,7 @@ ostream &operator<<(ostream &os, const SlotVariable &s) {
 	return os << s.slot;
 }
 
-Frame::Frame(Frame *p) {
+Frame::Frame(Frame *p, Module *m) {
 	parent = p;
 	if(parent == nullptr) {
 		scopeDepth = 0;
@@ -16,7 +16,8 @@ Frame::Frame(Frame *p) {
 	handlers = unq(std::vector<ExHandler>, 0);
 	slots.clear();
 	code        = BytecodeHolder();
-	moduleStack = NULL;
+	module      = m;
+	// moduleStack = NULL;
 }
 
 int Frame::declareVariable(const char *name, int len, int scope) {
@@ -77,7 +78,8 @@ ostream& operator<<(ostream& os, const Frame &f) {
 		os << "Slot #" << (*i).second << " : " << StringLibrary::get((*i).first)
 		   << endl;
 	}
-	os << "Exception handlers : " << endl;
+	os << "Exception handlers : " << (f.handlers->empty() ? "<empty>" : "")
+	   << endl;
 	for(auto i = f.handlers->begin(), j = f.handlers->end(); i != j; i++) {
 		os << "From : " << (*i).from << "\tTo : " << (*i).to
 		   << "\tType : " << StringLibrary::get((*i).caughtType.module) << "."
@@ -98,7 +100,10 @@ FrameInstance::FrameInstance(Frame *f) {
 	instructionPointer = 0;
 	code               = f->code.raw();
 	enclosingFrame     = nullptr;
-	moduleStack        = f->moduleStack;
+	// for module level instance,
+	// f->module->frameInstance would be NULL
+	if(f->module->frameInstance)
+		moduleStack = f->module->frameInstance->stack_;
 }
 
 void FrameInstance::readjust(Frame *f) {
@@ -138,7 +143,8 @@ FrameInstance::~FrameInstance() {
 ostream &operator<<(ostream &os, const Fn &f) {
 	os << "fn " << StringLibrary::get(f.name) << " (arity : " << f.arity
 	   << ", isNative : " << f.isNative << ", isStatic : " << f.isStatic << ", "
-	   << "isConstructor : " << f.isConstructor << ")" << endl;
+	   << "isConstructor : " << f.isConstructor << ", vis : " << f.vis << ")"
+	   << endl;
 	os << *(f.frame.get());
 	return os;
 }
@@ -163,6 +169,16 @@ bool NextClass::hasVariable(NextString name) {
 	return members.find(name) != members.end();
 }
 
+bool NextClass::hasPublicField(NextString name) {
+	return members.find(name) != members.end() &&
+	       members[name].vis == AccessModifiableEntity::PUB;
+}
+
+bool NextClass::hasPublicMethod(NextString name) {
+	return functions.find(name) != functions.end() &&
+	       functions[name]->vis == AccessModifiableEntity::PUB;
+}
+
 AccessModifiableEntity::Type NextClass::getEntityType() {
 	return CLASS;
 }
@@ -170,11 +186,11 @@ AccessModifiableEntity::Type NextClass::getEntityType() {
 ostream &operator<<(ostream &os, const NextClass &n) {
 	os << "Class " << StringLibrary::get(n.name) << endl;
 	os << "==================" << endl;
-	os << "Members : " << endl;
+	os << "Members : " << (n.members.empty() ? "<empty>" : "") << endl;
 	for(auto i = n.members.begin(), j = n.members.end(); i != j; i++) {
 		os << (*i).second << " : " << StringLibrary::get((*i).first) << endl;
 	}
-	os << "Methods : " << endl;
+	os << "Methods : " << (n.functions.empty() ? "<empty>" : "") << endl;
 	for(auto i = n.functions.begin(), j = n.functions.end(); i != j; i++) {
 		os << "Method " << StringLibrary::get((*i).first) << " : " << endl;
 		os << *((*i).second.get());
@@ -198,7 +214,7 @@ void NextObject::release() {
 Module::Module(NextString n)
     : name(n), symbolTable(), functions(), variables(), importedModules(),
       classes() {
-	frame         = unq(Frame, nullptr);
+	frame         = unq(Frame, nullptr, this);
 	frameInstance = NULL;
 }
 
@@ -220,9 +236,10 @@ FrameInstance *Module::reAdjust(Frame *f) {
 }
 
 void Module::initializeFramesWithModuleStack() {
+	/*
 	for(auto i = frames.begin(), j = frames.end(); i != j; i++) {
-		(*i)->moduleStack = frameInstance->stack_;
-	}
+	    (*i)->moduleStack = frameInstance->stack_;
+	}*/
 }
 
 bool Module::hasCode() { // denotes whether the module has any top level code
@@ -231,6 +248,22 @@ bool Module::hasCode() { // denotes whether the module has any top level code
 
 bool Module::hasSignature(NextString n) {
 	return symbolTable.find(n) != symbolTable.end();
+}
+
+bool Module::hasPublicFn(NextString n) {
+	return functions.find(n) != functions.end() &&
+	       functions[n]->vis == AccessModifiableEntity::PUB;
+}
+
+int Module::getIndexOfImportedFrame(Frame *f) {
+	int i = 0;
+	for(auto j = importedFrames.begin(), k = importedFrames.end(); j != k;
+	    j++, i++) {
+		if((*j) == f)
+			return i;
+	}
+	importedFrames.push_back(f);
+	return i;
 }
 
 bool Module::hasType(const NextString &n) {
@@ -259,12 +292,12 @@ NextType Module::resolveType(const NextString &n) {
 ostream &operator<<(ostream &os, const Module &m) {
 	os << "Module " << StringLibrary::get(m.name) << endl;
 	os << *(m.frame.get());
-	os << "Functions : " << endl;
+	os << "Functions : " << (m.functions.empty() ? "<empty>" : "") << endl;
 	for(auto i = m.functions.begin(), j = m.functions.end(); i != j; i++) {
 		os << "Function " << StringLibrary::get((*i).first) << endl;
 		os << *((*i).second.get());
 	}
-	os << "Classes : " << endl;
+	os << "Classes : " << (m.classes.empty() ? "<empty>" : "") << endl;
 	for(auto i = m.classes.begin(), j = m.classes.end(); i != j; i++) {
 		os << *((*i).second.get());
 	}

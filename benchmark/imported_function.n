@@ -1,0 +1,7 @@
+import fibonacci
+
+print("\nCalling fibonacci.fib(3) 10000000 times..\n")
+a = 0
+while(a++ < 10000) {
+    fibonacci.fib(3)
+}

@@ -12,7 +12,9 @@ class ExecutionEngine {
 	static Value pendingException;
 
   public:
+	static bool isModuleRegistered(NextString name);
 	static void registerModule(Module *m);
+	static Module *getRegisteredModule(NextString name);
 	static void setPendingException(Value v);
 	// throwException will either return
 	// the matching frameInstance if found,

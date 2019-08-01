@@ -44,11 +44,39 @@ typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV } Visibility;
 
 class Statement {
   public:
+	enum Type {
+		IF,
+		WHILE,
+		FN,
+		FNBODY,
+		CLASS,
+		TRY,
+		CATCH,
+		IMPORT,
+		BLOCK,
+		EXPRESSION,
+		VARDECL,
+		MEMVAR,
+		VISIBILITY,
+		PRINT,
+		THROW,
+		RETURN
+	};
 	Token token;
-	Statement(Token to) : token(to) {}
+	Type  type;
+	Statement(Token to, Type t) : token(to), type(t) {}
+	Type getType() { return type; }
+	bool isDeclaration() {
+		switch(type) {
+			case FN:
+			case VARDECL:
+			case CLASS: return true;
+			default: return false;
+		};
+	}
+	bool isImport() { return (type == IMPORT); }
 	virtual ~Statement() {}
 	virtual void accept(StatementVisitor *vis) = 0;
-	virtual bool isDeclaration() { return false; }
 };
 
 using StmtPtr = std::unique_ptr<Statement>;
@@ -59,7 +87,8 @@ class IfStatement : public Statement {
 	StmtPtr thenBlock;
 	StmtPtr elseBlock;
 	IfStatement(Token it, ExpPtr &cond, StmtPtr &then, StmtPtr &else_)
-	    : Statement(it), condition(cond.release()), thenBlock(then.release()),
+	    : Statement(it, IF), condition(cond.release()),
+	      thenBlock(then.release()),
 	      elseBlock(else_ == nullptr ? nullptr : else_.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
@@ -70,8 +99,8 @@ class WhileStatement : public Statement {
 	StmtPtr thenBlock;
 	bool    isDo;
 	WhileStatement(Token w, ExpPtr &cond, StmtPtr &then, bool isd)
-	    : Statement(w), condition(cond.release()), thenBlock(then.release()),
-	      isDo(isd) {}
+	    : Statement(w, WHILE), condition(cond.release()),
+	      thenBlock(then.release()), isDo(isd) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -80,7 +109,7 @@ class FnBodyStatement : public Statement {
 	std::vector<Token> args;
 	StmtPtr            body;
 	FnBodyStatement(Token t, std::vector<Token> &ar, StmtPtr &b)
-	    : Statement(t), args(ar.begin(), ar.end()),
+	    : Statement(t, FNBODY), args(ar.begin(), ar.end()),
 	      body(b == nullptr ? nullptr : b.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
@@ -94,11 +123,10 @@ class FnStatement : public Statement {
 	size_t     arity;
 	FnStatement(Token fn, Token n, std::unique_ptr<FnBodyStatement> &fnBody,
 	            bool ism, bool iss, bool isn, bool isc, Visibility vis)
-	    : Statement(fn), name(n), body(fnBody.release()), isMethod(ism),
+	    : Statement(fn, FN), name(n), body(fnBody.release()), isMethod(ism),
 	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
 	      arity(body->args.size()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
-	bool isDeclaration() { return true; }
 };
 
 class VardeclStatement : public Statement {
@@ -106,9 +134,8 @@ class VardeclStatement : public Statement {
 	ExpPtr     expr;
 	Visibility vis;
 	VardeclStatement(Token name, ExpPtr &e, Visibility v)
-	    : Statement(name), expr(e.release()), vis(v) {}
+	    : Statement(name, VARDECL), expr(e.release()), vis(v) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
-	bool isDeclaration() { return true; }
 };
 
 class ClassStatement : public Statement {
@@ -117,18 +144,17 @@ class ClassStatement : public Statement {
 	Visibility           vis;
 	std::vector<StmtPtr> declarations;
 	ClassStatement(Token c, Token n, std::vector<StmtPtr> &decl, Visibility v)
-	    : Statement(c), name(n), vis(v) {
+	    : Statement(c, CLASS), name(n), vis(v) {
 		for(auto i = decl.begin(), j = decl.end(); i != j; i++) {
 			declarations.push_back(StmtPtr(i->release()));
 		}
 	}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
-	bool isDeclaration() { return true; }
 };
 
 class VisibilityStatement : public Statement {
   public:
-	VisibilityStatement(Token t) : Statement(t) {}
+	VisibilityStatement(Token t) : Statement(t, VISIBILITY) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -137,7 +163,8 @@ class MemberVariableStatement : public Statement {
 	std::vector<Token> members;
 	bool               isStatic;
 	MemberVariableStatement(Token t, std::vector<Token> &mem, bool iss)
-	    : Statement(t), members(mem.begin(), mem.end()), isStatic(iss) {}
+	    : Statement(t, MEMVAR), members(mem.begin(), mem.end()), isStatic(iss) {
+	}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -145,9 +172,8 @@ class ImportStatement : public Statement {
   public:
 	std::vector<Token> import;
 	ImportStatement(Token t, std::vector<Token> &imp)
-	    : Statement(t), import(imp.begin(), imp.end()) {}
+	    : Statement(t, IMPORT), import(imp.begin(), imp.end()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
-	bool isDeclaration() { return true; }
 };
 
 class TryStatement : public Statement {
@@ -155,7 +181,7 @@ class TryStatement : public Statement {
 	StmtPtr              tryBlock;
 	std::vector<StmtPtr> catchBlocks;
 	TryStatement(Token t, StmtPtr &tr, std::vector<StmtPtr> &catches)
-	    : Statement(t), tryBlock(tr.release()) {
+	    : Statement(t, TRY), tryBlock(tr.release()) {
 		for(auto i = catches.begin(), j = catches.end(); i != j; i++) {
 			catchBlocks.push_back(StmtPtr(i->release()));
 		}
@@ -168,7 +194,8 @@ class CatchStatement : public Statement {
 	Token   typeName, varName;
 	StmtPtr block;
 	CatchStatement(Token c, Token typ, Token var, StmtPtr &b)
-	    : Statement(c), typeName(typ), varName(var), block(b.release()) {}
+	    : Statement(c, CATCH), typeName(typ), varName(var), block(b.release()) {
+	}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -176,9 +203,9 @@ class BlockStatement : public Statement {
   public:
 	std::vector<StmtPtr> statements;
 	bool                 isStatic;
-	BlockStatement(Token t) : Statement(t), isStatic(false) {}
+	BlockStatement(Token t) : Statement(t, BLOCK), isStatic(false) {}
 	BlockStatement(Token t, std::vector<StmtPtr> &sts, bool iss = false)
-	    : Statement(t), isStatic(iss) {
+	    : Statement(t, BLOCK), isStatic(iss) {
 		for(auto i = sts.begin(), j = sts.end(); i != j; i++) {
 			statements.push_back(StmtPtr(i->release()));
 		}
@@ -189,8 +216,9 @@ class BlockStatement : public Statement {
 class ExpressionStatement : public Statement {
   public:
 	std::vector<ExpPtr> exprs;
-	ExpressionStatement(Token t) : Statement(t) {}
-	ExpressionStatement(Token t, std::vector<ExpPtr> &e) : Statement(t) {
+	ExpressionStatement(Token t) : Statement(t, EXPRESSION) {}
+	ExpressionStatement(Token t, std::vector<ExpPtr> &e)
+	    : Statement(t, EXPRESSION) {
 		for(auto i = e.begin(), j = e.end(); i != j; i++) {
 			exprs.push_back(ExpPtr(i->release()));
 		}
@@ -201,7 +229,7 @@ class ExpressionStatement : public Statement {
 class PrintStatement : public Statement {
   public:
 	std::vector<ExpPtr> exprs;
-	PrintStatement(Token t, std::vector<ExpPtr> &e) : Statement(t) {
+	PrintStatement(Token t, std::vector<ExpPtr> &e) : Statement(t, PRINT) {
 		for(auto i = e.begin(), j = e.end(); i != j; i++) {
 			exprs.push_back(ExpPtr(i->release()));
 		}
@@ -212,14 +240,16 @@ class PrintStatement : public Statement {
 class ThrowStatement : public Statement {
   public:
 	ExpPtr expr;
-	ThrowStatement(Token t, ExpPtr &e) : Statement(t), expr(e.release()) {}
+	ThrowStatement(Token t, ExpPtr &e)
+	    : Statement(t, THROW), expr(e.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
 class ReturnStatement : public Statement {
   public:
 	ExpPtr expr;
-	ReturnStatement(Token t, ExpPtr &e) : Statement(t), expr(e.release()) {}
+	ReturnStatement(Token t, ExpPtr &e)
+	    : Statement(t, RETURN), expr(e.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 

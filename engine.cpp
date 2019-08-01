@@ -13,6 +13,14 @@ FrameInstance *ExecutionEngine::newinstance(Frame *f) {
 std::unordered_map<NextString, Module *> ExecutionEngine::loadedModules = {};
 Value ExecutionEngine::pendingException = Value::nil;
 
+bool ExecutionEngine::isModuleRegistered(NextString name) {
+	return loadedModules.find(name) != loadedModules.end();
+}
+
+Module *ExecutionEngine::getRegisteredModule(NextString name) {
+	return loadedModules[name];
+}
+
 void ExecutionEngine::registerModule(Module *m) {
 	if(loadedModules.find(m->name) != loadedModules.end()) {
 		warn("Module already loaded : '%s'!", StringLibrary::get_raw(m->name));
@@ -39,15 +47,15 @@ void ExecutionEngine::setPendingException(Value v) {
 }
 
 #define PUSH(x) presentFrame->stack_[presentFrame->stackPointer++] = (x);
-#define RERR(x, ...)                                                    \
-	{                                                                   \
-		cout << "\n";                                                   \
-		Value v = newObject(StringLibrary::insert("core"),              \
-		                    StringLibrary::insert("RuntimeException")); \
-		char  message[1024];                                            \
-		snprintf(message, 1024, x, ##__VA_ARGS__);                      \
-		v.toObject()->slots[0] = Value(StringLibrary::insert(message)); \
-		throwException(v, presentFrame);                                \
+#define RERR(x, ...)                                                         \
+	{                                                                        \
+		cout << "\n";                                                        \
+		Value except = newObject(StringLibrary::insert("core"),              \
+		                         StringLibrary::insert("RuntimeException")); \
+		char  message[1024];                                                 \
+		snprintf(message, 1024, x, ##__VA_ARGS__);                           \
+		except.toObject()->slots[0] = Value(StringLibrary::insert(message)); \
+		throwException(except, presentFrame);                                \
 	}
 
 #define set_instruction_pointer(x) \
@@ -173,6 +181,30 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		continue;                \
 	}
 
+#define CALL_INSTANCE(fIns, n, x, p)         \
+	{                                        \
+		FrameInstance *f      = fIns;        \
+		int            numArg = n;           \
+		/* copy the arguments */             \
+		while(numArg >= 0) {                 \
+			f->stack_[numArg + x] = POP();   \
+			ref_incr(f->stack_[numArg + x]); \
+			numArg--;                        \
+		}                                    \
+		/* Denotes whether or not to pop     \
+		 * the object itself, like dynamic   \
+		 * imported function calls */        \
+		if(p) {                              \
+			POP();                           \
+		}                                    \
+		f->enclosingFrame = presentFrame;    \
+		presentFrame      = f;               \
+		DISPATCH_WINC();                     \
+	}
+
+#define CALL(frame, n) \
+	{ CALL_INSTANCE(newinstance(frame), n, 0, 0); }
+
 #define next_int()                      \
 	(presentFrame->code += sizeof(int), \
 	 *(int *)((presentFrame->code - sizeof(int) + 1)))
@@ -216,6 +248,23 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	}
 
 	LOOP() {
+#ifdef DEBUG_INS
+		set_instruction_pointer(presentFrame);
+		cout << "Slots: " << presentFrame->presentSlotSize
+		     << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
+		     << " IP: " << setw(4) << presentFrame->instructionPointer
+		     << " SP: " << presentFrame->stackPointer
+		    /*<< "\n"*/;
+		BytecodeHolder::disassemble(presentFrame->code);
+		if(presentFrame->stackPointer >
+		   presentFrame->frame->code.maxStackSize()) {
+			RERR("Invalid stack access!");
+		}
+#ifdef DEBUG_INS
+		fflush(stdin);
+		getchar();
+#endif
+#endif
 		SWITCH() {
 
 			CASE(add) : binary(+, addition, Number, Number);
@@ -224,7 +273,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(div) : binary(/, division, Number, Number);
 			CASE(lor) : binary(||, or, Boolean, Boolean);
 			CASE(land) : binary(&&, and, Boolean, Boolean);
-			CASE(eq) : binary(==, equals to, Number, Boolean);
 			CASE(neq) : binary(!=, not equals to, Number, Boolean);
 			CASE(greater) : binary(>, greater than, Number, Boolean);
 			CASE(greatereq)
@@ -233,6 +281,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean);
 			CASE(power) : RERR("Yet not implemented!");
+
+			CASE(eq) : {
+				Value v = POP();
+				TOP     = v == TOP;
+				DISPATCH();
+			}
 
 			CASE(lnot) : {
 				if(TOP.isBoolean()) {
@@ -320,19 +374,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call) : {
-				// NextString       fn = next_string();
-				FrameInstance *f = newinstance(m->frames[next_int()]);
-				// Copy the arguments
-				int numArg = next_int() - 1;
-				while(numArg >= 0) {
-					f->stack_[numArg] = POP();
-					ref_incr(f->stack_[numArg]);
-					numArg--;
-				}
-				f->enclosingFrame = presentFrame;
-				presentFrame      = f;
-				DISPATCH_WINC();
+				CALL(presentFrame->frame->module->frames[next_int()],
+				     next_int() - 1);
 			}
+			/*
+			CASE(call_imported) : {
+			    CALL(presentFrame->frame->module->importedFrames[next_int()],
+			         next_int() - 1);
+			}*/
 
 			CASE(ret) : {
 				// Pop the return value
@@ -446,8 +495,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->members.find(field) !=
-					   obj->Class->members.end()) {
+					if(obj->Class->hasPublicField(field)) {
 						TOP = obj->slots[obj->Class->members[field].slot];
 						DISPATCH();
 					} else {
@@ -463,8 +511,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->members.find(field) !=
-					   obj->Class->members.end()) {
+					if(obj->Class->hasPublicField(field)) {
 						Value v = TOP;
 						TOP = obj->slots[obj->Class->members[field].slot];
 						PUSH(v);
@@ -482,8 +529,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = POP().toObject();
-					if(obj->Class->members.find(field) !=
-					   obj->Class->members.end()) {
+					if(obj->Class->hasPublicField(field)) {
 						Value &v = obj->slots[obj->Class->members[field].slot];
 						ref_decr(v);
 						ref_incr(TOP);
@@ -502,8 +548,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->members.find(field) !=
-					   obj->Class->members.end()) {
+					if(obj->Class->hasPublicField(field)) {
 						Value &v = obj->slots[obj->Class->members[field].slot];
 						if(v.isNumber()) {
 							v.setNumber(v.toNumber() + 1);
@@ -524,8 +569,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->members.find(field) !=
-					   obj->Class->members.end()) {
+					if(obj->Class->hasPublicField(field)) {
 						Value &v = obj->slots[obj->Class->members[field].slot];
 						if(v.isNumber()) {
 							v.setNumber(v.toNumber() - 1);
@@ -544,39 +588,42 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(call_method) : {
 				NextString method = next_string();
-				int        numArg = next_int(); // copy the object also
-				Value      v      = presentFrame
-				              ->stack_[presentFrame->stackPointer - numArg - 1];
+				int        numArg_ = next_int(); // copy the object also
+				Value      v =
+				    presentFrame
+				        ->stack_[presentFrame->stackPointer - numArg_ - 1];
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
-					if(obj->Class->functions.find(method) !=
-					   obj->Class->functions.end()) {
-						FrameInstance *f = newinstance(
-						    obj->Class->functions[method]->frame.get());
-						// Copy the arguments
-						while(numArg >= 0) {
-							f->stack_[numArg] = POP();
-							ref_incr(f->stack_[numArg]);
-							numArg--;
-						}
-						f->enclosingFrame = presentFrame;
-						presentFrame      = f;
-						DISPATCH_WINC();
+					if(obj->Class->hasPublicMethod(method)) {
+						CALL(obj->Class->functions[method]->frame.get(),
+						     numArg_);
 					}
 					RERR("Method '%s' not found in class '%s'!",
 					     StringLibrary::get_raw(method),
 					     StringLibrary::get_raw(obj->Class->name));
+				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
+					// It's a dynamic module method invokation
+					// If it's a constructor call, we can't just directly
+					// invoke CALL on the frame.
+					FrameInstance *fi = newinstance(
+					    v.toModule()->functions[method]->frame.get());
+					if(v.toModule()->functions[method]->isConstructor) {
+						fi->stack_[0] = Value();
+						CALL_INSTANCE(fi, numArg_ - 1, 1, 1);
+					} else {
+						CALL_INSTANCE(fi, numArg_ - 1, 0, 1);
+					}
 				} else {
 					if(Primitives::hasPrimitive(v.getType(), method)) {
 						Value ret = Primitives::invokePrimitive(
 						    v.getType(), method,
 						    &presentFrame->stack_[presentFrame->stackPointer -
-						                          numArg - 1]);
+						                          numArg_ - 1]);
 
 						// Pop the arguments
-						while(numArg >= 0) {
+						while(numArg_ >= 0) {
 							POP(); // TODO: Potential memory leak?
-							numArg--;
+							numArg_--;
 						}
 
 						PUSH(ret);

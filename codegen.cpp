@@ -3,8 +3,16 @@
 #include "core.h"
 #include "display.h"
 #include "engine.h"
+#include "import.h"
+#include "loader.h"
 
 using namespace std;
+
+#define lnerr_(str, ...)           \
+	{                              \
+		lnerr(str, ##__VA_ARGS__); \
+		errorsOccurred++;          \
+	}
 
 CodeGenerator::CodeGenerator() {
 	frame             = nullptr;
@@ -18,11 +26,13 @@ CodeGenerator::CodeGenerator() {
 	tryBlockStart        = 0;
 	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
+	errorsOccurred       = 0;
 }
 
 void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	frame  = nullptr;
 	module = compileIn;
+	ExecutionEngine::registerModule(compileIn);
 	if(compileIn->name != StringLibrary::insert("core"))
 		module->importedModules[StringLibrary::insert("core")] =
 		    &CoreModule::core;
@@ -35,7 +45,8 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	     << endl;
 	cout << *module;
 #endif
-	ExecutionEngine::registerModule(compileIn);
+	if(errorsOccurred)
+		throw CodeGeneratorException(errorsOccurred);
 }
 
 int CodeGenerator::pushScope() {
@@ -61,6 +72,15 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
 		// Pass only declaration statements
 		if((*i)->isDeclaration())
+			(*i)->accept(this);
+	}
+	// Mark this module as already compiled, so that even if a
+	// cyclic import occures, this module is not recompiled
+	module->isCompiled = true;
+	// Then compile all imports
+	state = COMPILE_IMPORTS;
+	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
+		if((*i)->isImport())
 			(*i)->accept(this);
 	}
 	// Then compile all bodies
@@ -145,28 +165,90 @@ int CodeGenerator::getFrameIndex(vector<Frame *> &frames, Frame *searching) {
 	return -1;
 }
 
-void CodeGenerator::visit(CallExpression *call) {
+CodeGenerator::CallInfo
+CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
+	CallInfo info = {CallInfo::UNDEFINED, NULL, 0};
+
+	// If its marked as imported, then we know there's already
+	// a valid module
+	if(isImported) {
+		info.type = CallInfo::IMPORTED;
+		info.fn       = mod->functions[signature].get();
+		info.frameIdx = module->getIndexOfImportedFrame(
+		    mod->functions[signature]->frame.get());
+		return info;
+	}
+	// If we are inside a class, first search for methods inside
+	// of it
+	if(inClass && currentClass->functions.find(signature) !=
+	                  currentClass->functions.end()) {
+		info.type = CallInfo::INTRA_CLASS;
+		// Search for the frame in the class
+		Frame *searching = currentClass->functions[signature]->frame.get();
+		info.frameIdx    = getFrameIndex(currentClass->frames, searching);
+		info.fn          = currentClass->functions[signature].get();
+		return info;
+	}
+	// Search for methods with generated signature in the present
+	// module
+	else if(module->functions.find(signature) != module->functions.end()) {
+		info.type = CallInfo::INTRA_MODULE;
+		// Search for the frame in the module
+		Frame *searching = module->functions[signature]->frame.get();
+		info.frameIdx    = getFrameIndex(module->frames, searching);
+		info.fn          = module->functions[signature].get();
+		return info;
+	}
+	// Do not automatically link indirect function imports
+	/*else {
+	    // Search in the imported modules
+	    Frame *searching     = NULL;
+	    for(auto i = module->importedModules.begin(),
+	             j = module->importedModules.end();
+	        i != j; i++) {
+	        if((*i).second->functions.find(signature) !=
+	           (*i).second->functions.end()) {
+	            if((*i).second->symbolTable[signature]->vis ==
+	               AccessModifiableEntity::PUB) {
+	                searching = (*i).second->functions[signature]->frame.get();
+	                info.type = CallInfo::IMPORTED;
+	                info.fn   = (*i).second->functions[signature].get();
+	                info.frameIdx = module->getIndexOfImportedFrame(searching);
+	                return info;
+	            }
+	        }
+	    }
+	}*/
+
+	return info;
+}
+
+void CodeGenerator::emitCall(CallExpression *call, bool isImported,
+                             Module *mod) {
 #ifdef DEBUG
 	dinfo("Generating call for");
 	call->callee->token.highlight();
 #endif
-	bytecode->stackEffect(-call->arguments.size() + 1);
+	int argSize = call->arguments.size();
+	// bytecode->stackEffect(-argSize + 1);
 	// Since CALL has higher precedence than REFERENCE,
 	// a CallExpression will necessarily contain an identifier
 	// as its callee.
 	// Hence 'call->callee->accept(this)' is not required. We
 	// can directly use the token to generate the signature.
-	// This will however, can create problems while method calls,
-	// because we don't have an way yet to pass the reference
-	// information to this 'visit' function.
-	NextString signature =
-	    generateSignature(call->callee->token, call->arguments.size());
+	NextString signature = generateSignature(call->callee->token, argSize);
+
+	CallInfo info;
+
+	if(!onRefer) {
+		info = resolveCall(signature, isImported, mod);
+	}
+
 	// If this is a constructor call, we pass in
 	// a dummy value to slot 0, which will later
 	// be replaced by the instance itself
-	if(module->functions.find(signature) != module->functions.end() &&
-	   module->functions[signature]->isConstructor) {
-		bytecode->stackEffect(-1);
+	if(!onRefer && info.type != CallInfo::UNDEFINED && info.fn->isConstructor) {
+		// bytecode->stackEffect(-1);
 		bytecode->pushd(0);
 	}
 	// Reset the referral status for arguments
@@ -179,51 +261,57 @@ void CodeGenerator::visit(CallExpression *call) {
 	frame->insertdebug(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
 	if(onRefer) {
-		bytecode->call_method(signature, call->arguments.size());
-		return;
-	}
-
-	// If we are inside a class, first search for methods inside
-	// of it
-	if(inClass && currentClass->functions.find(signature) !=
-	                  currentClass->functions.end()) {
-		// Search for the frame in the class
-		Frame *searching = currentClass->functions[signature]->frame.get();
-		bytecode->call_intraclass(
-		    getFrameIndex(currentClass->frames, searching),
-		    call->arguments.size());
-		return;
-	}
-	// Search for methods with generated signature in the present
-	// module
-	if(module->functions.find(signature) != module->functions.end()) {
-		// Search for the frame in the module
-		Frame *searching = module->functions[signature]->frame.get();
-		bytecode->call(getFrameIndex(module->frames, searching),
-		               call->arguments.size()
-		                   // if this is a constructor call, reserve
-		                   // slot 0 for the dummy value which will be
-		                   // replaced by the instance itself
-		                   + module->functions[signature]->isConstructor);
+		bytecode->call_method(signature, argSize);
+		bytecode->stackEffect(-argSize);
 		return;
 	} else {
-		lnerr(
-		    "No function with the specified signature found in present module!",
-		    call->callee->token);
-		call->callee->token.highlight();
-		NextString s = StringLibrary::insert(call->callee->token.start,
-		                                     call->callee->token.length);
-		for(auto i = module->functions.begin(), j = module->functions.end();
-		    i != j; i++) {
-			if(s == i->second->name) {
-				lninfo("Found similar function (takes %zu arguments, provided "
-				       "%zu)",
-				       i->second->token, i->second->arity,
-				       call->arguments.size());
-				i->second->token.highlight();
+		switch(info.type) {
+			case CallInfo::INTRA_CLASS:
+				bytecode->call_intraclass(info.frameIdx, argSize);
+				bytecode->stackEffect(-argSize + 1);
+				break;
+			case CallInfo::INTRA_MODULE:
+				bytecode->call(info.frameIdx,
+				               argSize
+				                   // if this is a constructor call, reserve
+				                   // slot 0 for the dummy value which will be
+				                   // replaced by the instance itself
+				                   + info.fn->isConstructor);
+				bytecode->stackEffect(-argSize + 1);
+				break;
+			/*case CallInfo::IMPORTED:
+				bytecode->call_imported(info.frameIdx,
+				                        call->arguments.size() +
+				                            info.fn->isConstructor);
+				break;*/
+			default: {
+
+				// Function is not found
+				lnerr_("No function with the specified signature found in "
+				       "present module!",
+				       call->callee->token);
+				call->callee->token.highlight();
+				NextString s = StringLibrary::insert(
+				    call->callee->token.start, call->callee->token.length);
+				for(auto i = module->functions.begin(),
+				         j = module->functions.end();
+				    i != j; i++) {
+					if(s == i->second->name) {
+						lninfo("Found similar function (takes %zu arguments, "
+						       "provided "
+						       "%zu)",
+						       i->second->token, i->second->arity, argSize);
+						i->second->token.highlight();
+					}
+				}
+				break;
 			}
 		}
 	}
+}
+
+void CodeGenerator::visit(CallExpression *call) {
+	emitCall(call);
 }
 
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
@@ -272,7 +360,19 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 			return (VarInfo){slot, LOCAL};
 		}
 	}
-	panic("No such variable found : '%s'", StringLibrary::get_raw(name));
+	return (VarInfo){-1, UNDEFINED};
+}
+
+CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
+                                                      bool showError) {
+	NextString name = StringLibrary::insert(t.start, t.length);
+	VarInfo    var  = lookForVariable(name, declare);
+	if(var.position == UNDEFINED && showError) {
+		lnerr_("No such variable found : '%s'", t,
+		       StringLibrary::get_raw(name));
+		t.highlight();
+	}
+	return var;
 }
 
 void CodeGenerator::visit(AssignExpression *as) {
@@ -289,10 +389,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 		as->val->accept(this);
 	}
 
-	NextString name = StringLibrary::insert((*as->target).token.start,
-	                                        (*as->target).token.length);
-
-	VarInfo var = lookForVariable(name, true);
+	VarInfo var = lookForVariable(as->target->token, true);
 
 	if(state == COMPILE_BODY) {
 		frame->insertdebug(as->token);
@@ -300,6 +397,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 			case LOCAL: bytecode->store_slot(var.slot); break;
 			case CLASS: bytecode->store_object_slot(var.slot); break;
 			case MODULE: bytecode->store_module_slot(var.slot); break;
+			default: break;
 		}
 	}
 }
@@ -322,6 +420,10 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 
 void CodeGenerator::visit(SetExpression *sete) {
 	if(state == COMPILE_BODY) {
+#ifdef DEBUG
+		dinfo("");
+		sete->token.highlight();
+#endif
 		sete->value->accept(this);
 		bool b = onLHS;
 		onLHS  = true;
@@ -330,7 +432,54 @@ void CodeGenerator::visit(SetExpression *sete) {
 		onLHS = b;
 	}
 }
+
 void CodeGenerator::visit(GetExpression *get) {
+#ifdef DEBUG
+	dinfo("");
+	get->token.highlight();
+#endif
+	// TODO: Here we have to check if both side of the
+	// get expression is 'VariableExpression's (which
+	// will only happen for the start of a reference
+	// expression), or VariableExpression.CallExpression
+	// the expression can actually be a
+	// module reference.
+	if(get->object->isVariable()) {
+		// Find out the name
+		NextString name = StringLibrary::insert(get->object->token.start,
+		                                        get->object->token.length);
+		// If a variable shadows the module name, the variable name will be
+		// prioritized
+		VarInfo var = lookForVariable(name, false);
+		// Check if there is a module of the same name
+		if(var.position == UNDEFINED && module->importedModules.find(name) !=
+		                                    module->importedModules.end()) {
+			// voila
+			// Now resolve the reference.
+			// Only valid function calls and variable
+			// accesses will be optimized. Everything else
+			// will be delegated into the runtime as a
+			// method call to the module primitive.
+			Module *m = module->importedModules[name];
+			if(get->refer->getType() == Expr::Type::CALL) {
+				CallExpression *ce = (CallExpression *)get->refer.get();
+				NextString      sig =
+				    generateSignature(ce->callee->token, ce->arguments.size());
+				if(m->hasSignature(sig)) {
+					emitCall(ce, true, m);
+					return;
+				} else {
+					// Load the module* at runtime and delegate the call
+					lookForVariable(name);
+					bool b  = onRefer;
+					onRefer = true;
+					emitCall(ce);
+					onRefer = b;
+					return;
+				}
+			}
+		}
+	}
 	bool lb = onLHS;
 	onLHS   = false;
 	get->object->accept(this);
@@ -346,10 +495,12 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 	dinfo("");
 	pe->token.highlight();
 #endif
-	// TODO: Assumed only VariableExpression on the right
-	// for ++
 	switch(pe->token.type) {
 		case TOKEN_PLUS: pe->right->accept(this); break;
+		case TOKEN_BANG:
+			pe->right->accept(this);
+			bytecode->lnot();
+			break;
 		case TOKEN_MINUS:
 			pe->right->accept(this);
 			frame->insertdebug(pe->token);
@@ -357,8 +508,8 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 			break;
 		case TOKEN_PLUS_PLUS:
 			if(!pe->right->isAssignable()) {
-				lnerr("Cannot apply '++' on a non-assignable expression!",
-				      pe->token);
+				lnerr_("Cannot apply '++' on a non-assignable expression!",
+				       pe->token);
 				pe->token.highlight();
 			} else {
 				onLHS = true;
@@ -382,13 +533,14 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						bytecode->incr_object_slot(variableInfo.slot);
 						bytecode->load_object_slot(variableInfo.slot);
 						break;
+					default: break;
 				}
 			}
 			break;
 		case TOKEN_MINUS_MINUS:
 			if(!pe->right->isAssignable()) {
-				lnerr("Cannot apply '--' on a non-assignable expression!",
-				      pe->token);
+				lnerr_("Cannot apply '--' on a non-assignable expression!",
+				       pe->token);
 				pe->token.highlight();
 			} else {
 				frame->insertdebug(pe->token);
@@ -413,6 +565,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						bytecode->decr_object_slot(variableInfo.slot);
 						bytecode->load_object_slot(variableInfo.slot);
 						break;
+					default: break;
 				}
 			}
 			break;
@@ -426,8 +579,8 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 	pe->token.highlight();
 #endif
 	if(!pe->left->isAssignable()) {
-		lnerr("Cannot apply postfix operator on a non-assignable expression!",
-		      pe->token);
+		lnerr_("Cannot apply postfix operator on a non-assignable expression!",
+		       pe->token);
 		pe->token.highlight();
 	}
 	onLHS = true;
@@ -455,6 +608,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					bytecode->load_object_slot(variableInfo.slot);
 					bytecode->incr_object_slot(variableInfo.slot);
 					break;
+				default: break;
 			}
 			break;
 		case TOKEN_MINUS_MINUS:
@@ -478,6 +632,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					bytecode->load_object_slot(variableInfo.slot);
 					bytecode->decr_object_slot(variableInfo.slot);
 					break;
+				default: break;
 			}
 			break;
 		default:
@@ -494,7 +649,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	NextString name =
 	    StringLibrary::insert(string(vis->token.start, vis->token.length));
 	if(!onRefer) {
-		VarInfo var = lookForVariable(name);
+		VarInfo var = lookForVariable(vis->token);
 		frame->insertdebug(vis->token);
 		if(onLHS) { // in case of LHS, just pass on the information
 			variableInfo = var;
@@ -504,6 +659,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 				case LOCAL: bytecode->load_slot(var.slot); break;
 				case MODULE: bytecode->load_module_slot(var.slot); break;
 				case CLASS: bytecode->load_object_slot(var.slot); break;
+				default: break;
 			}
 		}
 	} else {
@@ -616,36 +772,37 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	if(getState() == COMPILE_DECLARATION) {
 		if((!inClass || inConstructor) && module->hasSignature(signature)) {
 			if(inConstructor) {
-				lnerr("Ambiguous constructor declaration for class '%s'!",
-				      ifs->name, StringLibrary::get_raw(currentClass->name));
+				lnerr_("Ambiguous constructor declaration for class '%s'!",
+				       ifs->name, StringLibrary::get_raw(currentClass->name));
 
 			} else {
-				lnerr("Redefinition of function with same signature!",
-				      ifs->name);
+				lnerr_("Redefinition of function with same signature!",
+				       ifs->name);
 			}
-			lnerr("Previously declared at : ", ifs->name);
+			lnerr_("Previously declared at : ", ifs->name);
 			module->functions.find(signature)->second->token.highlight();
-			lnerr("Redefined at : ", ifs->name);
+			lnerr_("Redefined at : ", ifs->name);
 			ifs->name.highlight();
 			panic("Closing session!");
 		} else if(inClass && currentClass->functions.find(signature) !=
 		                         currentClass->functions.end()) {
-			lnerr("Redefinition of method with same signature!", ifs->name);
-			lnerr("Previously declared at : ", ifs->name);
+			lnerr_("Redefinition of method with same signature!", ifs->name);
+			lnerr_("Previously declared at : ", ifs->name);
 			currentClass->functions.find(signature)->second->token.highlight();
-			lnerr("Redefined at : ", ifs->name);
+			lnerr_("Redefined at : ", ifs->name);
 			ifs->name.highlight();
 			panic("Closing session!");
 		} else {
-			FnPtr f = unq(
-			    Fn,
-			    (AccessModifiableEntity::Visibility)(VIS_PUB + ifs->visibility),
-			    frame);
+			FnPtr f = unq(Fn,
+			              !inClass ? (AccessModifiableEntity::Visibility)(
+			                             VIS_PUB + ifs->visibility)
+			                       : currentVisibility,
+			              frame, module);
 			f->name = StringLibrary::insert(
 			    string(ifs->name.start, ifs->name.length));
 			f->token                       = ifs->name;
 			f->arity                       = ifs->arity;
-			f->frame                       = unq(Frame, frame);
+			// f->frame                       = unq(Frame, frame, module);
 			f->isConstructor               = inConstructor;
 			if(!inClass || inConstructor) {
 				module->frames.push_back(f->frame.get());
@@ -720,9 +877,12 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	pushScope();
+	// Back up the previous stack specifications
+	int present = bytecode->stackSize();
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++)
 		(*i)->accept(this);
+	bytecode->restoreStackSize(present);
 	popScope();
 }
 
@@ -760,13 +920,13 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	    StringLibrary::insert(ifs->name.start, ifs->name.length);
 	if(getState() == COMPILE_DECLARATION) {
 		if(module->classes.find(className) != module->classes.end()) {
-			lnerr("Class '%s' is already declared in module '%s'!", ifs->name,
-			      StringLibrary::get_raw(className),
-			      StringLibrary::get_raw(module->name));
-			lnerr("Previously declared at : ",
-			      module->classes[className]->token);
+			lnerr_("Class '%s' is already declared in module '%s'!", ifs->name,
+			       StringLibrary::get_raw(className),
+			       StringLibrary::get_raw(module->name));
+			lnerr_("Previously declared at : ",
+			       module->classes[className]->token);
 			module->classes[className]->token.highlight();
-			lnerr("Redefined at : ", ifs->name);
+			lnerr_("Redefined at : ", ifs->name);
 			ifs->token.highlight();
 			panic("Exiting now!");
 		}
@@ -802,8 +962,58 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	(void)ifs;
-	panic("Not yet implemented!");
+	if(getState() == COMPILE_IMPORTS) {
+		Token        last     = *(ifs->import.end() - 1);
+		NextString   lastName = StringLibrary::insert(last.start, last.length);
+		// Check for collisions first
+		if(module->importedModules.find(lastName) !=
+		   module->importedModules.end()) {
+			lnerr_("Import collision between two modules of the same name!",
+			       ifs->token);
+		}
+		ImportStatus is = import(ifs->import);
+		Token        t =
+		    ifs->import[is.toHighlight ? is.toHighlight - 1 : is.toHighlight];
+		switch(is.res) {
+			case ImportStatus::BAD_IMPORT: {
+				lnerr_("Folder does not exist or is not accessible!", t);
+				t.highlight();
+				break;
+			}
+			case ImportStatus::FOLDER_IMPORT: {
+				lnerr_("Importing a folder is not supported!", t);
+				t.highlight();
+				break;
+			}
+			case ImportStatus::FILE_NOT_FOUND: {
+				lnerr_("No such module found in the given folder!", t);
+				t.highlight();
+				break;
+			}
+			case ImportStatus::IMPORT_SUCCESS: {
+				Module *m = compile_and_load(is.fileName);
+				// The name of the imported module for the
+				// importee module would be the last part
+				// of the import statement
+				// i.e.:    import sys.io
+				// Registered module name : io
+				module->importedModules[lastName] = m;
+				// Warn if a variable name shadows the imported
+				// module
+				if(module->frame->slots.find(lastName) !=
+				   module->frame->slots.end()) {
+					lnwarn("Variable '%s' shadows imported module!",
+					       ifs->token);
+				} else {
+					VarInfo v = lookForVariable(lastName, true);
+					bytecode->push(Value(m));
+					bytecode->store_slot(v.slot);
+					bytecode->pop();
+				}
+				break;
+			}
+		}
+	}
 }
 
 void CodeGenerator::visit(VardeclStatement *ifs) {
@@ -811,9 +1021,8 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	VarInfo v = lookForVariable(
-	    StringLibrary::insert(ifs->token.start, ifs->token.length), true);
-	if(getState() != COMPILE_DECLARATION) {
+	VarInfo v = lookForVariable(ifs->token, true);
+	if(getState() == COMPILE_BODY) {
 		ifs->expr->accept(this);
 		bytecode->store_slot(v.slot);
 		bytecode->pop();
@@ -831,12 +1040,12 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 			NextString name = StringLibrary::insert((*i).start, (*i).length);
 			if(currentClass->members.find(name) !=
 			   currentClass->members.end()) {
-				lnerr("Member '%s' variable already declared!", (*i),
-				      StringLibrary::get_raw(name));
-				lnerr("Previously declared at : ",
-				      currentClass->members[name].token);
+				lnerr_("Member '%s' variable already declared!", (*i),
+				       StringLibrary::get_raw(name));
+				lnerr_("Previously declared at : ",
+				       currentClass->members[name].token);
 				currentClass->members[name].token.highlight();
-				lnerr("Redefined at : ", (*i));
+				lnerr_("Redefined at : ", (*i));
 				(*i).highlight();
 				panic("Exiting..");
 			} else {
@@ -901,7 +1110,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	} else {
 		t = module->resolveType(tname);
 		if(t == NextType::Error) {
-			lnerr("No such type found in present module!", ifs->typeName);
+			lnerr_("No such type found in present module!", ifs->typeName);
 			ifs->typeName.highlight();
 		}
 	}

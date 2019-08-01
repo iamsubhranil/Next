@@ -9,6 +9,7 @@
 #include <tuple>
 #include <unordered_set>
 
+class Module;
 class Frame;
 
 using FramePtr = std::unique_ptr<Frame>;
@@ -25,9 +26,9 @@ class AccessModifiableEntity {
 
 class Fn : public AccessModifiableEntity {
   public:
-	Fn() : Fn(PRIV, nullptr) {}
-	Fn(Visibility v, Frame *parent)
-	    : AccessModifiableEntity(v), frame(unq(Frame, parent)), token(),
+	Fn() : Fn(PRIV, nullptr, nullptr) {}
+	Fn(Visibility v, Frame *parent, Module *m)
+	    : AccessModifiableEntity(v), frame(unq(Frame, parent, m)), token(),
 	      arity(0), isNative(false), isStatic(false), isConstructor(false) {}
 	FramePtr   frame;
 	NextString name;
@@ -53,8 +54,6 @@ class Variable : public AccessModifiableEntity {
 
 	friend std::ostream &operator<<(std::ostream &os, const Variable &f);
 };
-
-class Module;
 class NextClass;
 
 using FnPtr       = std::unique_ptr<Fn>;
@@ -80,6 +79,8 @@ class NextClass : AccessModifiableEntity {
 	                             // up intra-class calls
 	void declareVariable(NextString name, Visibility vis, bool iss, Token t);
 	bool hasVariable(NextString name);
+	bool     hasPublicMethod(NextString sig);
+	bool     hasPublicField(NextString name);
 	Type     getEntityType();
 	NextType getClassType();
 
@@ -159,8 +160,8 @@ struct SlotVariable {
 
 class Frame {
   public:
-	Frame(Frame *p);
-	Frame() : Frame(nullptr) {}
+	Frame(Frame *p, Module *m);
+	Frame() : Frame(nullptr, nullptr) {}
 	Frame *                                      parent;
 	int                                          slotSize;
 	int                                          scopeDepth;
@@ -168,7 +169,7 @@ class Frame {
 	ExceptionHandlers                            handlers;
 	std::unordered_map<NextString, SlotVariable> slots;
 	std::vector<DebugInfo>                       lineInfos;
-	Value *moduleStack; // should be initialized by the module
+	Module *                                     module;
 	int    declareVariable(const char *name, int len, int scope);
 	int   declareVariable(NextString name, int scope);
 	bool  hasVariable(NextString name);
@@ -213,18 +214,22 @@ class Module {
 	void           initializeFramesWithModuleStack();
 	bool           hasCode();
 	bool           hasSignature(NextString n);
+	bool           hasPublicFn(NextString sig);
 	bool           hasType(const NextString &n);
+	int            getIndexOfImportedFrame(Frame *f);
 	NextType       resolveType(const NextString &n);
-	NextString  name;
-	SymbolTable symbolTable;
-	FunctionMap functions;
-	VariableMap variables;
-	ImportMap   importedModules;
-	ClassMap    classes;
-	FramePtr    frame;
+	NextString     name;
+	SymbolTable    symbolTable;
+	FunctionMap    functions;
+	VariableMap    variables;
+	ImportMap      importedModules;
+	ClassMap       classes;
+	FramePtr       frame;
 	// each module should carry its own frameinstance
 	FrameInstance *      frameInstance;
 	std::vector<Frame *> frames; // collection of frames in the module
-
+	std::vector<Frame *> importedFrames; // importedFrames
+	// denotes whether this module is compiled
+	bool                 isCompiled;
 	friend std::ostream &operator<<(std::ostream &os, const Module &f);
 };

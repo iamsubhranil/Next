@@ -1,0 +1,80 @@
+class Toggle {
+    priv:
+        state
+    pub:
+        new(s) {
+            state = s
+        }
+
+        fn value() { ret state }
+        
+        fn activate() {
+            state = !state
+            ret this
+        }
+}
+
+class NthToggle {
+    priv:
+        state, countMax, count
+    pub:
+        new(s, m) {
+            state = s
+            countMax = m
+            count = 0
+        }
+
+        fn value() { ret state }
+        
+        fn activateog() {
+            state = !state
+            ret this
+        }
+
+        fn activate() {
+            count = count + 1
+            if(count >= countMax) {
+                activateog()
+                count = 0
+            }
+
+            ret this
+        }
+}
+
+n = 100000
+val = true
+toggle = Toggle(val)
+i = 0
+while(i++ < n) {
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+    val = toggle.activate().value()
+}
+
+print(toggle.value(), "\n")
+
+val = true
+ntoggle = NthToggle(val, 3)
+i = 0
+while(i++ < n) {
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+    val = ntoggle.activate().value()
+}
+
+print(ntoggle.value(), "\n")

@@ -1,4 +1,4 @@
-class LinkedList {
+pub class LinkedList {
     pub:
         mem
         static mem2
@@ -40,3 +40,5 @@ x.mem = 1
 x.loop(10, 20)
 print("\nx.mem : ", x.mem, "\tx.mem++ : ", x.mem++)
 print("\nx.mem : ", x.mem, "\t++x.mem : ", ++x.mem)
+x.mem = LinkedList(3)
+x.mem.some()
