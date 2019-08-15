@@ -76,7 +76,7 @@ int Frame::getCallFrameIndex(Frame *f) {
 }
 
 Token Frame::findLineInfo(const uint8_t *data) {
-	int ip = data - code.bytecodes.data();
+	int ip = data - code.raw();
 	for(auto i = lineInfos.begin(), j = lineInfos.end(); i != j; i++) {
 		if(i->from <= ip && i->to >= ip)
 			return i->t;
@@ -118,6 +118,7 @@ FrameInstance::FrameInstance(Frame *f, Value *s_) {
 
 /*
 void FrameInstance::readjust(Frame *f) {
+<<<<<<< HEAD
     // reallocate the stack
     stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
     // if there are new slots in the stack, make room
@@ -141,6 +142,31 @@ void FrameInstance::readjust(Frame *f) {
     // we recalculate that based on the saved
     // instruction pointer.
     code = &f->code.bytecodes.data()[instructionPointer + 1];
+}
+    // reallocate the stack
+    stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
+    // if there are new slots in the stack, make room
+    if(presentSlotSize < f->slotSize) {
+        // Calculate the number of new slots
+        int moveup = f->slotSize - presentSlotSize;
+        // Move stackpointer accordingly
+        stackPointer += moveup;
+        // Move all non-slot values up
+        for(int i = stackPointer - 1; i > presentSlotSize; i--) {
+            stack_[i] = stack_[i + 1];
+        }
+        presentSlotSize = f->slotSize;
+    }
+    // If there was an instance, it was halted
+    // using 'halt', which does not increase
+    // the pointer to point to next instruction.
+    // We should do that first.
+    // Also since 'bytecodes' vector can get
+    // reallocated, especially in case of an REPL,
+    // we recalculate that based on the saved
+    // instruction pointer.
+    code = &f->code.raw()[instructionPointer + 1];
+
 }*/
 
 FrameInstance::~FrameInstance() {
@@ -284,7 +310,7 @@ void Module::initializeFramesWithModuleStack() {
 }
 
 bool Module::hasCode() { // denotes whether the module has any top level code
-	return !frame->code.bytecodes.empty();
+	return !frame->code.raw();
 }
 
 bool Module::hasSignature(NextString n) {

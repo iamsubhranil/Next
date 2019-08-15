@@ -103,7 +103,7 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 	}
 
 #define set_instruction_pointer(x) \
-	instructionPointer = x->code - x->frame->code.bytecodes.data()
+	instructionPointer = x->code - x->frame->code.bytecodes.raw()
 
 FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 
@@ -150,7 +150,7 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 		Value *        StackTop     = f->stackTop;
 		PUSH(v);
 		presentFrame->code =
-		    &presentFrame->frame->code.bytecodes[handler.instructionPointer];
+		    &presentFrame->frame->code.raw()[handler.instructionPointer];
 		f->stackTop = StackTop;
 		return presentFrame;
 	}
