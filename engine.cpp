@@ -103,7 +103,7 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 	}
 
 #define set_instruction_pointer(x) \
-	instructionPointer = x->code - x->frame->code.bytecodes.raw()
+	instructionPointer = x->code - x->frame->code.raw()
 
 FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 

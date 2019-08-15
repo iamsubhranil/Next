@@ -8,14 +8,28 @@
 #include <vector>
 
 class BytecodeHolder {
+  private:
+	int bytecodePointer;
+	int bytecodeSize;
+	uint8_t *bytecodes;
+
+	void bytecodes_push_back(uint8_t code) {
+		if(bytecodePointer >= bytecodeSize) {
+			bytecodeSize += 20;
+			bytecodes = (uint8_t *)realloc(bytecodes, bytecodeSize);
+		}
+		bytecodes[bytecodePointer++] = code;
+	}
+
   public:
-	static const char *  OpcodeNames[];
-	std::vector<uint8_t> bytecodes;
+	static const char *OpcodeNames[];
+	// std::vector<uint8_t> bytecodes;
 	int                  stackMaxSize;
 	int                  presentStackSize;
 	int                  lastInsPos;
 	BytecodeHolder()
-	    : bytecodes(), stackMaxSize(0), presentStackSize(0), lastInsPos(0) {}
+	    : bytecodePointer(0), bytecodeSize(0), bytecodes(NULL), stackMaxSize(0),
+	      presentStackSize(0), lastInsPos(0) {}
 
 	enum Opcode : uint8_t {
 #define OPCODE0(x, y) CODE_##x,
@@ -32,8 +46,8 @@ class BytecodeHolder {
 #define OPCODE0(x, y)                     \
 	int x() {                             \
 		stackEffect(y);                   \
-		lastInsPos = bytecodes.size();    \
-		bytecodes.push_back(CODE_##x);    \
+		lastInsPos = bytecodePointer;     \
+		bytecodes_push_back(CODE_##x);    \
 		return lastInsPos;                \
 	};                                    \
 	int x(int pos) {                      \
@@ -46,8 +60,8 @@ class BytecodeHolder {
 #define OPCODE1(x, y, z)               \
 	int x(z arg) {                     \
 		stackEffect(y);                \
-		lastInsPos = bytecodes.size(); \
-		bytecodes.push_back(CODE_##x); \
+		lastInsPos = bytecodePointer;  \
+		bytecodes_push_back(CODE_##x); \
 		insert_##z(arg);               \
 		return lastInsPos;             \
 	};                                 \
@@ -62,8 +76,8 @@ class BytecodeHolder {
 #define OPCODE2(x, y, z, w)                    \
 	int x(z arg1, w arg2) {                    \
 		stackEffect(y);                        \
-		lastInsPos = bytecodes.size();         \
-		bytecodes.push_back(CODE_##x);         \
+		lastInsPos = bytecodePointer;          \
+		bytecodes_push_back(CODE_##x);         \
 		insert_##z(arg1);                      \
 		insert_##w(arg2);                      \
 		return lastInsPos;                     \
@@ -81,8 +95,8 @@ class BytecodeHolder {
 #define insert_type(type)                                                     \
 	int insert_##type(type x) {                                               \
 		uint8_t *num = (uint8_t *)&x;                                         \
-		for(size_t i = 0; i < sizeof(type); i++) bytecodes.push_back(num[i]); \
-		return bytecodes.size() - sizeof(type);                               \
+		for(size_t i = 0; i < sizeof(type); i++) bytecodes_push_back(num[i]); \
+		return bytecodePointer - sizeof(type);                                \
 	}                                                                         \
 	int insert_##type(int pos, type x) {                                      \
 		uint8_t *num = (uint8_t *)&x;                                         \
@@ -173,8 +187,8 @@ class BytecodeHolder {
 	}
 
 	void disassemble() const {
-		const uint8_t *data = bytecodes.data();
-		size_t         size = bytecodes.size();
+		const uint8_t *data = bytecodes;
+		size_t         size = bytecodePointer;
 		for(size_t i = 0; i < size;) {
 			disassemble(data, &i);
 		}
@@ -213,15 +227,20 @@ class BytecodeHolder {
 			*p = i;
 	}
 
-	unsigned char *raw() { return bytecodes.data(); }
-	int            maxStackSize() const { return stackMaxSize; }
-	int            stackSize() const { return presentStackSize; }
-	int            getip() const { return bytecodes.size(); }
+	inline uint8_t *raw() const { return bytecodes; }
+	inline int      maxStackSize() const { return stackMaxSize; }
+	inline int      stackSize() const { return presentStackSize; }
+	inline int      getip() const { return bytecodePointer; }
 	void           restoreStackSize(int present) {
         /*if(max > stackMaxSize) {
             stackMaxSize = max;
         }*/
         presentStackSize = present;
+	}
+
+	~BytecodeHolder() {
+		if(bytecodes)
+			free(bytecodes);
 	}
 };
 
