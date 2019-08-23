@@ -223,14 +223,17 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, name, argtype, restype)                              \
-	{                                                                   \
-		Value v = POP();                                                \
-		if(v.is##argtype() && TOP.is##argtype()) {                      \
-			TOP.set##restype(TOP.to##argtype() op v.to##argtype());     \
-			DISPATCH();                                                 \
-		}                                                               \
-		RERR("Both of the operands of " #name " are not " #argtype "!") \
+#define binary(op, name, argtype, restype)                          \
+	{                                                               \
+		Value v = POP();                                            \
+		if(v.is##argtype() && TOP.is##argtype()) {                  \
+			TOP.set##restype(TOP.to##argtype() op v.to##argtype()); \
+			DISPATCH();                                             \
+		}                                                           \
+		RERR("Both of the operands of " #name " are not " #argtype  \
+		     " (%s and %s)!",                                       \
+		     StringLibrary::get_raw(TOP.getTypeString()),           \
+		     StringLibrary::get_raw(v.getTypeString()))             \
 	}
 
 #define ref_incr(x)                    \

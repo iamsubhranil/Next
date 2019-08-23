@@ -779,19 +779,17 @@ void CodeGenerator::visit(FnStatement *ifs) {
 				lnerr_("Redefinition of function with same signature!",
 				       ifs->name);
 			}
-			lnerr_("Previously declared at : ", ifs->name);
+			lnerr("Previously declared at : ", ifs->name);
 			module->functions.find(signature)->second->token.highlight();
-			lnerr_("Redefined at : ", ifs->name);
+			lnerr("Redefined at : ", ifs->name);
 			ifs->name.highlight();
-			panic("Closing session!");
 		} else if(inClass && currentClass->functions.find(signature) !=
 		                         currentClass->functions.end()) {
 			lnerr_("Redefinition of method with same signature!", ifs->name);
-			lnerr_("Previously declared at : ", ifs->name);
+			lnerr("Previously declared at : ", ifs->name);
 			currentClass->functions.find(signature)->second->token.highlight();
-			lnerr_("Redefined at : ", ifs->name);
+			lnerr("Redefined at : ", ifs->name);
 			ifs->name.highlight();
-			panic("Closing session!");
 		} else {
 			FnPtr f = unq(Fn,
 			              !inClass ? (AccessModifiableEntity::Visibility)(
@@ -923,12 +921,11 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 			lnerr_("Class '%s' is already declared in module '%s'!", ifs->name,
 			       StringLibrary::get_raw(className),
 			       StringLibrary::get_raw(module->name));
-			lnerr_("Previously declared at : ",
-			       module->classes[className]->token);
+			lnerr("Previously declared at : ",
+			      module->classes[className]->token);
 			module->classes[className]->token.highlight();
-			lnerr_("Redefined at : ", ifs->name);
+			lnerr("Redefined at : ", ifs->name);
 			ifs->token.highlight();
-			panic("Exiting now!");
 		}
 		ClassPtr c = unq(
 		    NextClass, (AccessModifiableEntity::Visibility)(VIS_PUB + ifs->vis),
@@ -1042,12 +1039,11 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 			   currentClass->members.end()) {
 				lnerr_("Member '%s' variable already declared!", (*i),
 				       StringLibrary::get_raw(name));
-				lnerr_("Previously declared at : ",
-				       currentClass->members[name].token);
+				lnerr("Previously declared at : ",
+				      currentClass->members[name].token);
 				currentClass->members[name].token.highlight();
-				lnerr_("Redefined at : ", (*i));
+				lnerr("Redefined at : ", (*i));
 				(*i).highlight();
-				panic("Exiting..");
 			} else {
 				currentClass->declareVariable(name, currentVisibility,
 				                              ifs->isStatic, (*i));

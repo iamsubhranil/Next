@@ -4,33 +4,47 @@
 
 using namespace std;
 
-unordered_map<size_t, string> StringLibrary::strings = {};
+unordered_map<uint32_t, string> StringLibrary::strings = {};
 
-size_t StringLibrary::insert(const string &s) {
-	size_t hash_ = hash<string>{}(s);
+uint32_t hash_string(const char *s) {
+	uint32_t hash_ = 0;
+
+	for(; *s; ++s) {
+		hash_ += *s;
+		hash_ += (hash_ << 10);
+		hash_ ^= (hash_ >> 6);
+	}
+
+	hash_ += (hash_ << 3);
+	hash_ ^= (hash_ >> 11);
+	hash_ += (hash_ << 15);
+
+	return hash_;
+}
+
+uint32_t StringLibrary::insert(const string &s) {
+	uint32_t hash_ = hash_string(s.data());
 	if(strings.find(hash_) == strings.end()) {
 		strings[hash_] = s;
 	}
 	return hash_;
 }
 
-size_t StringLibrary::insert(const char *s) {
-	string str(s);
-	return insert(str);
+uint32_t StringLibrary::insert(const char *s) {
+	return insert(string(s));
 }
 
-size_t StringLibrary::insert(const char *s, size_t len) {
-	string str(s, len);
-	return insert(str);
+uint32_t StringLibrary::insert(const char *s, size_t len) {
+	return insert(string(s, len));
 }
 
-const string &StringLibrary::get(size_t hash_) {
+const string &StringLibrary::get(uint32_t hash_) {
 	if(strings.find(hash_) == strings.end())
-		panic("Bad hash %u!", hash_);
+		panic("Bad hash_ %u!", hash_);
 	return strings[hash_];
 }
 
-const char *StringLibrary::get_raw(size_t idx) {
+const char *StringLibrary::get_raw(uint32_t idx) {
 	return get(idx).c_str();
 }
 

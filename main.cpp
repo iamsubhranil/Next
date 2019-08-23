@@ -1,10 +1,17 @@
 #include "core.h"
 #include "loader.h"
+#include "qnan.h"
 #include <iostream>
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
+#ifdef DEBUG
+	cout << "sizeof(Value) : " << sizeof(Value) << endl;
+#define TYPE(r, n) \
+	cout << #n << " : " << std::hex << QNAN_##n << std::dec << endl;
+#include "valuetypes.h"
+#endif
 	// load the core module first
 	CoreModule::init();
 	if(argc > 1) {
