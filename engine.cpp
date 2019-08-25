@@ -46,7 +46,7 @@ void ExecutionEngine::setPendingException(Value v) {
 	pendingException = v;
 }
 
-#define PUSH(x) presentFrame->stack_[presentFrame->stackPointer++] = (x);
+#define PUSH(x) Stack[StackPointer++] = (x);
 #define RERR(x, ...)                                                         \
 	{                                                                        \
 		cout << "\n";                                                        \
@@ -105,9 +105,13 @@ FrameInstance *ExecutionEngine::throwException(Value          v,
 			delete presentFrame;
 			presentFrame = bak;
 		}
+		Value *Stack        = presentFrame->stack_;
+		int    StackPointer = presentFrame->stackPointer;
 		PUSH(v);
 		presentFrame->code = &presentFrame->frame->code
 		                          .bytecodes[presentFrame->instructionPointer];
+		presentFrame->stack_       = Stack;
+		presentFrame->stackPointer = StackPointer;
 		return presentFrame;
 	}
 }
@@ -141,6 +145,10 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		}
 	} else
 		presentFrame = newinstance(f);
+
+	unsigned char *InstructionPointer = presentFrame->code;
+	int            StackPointer       = presentFrame->stackPointer;
+	Value *        Stack              = presentFrame->stack_;
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
@@ -152,19 +160,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define LOOP() while(1)
 #define SWITCH() \
-	{ goto *dispatchTable[*presentFrame->code]; }
+	{ goto *dispatchTable[*InstructionPointer]; }
 #define CASE(x) EXEC_CODE_##x
 #define DISPATCH() \
-	{ goto *dispatchTable[*(++presentFrame->code)]; }
+	{ goto *dispatchTable[*(++InstructionPointer)]; }
 #define DISPATCH_WINC() \
-	{ goto *dispatchTable[*presentFrame->code]; }
+	{ goto *dispatchTable[*InstructionPointer]; }
 #else
 #define LOOP() while(1)
-#define SWITCH() switch(*presentFrame->code)
+#define SWITCH() switch(*InstructionPointer)
 #define CASE(x) case BytecodeHolder::CODE_##x
 #define DISPATCH()            \
 	{                         \
-		presentFrame->code++; \
+		InstructionPointer++; \
 		continue;             \
 	}
 #define DISPATCH_WINC() \
@@ -172,14 +180,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define DEFAULT() default
 #endif
 
-#define TOP presentFrame->stack_[presentFrame->stackPointer - 1]
-#define POP() presentFrame->stack_[--presentFrame->stackPointer]
+#define TOP Stack[StackPointer - 1]
+#define POP() Stack[--StackPointer]
 
-#define JUMPTO(x)                \
-	{                            \
-		presentFrame->code += x; \
-		continue;                \
+#define JUMPTO(x)                                      \
+	{                                                  \
+		InstructionPointer = InstructionPointer + (x); \
+		continue;                                      \
 	}
+
+#define RESTORE_FRAMEINFO()                          \
+	InstructionPointer = presentFrame->code;         \
+	StackPointer       = presentFrame->stackPointer; \
+	Stack              = presentFrame->stack_;
+
+#define BACKUP_FRAMEINFO()                           \
+	presentFrame->code         = InstructionPointer; \
+	presentFrame->stackPointer = StackPointer;       \
+	presentFrame->stack_       = Stack;
 
 #define CALL_INSTANCE(fIns, n, x, p)         \
 	{                                        \
@@ -197,8 +215,10 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		if(p) {                              \
 			POP();                           \
 		}                                    \
+		BACKUP_FRAMEINFO();                  \
 		f->enclosingFrame = presentFrame;    \
 		presentFrame      = f;               \
+		RESTORE_FRAMEINFO();                 \
 		DISPATCH_WINC();                     \
 	}
 
@@ -206,20 +226,20 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	{ CALL_INSTANCE(newinstance(frame), n, 0, 0); }
 
 #define next_int()                      \
-	(presentFrame->code += sizeof(int), \
-	 *(int *)((presentFrame->code - sizeof(int) + 1)))
+	(InstructionPointer += sizeof(int), \
+	 *(int *)((InstructionPointer - sizeof(int) + 1)))
 #define next_double()                      \
-	(presentFrame->code += sizeof(double), \
-	 *(double *)((presentFrame->code - sizeof(double) + 1)))
+	(InstructionPointer += sizeof(double), \
+	 *(double *)((InstructionPointer - sizeof(double) + 1)))
 #define next_string()                          \
-	(presentFrame->code += sizeof(NextString), \
-	 *(NextString *)(presentFrame->code - sizeof(NextString) + 1))
+	(InstructionPointer += sizeof(NextString), \
+	 *(NextString *)(InstructionPointer - sizeof(NextString) + 1))
 #define next_ptr()                            \
-	(presentFrame->code += sizeof(uintptr_t), \
-	 *(uintptr_t *)(presentFrame->code - sizeof(uintptr_t) + 1))
+	(InstructionPointer += sizeof(uintptr_t), \
+	 *(uintptr_t *)(InstructionPointer - sizeof(uintptr_t) + 1))
 #define next_value()                      \
-	(presentFrame->code += sizeof(Value), \
-	 *(Value *)(presentFrame->code - sizeof(Value) + 1))
+	(InstructionPointer += sizeof(Value), \
+	 *(Value *)(InstructionPointer - sizeof(Value) + 1))
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
@@ -347,7 +367,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jump) : {
-				JUMPTO(next_int() -
+				int offset = next_int();
+				JUMPTO(offset -
 				       sizeof(int)); // offset the relative jump address
 			}
 
@@ -397,26 +418,27 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				FrameInstance *bak = presentFrame->enclosingFrame;
 				delete presentFrame;
 				presentFrame = bak;
+				RESTORE_FRAMEINFO();
 				PUSH(v);
 				DISPATCH();
 			}
 
 			CASE(load_slot) : {
-				PUSH(presentFrame->stack_[next_int()]);
+				PUSH(Stack[next_int()]);
 				DISPATCH();
 			}
 
 			CASE(store_slot) : {
 				int slot = next_int();
-				ref_decr(presentFrame->stack_[slot]);
+				ref_decr(Stack[slot]);
 				ref_incr(TOP);
 				// Do not pop the value off the stack yet
-				presentFrame->stack_[slot] = TOP;
+				Stack[slot] = TOP;
 				DISPATCH();
 			}
 
 			CASE(incr_slot) : {
-				Value &v = presentFrame->stack_[next_int()];
+				Value &v = Stack[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
@@ -434,7 +456,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(decr_slot) : {
-				Value &v = presentFrame->stack_[next_int()];
+				Value &v = Stack[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
@@ -467,21 +489,21 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(load_object_slot) : {
 				int slot = next_int();
-				PUSH(presentFrame->stack_[0].toObject()->slots[slot]);
+				PUSH(Stack[0].toObject()->slots[slot]);
 				DISPATCH();
 			}
 
 			CASE(store_object_slot) : {
 				int slot = next_int();
-				ref_decr(presentFrame->stack_[0].toObject()->slots[slot]);
+				ref_decr(Stack[0].toObject()->slots[slot]);
 				ref_incr(TOP);
-				presentFrame->stack_[0].toObject()->slots[slot] = TOP;
+				Stack[0].toObject()->slots[slot] = TOP;
 				DISPATCH();
 			}
 
 			CASE(incr_object_slot) : {
 				int    slot = next_int();
-				Value &v = presentFrame->stack_[0].toObject()->slots[slot];
+				Value &v    = Stack[0].toObject()->slots[slot];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
@@ -491,7 +513,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(decr_object_slot) : {
 				int    slot = next_int();
-				Value &v    = presentFrame->stack_[0].toObject()->slots[slot];
+				Value &v    = Stack[0].toObject()->slots[slot];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
@@ -597,9 +619,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(call_method) : {
 				NextString method = next_string();
 				int        numArg_ = next_int(); // copy the object also
-				Value      v =
-				    presentFrame
-				        ->stack_[presentFrame->stackPointer - numArg_ - 1];
+				Value      v = presentFrame->stack_[StackPointer - numArg_ - 1];
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
 					if(obj->Class->hasPublicMethod(method)) {
@@ -625,8 +645,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					if(Primitives::hasPrimitive(v.getType(), method)) {
 						Value ret = Primitives::invokePrimitive(
 						    v.getType(), method,
-						    &presentFrame->stack_[presentFrame->stackPointer -
-						                          numArg_ - 1]);
+						    &Stack[StackPointer - numArg_ - 1]);
 
 						// Pop the arguments
 						while(numArg_ >= 0) {
@@ -646,7 +665,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(call_intraclass) : {
 				int frame  = next_int();
 				int            numArg = next_int() - 1;
-				NextObject *   obj    = presentFrame->stack_[0].toObject();
+				NextObject *   obj    = Stack[0].toObject();
 				FrameInstance *f      = newinstance(obj->Class->frames[frame]);
 				// Copy the arguments
 				while(numArg >= 0) {
@@ -655,22 +674,25 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					numArg--;
 				}
 				// copy the object manually
-				f->stack_[0] = presentFrame->stack_[0];
+				f->stack_[0] = Stack[0];
 				f->stack_[0].toObject()->incrCount();
 				f->enclosingFrame = presentFrame;
+				BACKUP_FRAMEINFO();
 				presentFrame      = f;
+				RESTORE_FRAMEINFO();
 				DISPATCH_WINC();
 			}
 
 			CASE(construct_ret) : {
 				// Pop the return object
-				Value v = presentFrame->stack_[0];
+				Value v = Stack[0];
 				// Increment the refCount so that it doesn't get
 				// garbage collected on delete
 				v.toObject()->incrCount();
 				FrameInstance *bak = presentFrame->enclosingFrame;
 				delete presentFrame;
 				presentFrame = bak;
+				RESTORE_FRAMEINFO();
 				// Reset the refCount, so that if
 				// it isn't stored in a slot in the
 				// callee function, it gets garbage
@@ -686,14 +708,16 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextObject *no =
 				    new NextObject(loadedModules[mod]->classes[cls].get());
 				no->incrCount();
-				presentFrame->stack_[0] = no;
+				Stack[0] = no;
 				DISPATCH();
 			}
 
 			CASE(throw_) : {
 				// POP the thrown object
 				Value v = POP();
+				BACKUP_FRAMEINFO();
 				presentFrame = throwException(v, presentFrame);
+				RESTORE_FRAMEINFO();
 				DISPATCH_WINC();
 			}
 
@@ -703,7 +727,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			DEFAULT() : {
-				uint8_t code = *presentFrame->code;
+				uint8_t code = *InstructionPointer;
 				if(code > BytecodeHolder::CODE_halt) {
 					panic("Invalid bytecode %d!", code);
 				} else {
