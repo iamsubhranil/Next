@@ -94,7 +94,7 @@ ostream& operator<<(ostream& os, const Frame &f) {
 FrameInstance::FrameInstance(Frame *f) {
 	frame  = f;
 	stack_ = (Value *)malloc(sizeof(Value) * f->code.maxStackSize());
-	memset(stack_, 0, sizeof(Value) * f->code.maxStackSize());
+	std::fill_n(stack_, f->code.maxStackSize(), Value::nil);
 	stackPointer       = f->slotSize;
 	presentSlotSize    = f->slotSize;
 	instructionPointer = 0;
