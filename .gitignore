@@ -11,3 +11,4 @@ vgcore.*
 grammar_peg
 next
 perf.*
+*.patch
