@@ -223,14 +223,17 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, name, argtype, restype)                              \
-	{                                                                   \
-		Value v = POP();                                                \
-		if(v.is##argtype() && TOP.is##argtype()) {                      \
-			TOP.set##restype(TOP.to##argtype() op v.to##argtype());     \
-			DISPATCH();                                                 \
-		}                                                               \
-		RERR("Both of the operands of " #name " are not " #argtype "!") \
+#define binary(op, name, argtype, restype)                          \
+	{                                                               \
+		Value v = POP();                                            \
+		if(v.is##argtype() && TOP.is##argtype()) {                  \
+			TOP.set##restype(TOP.to##argtype() op v.to##argtype()); \
+			DISPATCH();                                             \
+		}                                                           \
+		RERR("Both of the operands of " #name " are not " #argtype  \
+		     " (%s and %s)!",                                       \
+		     StringLibrary::get_raw(TOP.getTypeString()),           \
+		     StringLibrary::get_raw(v.getTypeString()))             \
 	}
 
 #define ref_incr(x)                    \
@@ -250,16 +253,21 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	LOOP() {
 #ifdef DEBUG_INS
 		set_instruction_pointer(presentFrame);
+		Token t = presentFrame->frame->findLineInfo(presentFrame->code);
+		if(t.type != TOKEN_ERROR)
+			t.highlight();
+		else
+			cout << "<source not found>\n";
 		cout << "Slots: " << presentFrame->presentSlotSize
 		     << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
 		     << " IP: " << setw(4) << presentFrame->instructionPointer
-		     << " SP: " << presentFrame->stackPointer
-		    /*<< "\n"*/;
+		     << " SP: " << presentFrame->stackPointer << "\n";
 		BytecodeHolder::disassemble(presentFrame->code);
 		if(presentFrame->stackPointer >
 		   presentFrame->frame->code.maxStackSize()) {
 			RERR("Invalid stack access!");
 		}
+		cout << "\n\n";
 #ifdef DEBUG_INS
 		fflush(stdin);
 		getchar();
@@ -298,7 +306,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(neg) : {
 				if(TOP.isNumber()) {
-					TOP = -TOP.toNumber();
+					TOP.setNumber(-TOP.toNumber());
 					DISPATCH();
 				}
 				RERR("'-' must only be applied over a number!");

@@ -1,73 +1,104 @@
 #pragma once
 
+#include "qnan.h"
 #include "stringlibrary.h"
 #include <cstdint>
 #include <iostream>
 
-using NextString = size_t;
+using NextString = uint32_t;
 
 class NextObject;
 class Module;
 
 class Value {
-  public:
-	union val {
-#define TYPE(r, n) \
-	r val##n;      \
-	val(r v##n) : val##n(v##n) {}
+  private:
+	uint64_t value;
+
+	constexpr uint64_t generateMask(size_t s) {
+		uint64_t mask = 0, shift = 1;
+		for(size_t i = 0; i < (s * 8); i++) {
+			mask |= shift;
+			shift <<= 1;
+		}
+		return mask;
+	}
+
+#define TYPE(r, n)                                               \
+	inline void encode##n(r v) {                                 \
+		if(sizeof(r) < 8)                                        \
+			value = (*(uint64_t *)&v) & generateMask(sizeof(r)); \
+		else                                                     \
+			value = (*(uint64_t *)&v) & VAL_MASK;                \
+		value = QNAN_##n | value;                                \
+	}
 #include "valuetypes.h"
-	} to;
-	enum Type {
-		VAL_NIL = 0,
+
+  public:
+	enum Type : int {
+		VAL_Number = 0,
+		VAL_NIL    = 1,
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
 	};
-	Type t;
-
-	Value() : to(0.0), t(VAL_NIL) {}
-#define TYPE(r, n) \
-	Value(r s) : to(s), t(VAL_##n) {}
-#include "valuetypes.h"
-
-	Type getType() { return t; }
-	NextString getTypeString() { return ValueTypeStrings[t]; }
-
-	inline bool is(Type ty) const { return ty == t; }
-#define TYPE(r, n) \
-	inline bool is##n() const { return t == VAL_##n; }
-#include "valuetypes.h"
-	inline bool isNil() const { return t == VAL_NIL; }
-
-#define TYPE(r, n) \
-	inline r to##n() const { return to.val##n; }
-#include "valuetypes.h"
-
-#define TYPE(r, n)            \
-	inline void set##n(r v) { \
-		to.val##n = v;        \
-		t         = VAL_##n;  \
+	Value() : value(QNAN_NIL) {}
+	Value(double d) : value(*(uint64_t *)&d) {}
+#ifdef DEBUG
+#define TYPE(r, n)                                                           \
+	Value(r s) {                                                             \
+		encode##n(s);                                                        \
+		std::cout << std::hex << #n << " " << s << " encoded to : " << value \
+		          << " (Magic : " << QNAN_##n << ")\n"                       \
+		          << std::dec;                                               \
 	}
+#else
+#define TYPE(r, n) \
+	Value(r s) { encode##n(s); }
+#endif
 #include "valuetypes.h"
+
+	Type getType() const {
+		return isNumber() ? VAL_Number : (Type)VAL_TYPE(value);
+	}
+	NextString getTypeString() const { return ValueTypeStrings[getType()]; }
+
+	inline bool is(Type ty) const {
+		return isNumber() ? ty == VAL_Number : VAL_TYPE(value) == (Type)ty;
+	}
+#define TYPE(r, n) \
+	inline bool is##n() const { return VAL_TAG(value) == QNAN_##n; }
+#include "valuetypes.h"
+	inline bool isNil() const { return value == QNAN_NIL; }
+	inline bool isNumber() const { return (value & VAL_QNAN) != VAL_QNAN; }
+#define TYPE(r, n) \
+	inline r to##n() const { return (r)(VAL_MASK & value); }
+#include "valuetypes.h"
+	inline double toNumber() const { return *(double *)&value; }
+
+#define TYPE(r, n) \
+	inline void set##n(r v) { encode##n(v); }
+#include "valuetypes.h"
+	inline void setNumber(double v) { value = *(uint64_t *)&v; }
 
 	friend std::ostream &operator<<(std::ostream &o, const Value &v);
 
 #define TYPE(r, n)                 \
 	inline Value &operator=(r d) { \
-		t         = VAL_##n;       \
-		to.val##n = d;             \
+		encode##n(d);              \
 		return *this;              \
 	}
 #include "valuetypes.h"
+	inline Value &operator=(double v) {
+		value = v;
+		return *this;
+	}
 
 	inline Value &operator=(const Value &v) {
-		t            = v.t;
-		to.valNumber = v.to.valNumber;
+		value = v.value;
 		return *this;
 	}
 
 	inline bool operator==(const Value &v) const {
-		// double is the geatest type, hence compare with that
-		return t == v.t && (toNumber() == v.toNumber());
+		return v.value == value;
 	}
 
 	static Value nil;

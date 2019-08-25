@@ -25,11 +25,13 @@ void lninfo(const char *msg, Token t, ...);
 int  rerr(const char *msg, ...);
 void rwarn(const char *msg, ...);
 
-#define panic(str, ...)                                             \
-	{                                                               \
-		err("[Internal Error] [%s:%d:%s] " str, __FILE__, __LINE__, \
-		    __PRETTY_FUNCTION__, ##__VA_ARGS__);                    \
-		exit(1);                                                    \
+#define panic(str, ...)                                                  \
+	{                                                                    \
+		err("[Internal Error] [%s:%d:%s] " str "\n", __FILE__, __LINE__, \
+		    __PRETTY_FUNCTION__, ##__VA_ARGS__);                         \
+		int *p = NULL;                                                   \
+		int  d = *p;                                                     \
+		exit(d);                                                         \
 	}
 
 #ifdef DEBUG

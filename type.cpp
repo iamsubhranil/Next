@@ -11,12 +11,16 @@ NextType NextType::Error = {StringLibrary::insert("core"),
 	NextType NextType::n = {StringLibrary::insert("core"), \
 	                        StringLibrary::insert(#n)};
 #include "valuetypes.h"
+NextType NextType::Number = {StringLibrary::insert("core"),
+                             StringLibrary::insert("Number")};
 
 bool NextType::isPrimitive(const NextString &ty) {
 #define TYPE(r, n)                      \
 	if(StringLibrary::insert(#n) == ty) \
 		return true;
 #include "valuetypes.h"
+	if(StringLibrary::insert("Number") == ty)
+		return true;
 	return false;
 }
 
@@ -32,7 +36,7 @@ NextType NextType::getType(const Value &v) {
 	if(v.isObject()) {
 		return v.toObject()->Class->getClassType();
 	}
-	switch(v.t) {
+	switch(v.getType()) {
 		case Value::VAL_Number: return NextType::Number;
 		case Value::VAL_String: return NextType::String;
 		case Value::VAL_Boolean: return NextType::Boolean;

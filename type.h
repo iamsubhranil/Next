@@ -19,4 +19,5 @@ class NextType {
 	static NextType Any, Error;
 #define TYPE(r, n) static NextType n;
 #include "valuetypes.h"
+	static NextType Number;
 };
