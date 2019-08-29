@@ -8,6 +8,12 @@ SRCS := $(wildcard *.cpp)
 # $(patsubst %.cpp,%.o,$(SRCS)): substitute all ".cpp" file name strings to ".o" file name strings
 OBJS := $(patsubst %.cpp,%.o,$(SRCS))
 
+# Allows one to enable verbose builds with VERBOSE=1
+V := @
+ifeq ($(VERBOSE),1)
+	V :=
+endif
+
 all: release
 
 cgoto: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO
@@ -22,6 +28,12 @@ debug: next
 
 next: $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o next
+
+benchmark: release
+	$(V) ./util/benchmark.py -l next $(suite)
+
+benchmark_baseline: release
+	$(V) ./util/benchmark.py --generate-baseline
 
 depend: .depend
 
