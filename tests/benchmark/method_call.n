@@ -41,7 +41,7 @@ class NthToggle {
             ret this
         }
 }
-
+start = clock()
 n = 100000
 val = true
 toggle = Toggle(val)
@@ -78,3 +78,5 @@ while(i++ < n) {
 }
 
 print(ntoggle.value(), "\n")
+elapsed = (clock() - start) / clocks_per_sec
+print("elapsed: ", elapsed)

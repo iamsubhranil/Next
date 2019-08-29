@@ -25,6 +25,8 @@ minDepth = 4
 maxDepth = 12
 stretchDepth = maxDepth + 1
 
+start = clock()
+
 print("stretch tree of depth ", stretchDepth, " check : ", Tree(0, stretchDepth).check(), "\n")
 
 longLivedTree = Tree(0, maxDepth)
@@ -50,3 +52,6 @@ while(depth < stretchDepth) {
 }
 
 print("long lived tree of depth ", maxDepth, " check : ", longLivedTree.check())
+
+elapsed = (clock() - start) / clocks_per_sec
+print("\nelapsed: ", elapsed)

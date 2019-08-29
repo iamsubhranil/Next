@@ -1,4 +1,12 @@
+start = clock()
 a = 0
 b = 0
-while(a++ < 5000000) { b = b + a}
+while(a++ < 5000000) { 
+    if(a == 382938) {
+        b = b + 3
+    }
+    b = b + a
+}
 print(b)
+elapsed = (clock() - start) / clocks_per_sec
+print("\nelapsed: ", elapsed)

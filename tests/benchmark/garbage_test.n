@@ -1,0 +1,18 @@
+class MyClass {
+    pub:
+        a, b, c, d
+        new(x) {
+            a = x++
+            b = ++x
+            c = x--
+            d = --x
+        }
+}
+start = clock()
+i = 0
+j = nil
+while(i++ < 2000000) {
+    j = MyClass(i)
+}
+print("Final object : ", j, " {", j.a, ", ", j.b, ", ", j.c, ", ", j.d, "}\n")
+print("elapsed: ", (clock() - start) / clocks_per_sec)

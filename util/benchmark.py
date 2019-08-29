@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Taken from Wren (https://github.com/wren-lang/wren/blob/master/util/benchmark.py)
+
 from __future__ import print_function
 
 import argparse
@@ -48,21 +50,20 @@ NUM_TRIALS = 10
 BENCHMARKS = []
 
 def BENCHMARK(name, pattern):
-  regex = re.compile(pattern, re.MULTILINE)
+  regex = re.compile(pattern + "\n" + r"elapsed: (\d+\.\d+)", re.MULTILINE)
   BENCHMARKS.append([name, regex, None])
 
 # BENCHMARK("api_call", "true")
 
 # BENCHMARK("api_foreign_method", "100000000")
 
-BENCHMARK("binary_trees", r"""stretch tree of depth 13 check: -1
-8192 trees of depth 4 check: -8192
-2048 trees of depth 6 check: -2048
-512 trees of depth 8 check: -512
-128 trees of depth 10 check: -128
-32 trees of depth 12 check: -32
-long lived tree of depth 12 check: -1
-""")
+BENCHMARK("binary_trees", r"""stretch tree of depth 13 check : -1
+8192 trees of depth 4 check : -8192
+2048 trees of depth 6 check : -2048
+512 trees of depth 8 check : -512
+128 trees of depth 10 check : -128
+32 trees of depth 12 check : -32
+long lived tree of depth 12 check : -1""")
 
 
 #BENCHMARK("binary_trees_gc", """stretch tree of depth 13 check: -1
@@ -75,19 +76,16 @@ long lived tree of depth 12 check: -1
 
 #BENCHMARK("delta_blue", "14065400")
 
+BENCHMARK("fib", r"""317811
+317811
+317811
+317811
+317811""")
 
-BENCHMARK("fib", r"""
-317811
-317811
-317811
-317811
-317811
-""")
+BENCHMARK("garbage_test", r"""Final object : <object of garbage_test\.MyClass> {2e\+06, 2e\+06, 2e\+06, 2e\+06}""")
 
 #BENCHMARK("fibers", r"""4999950000""")
 
-
-BENCHMARK("while", r"""1.25e+13""")
 
 BENCHMARK("method_call", r"""true
 false""")
@@ -97,8 +95,9 @@ false""")
 
 #BENCHMARK("map_string", r"""12799920000""")
 
-#BENCHMARK("string_equals", r"""3000000""")
+BENCHMARK("string_equals", r"""3e\+06""")
 
+BENCHMARK("while", r"""1\.25e\+13""")
 
 LANGUAGES = [
   ("next",           [os.path.join(NEXT_BIN, 'next')], ".n"),
@@ -160,10 +159,10 @@ def run_trial(benchmark, language):
   # Hackish. If the benchmark name starts with "api_", it's testing the Next
   # C API, so run the test_api executable which has those test methods instead
   # of the normal Next build.
-  if benchmark[0].startswith("api_"):
-    executable_args = [
-      os.path.join(NEXT_DIR, "build", "release", "test", "api_next")
-    ]
+  #if benchmark[0].startswith("api_"):
+  #  executable_args = [
+  #    os.path.join(NEXT_DIR, "build", "release", "test", "api_next")
+  #  ]
 
   args = []
   args.extend(executable_args)
@@ -171,6 +170,7 @@ def run_trial(benchmark, language):
 
   try:
     out = subprocess.check_output(args, universal_newlines=True)
+    #`print("{" + out + "}\n")
   except OSError:
     print('Interpreter was not found')
     return None
