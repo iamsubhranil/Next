@@ -117,6 +117,10 @@ OPCODE2(call_intraclass, 0, int, int)
 // found
 OPCODE0(throw_, -1)
 
+// The engine needs to know number of args for cleanup
+OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>
+OPCODE1(load_constant, 1, NextString) // <name>
+
 OPCODE0(halt, 0)
 
 #undef OPCODE0

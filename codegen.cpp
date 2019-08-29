@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "builtins.h"
 #include "bytecode.h"
 #include "core.h"
 #include "display.h"
@@ -8,10 +9,11 @@
 
 using namespace std;
 
-#define lnerr_(str, ...)           \
-	{                              \
-		lnerr(str, ##__VA_ARGS__); \
-		errorsOccurred++;          \
+#define lnerr_(str, t, ...)           \
+	{                                 \
+		lnerr(str, t, ##__VA_ARGS__); \
+		t.highlight();                \
+		errorsOccurred++;             \
 	}
 
 CodeGenerator::CodeGenerator() {
@@ -198,6 +200,11 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 		info.frameIdx    = getFrameIndex(module->frames, searching);
 		info.fn          = module->functions[signature].get();
 		return info;
+	} else { // try searching for builtin functions
+		if(Builtin::has_builtin(signature)) {
+			info.type = CallInfo::BUILTIN;
+			return info;
+		}
 	}
 	// Do not automatically link indirect function imports
 	/*else {
@@ -247,7 +254,8 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	// If this is a constructor call, we pass in
 	// a dummy value to slot 0, which will later
 	// be replaced by the instance itself
-	if(!onRefer && info.type != CallInfo::UNDEFINED && info.fn->isConstructor) {
+	if(!onRefer && info.type != CallInfo::UNDEFINED &&
+	   info.type != CallInfo::BUILTIN && info.fn->isConstructor) {
 		// bytecode->stackEffect(-1);
 		bytecode->pushd(0);
 	}
@@ -284,13 +292,16 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 				                        call->arguments.size() +
 				                            info.fn->isConstructor);
 				break;*/
+			case CallInfo::BUILTIN:
+				bytecode->call_builtin(signature, argSize);
+				bytecode->stackEffect(-argSize + 1);
+				break;
 			default: {
 
 				// Function is not found
 				lnerr_("No function with the specified signature found in "
 				       "present module!",
 				       call->callee->token);
-				call->callee->token.highlight();
 				NextString s = StringLibrary::insert(
 				    call->callee->token.start, call->callee->token.length);
 				for(auto i = module->functions.begin(),
@@ -339,6 +350,15 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 			}
 		}
 
+		// Check if it is a built-in constant
+		// Since built-in constants cannot be overridden, it will only
+		// be a built-in constant if it is on the right side of an
+		// expression. If it is on the left side of an expression,
+		// an error will be raised by the respective code generator module.
+		if(Builtin::has_constant(name)) {
+			return (VarInfo){0, BUILTIN};
+		}
+
 		/* Later
 
 		// Check if it is in an imported module
@@ -370,7 +390,6 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 	if(var.position == UNDEFINED && showError) {
 		lnerr_("No such variable found : '%s'", t,
 		       StringLibrary::get_raw(name));
-		t.highlight();
 	}
 	return var;
 }
@@ -393,10 +412,18 @@ void CodeGenerator::visit(AssignExpression *as) {
 
 	if(state == COMPILE_BODY) {
 		frame->insertdebug(as->token);
+		// target of an assignment expression cannot be a
+		// builtin constant
 		switch(var.position) {
 			case LOCAL: bytecode->store_slot(var.slot); break;
 			case CLASS: bytecode->store_object_slot(var.slot); break;
 			case MODULE: bytecode->store_module_slot(var.slot); break;
+			case BUILTIN: {
+				lnerr_("Built-in constant '%.*s' cannot be reassigned!",
+				       as->target->token, as->target->token.length,
+				       as->target->token.start);
+				break;
+			}
 			default: break;
 		}
 	}
@@ -510,7 +537,6 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 			if(!pe->right->isAssignable()) {
 				lnerr_("Cannot apply '++' on a non-assignable expression!",
 				       pe->token);
-				pe->token.highlight();
 			} else {
 				onLHS = true;
 				pe->right->accept(this);
@@ -533,6 +559,13 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						bytecode->incr_object_slot(variableInfo.slot);
 						bytecode->load_object_slot(variableInfo.slot);
 						break;
+					case BUILTIN: {
+						lnerr_(
+						    "Built-in constant '%.*s' cannot be incremented!",
+						    pe->right->token, pe->right->token.length,
+						    pe->right->token.start);
+						break;
+					}
 					default: break;
 				}
 			}
@@ -541,7 +574,6 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 			if(!pe->right->isAssignable()) {
 				lnerr_("Cannot apply '--' on a non-assignable expression!",
 				       pe->token);
-				pe->token.highlight();
 			} else {
 				frame->insertdebug(pe->token);
 				onLHS = true;
@@ -565,6 +597,13 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						bytecode->decr_object_slot(variableInfo.slot);
 						bytecode->load_object_slot(variableInfo.slot);
 						break;
+					case BUILTIN: {
+						lnerr_(
+						    "Built-in constant '%.*s' cannot be decremented!",
+						    pe->right->token, pe->right->token.length,
+						    pe->right->token.start);
+						break;
+					}
 					default: break;
 				}
 			}
@@ -581,7 +620,6 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 	if(!pe->left->isAssignable()) {
 		lnerr_("Cannot apply postfix operator on a non-assignable expression!",
 		       pe->token);
-		pe->token.highlight();
 	}
 	onLHS = true;
 	pe->left->accept(this);
@@ -608,6 +646,12 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					bytecode->load_object_slot(variableInfo.slot);
 					bytecode->incr_object_slot(variableInfo.slot);
 					break;
+				case BUILTIN: {
+					lnerr_("Built-in constant '%.*s' cannot be incremented!",
+					       pe->left->token, pe->left->token.length,
+					       pe->left->token.start);
+					break;
+				}
 				default: break;
 			}
 			break;
@@ -632,6 +676,12 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					bytecode->load_object_slot(variableInfo.slot);
 					bytecode->decr_object_slot(variableInfo.slot);
 					break;
+				case BUILTIN: {
+					lnerr_("Built-in constant '%.*s' cannot be decremented!",
+					       pe->left->token, pe->left->token.length,
+					       pe->left->token.start);
+					break;
+				}
 				default: break;
 			}
 			break;
@@ -659,6 +709,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 				case LOCAL: bytecode->load_slot(var.slot); break;
 				case MODULE: bytecode->load_module_slot(var.slot); break;
 				case CLASS: bytecode->load_object_slot(var.slot); break;
+				case BUILTIN: bytecode->load_constant(name); break;
 				default: break;
 			}
 		}
@@ -779,17 +830,15 @@ void CodeGenerator::visit(FnStatement *ifs) {
 				lnerr_("Redefinition of function with same signature!",
 				       ifs->name);
 			}
-			lnerr("Previously declared at : ", ifs->name);
+			lnerr("Previously declared at : ",
+			      module->functions.find(signature)->second->token);
 			module->functions.find(signature)->second->token.highlight();
-			lnerr("Redefined at : ", ifs->name);
-			ifs->name.highlight();
 		} else if(inClass && currentClass->functions.find(signature) !=
 		                         currentClass->functions.end()) {
 			lnerr_("Redefinition of method with same signature!", ifs->name);
-			lnerr("Previously declared at : ", ifs->name);
-			currentClass->functions.find(signature)->second->token.highlight();
-			lnerr("Redefined at : ", ifs->name);
-			ifs->name.highlight();
+			lnerr("Previously declared at : ",
+			      module->functions.find(signature)->second->token);
+			module->functions.find(signature)->second->token.highlight();
 		} else {
 			FnPtr f = unq(Fn,
 			              !inClass ? (AccessModifiableEntity::Visibility)(
@@ -924,8 +973,6 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 			lnerr("Previously declared at : ",
 			      module->classes[className]->token);
 			module->classes[className]->token.highlight();
-			lnerr("Redefined at : ", ifs->name);
-			ifs->token.highlight();
 		}
 		ClassPtr c = unq(
 		    NextClass, (AccessModifiableEntity::Visibility)(VIS_PUB + ifs->vis),
@@ -974,17 +1021,14 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 		switch(is.res) {
 			case ImportStatus::BAD_IMPORT: {
 				lnerr_("Folder does not exist or is not accessible!", t);
-				t.highlight();
 				break;
 			}
 			case ImportStatus::FOLDER_IMPORT: {
 				lnerr_("Importing a folder is not supported!", t);
-				t.highlight();
 				break;
 			}
 			case ImportStatus::FILE_NOT_FOUND: {
 				lnerr_("No such module found in the given folder!", t);
-				t.highlight();
 				break;
 			}
 			case ImportStatus::IMPORT_SUCCESS: {
@@ -1020,6 +1064,10 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 #endif
 	VarInfo v = lookForVariable(ifs->token, true);
 	if(getState() == COMPILE_BODY) {
+		if(v.position == BUILTIN) {
+			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
+			       ifs->token.length, ifs->token.start);
+		}
 		ifs->expr->accept(this);
 		bytecode->store_slot(v.slot);
 		bytecode->pop();
@@ -1043,7 +1091,6 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 				      currentClass->members[name].token);
 				currentClass->members[name].token.highlight();
 				lnerr("Redefined at : ", (*i));
-				(*i).highlight();
 			} else {
 				currentClass->declareVariable(name, currentVisibility,
 				                              ifs->isStatic, (*i));
@@ -1107,7 +1154,6 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 		t = module->resolveType(tname);
 		if(t == NextType::Error) {
 			lnerr_("No such type found in present module!", ifs->typeName);
-			ifs->typeName.highlight();
 		}
 	}
 	// catch block will push a new scope

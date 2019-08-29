@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 			compile_and_load_from_source(line.c_str(), module, true);
 			cout << endl << ">> ";
 		}
+		cout << endl;
 	}
-	cout << endl;
 	return 0;
 }

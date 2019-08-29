@@ -1,0 +1,2 @@
+print("Clocks per second : ", clocks_per_sec)
+print("\nClock() : ", clock())

@@ -16,7 +16,13 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 		COMPILE_BODY
 	};
 
-	enum VariablePosition { LOCAL, CLASS, MODULE, UNDEFINED /*, OBJECT*/ };
+	enum VariablePosition {
+		LOCAL,
+		CLASS,
+		MODULE,
+		BUILTIN,
+		UNDEFINED /*, OBJECT*/
+	};
 	typedef struct VarInfo {
 		int              slot;
 		VariablePosition position;
@@ -24,7 +30,13 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 
 	// Holds the status of a resolved call
 	struct CallInfo {
-		enum CallType { INTRA_MODULE, INTRA_CLASS, IMPORTED, UNDEFINED } type;
+		enum CallType {
+			INTRA_MODULE,
+			INTRA_CLASS,
+			IMPORTED,
+			BUILTIN,
+			UNDEFINED
+		} type;
 		Fn *fn;
 		int frameIdx;
 	};

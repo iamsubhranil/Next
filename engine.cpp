@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "builtins.h"
 #include "display.h"
 #include "primitive.h"
 
@@ -719,6 +720,26 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				presentFrame = throwException(v, presentFrame);
 				RESTORE_FRAMEINFO();
 				DISPATCH_WINC();
+			}
+
+			CASE(call_builtin) : {
+				NextString sig  = next_string();
+				int        args = next_int();
+				Value *    stackStart = &Stack[StackPointer - args];
+				Value      res = Builtin::invoke_builtin(sig, stackStart);
+				while(args--) {
+					Value v = POP();
+					if(v.isObject())
+						v.toObject()->freeIfZero();
+				}
+				PUSH(res);
+				DISPATCH();
+			}
+
+			CASE(load_constant) : {
+				NextString name = next_string();
+				PUSH(Builtin::get_constant(name));
+				DISPATCH();
 			}
 
 			CASE(halt) : {
