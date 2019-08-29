@@ -49,4 +49,4 @@ while(depth < stretchDepth) {
     depth = depth + 2
 }
 
-print("long lived tree of depth ", maxDepth, " check : ", longLivedTree.check(), "\n")
+print("long lived tree of depth ", maxDepth, " check : ", longLivedTree.check())
