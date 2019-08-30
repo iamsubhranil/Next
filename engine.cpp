@@ -11,7 +11,8 @@ FrameInstance *ExecutionEngine::newinstance(Frame *f) {
 	return new FrameInstance(f);
 }
 
-HashMap<NextString, Module *> ExecutionEngine::loadedModules    = {};
+HashMap<NextString, Module *> ExecutionEngine::loadedModules =
+    decltype(ExecutionEngine::loadedModules){};
 Value ExecutionEngine::pendingException = Value::nil;
 
 bool ExecutionEngine::isModuleRegistered(NextString name) {

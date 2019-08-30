@@ -58,9 +58,9 @@ int CodeGenerator::pushScope() {
 void CodeGenerator::popScope() {
 	if(frame == nullptr)
 		return;
-	for(auto i = frame->slots.begin(), j = frame->slots.end(); i != j; i++) {
-		if(i->second.scopeID >= scopeID) {
-			i->second.isValid = false;
+	for(auto &i : frame->slots) {
+		if(i.second.scopeID >= scopeID) {
+			i.second.isValid = false;
 		}
 	}
 	--scopeID;
@@ -304,15 +304,13 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 				       call->callee->token);
 				NextString s = StringLibrary::insert(
 				    call->callee->token.start, call->callee->token.length);
-				for(auto i = module->functions.begin(),
-				         j = module->functions.end();
-				    i != j; i++) {
-					if(s == i->second->name) {
+				for(auto const &i : module->functions) {
+					if(s == i.second->name) {
 						lninfo("Found similar function (takes %zu arguments, "
 						       "provided "
 						       "%zu)",
-						       i->second->token, i->second->arity, argSize);
-						i->second->token.highlight();
+						       i.second->token, i.second->arity, argSize);
+						i.second->token.highlight();
 					}
 				}
 				break;

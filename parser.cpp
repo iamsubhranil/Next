@@ -236,7 +236,7 @@ StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
 }
 
 HashMap<TokenType, StatementParselet *> ClassDeclaration::classBodyParselets =
-    {};
+    decltype(classBodyParselets){};
 
 StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
 	Token              t    = p->consume();

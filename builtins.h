@@ -10,6 +10,7 @@ class Builtin {
 	static HashMap<NextString, builtin_handler> BuiltinHandlers;
 	static HashMap<NextString, Value>           BuiltinConstants;
 
+	static void  init();
 	static bool  has_builtin(NextString sig);
 	static bool  has_constant(NextString name);
 	static void  register_builtin(NextString sig, builtin_handler handler);

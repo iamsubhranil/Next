@@ -5,9 +5,9 @@
 Value Value::nil = Value();
 
 NextString Value::ValueTypeStrings[] = {
-    StringLibrary::insert("Number"),
-    StringLibrary::insert("Nil"),
-#define TYPE(r, n) StringLibrary::insert(#n),
+    0,
+    0,
+#define TYPE(r, n) 0,
 #include "valuetypes.h"
 };
 
@@ -29,4 +29,13 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 		default: panic("<unrecognized object %lx>", v.value); break;
 	}
 	return o;
+}
+
+void Value::init() {
+	int i = 0;
+
+	ValueTypeStrings[i++] = StringLibrary::insert("Number");
+	ValueTypeStrings[i++] = StringLibrary::insert("Nil");
+#define TYPE(r, n) ValueTypeStrings[i++] = StringLibrary::insert(#n);
+#include "valuetypes.h"
 }

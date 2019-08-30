@@ -6,11 +6,9 @@ using namespace std;
 #define NEXT_PRIMITIVE_FN(t, x) \
 	Value NEXT_PRIMITIVE_NAME(t, x)(const Value *stack_)
 
-#define NEXT_PRIMITIVE_ENTRY(type, name, ...)              \
-	{                                                      \
-		StringLibrary::insert(#name "(" #__VA_ARGS__ ")"), \
-		    &NEXT_PRIMITIVE_NAME(type, name)               \
-	}
+#define NEXT_PRIMITIVE_ENTRY(type, name, ...)                              \
+	Primitives_##type[StringLibrary::insert(#name "(" #__VA_ARGS__ ")")] = \
+	    &NEXT_PRIMITIVE_NAME(type, name);
 
 // ========== Number =================
 
@@ -24,9 +22,7 @@ NEXT_PRIMITIVE_FN(Number, str) {
 
 #define NEXT_NUMBER_PRIMITIVE(name, ...) \
 	NEXT_PRIMITIVE_ENTRY(Number, name, ##__VA_ARGS__)
-PrimitiveMap NumberPrimitives = {
-    NEXT_NUMBER_PRIMITIVE(str),
-};
+PrimitiveMap Primitives_Number = PrimitiveMap{};
 
 // =========== Boolean ================
 
@@ -37,33 +33,28 @@ NEXT_PRIMITIVE_FN(Boolean, str) {
 
 #define NEXT_BOOLEAN_PRIMITIVE(name, ...) \
 	NEXT_PRIMITIVE_ENTRY(Boolean, name, ##__VA_ARGS__)
-PrimitiveMap BooleanPrimitives = {
-    NEXT_BOOLEAN_PRIMITIVE(str),
-};
+PrimitiveMap Primitives_Boolean = PrimitiveMap{};
 
 // ============ String ================
 
-NEXT_PRIMITIVE_FN(NextString, str) {
+NEXT_PRIMITIVE_FN(String, str) {
 	return stack_[0];
 }
 
-NEXT_PRIMITIVE_FN(NextString, len) {
+NEXT_PRIMITIVE_FN(String, len) {
 	return Value((double)(StringLibrary::get(stack_[0].toString()).size()));
 }
 
 #define NEXT_STRING_PRIMITIVE(name, ...) \
-	NEXT_PRIMITIVE_ENTRY(NextString, name, ##__VA_ARGS__)
-PrimitiveMap StringPrimitives = {
-    NEXT_STRING_PRIMITIVE(str),
-    NEXT_STRING_PRIMITIVE(len),
-};
+	NEXT_PRIMITIVE_ENTRY(String, name, ##__VA_ARGS__)
+PrimitiveMap Primitives_String = PrimitiveMap{};
 
 // ============ Handler ================
 
 HashMap<Value::Type, PrimitiveMap *> Primitives::NextPrimitives = {
-    {Value::VAL_Number, &NumberPrimitives},
-    {Value::VAL_Boolean, &BooleanPrimitives},
-    {Value::VAL_String, &StringPrimitives},
+    {Value::VAL_Number, &Primitives_Number},
+    {Value::VAL_Boolean, &Primitives_Boolean},
+    {Value::VAL_String, &Primitives_String},
 };
 
 bool Primitives::hasPrimitive(Value::Type type, NextString signature) {
@@ -74,4 +65,13 @@ bool Primitives::hasPrimitive(Value::Type type, NextString signature) {
 Value Primitives::invokePrimitive(Value::Type type, NextString signature,
                                   Value *stack_) {
 	return (*NextPrimitives[type])[signature](stack_);
+}
+
+void Primitives::init() {
+	NEXT_NUMBER_PRIMITIVE(str);
+
+	NEXT_BOOLEAN_PRIMITIVE(str);
+
+	NEXT_STRING_PRIMITIVE(str);
+	NEXT_STRING_PRIMITIVE(len);
 }

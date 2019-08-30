@@ -6,7 +6,7 @@
 
 class StringLibrary {
   private:
-	static std::unordered_map<uint32_t, std::string> strings;
+	static HashMap<uint32_t, std::string> strings;
 
   public:
 	static uint32_t           insert(const std::string &s);

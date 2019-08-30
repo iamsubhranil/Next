@@ -1,18 +1,27 @@
 #include "type.h"
 #include "fn.h"
 
-NextType NextType::Any = {StringLibrary::insert("core"),
-                          StringLibrary::insert("any")};
+NextType NextType::Any = {0, 0};
 
-NextType NextType::Error = {StringLibrary::insert("core"),
-                            StringLibrary::insert("error")};
+NextType NextType::Error = {0, 0};
 
-#define TYPE(r, n)                                         \
-	NextType NextType::n = {StringLibrary::insert("core"), \
-	                        StringLibrary::insert(#n)};
+#define TYPE(r, n) NextType NextType::n = {0, 0};
 #include "valuetypes.h"
-NextType NextType::Number = {StringLibrary::insert("core"),
-                             StringLibrary::insert("Number")};
+NextType NextType::Number = {0, 0};
+
+void NextType::init() {
+	NextType::Any = {StringLibrary::insert("core"),
+	                 StringLibrary::insert("any")};
+
+	NextType::Error = {StringLibrary::insert("core"),
+	                   StringLibrary::insert("error")};
+
+#define TYPE(r, n) \
+	NextType::n = {StringLibrary::insert("core"), StringLibrary::insert(#n)};
+#include "valuetypes.h"
+	NextType::Number = {StringLibrary::insert("core"),
+	                    StringLibrary::insert("Number")};
+}
 
 bool NextType::isPrimitive(const NextString &ty) {
 #define TYPE(r, n)                      \

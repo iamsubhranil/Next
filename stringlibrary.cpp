@@ -4,9 +4,7 @@
 
 using namespace std;
 
-HashMap<uint32_t, string> StringLibrary::strings = {};
-
-uint32_t hash_string(const char *s) {
+constexpr uint32_t hash_string(const char *s) {
 	uint32_t hash_ = 0;
 
 	for(; *s; ++s) {
@@ -21,6 +19,9 @@ uint32_t hash_string(const char *s) {
 
 	return hash_;
 }
+
+HashMap<uint32_t, string> StringLibrary::strings =
+    HashMap<uint32_t, string>{{hash_string("hello!"), string("hello!")}};
 
 uint32_t StringLibrary::insert(const string &s) {
 	uint32_t hash_ = hash_string(s.data());
@@ -49,7 +50,7 @@ const char *StringLibrary::get_raw(uint32_t idx) {
 }
 
 void StringLibrary::print(ostream &os) {
-	for(auto i = strings.begin(), j = strings.end(); i != j; i++) {
-		os << setw(10) << i->second << "\t" << i->first << endl;
+	for(auto const &i : strings) {
+		os << setw(10) << i.second << "\t" << i.first << endl;
 	}
 }

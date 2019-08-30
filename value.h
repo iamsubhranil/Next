@@ -101,6 +101,8 @@ class Value {
 		return v.value == value;
 	}
 
+	static void init();
+
 	static Value nil;
 	static NextString ValueTypeStrings[];
 };
