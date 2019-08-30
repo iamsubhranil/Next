@@ -4,7 +4,7 @@
 
 using namespace std;
 
-unordered_map<uint32_t, string> StringLibrary::strings = {};
+HashMap<uint32_t, string> StringLibrary::strings = {};
 
 uint32_t hash_string(const char *s) {
 	uint32_t hash_ = 0;

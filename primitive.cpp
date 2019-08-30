@@ -60,7 +60,7 @@ PrimitiveMap StringPrimitives = {
 
 // ============ Handler ================
 
-unordered_map<Value::Type, PrimitiveMap *> Primitives::NextPrimitives = {
+HashMap<Value::Type, PrimitiveMap *> Primitives::NextPrimitives = {
     {Value::VAL_Number, &NumberPrimitives},
     {Value::VAL_Boolean, &BooleanPrimitives},
     {Value::VAL_String, &StringPrimitives},

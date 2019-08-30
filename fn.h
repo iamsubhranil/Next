@@ -7,7 +7,6 @@
 #include <cstring>
 #include <memory>
 #include <tuple>
-#include <unordered_set>
 
 class Module;
 class Frame;
@@ -58,11 +57,11 @@ class NextClass;
 
 using FnPtr       = std::unique_ptr<Fn>;
 using ClassPtr    = std::unique_ptr<NextClass>;
-using SymbolTable = std::unordered_map<NextString, AccessModifiableEntity *>;
-using FunctionMap = std::unordered_map<NextString, FnPtr>;
-using VariableMap = std::unordered_map<NextString, Variable>;
-using ImportMap   = std::unordered_map<NextString, Module *>;
-using ClassMap    = std::unordered_map<NextString, ClassPtr>;
+using SymbolTable = HashMap<NextString, AccessModifiableEntity *>;
+using FunctionMap = HashMap<NextString, FnPtr>;
+using VariableMap = HashMap<NextString, Variable>;
+using ImportMap   = HashMap<NextString, Module *>;
+using ClassMap    = HashMap<NextString, ClassPtr>;
 
 class NextClass : AccessModifiableEntity {
   public:
@@ -167,7 +166,7 @@ class Frame {
 	int                                          scopeDepth;
 	BytecodeHolder                               code;
 	ExceptionHandlers                            handlers;
-	std::unordered_map<NextString, SlotVariable> slots;
+	HashMap<NextString, SlotVariable>            slots;
 	std::vector<DebugInfo>                       lineInfos;
 	Module *                                     module;
 	int    declareVariable(const char *name, int len, int scope);

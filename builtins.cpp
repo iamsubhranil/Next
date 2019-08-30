@@ -11,11 +11,11 @@ Value next_clock(const Value *args) {
 	return Value((double)clock());
 }
 
-unordered_map<NextString, builtin_handler> Builtin::BuiltinHandlers = {
+HashMap<NextString, builtin_handler> Builtin::BuiltinHandlers = {
     {StringLibrary::insert("clock()"), &next_clock},
 };
 
-unordered_map<NextString, Value> Builtin::BuiltinConstants = {
+HashMap<NextString, Value> Builtin::BuiltinConstants = {
     {StringLibrary::insert("clocks_per_sec"), Value((double)CLOCKS_PER_SEC)},
 };
 

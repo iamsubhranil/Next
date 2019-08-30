@@ -1,9 +1,9 @@
 #pragma once
 
 #include "expr.h"
+#include "hashmap.h"
 #include "stmt.h"
 #include <deque>
-#include <unordered_map>
 
 class Precedence {
 	// Ordered in increasing precedence.
