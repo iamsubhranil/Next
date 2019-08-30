@@ -1,5 +1,6 @@
 #pragma once
 
-#include <unordered_map>
+#include "robin_hood.h"
 
-template <typename K, typename V> using HashMap = std::unordered_map<K, V>;
+template <typename K, typename V>
+using HashMap = robin_hood::unordered_map<K, V>;
