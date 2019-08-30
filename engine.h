@@ -4,10 +4,10 @@
 
 class ExecutionEngine {
 
-	static std::unordered_map<NextString, Module *> loadedModules;
+	static HashMap<NextString, Module *> loadedModules;
 
 	FrameInstance *                          newinstance(Frame *f);
-	std::unordered_map<NextString, NextType> registeredClasses;
+	HashMap<NextString, NextType>            registeredClasses;
 
 	static Value pendingException;
 

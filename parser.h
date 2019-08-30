@@ -1,9 +1,9 @@
 #pragma once
 
 #include "expr.h"
+#include "hashmap.h"
 #include "stmt.h"
 #include <deque>
-#include <unordered_map>
 
 class Precedence {
 	// Ordered in increasing precedence.
@@ -129,8 +129,7 @@ class ImportDeclaration : public DeclarationParselet {
 class ClassDeclaration : public DeclarationParselet {
   private:
 	StmtPtr parseClassBody(Parser *p);
-	static std::unordered_map<TokenType, StatementParselet *>
-	    classBodyParselets;
+	static HashMap<TokenType, StatementParselet *> classBodyParselets;
 
   public:
 	static void registerParselet(TokenType t, StatementParselet *parselet);
@@ -235,10 +234,10 @@ using StatementParseletPtr   = std::unique_ptr<StatementParselet>;
 
 class Parser {
   private:
-	std::unordered_map<TokenType, PrefixParseletPtr>      prefixParselets;
-	std::unordered_map<TokenType, InfixParseletPtr>       infixParselets;
-	std::unordered_map<TokenType, DeclarationParseletPtr> declarationParselets;
-	std::unordered_map<TokenType, StatementParseletPtr>   statementParselets;
+	HashMap<TokenType, PrefixParseletPtr>                 prefixParselets;
+	HashMap<TokenType, InfixParseletPtr>                  infixParselets;
+	HashMap<TokenType, DeclarationParseletPtr>            declarationParselets;
+	HashMap<TokenType, StatementParseletPtr>              statementParselets;
 	Scanner &                                             scanner;
 	std::deque<Token>                                     tokenCache;
 

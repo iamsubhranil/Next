@@ -1,5 +1,7 @@
+#include "builtins.h"
 #include "core.h"
 #include "loader.h"
+#include "primitive.h"
 #include "qnan.h"
 #include <iostream>
 
@@ -12,6 +14,10 @@ int main(int argc, char *argv[]) {
 	cout << #n << " : " << std::hex << QNAN_##n << std::dec << endl;
 #include "valuetypes.h"
 #endif
+	Value::init();
+	NextType::init();
+	Builtin::init();
+	Primitives::init();
 	// load the core module first
 	CoreModule::init();
 	if(argc > 1) {

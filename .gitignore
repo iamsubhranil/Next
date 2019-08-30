@@ -13,3 +13,4 @@ next
 perf.*
 *.patch
 tests/benchmark/baseline.txt
+bench_results

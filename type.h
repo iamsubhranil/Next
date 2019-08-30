@@ -17,6 +17,7 @@ class NextType {
 	static NextType getPrimitiveType(const NextString &n);
 	static NextType getType(const Value &v);
 	static NextType Any, Error;
+	static void     init();
 #define TYPE(r, n) static NextType n;
 #include "valuetypes.h"
 	static NextType Number;

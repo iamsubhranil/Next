@@ -1,12 +1,12 @@
 #pragma once
 
+#include "hashmap.h"
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 class StringLibrary {
   private:
-	static std::unordered_map<uint32_t, std::string> strings;
+	static HashMap<uint32_t, std::string> strings;
 
   public:
 	static uint32_t           insert(const std::string &s);

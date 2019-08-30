@@ -74,8 +74,8 @@ ostream& operator<<(ostream& os, const Frame &f) {
 	os << "Frame "
 	   << " (slots : " << f.slotSize << " stacksize : " << f.code.maxStackSize()
 	   << ")" << endl;
-	for(auto i = f.slots.begin(), j = f.slots.end(); i != j; i++) {
-		os << "Slot #" << (*i).second << " : " << StringLibrary::get((*i).first)
+	for(auto const &i : f.slots) {
+		os << "Slot #" << i.second << " : " << StringLibrary::get(i.first)
 		   << endl;
 	}
 	os << "Exception handlers : " << (f.handlers->empty() ? "<empty>" : "")
@@ -187,13 +187,13 @@ ostream &operator<<(ostream &os, const NextClass &n) {
 	os << "Class " << StringLibrary::get(n.name) << endl;
 	os << "==================" << endl;
 	os << "Members : " << (n.members.empty() ? "<empty>" : "") << endl;
-	for(auto i = n.members.begin(), j = n.members.end(); i != j; i++) {
-		os << (*i).second << " : " << StringLibrary::get((*i).first) << endl;
+	for(auto const &i : n.members) {
+		os << i.second << " : " << StringLibrary::get(i.first) << endl;
 	}
 	os << "Methods : " << (n.functions.empty() ? "<empty>" : "") << endl;
-	for(auto i = n.functions.begin(), j = n.functions.end(); i != j; i++) {
-		os << "Method " << StringLibrary::get((*i).first) << " : " << endl;
-		os << *((*i).second.get());
+	for(auto const &i : n.functions) {
+		os << "Method " << StringLibrary::get(i.first) << " : " << endl;
+		os << *(i.second.get());
 	}
 	return os;
 }
@@ -269,9 +269,8 @@ int Module::getIndexOfImportedFrame(Frame *f) {
 bool Module::hasType(const NextString &n) {
 	if(classes.find(n) != classes.end())
 		return true;
-	for(auto i = importedModules.begin(), j = importedModules.end(); i != j;
-	    i++) {
-		if(i->second->hasType(n))
+	for(auto const &i : importedModules) {
+		if(i.second->hasType(n))
 			return true;
 	}
 	return false;
@@ -281,10 +280,9 @@ NextType Module::resolveType(const NextString &n) {
 	if(classes.find(n) != classes.end()) {
 		return NextType(name, n);
 	}
-	for(auto i = importedModules.begin(), j = importedModules.end(); i != j;
-	    i++) {
-		if(i->second->hasType(n))
-			return i->second->resolveType(n);
+	for(auto const &i : importedModules) {
+		if(i.second->hasType(n))
+			return i.second->resolveType(n);
 	}
 	return NextType::Error;
 }
@@ -293,13 +291,13 @@ ostream &operator<<(ostream &os, const Module &m) {
 	os << "Module " << StringLibrary::get(m.name) << endl;
 	os << *(m.frame.get());
 	os << "Functions : " << (m.functions.empty() ? "<empty>" : "") << endl;
-	for(auto i = m.functions.begin(), j = m.functions.end(); i != j; i++) {
-		os << "Function " << StringLibrary::get((*i).first) << endl;
-		os << *((*i).second.get());
+	for(auto const &i : m.functions) {
+		os << "Function " << StringLibrary::get(i.first) << endl;
+		os << *(i.second.get());
 	}
 	os << "Classes : " << (m.classes.empty() ? "<empty>" : "") << endl;
-	for(auto i = m.classes.begin(), j = m.classes.end(); i != j; i++) {
-		os << *((*i).second.get());
+	for(auto const &i : m.classes) {
+		os << *(i.second.get());
 	}
 	return os;
 }

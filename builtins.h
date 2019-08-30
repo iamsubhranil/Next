@@ -7,9 +7,10 @@ typedef Value (*builtin_handler)(const Value *args);
 
 class Builtin {
   public:
-	static std::unordered_map<NextString, builtin_handler> BuiltinHandlers;
-	static std::unordered_map<NextString, Value>           BuiltinConstants;
+	static HashMap<NextString, builtin_handler> BuiltinHandlers;
+	static HashMap<NextString, Value>           BuiltinConstants;
 
+	static void  init();
 	static bool  has_builtin(NextString sig);
 	static bool  has_constant(NextString name);
 	static void  register_builtin(NextString sig, builtin_handler handler);

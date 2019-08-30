@@ -12,11 +12,12 @@
 // performed by the callee only.
 typedef Value (*primitive_fn)(const Value *stack_);
 
-using PrimitiveMap = std::unordered_map<NextString, primitive_fn>;
+using PrimitiveMap = HashMap<NextString, primitive_fn>;
 
 class Primitives {
   public:
-	static std::unordered_map<Value::Type, PrimitiveMap *> NextPrimitives;
+	static void                                 init();
+	static HashMap<Value::Type, PrimitiveMap *> NextPrimitives;
 	static bool hasPrimitive(Value::Type type, NextString signature);
 	static Value invokePrimitive(Value::Type type, NextString signature,
 	                             Value *stack_);
