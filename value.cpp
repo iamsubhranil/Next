@@ -15,7 +15,6 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 	switch(v.getType()) {
 		case Value::VAL_Number: o << v.toNumber(); break;
 		case Value::VAL_String: o << StringLibrary::get(v.toString()); break;
-		case Value::VAL_Other: o << "Pointer : " << v.toOther(); break;
 		case Value::VAL_Boolean: o << (v.toBoolean() ? "true" : "false"); break;
 		case Value::VAL_Object:
 			o << "<object of "
