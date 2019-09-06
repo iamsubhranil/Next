@@ -5,6 +5,8 @@
 
 using namespace std;
 
+char ExecutionEngine::ExceptionMessage[1024] = {0};
+
 ExecutionEngine::ExecutionEngine() {}
 
 FrameInstance *ExecutionEngine::newinstance(Frame *f) {
@@ -48,16 +50,19 @@ void ExecutionEngine::setPendingException(Value v) {
 	pendingException = v;
 }
 
+Value ExecutionEngine::createRuntimeException(const char *message) {
+	Value except                = newObject(StringLibrary::insert("core"),
+                             StringLibrary::insert("RuntimeException"));
+	except.toObject()->slots[0] = Value(StringLibrary::insert(message));
+	return except;
+}
+
 #define PUSH(x) Stack[StackPointer++] = (x);
-#define RERR(x, ...)                                                         \
-	{                                                                        \
-		cout << "\n";                                                        \
-		Value except = newObject(StringLibrary::insert("core"),              \
-		                         StringLibrary::insert("RuntimeException")); \
-		char  message[1024];                                                 \
-		snprintf(message, 1024, x, ##__VA_ARGS__);                           \
-		except.toObject()->slots[0] = Value(StringLibrary::insert(message)); \
-		throwException(except, presentFrame);                                \
+#define RERR(x, ...)                                             \
+	{                                                            \
+		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);      \
+		throwException(createRuntimeException(ExceptionMessage), \
+		               presentFrame);                            \
 	}
 
 #define set_instruction_pointer(x) \

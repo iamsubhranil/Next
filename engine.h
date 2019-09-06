@@ -4,6 +4,8 @@
 
 class ExecutionEngine {
 
+	static char ExceptionMessage[1024];
+
 	static HashMap<NextString, Module *> loadedModules;
 
 	FrameInstance *                          newinstance(Frame *f);
@@ -12,6 +14,7 @@ class ExecutionEngine {
 	static Value pendingException;
 
   public:
+	static Value   createRuntimeException(const char *message);
 	static bool isModuleRegistered(NextString name);
 	static void registerModule(Module *m);
 	static Module *getRegisteredModule(NextString name);
