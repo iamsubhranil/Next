@@ -17,6 +17,7 @@ Frame::Frame(Frame *p, Module *m) {
 	slots.clear();
 	code        = BytecodeHolder();
 	module      = m;
+	isStatic    = 0;
 	// moduleStack = NULL;
 }
 
@@ -73,7 +74,7 @@ Token Frame::findLineInfo(const uint8_t *data) {
 ostream& operator<<(ostream& os, const Frame &f) {
 	os << "Frame "
 	   << " (slots : " << f.slotSize << " stacksize : " << f.code.maxStackSize()
-	   << ")" << endl;
+	   << " isStatic : " << f.isStatic << ")" << endl;
 	for(auto const &i : f.slots) {
 		os << "Slot #" << i.second << " : " << StringLibrary::get(i.first)
 		   << endl;

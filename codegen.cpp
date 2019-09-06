@@ -275,6 +275,12 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	} else {
 		switch(info.type) {
 			case CallInfo::INTRA_CLASS:
+				if(frame->isStatic && !info.fn->frame->isStatic) {
+					lnerr_("Non-static method '%.*s' cannot be called inside a "
+					       "static method!",
+					       call->callee->token, call->callee->token.length,
+					       call->callee->token.start);
+				}
 				bytecode->call_intraclass(info.frameIdx, argSize);
 				bytecode->stackEffect(-argSize + 1);
 				break;
@@ -388,6 +394,11 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 	if(var.position == UNDEFINED && showError) {
 		lnerr_("No such variable found : '%s'", t,
 		       StringLibrary::get_raw(name));
+	} else if(var.position == CLASS && !currentClass->members[name].isStatic &&
+	          frame->isStatic) {
+		lnerr_(
+		    "Non-static member '%.*s' cannot be used inside a static method!",
+		    t, t.length, t.start);
 	}
 	return var;
 }
@@ -849,6 +860,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			f->arity                       = ifs->arity;
 			// f->frame                       = unq(Frame, frame, module);
 			f->isConstructor               = inConstructor;
+			f->frame->isStatic             = ifs->isStatic;
 			if(!inClass || inConstructor) {
 				module->frames.push_back(f->frame.get());
 				module->symbolTable[signature] = f.get();

@@ -169,6 +169,7 @@ class Frame {
 	HashMap<NextString, SlotVariable>            slots;
 	std::vector<DebugInfo>                       lineInfos;
 	Module *                                     module;
+	bool   isStatic; // to pass the info throughout compilation
 	int    declareVariable(const char *name, int len, int scope);
 	int   declareVariable(NextString name, int scope);
 	bool  hasVariable(NextString name);
