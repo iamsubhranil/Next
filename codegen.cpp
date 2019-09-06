@@ -547,7 +547,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				switch(variableInfo.position) {
 					case LOCAL:
 						bytecode->incr_slot(variableInfo.slot);
-						bytecode->load_slot(variableInfo.slot);
+						bytecode->load_slot_n(variableInfo.slot);
 						break;
 					case MODULE:
 						bytecode->incr_module_slot(variableInfo.slot);
@@ -585,7 +585,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				switch(variableInfo.position) {
 					case LOCAL:
 						bytecode->decr_slot(variableInfo.slot);
-						bytecode->load_slot(variableInfo.slot);
+						bytecode->load_slot_n(variableInfo.slot);
 						break;
 					case MODULE:
 						bytecode->decr_module_slot(variableInfo.slot);
@@ -633,7 +633,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 			}
 			switch(variableInfo.position) {
 				case LOCAL:
-					bytecode->load_slot(variableInfo.slot);
+					bytecode->load_slot_n(variableInfo.slot);
 					bytecode->incr_slot(variableInfo.slot);
 					break;
 				case MODULE:
@@ -663,7 +663,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 			}
 			switch(variableInfo.position) {
 				case LOCAL:
-					bytecode->load_slot(variableInfo.slot);
+					bytecode->load_slot_n(variableInfo.slot);
 					bytecode->decr_slot(variableInfo.slot);
 					break;
 				case MODULE:
@@ -704,7 +704,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 			onLHS        = false;
 		} else {
 			switch(var.position) {
-				case LOCAL: bytecode->load_slot(var.slot); break;
+				case LOCAL: bytecode->load_slot_n(var.slot); break;
 				case MODULE: bytecode->load_module_slot(var.slot); break;
 				case CLASS: bytecode->load_object_slot(var.slot); break;
 				case BUILTIN: bytecode->load_constant(name); break;

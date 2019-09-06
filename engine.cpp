@@ -272,6 +272,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		}                              \
 	}
 
+#define LOAD_SLOT(x)        \
+	CASE(load_slot_##x) : { \
+		PUSH(Stack[x]);     \
+		DISPATCH();         \
+	}
+
 	LOOP() {
 #ifdef DEBUG_INS
 		set_instruction_pointer(presentFrame);
@@ -429,6 +435,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				PUSH(Stack[next_int()]);
 				DISPATCH();
 			}
+
+			LOAD_SLOT(0)
+			LOAD_SLOT(1)
+			LOAD_SLOT(2)
+			LOAD_SLOT(3)
+			LOAD_SLOT(4)
+			LOAD_SLOT(5)
+			LOAD_SLOT(6)
+			LOAD_SLOT(7)
 
 			CASE(store_slot) : {
 				int slot = next_int();

@@ -58,6 +58,15 @@ OPCODE0(pop, -1)
 
 // OPCODE1(registerfn, -1, NextString)    // <function_id>
 // OPCODE1(registerclass, -1, NextString) // <class_id>
+// Specific load_slot opcodes for slots < 8
+OPCODE0(load_slot_0, 1)
+OPCODE0(load_slot_1, 1)
+OPCODE0(load_slot_2, 1)
+OPCODE0(load_slot_3, 1)
+OPCODE0(load_slot_4, 1)
+OPCODE0(load_slot_5, 1)
+OPCODE0(load_slot_6, 1)
+OPCODE0(load_slot_7, 1)
 
 OPCODE1(load_slot, 1, int)               // <slot_number>
 OPCODE1(store_slot, 0, int)              // <slot_number>
