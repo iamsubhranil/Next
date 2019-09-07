@@ -187,7 +187,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 		info.type = CallInfo::INTRA_CLASS;
 		// Search for the frame in the class
 		Frame *searching = currentClass->functions[signature]->frame.get();
-		info.frameIdx    = getFrameIndex(currentClass->frames, searching);
+		info.frameIdx    = frame->getCallFrameIndex(searching);
 		info.fn          = currentClass->functions[signature].get();
 		return info;
 	}
@@ -197,7 +197,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 		info.type = CallInfo::INTRA_MODULE;
 		// Search for the frame in the module
 		Frame *searching = module->functions[signature]->frame.get();
-		info.frameIdx    = getFrameIndex(module->frames, searching);
+		info.frameIdx    = frame->getCallFrameIndex(searching);
 		info.fn          = module->functions[signature].get();
 		return info;
 	} else { // try searching for builtin functions
@@ -388,7 +388,8 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 }
 
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
-                                                      bool showError) {
+                                                      bool       showError,
+                                                      Visibility vis) {
 	NextString name = StringLibrary::insert(t.start, t.length);
 	VarInfo    var  = lookForVariable(name, declare);
 	if(var.position == UNDEFINED && showError) {
@@ -399,6 +400,14 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 		lnerr_(
 		    "Non-static member '%.*s' cannot be used inside a static method!",
 		    t, t.length, t.start);
+	} else if(declare && var.position == LOCAL && frame->parent == NULL &&
+	          module->variables.find(name) == module->variables.end()) {
+		module->variables[name] =
+		    Variable(vis == VIS_PUB ? AccessModifiableEntity::PUB
+		                            : AccessModifiableEntity::PRIV,
+		             t);
+		module->variables[name].isStatic = false;
+		module->variables[name].slot     = var.slot;
 	}
 	return var;
 }
@@ -1072,7 +1081,7 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	VarInfo v = lookForVariable(ifs->token, true);
+	VarInfo v = lookForVariable(ifs->token, true, false, ifs->vis);
 	if(getState() == COMPILE_BODY) {
 		if(v.position == BUILTIN) {
 			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,

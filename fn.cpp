@@ -18,6 +18,8 @@ Frame::Frame(Frame *p, Module *m) {
 	code        = BytecodeHolder();
 	module      = m;
 	isStatic    = 0;
+	callFrames     = 0;
+	callFrameCount = 0;
 	// moduleStack = NULL;
 }
 
@@ -61,6 +63,17 @@ void Frame::insertdebug(int from, int to, Token t) {
 	lineInfos.push_back(DebugInfo(from, to, t));
 }
 
+int Frame::getCallFrameIndex(Frame *f) {
+	for(int i = 0; i < callFrameCount; i++) {
+		if(callFrames[i] == f)
+			return i;
+	}
+	callFrames =
+	    (Frame **)realloc(callFrames, sizeof(Frame *) * ++callFrameCount);
+	callFrames[callFrameCount - 1] = f;
+	return callFrameCount - 1;
+}
+
 Token Frame::findLineInfo(const uint8_t *data) {
 	int ip = data - code.bytecodes.data();
 	for(auto i = lineInfos.begin(), j = lineInfos.end(); i != j; i++) {
@@ -101,6 +114,7 @@ FrameInstance::FrameInstance(Frame *f) {
 	instructionPointer = 0;
 	code               = f->code.raw();
 	enclosingFrame     = nullptr;
+	callFrames         = f->callFrames;
 	// for module level instance,
 	// f->module->frameInstance would be NULL
 	if(f->module->frameInstance)
@@ -254,6 +268,17 @@ bool Module::hasSignature(NextString n) {
 bool Module::hasPublicFn(NextString n) {
 	return functions.find(n) != functions.end() &&
 	       functions[n]->vis == AccessModifiableEntity::PUB;
+}
+
+bool Module::hasPublicVar(const Token &t) {
+	NextString n = StringLibrary::insert(t.start, t.length);
+	return hasPublicVar(n);
+}
+
+bool Module::hasPublicVar(const NextString &n) {
+	bool b1 = variables.find(n) != variables.end();
+	bool b2 = variables[n].vis == AccessModifiableEntity::PUB;
+	return b1 && b2;
 }
 
 int Module::getIndexOfImportedFrame(Frame *f) {

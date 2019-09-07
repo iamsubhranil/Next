@@ -140,6 +140,10 @@ Value ExecutionEngine::newObject(NextString mod, NextString c) {
 
 void ExecutionEngine::execute(Module *m, Frame *f) {
 	FrameInstance *presentFrame;
+	for(auto i : m->importedModules) {
+		if(i.second->frameInstance == NULL && i.second->hasCode())
+			execute(i.second, i.second->frame.get());
+	}
 	// Check if it is the root frame of the module,
 	// and if so, restore the instance from the
 	// module if there is one
@@ -250,17 +254,16 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, name, argtype, restype)                          \
-	{                                                               \
-		Value v = POP();                                            \
-		if(v.is##argtype() && TOP.is##argtype()) {                  \
-			TOP.set##restype(TOP.to##argtype() op v.to##argtype()); \
-			DISPATCH();                                             \
-		}                                                           \
-		RERR("Both of the operands of " #name " are not " #argtype  \
-		     " (%s and %s)!",                                       \
-		     StringLibrary::get_raw(TOP.getTypeString()),           \
-		     StringLibrary::get_raw(v.getTypeString()))             \
+#define binary(op, name, argtype, restype)                           \
+	{                                                                \
+		Value v = POP();                                             \
+		ASSERT(v.is##argtype() && TOP.is##argtype(),                 \
+		       "Both of the operands of " #name " are not " #argtype \
+		       " (%s and %s)!",                                      \
+		       StringLibrary::get_raw(TOP.getTypeString()),          \
+		       StringLibrary::get_raw(v.getTypeString()));           \
+		TOP.set##restype(TOP.to##argtype() op v.to##argtype());      \
+		DISPATCH();                                                  \
 	}
 
 #define ref_incr(x)                    \
@@ -282,6 +285,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		PUSH(Stack[x]);     \
 		DISPATCH();         \
 	}
+
+#define ASSERT(x, str, ...)          \
+		if(!x) {                     \
+			RERR(str, ##__VA_ARGS__) \
+			DISPATCH()               \
+		}
 
 	LOOP() {
 #ifdef DEBUG_INS
@@ -416,8 +425,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call) : {
-				CALL(presentFrame->frame->module->frames[next_int()],
-				     next_int() - 1);
+				CALL(presentFrame->callFrames[next_int()], next_int() - 1);
 			}
 			/*
 			CASE(call_imported) : {
@@ -547,14 +555,23 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->hasPublicField(field)) {
-						TOP = obj->slots[obj->Class->members[field].slot];
-						DISPATCH();
-					} else {
-						RERR("Member '%s' not found in class '%s'!",
-						     StringLibrary::get_raw(field),
-						     StringLibrary::get_raw(obj->Class->name));
-					}
+					ASSERT(obj->Class->hasPublicField(field),
+					       "Member '%s' not found in class '%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(obj->Class->name));
+
+					TOP = obj->slots[obj->Class->members[field].slot];
+					DISPATCH();
+				} else if(TOP.isModule()) {
+					Module *m = TOP.toModule();
+					ASSERT(m->hasPublicVar(field),
+					       "No such public variable '%s' found in module "
+					       "'%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(m->name))
+
+					PUSH(m->frameInstance->stack_[m->variables[field].slot]);
+					DISPATCH();
 				}
 				RERR("'.' can only be applied over an object!");
 			}
@@ -563,16 +580,27 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->hasPublicField(field)) {
-						Value v = TOP;
-						TOP = obj->slots[obj->Class->members[field].slot];
-						PUSH(v);
-						DISPATCH();
-					} else {
-						RERR("Member '%s' not found in class '%s'!",
-						     StringLibrary::get_raw(field),
-						     StringLibrary::get_raw(obj->Class->name));
-					}
+					ASSERT(obj->Class->hasPublicField(field),
+					       "Member '%s' not found in class '%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(obj->Class->name));
+
+					Value v = TOP;
+					TOP     = obj->slots[obj->Class->members[field].slot];
+					PUSH(v);
+					DISPATCH();
+				} else if(TOP.isModule()) {
+					Module *m = TOP.toModule();
+					ASSERT(m->hasPublicVar(field),
+					       "No such public variable '%s' found in module "
+					       "'%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(m->name));
+
+					Value v = TOP;
+					TOP = m->frameInstance->stack_[m->variables[field].slot];
+					PUSH(v);
+					DISPATCH();
 				}
 				RERR("'.' can only be applied over an object!");
 			}
@@ -581,17 +609,30 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = POP().toObject();
-					if(obj->Class->hasPublicField(field)) {
-						Value &v = obj->slots[obj->Class->members[field].slot];
-						ref_decr(v);
-						ref_incr(TOP);
-						v = TOP;
-						DISPATCH();
-					} else {
-						RERR("Member '%s' not found in class '%s'!",
-						     StringLibrary::get_raw(field),
-						     StringLibrary::get_raw(obj->Class->name));
-					}
+					ASSERT(obj->Class->hasPublicField(field),
+					       "Member '%s' not found in class '%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(obj->Class->name));
+
+					Value &v = obj->slots[obj->Class->members[field].slot];
+					ref_decr(v);
+					ref_incr(TOP);
+					v = TOP;
+					DISPATCH();
+				} else if(TOP.isModule()) {
+					Module *m = POP().toModule();
+					ASSERT(m->hasPublicVar(field),
+					       "No such public variable '%s' found in module "
+					       "'%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(m->name));
+
+					Value &v =
+					    m->frameInstance->stack_[m->variables[field].slot];
+					ref_decr(v);
+					ref_incr(TOP);
+					v = TOP;
+					DISPATCH();
 				}
 				RERR("'.' can only be applied over an object!");
 			}
@@ -600,19 +641,34 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->hasPublicField(field)) {
-						Value &v = obj->slots[obj->Class->members[field].slot];
-						if(v.isNumber()) {
-							v.setNumber(v.toNumber() + 1);
-							DISPATCH();
-						}
-						RERR("Member '%s' is not a number!",
-						     StringLibrary::get_raw(field));
-					} else {
-						RERR("Member '%s' not found in class '%s'!",
-						     StringLibrary::get_raw(field),
-						     StringLibrary::get_raw(obj->Class->name));
-					}
+					ASSERT(obj->Class->hasPublicField(field),
+					       "Member '%s' not found in class '%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(obj->Class->name));
+
+					Value &v = obj->slots[obj->Class->members[field].slot];
+
+					ASSERT(v.isNumber(), "Member '%s' is not a number!",
+					       StringLibrary::get_raw(field));
+
+					v.setNumber(v.toNumber() + 1);
+					DISPATCH();
+				} else if(TOP.isModule()) {
+					Module *m = TOP.toModule();
+					ASSERT(m->hasPublicVar(field),
+					       "No such public variable '%s' found in module "
+					       "'%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(m->name));
+
+					Value &v =
+					    m->frameInstance->stack_[m->variables[field].slot];
+
+					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
+					       StringLibrary::get_raw(field));
+
+					v.setNumber(v.toNumber() + 1);
+					DISPATCH();
 				}
 				RERR("'.' can only be applied over an object!");
 			}
@@ -621,19 +677,34 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					if(obj->Class->hasPublicField(field)) {
-						Value &v = obj->slots[obj->Class->members[field].slot];
-						if(v.isNumber()) {
-							v.setNumber(v.toNumber() - 1);
-							DISPATCH();
-						}
-						RERR("Member '%s' is not a number!",
-						     StringLibrary::get_raw(field));
-					} else {
-						RERR("Member '%s' not found in class '%s'!",
-						     StringLibrary::get_raw(field),
-						     StringLibrary::get_raw(obj->Class->name));
-					}
+					ASSERT(obj->Class->hasPublicField(field),
+					       "Member '%s' not found in class '%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(obj->Class->name));
+
+					Value &v = obj->slots[obj->Class->members[field].slot];
+
+					ASSERT(v.isNumber(), "Member '%s' is not a number!",
+					       StringLibrary::get_raw(field));
+
+					v.setNumber(v.toNumber() - 1);
+					DISPATCH();
+				} else if(TOP.isModule()) {
+					Module *m = TOP.toModule();
+					ASSERT(m->hasPublicVar(field),
+					       "No such public variable '%s' found in module "
+					       "'%s'!",
+					       StringLibrary::get_raw(field),
+					       StringLibrary::get_raw(m->name));
+
+					Value &v =
+					    m->frameInstance->stack_[m->variables[field].slot];
+
+					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
+					       StringLibrary::get_raw(field));
+
+					v.setNumber(v.toNumber() - 1);
+					DISPATCH();
 				}
 				RERR("'.' can only be applied over an object!");
 			}
@@ -644,13 +715,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value      v = presentFrame->stack_[StackPointer - numArg_ - 1];
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
-					if(obj->Class->hasPublicMethod(method)) {
-						CALL(obj->Class->functions[method]->frame.get(),
-						     numArg_);
-					}
-					RERR("Method '%s' not found in class '%s'!",
-					     StringLibrary::get_raw(method),
-					     StringLibrary::get_raw(obj->Class->name));
+					ASSERT(obj->Class->hasPublicMethod(method),
+					       "Method '%s' not found in class '%s'!",
+					       StringLibrary::get_raw(method),
+					       StringLibrary::get_raw(obj->Class->name));
+
+					CALL(obj->Class->functions[method]->frame.get(), numArg_);
 				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
 					// It's a dynamic module method invokation
 					// If it's a constructor call, we can't just directly
@@ -664,31 +734,30 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						CALL_INSTANCE(fi, numArg_ - 1, 0, 1);
 					}
 				} else {
-					if(Primitives::hasPrimitive(v.getType(), method)) {
-						Value ret = Primitives::invokePrimitive(
-						    v.getType(), method,
-						    &Stack[StackPointer - numArg_ - 1]);
+					ASSERT(Primitives::hasPrimitive(v.getType(), method),
+					       "Primitive method '%s' not found in type '%s'!",
+					       StringLibrary::get_raw(method),
+					       StringLibrary::get_raw(v.getTypeString()));
 
-						// Pop the arguments
-						while(numArg_ >= 0) {
-							POP(); // TODO: Potential memory leak?
-							numArg_--;
+					Value ret = Primitives::invokePrimitive(
+					    v.getType(), method,
+					    &Stack[StackPointer - numArg_ - 1]);
+
+					// Pop the arguments
+					while(numArg_ >= 0) {
+						POP(); // TODO: Potential memory leak?
+						numArg_--;
 						}
 
 						PUSH(ret);
 						DISPATCH();
 					}
-				}
-				RERR("Primitive method '%s' not found in type '%s'!",
-				     StringLibrary::get_raw(method),
-				     StringLibrary::get_raw(v.getTypeString()));
 			}
 
 			CASE(call_intraclass) : {
 				int frame  = next_int();
 				int            numArg = next_int() - 1;
-				NextObject *   obj    = Stack[0].toObject();
-				FrameInstance *f      = newinstance(obj->Class->frames[frame]);
+				FrameInstance *f = newinstance(presentFrame->callFrames[frame]);
 				// Copy the arguments
 				while(numArg >= 0) {
 					f->stack_[numArg + 1] = POP();

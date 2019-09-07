@@ -110,7 +110,8 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	NextString       generateSignature(const Token &name, int arity);
 	NextString       generateSignature(const std::string &name, int arity);
 	VarInfo          lookForVariable(Token t, bool declare = false,
-	                                 bool showError = true);
+	                                 bool       showError = true,
+	                                 Visibility vis = Visibility::VIS_PRIV);
 	VarInfo          lookForVariable(NextString name, bool declare = false);
 	void             compileAll(const std::vector<StmtPtr> &statements);
 	void             initFrame(Frame *f);

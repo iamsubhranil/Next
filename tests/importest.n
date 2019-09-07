@@ -1,7 +1,13 @@
-import fibonacci
+import benchmark.fib
 import classtest
 import it.testmodule
 
 testmodule.helloworld()
-print("\nfib(2) from another module : ", fibonacci.fib(10))
+print("\nfib(10) from another module : ", fib.fib(10))
 print("\nobject of LinkedList from another module : ", classtest.LinkedList(3))
+print("\ntestmodule.var : ", testmodule.var)
+print("\nSetting testmodule.var to 20..")
+testmodule.var = 20
+while(testmodule.var-- > 10) {
+    print("\ntestmodule.var : ", testmodule.var)
+}

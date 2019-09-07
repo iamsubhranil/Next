@@ -169,6 +169,8 @@ class Frame {
 	HashMap<NextString, SlotVariable>            slots;
 	std::vector<DebugInfo>                       lineInfos;
 	Module *                                     module;
+	Frame **                                     callFrames;
+	int                                          callFrameCount;
 	bool   isStatic; // to pass the info throughout compilation
 	int    declareVariable(const char *name, int len, int scope);
 	int   declareVariable(NextString name, int scope);
@@ -177,6 +179,7 @@ class Frame {
 	void  finalizeDebug();
 	void  insertdebug(int from, Token t);
 	void  insertdebug(int from, int to, Token t);
+	int    getCallFrameIndex(Frame *f);
 	Token findLineInfo(const uint8_t *data);
 
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f);
@@ -194,16 +197,18 @@ class FrameInstance {
 	~FrameInstance();
 	Frame *        frame;
 	FrameInstance *enclosingFrame;
-	Value *        stack_;
 	Value *        moduleStack; // copy of module stack
-	Value *objectStack; // if this is a method, this will contain the slots of
-	                    // the object
+	// Value *objectStack; // if this is a method, this will contain the slots
+	// of
+	// the object
+	Value *        stack_;
 	unsigned char *code;
-	int presentSlotSize;
+	Frame **       callFrames;
 	int stackPointer;
 	// to back up the pointer for consecutive
 	// calls on the same frame instance
 	int instructionPointer;
+	int presentSlotSize;
 };
 
 class Module {
@@ -215,6 +220,8 @@ class Module {
 	bool           hasCode();
 	bool           hasSignature(NextString n);
 	bool           hasPublicFn(NextString sig);
+	bool           hasPublicVar(const Token &t);
+	bool           hasPublicVar(const NextString &t);
 	bool           hasType(const NextString &n);
 	int            getIndexOfImportedFrame(Frame *f);
 	NextType       resolveType(const NextString &n);
