@@ -249,6 +249,9 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 
 	if(!onRefer) {
 		info = resolveCall(signature, isImported, mod);
+	} else {
+		// increment the ref count of the object
+		bytecode->incr_ref();
 	}
 
 	// If this is a constructor call, we pass in
@@ -259,12 +262,19 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 		// bytecode->stackEffect(-1);
 		bytecode->pushd(0);
 	}
+	if(!onRefer && info.type == CallInfo::INTRA_CLASS) {
+		// load the object first, so no manual stack manipulation
+		// is needed
+		bytecode->load_slot_0();
+		bytecode->incr_ref();
+	}
 	// Reset the referral status for arguments
 	bool bak = onRefer;
 	onRefer  = false;
-	for(auto i = call->arguments.begin(), j = call->arguments.end(); i != j;
-	    i++)
-		(*i)->accept(this);
+	for(auto &i : call->arguments) {
+		i->accept(this);
+		bytecode->incr_ref();
+	}
 	onRefer = bak;
 	frame->insertdebug(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
@@ -281,8 +291,10 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 					       call->callee->token, call->callee->token.length,
 					       call->callee->token.start);
 				}
-				bytecode->call_intraclass(info.frameIdx, argSize);
-				bytecode->stackEffect(-argSize + 1);
+				// +1 for the object
+				bytecode->call(info.frameIdx, argSize + 1);
+				// argSize + 1 values sent, 1 value returned
+				bytecode->stackEffect(-argSize + 2);
 				break;
 			case CallInfo::INTRA_MODULE:
 				bytecode->call(info.frameIdx,

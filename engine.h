@@ -8,10 +8,11 @@ class ExecutionEngine {
 
 	static HashMap<NextString, Module *> loadedModules;
 
-	FrameInstance *                          newinstance(Frame *f);
+	// FrameInstance *                          newinstance(Frame *f);
 	HashMap<NextString, NextType>            registeredClasses;
 
 	static Value pendingException;
+	static std::vector<Fiber *> fibers;
 
   public:
 	static Value   createRuntimeException(const char *message);
@@ -22,8 +23,8 @@ class ExecutionEngine {
 	// throwException will either return
 	// the matching frameInstance if found,
 	// or call exit(1) from itself.
-	static FrameInstance *throwException(Value v, FrameInstance *presentFrame);
-	static void           printStackTrace(FrameInstance *f);
+	static FrameInstance *throwException(Value v, Fiber *f);
+	static void           printStackTrace(Fiber *f);
 	static Value          newObject(NextString module, NextString Class);
 	ExecutionEngine();
 	void execute(Module *m, Frame *f);

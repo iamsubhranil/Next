@@ -105,54 +105,51 @@ ostream& operator<<(ostream& os, const Frame &f) {
 	return os;
 }
 
-FrameInstance::FrameInstance(Frame *f) {
+FrameInstance::FrameInstance(Frame *f, Value *s_) {
 	frame  = f;
-	stack_ = (Value *)malloc(sizeof(Value) * f->code.maxStackSize());
-	std::fill_n(stack_, f->code.maxStackSize(), Value::nil);
-	stackPointer       = f->slotSize;
-	presentSlotSize    = f->slotSize;
-	instructionPointer = 0;
+	stack_ = s_;
+	// stackPointer       = f->slotSize;
+	// presentSlotSize    = f->slotSize;
+	// instructionPointer = 0;
 	code               = f->code.raw();
-	enclosingFrame     = nullptr;
 	callFrames         = f->callFrames;
-	// for module level instance,
-	// f->module->frameInstance would be NULL
-	if(f->module->frameInstance)
-		moduleStack = f->module->frameInstance->stack_;
 }
 
+/*
 void FrameInstance::readjust(Frame *f) {
-	// reallocate the stack
-	stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
-	// if there are new slots in the stack, make room
-	if(presentSlotSize < f->slotSize) {
-		// Calculate the number of new slots
-		int moveup = f->slotSize - presentSlotSize;
-		// Move stackpointer accordingly
-		stackPointer += moveup;
-		// Move all non-slot values up
-		for(int i = stackPointer - 1; i > presentSlotSize; i--) {
-			stack_[i] = stack_[i + 1];
-		}
-		presentSlotSize = f->slotSize;
-	}
-	// If there was an instance, it was halted
-	// using 'halt', which does not increase
-	// the pointer to point to next instruction.
-	// We should do that first.
-	// Also since 'bytecodes' vector can get
-	// reallocated, especially in case of an REPL,
-	// we recalculate that based on the saved
-	// instruction pointer.
-	code = &f->code.bytecodes.data()[instructionPointer + 1];
-}
+    // reallocate the stack
+    stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
+    // if there are new slots in the stack, make room
+    if(presentSlotSize < f->slotSize) {
+        // Calculate the number of new slots
+        int moveup = f->slotSize - presentSlotSize;
+        // Move stackpointer accordingly
+        stackPointer += moveup;
+        // Move all non-slot values up
+        for(int i = stackPointer - 1; i > presentSlotSize; i--) {
+            stack_[i] = stack_[i + 1];
+        }
+        presentSlotSize = f->slotSize;
+    }
+    // If there was an instance, it was halted
+    // using 'halt', which does not increase
+    // the pointer to point to next instruction.
+    // We should do that first.
+    // Also since 'bytecodes' vector can get
+    // reallocated, especially in case of an REPL,
+    // we recalculate that based on the saved
+    // instruction pointer.
+    code = &f->code.bytecodes.data()[instructionPointer + 1];
+}*/
 
 FrameInstance::~FrameInstance() {
+	/*
 	for(int i = 0; i < stackPointer; i++) {
-		if(stack_[i].isObject())
-			stack_[i].toObject()->decrCount();
+	    if(stack_[i].isObject())
+	        stack_[i].toObject()->decrCount();
 	}
 	free(stack_);
+	*/
 }
 
 ostream &operator<<(ostream &os, const Fn &f) {
@@ -216,6 +213,8 @@ ostream &operator<<(ostream &os, const NextClass &n) {
 NextObject::NextObject(NextClass *c) {
 	Class = c;
 	slots = new Value[c->slotNum];
+	refCount = 0;
+	// std::fill_n(slots, c->slotNum, Value::nil);
 }
 
 void NextObject::release() {
@@ -231,11 +230,13 @@ Module::Module(NextString n)
       classes() {
 	frame         = unq(Frame, nullptr, this);
 	frameInstance = NULL;
+	instancePointer = 0;
 }
 
-FrameInstance *Module::topLevelInstance() {
+FrameInstance *Module::topLevelInstance(Fiber *f) {
 	if(frameInstance == NULL) {
-		frameInstance = new FrameInstance(frame.get());
+		frameInstance = f->appendCallFrame(frame.get(), 0, &f->stackTop);
+		instancePointer = f->getCurrentFramePointer();
 		initializeFramesWithModuleStack();
 	}
 	return frameInstance;
@@ -243,11 +244,15 @@ FrameInstance *Module::topLevelInstance() {
 
 FrameInstance *Module::reAdjust(Frame *f) {
 	Value *oldStack = frameInstance->stack_;
-	frameInstance->readjust(f);
+	// frameInstance->readjust(f);
 	if(oldStack != frameInstance->stack_) {
 		initializeFramesWithModuleStack();
 	}
 	return frameInstance;
+}
+
+Value *Module::getModuleStack(Fiber *f) {
+	return f->getFrameNumber(instancePointer)->stack_;
 }
 
 void Module::initializeFramesWithModuleStack() {

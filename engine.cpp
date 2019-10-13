@@ -6,12 +6,9 @@
 using namespace std;
 
 char ExecutionEngine::ExceptionMessage[1024] = {0};
+vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
 
 ExecutionEngine::ExecutionEngine() {}
-
-FrameInstance *ExecutionEngine::newinstance(Frame *f) {
-	return new FrameInstance(f);
-}
 
 HashMap<NextString, Module *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
@@ -33,16 +30,18 @@ void ExecutionEngine::registerModule(Module *m) {
 }
 
 // using BytecodeHolder::Opcodes;
-void ExecutionEngine::printStackTrace(FrameInstance *root) {
-	FrameInstance *f = root;
-	while(f != NULL) {
+void ExecutionEngine::printStackTrace(Fiber *fiber) {
+	int            i    = fiber->callFramePointer - 1;
+	FrameInstance *root = &fiber->callFrames[i];
+	FrameInstance *f    = root;
+	while(i >= 0) {
 		Token t;
 		if((t = f->frame->findLineInfo(f->code - (f == root ? 0 : 1))).type !=
 		   TOKEN_ERROR)
 			t.highlight(true, "At ");
 		else
 			err("<source not found>");
-		f = f->enclosingFrame;
+		f = &fiber->callFrames[--i];
 	}
 }
 
@@ -57,40 +56,40 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 	return except;
 }
 
-#define PUSH(x) Stack[StackPointer++] = (x);
-#define RERR(x, ...)                                             \
-	{                                                            \
-		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);      \
-		throwException(createRuntimeException(ExceptionMessage), \
-		               presentFrame);                            \
+#define PUSH(x) *StackTop++ = (x);
+#define RERR(x, ...)                                                     \
+	{                                                                    \
+		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);              \
+		throwException(createRuntimeException(ExceptionMessage), fiber); \
+		RESTORE_FRAMEINFO();                                             \
+		DISPATCH();                                                      \
 	}
 
 #define set_instruction_pointer(x) \
-	x->instructionPointer = x->code - x->frame->code.bytecodes.data()
+	instructionPointer = x->code - x->frame->code.bytecodes.data()
 
-FrameInstance *ExecutionEngine::throwException(Value          v,
-                                               FrameInstance *presentFrame) {
+FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 
 	// Get the type
 	NextType t = NextType::getType(v);
 	// Now find the frame by unwinding the stack
+	int            num       = f->callFramePointer - 1;
+	int            instructionPointer = 0;
 	FrameInstance *matched   = NULL;
-	FrameInstance *searching = presentFrame;
-	while(searching != NULL && matched == NULL) {
+	FrameInstance *searching = &f->callFrames[num];
+	ExHandler      handler;
+	while(num >= 0 && matched == NULL) {
 		// find the current instruction pointer
 		set_instruction_pointer(searching);
-		for(auto i = searching->frame->handlers->begin(),
-		         j = searching->frame->handlers->end();
-		    i != j; i++) {
-			if((*i).from <= (searching->instructionPointer - 1) &&
-			   (*i).to >= (searching->instructionPointer - 1) &&
-			   (*i).caughtType == t) {
+		for(auto &i : *searching->frame->handlers) {
+			if(i.from <= (instructionPointer - 1) &&
+			   i.to >= (instructionPointer - 1) && i.caughtType == t) {
 				matched                     = searching;
-				matched->instructionPointer = (*i).instructionPointer;
+				handler                     = i;
 				break;
 			}
 		}
-		searching = searching->enclosingFrame;
+		searching = &f->callFrames[--num];
 	}
 	if(matched == NULL) {
 		// no handlers matched, unwind stack
@@ -103,22 +102,19 @@ FrameInstance *ExecutionEngine::throwException(Value          v,
 			cout << StringLibrary::get(v.toObject()->slots[0].toString())
 			     << endl;
 		}
-		printStackTrace(presentFrame);
+		printStackTrace(f);
 		exit(1);
 	} else {
 		// pop all but the matched frame
-		while(presentFrame != matched) {
-			FrameInstance *bak = presentFrame->enclosingFrame;
-			delete presentFrame;
-			presentFrame = bak;
+		while(f->getCurrentFrame() != matched) {
+			f->popFrame(&f->stackTop);
 		}
-		Value *Stack        = presentFrame->stack_;
-		int    StackPointer = presentFrame->stackPointer;
+		FrameInstance *presentFrame = f->getCurrentFrame();
+		Value *        StackTop     = f->stackTop;
 		PUSH(v);
-		presentFrame->code = &presentFrame->frame->code
-		                          .bytecodes[presentFrame->instructionPointer];
-		presentFrame->stack_       = Stack;
-		presentFrame->stackPointer = StackPointer;
+		presentFrame->code =
+		    &presentFrame->frame->code.bytecodes[handler.instructionPointer];
+		f->stackTop = StackTop;
 		return presentFrame;
 	}
 }
@@ -144,6 +140,10 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		if(i.second->frameInstance == NULL && i.second->hasCode())
 			execute(i.second, i.second->frame.get());
 	}
+	if(fibers.empty()) {
+		fibers.push_back(new Fiber());
+	}
+	Fiber *fiber = fibers.back();
 	// Check if it is the root frame of the module,
 	// and if so, restore the instance from the
 	// module if there is one
@@ -152,14 +152,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			m->reAdjust(f);
 			presentFrame = m->frameInstance;
 		} else {
-			presentFrame = m->topLevelInstance();
+			presentFrame = m->topLevelInstance(fiber);
 		}
 	} else
-		presentFrame = newinstance(f);
+		presentFrame = fiber->appendCallFrame(f, 0, &fiber->stackTop);
 
 	unsigned char *InstructionPointer = presentFrame->code;
-	int            StackPointer       = presentFrame->stackPointer;
 	Value *        Stack              = presentFrame->stack_;
+	Value *        StackTop           = fiber->stackTop;
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
@@ -191,8 +191,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define DEFAULT() default
 #endif
 
-#define TOP Stack[StackPointer - 1]
-#define POP() Stack[--StackPointer]
+#define TOP (*(StackTop - 1))
+#define POP() (*(--StackTop))
 
 #define JUMPTO(x)                                      \
 	{                                                  \
@@ -200,41 +200,31 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		continue;                                      \
 	}
 
-#define RESTORE_FRAMEINFO()                          \
-	InstructionPointer = presentFrame->code;         \
-	StackPointer       = presentFrame->stackPointer; \
-	Stack              = presentFrame->stack_;
+#define RESTORE_FRAMEINFO()                    \
+	InstructionPointer = presentFrame->code;   \
+	Stack              = presentFrame->stack_; \
+	StackTop           = fiber->stackTop;
 
-#define BACKUP_FRAMEINFO()                           \
-	presentFrame->code         = InstructionPointer; \
-	presentFrame->stackPointer = StackPointer;       \
-	presentFrame->stack_       = Stack;
+#define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
-#define CALL_INSTANCE(fIns, n, x, p)         \
-	{                                        \
-		FrameInstance *f      = fIns;        \
-		int            numArg = n;           \
-		/* copy the arguments */             \
-		while(numArg >= 0) {                 \
-			f->stack_[numArg + x] = POP();   \
-			ref_incr(f->stack_[numArg + x]); \
-			numArg--;                        \
-		}                                    \
-		/* Denotes whether or not to pop     \
-		 * the object itself, like dynamic   \
-		 * imported function calls */        \
-		if(p) {                              \
-			POP();                           \
-		}                                    \
-		BACKUP_FRAMEINFO();                  \
-		f->enclosingFrame = presentFrame;    \
-		presentFrame      = f;               \
-		RESTORE_FRAMEINFO();                 \
-		DISPATCH_WINC();                     \
+#define CALL_INSTANCE(fIns, n, x, p)                      \
+	{                                                     \
+		FrameInstance *f = fIns;                          \
+		presentFrame     = &fiber->getCurrentFrame()[-1]; \
+		/* Denotes whether or not to pop                  \
+		 * the object itself, like dynamic                \
+		 * imported function calls */                     \
+		if(p) {                                           \
+			POP();                                        \
+		}                                                 \
+		BACKUP_FRAMEINFO();                               \
+		presentFrame = f;                                 \
+		RESTORE_FRAMEINFO();                              \
+		DISPATCH_WINC();                                  \
 	}
 
 #define CALL(frame, n) \
-	{ CALL_INSTANCE(newinstance(frame), n, 0, 0); }
+	{ CALL_INSTANCE(fiber->appendCallFrame(frame, n, &StackTop), n, 0, 0); }
 
 #define next_int()                      \
 	(InstructionPointer += sizeof(int), \
@@ -266,18 +256,18 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		DISPATCH();                                                  \
 	}
 
-#define ref_incr(x)                    \
-	{                                  \
-		if(x.isObject()) {             \
-			x.toObject()->incrCount(); \
-		}                              \
+#define ref_incr(x)                      \
+	{                                    \
+		if((x).isObject()) {             \
+			(x).toObject()->incrCount(); \
+		}                                \
 	}
 
-#define ref_decr(x)                    \
-	{                                  \
-		if(x.isObject()) {             \
-			x.toObject()->decrCount(); \
-		}                              \
+#define ref_decr(x)                      \
+	{                                    \
+		if((x).isObject()) {             \
+			(x).toObject()->decrCount(); \
+		}                                \
 	}
 
 #define LOAD_SLOT(x)        \
@@ -286,33 +276,32 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		DISPATCH();         \
 	}
 
-#define ASSERT(x, str, ...)          \
-		if(!x) {                     \
-			RERR(str, ##__VA_ARGS__) \
-			DISPATCH()               \
-		}
+#define ASSERT(x, str, ...)      \
+	if(!(x)) {                   \
+		RERR(str, ##__VA_ARGS__) \
+		DISPATCH()               \
+	}
 
 	LOOP() {
 #ifdef DEBUG_INS
-		set_instruction_pointer(presentFrame);
-		Token t = presentFrame->frame->findLineInfo(presentFrame->code);
+		int instructionPointer = InstructionPointer - presentFrame->code;
+		int   stackPointer = StackTop - presentFrame->stack_;
+		Token t = presentFrame->frame->findLineInfo(InstructionPointer);
 		if(t.type != TOKEN_ERROR)
 			t.highlight();
 		else
 			cout << "<source not found>\n";
-		cout << "Slots: " << presentFrame->presentSlotSize
-		     << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
-		     << " IP: " << setw(4) << presentFrame->instructionPointer
-		     << " SP: " << presentFrame->stackPointer << "\n";
-		BytecodeHolder::disassemble(presentFrame->code);
-		if(presentFrame->stackPointer >
-		   presentFrame->frame->code.maxStackSize()) {
+		cout << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
+		     << " IP: " << setw(4) << instructionPointer
+		     << " SP: " << stackPointer << "\n";
+		BytecodeHolder::disassemble(InstructionPointer);
+		if(stackPointer > presentFrame->frame->code.maxStackSize()) {
 			RERR("Invalid stack access!");
 		}
 		cout << "\n\n";
 #ifdef DEBUG_INS
-		fflush(stdin);
-		getchar();
+		// fflush(stdin);
+		// getchar();
 #endif
 #endif
 		SWITCH() {
@@ -375,16 +364,17 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(pop) : {
-				Value v = POP();
 				// If the refcount of the
 				// object is already zero,
 				// it isn't stored in any
 				// slot and probably generated
 				// by an unused constructor
 				// call
-				if(v.isObject()) {
-					v.toObject()->freeIfZero();
+				if(TOP.isObject()) {
+					TOP.toObject()->freeIfZero();
+					TOP = Value::nil;
 				}
+				POP();
 				DISPATCH();
 			}
 
@@ -424,21 +414,55 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
+			CASE(incr_ref) : {
+				ref_incr(TOP);
+				DISPATCH();
+			}
+
 			CASE(call) : {
-				CALL(presentFrame->callFrames[next_int()], next_int() - 1);
+				int frame = next_int();
+				int arity = next_int();
+				CALL(presentFrame->callFrames[frame], arity);
+				/*
+				FrameInstance *f =
+				    fiber->appendCallFrame(presentFrame->callFrames[(
+				        InstructionPointer += sizeof(int),
+				        *(int *)((InstructionPointer - sizeof(int) + 1)))]);
+				StackTop = fiber->stackTop;
+				presentFrame = &fiber->getCurrentFrame()[-1];
+				int numArg =
+				    (InstructionPointer += sizeof(int),
+				     *(int *)((InstructionPointer - sizeof(int) + 1))) -
+				    1;
+				while(numArg >= 0) {
+				    f->stack_[numArg + 0] = (*(--StackTop));
+				    {
+				        if(f->stack_[numArg + 0].isObject()) {
+				            f->stack_[numArg + 0].toObject()->incrCount();
+				        }
+				    };
+				    numArg--;
+				}
+				presentFrame->code = InstructionPointer;
+
+				presentFrame       = f;
+				InstructionPointer = presentFrame->code;
+				Stack              = presentFrame->stack_;
+				StackTop           = fiber->stackTop;
+
+				{DISPATCH_WINC()};*/
 			}
 			/*
-			CASE(call_imported) : {
-			    CALL(presentFrame->frame->module->importedFrames[next_int()],
-			         next_int() - 1);
-			}*/
+			   CASE(call_imported) : {
+			   CALL(presentFrame->frame->module->importedFrames[next_int()],
+			   next_int() - 1);
+			   }*/
 
 			CASE(ret) : {
 				// Pop the return value
-				Value          v   = POP();
-				FrameInstance *bak = presentFrame->enclosingFrame;
-				delete presentFrame;
-				presentFrame = bak;
+				Value v = POP();
+				fiber->popFrame(&StackTop);
+				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
 				PUSH(v);
 				DISPATCH();
@@ -477,7 +501,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(incr_module_slot) : {
-				Value &v = presentFrame->moduleStack[next_int()];
+				Value &v = presentFrame->frame->module->frameInstance
+				               ->stack_[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
@@ -495,7 +520,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(decr_module_slot) : {
-				Value &v = presentFrame->moduleStack[next_int()];
+				Value &v = presentFrame->frame->module->frameInstance
+				               ->stack_[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
@@ -504,16 +530,18 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(load_module_slot) : {
-				int        slot = next_int();
-				PUSH(presentFrame->moduleStack[slot]);
+				int slot = next_int();
+				PUSH(presentFrame->frame->module->getModuleStack(fiber)[slot]);
 				DISPATCH();
 			}
 
 			CASE(store_module_slot) : {
-				int        slot = next_int();
-				ref_decr(presentFrame->moduleStack[slot]);
+				int slot = next_int();
+				Value &v =
+				    presentFrame->frame->module->getModuleStack(fiber)[slot];
+				ref_decr(v);
 				ref_incr(TOP);
-				presentFrame->moduleStack[slot] = TOP;
+				v = TOP;
 				DISPATCH();
 			}
 
@@ -570,7 +598,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(field),
 					       StringLibrary::get_raw(m->name))
 
-					PUSH(m->frameInstance->stack_[m->variables[field].slot]);
+					PUSH(m->getModuleStack(fiber)[m->variables[field].slot]);
 					DISPATCH();
 				}
 				RERR("'.' can only be applied over an object!");
@@ -598,7 +626,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(m->name));
 
 					Value v = TOP;
-					TOP = m->frameInstance->stack_[m->variables[field].slot];
+					TOP = m->getModuleStack(fiber)[m->variables[field].slot];
 					PUSH(v);
 					DISPATCH();
 				}
@@ -608,7 +636,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(store_field) : {
 				NextString field = next_string();
 				if(TOP.isObject()) {
-					NextObject *obj = POP().toObject();
+					NextObject *obj = TOP.toObject();
+					TOP             = Value::nil;
+					POP();
 					ASSERT(obj->Class->hasPublicField(field),
 					       "Member '%s' not found in class '%s'!",
 					       StringLibrary::get_raw(field),
@@ -628,7 +658,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(m->name));
 
 					Value &v =
-					    m->frameInstance->stack_[m->variables[field].slot];
+					    m->getModuleStack(fiber)[m->variables[field].slot];
 					ref_decr(v);
 					ref_incr(TOP);
 					v = TOP;
@@ -662,7 +692,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(m->name));
 
 					Value &v =
-					    m->frameInstance->stack_[m->variables[field].slot];
+					    m->getModuleStack(fiber)[m->variables[field].slot];
 
 					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
 					       StringLibrary::get_raw(field));
@@ -698,7 +728,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(m->name));
 
 					Value &v =
-					    m->frameInstance->stack_[m->variables[field].slot];
+					    m->getModuleStack(fiber)[m->variables[field].slot];
 
 					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
 					       StringLibrary::get_raw(field));
@@ -710,9 +740,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call_method) : {
-				NextString method = next_string();
+				NextString method  = next_string();
 				int        numArg_ = next_int(); // copy the object also
-				Value      v = presentFrame->stack_[StackPointer - numArg_ - 1];
+				Value      v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
 					ASSERT(obj->Class->hasPublicMethod(method),
@@ -720,13 +750,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(method),
 					       StringLibrary::get_raw(obj->Class->name));
 
-					CALL(obj->Class->functions[method]->frame.get(), numArg_);
+					CALL(obj->Class->functions[method]->frame.get(),
+					     numArg_ + 1);
 				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
 					// It's a dynamic module method invokation
 					// If it's a constructor call, we can't just directly
 					// invoke CALL on the frame.
-					FrameInstance *fi = newinstance(
-					    v.toModule()->functions[method]->frame.get());
+					FrameInstance *fi = fiber->appendCallFrame(
+					    v.toModule()->functions[method]->frame.get(), numArg_,
+					    &StackTop);
 					if(v.toModule()->functions[method]->isConstructor) {
 						fi->stack_[0] = Value();
 						CALL_INSTANCE(fi, numArg_ - 1, 1, 1);
@@ -740,49 +772,48 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					       StringLibrary::get_raw(v.getTypeString()));
 
 					Value ret = Primitives::invokePrimitive(
-					    v.getType(), method,
-					    &Stack[StackPointer - numArg_ - 1]);
+					    v.getType(), method, StackTop - numArg_ - 1);
 
 					// Pop the arguments
 					while(numArg_ >= 0) {
 						POP(); // TODO: Potential memory leak?
 						numArg_--;
-						}
-
-						PUSH(ret);
-						DISPATCH();
 					}
-			}
 
-			CASE(call_intraclass) : {
-				int frame  = next_int();
-				int            numArg = next_int() - 1;
-				FrameInstance *f = newinstance(presentFrame->callFrames[frame]);
-				// Copy the arguments
-				while(numArg >= 0) {
-					f->stack_[numArg + 1] = POP();
-					ref_incr(f->stack_[numArg]);
-					numArg--;
+					PUSH(ret);
+					DISPATCH();
 				}
-				// copy the object manually
-				f->stack_[0] = Stack[0];
-				f->stack_[0].toObject()->incrCount();
-				f->enclosingFrame = presentFrame;
-				BACKUP_FRAMEINFO();
-				presentFrame      = f;
-				RESTORE_FRAMEINFO();
-				DISPATCH_WINC();
 			}
+			/*
+			CASE(call_intraclass) : {
+			    int            frame  = next_int();
+			    int            numArg = next_int();
+			    FrameInstance *f      = fiber->appendCallFrame(
+			        presentFrame->callFrames[frame], numArg, &StackTop);
+
+			    // Copy the arguments (not required anymore)
+			    while(numArg >= 0) {
+			        f->stack_[numArg + 1] = POP();
+			        ref_incr(f->stack_[numArg]);
+			        numArg--;
+			    }				// copy the object manually
+			                    f->stack_[0] = Stack[0];
+			    f->stack_[0].toObject()->incrCount();
+
+			    BACKUP_FRAMEINFO();
+			    presentFrame = f;
+			    RESTORE_FRAMEINFO();
+			    DISPATCH_WINC();
+			}*/
 
 			CASE(construct_ret) : {
 				// Pop the return object
 				Value v = Stack[0];
 				// Increment the refCount so that it doesn't get
 				// garbage collected on delete
-				v.toObject()->incrCount();
-				FrameInstance *bak = presentFrame->enclosingFrame;
-				delete presentFrame;
-				presentFrame = bak;
+				v.toObject()->refCount++;
+				fiber->popFrame(&StackTop);
+				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
 				// Reset the refCount, so that if
 				// it isn't stored in a slot in the
@@ -794,8 +825,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(construct) : {
-				NextString mod = next_string();
-				NextString cls = next_string();
+				NextString  mod = next_string();
+				NextString  cls = next_string();
 				NextObject *no =
 				    new NextObject(loadedModules[mod]->classes[cls].get());
 				no->incrCount();
@@ -805,17 +836,21 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(throw_) : {
 				// POP the thrown object
-				Value v = POP();
+				Value v = TOP;
+				if(v.isObject()) {
+					TOP = Value::nil;
+				}
+				POP();
 				BACKUP_FRAMEINFO();
-				presentFrame = throwException(v, presentFrame);
+				presentFrame = throwException(v, fiber);
 				RESTORE_FRAMEINFO();
 				DISPATCH_WINC();
 			}
 
 			CASE(call_builtin) : {
-				NextString sig  = next_string();
-				int        args = next_int();
-				Value *    stackStart = &Stack[StackPointer - args];
+				NextString sig        = next_string();
+				int        args       = next_int();
+				Value *    stackStart = StackTop - args;
 				Value      res = Builtin::invoke_builtin(sig, stackStart);
 				while(args--) {
 					Value v = POP();
@@ -833,6 +868,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(halt) : {
+				int instructionPointer = 0;
 				set_instruction_pointer(presentFrame);
 				return;
 			}

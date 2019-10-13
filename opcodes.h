@@ -119,7 +119,10 @@ OPCODE2(call_method, 0, NextString, int) // <signature> <slot>
 // Optimized 'call' for intraclass
 // calls (i.e. call between two methods
 // of the same class)
-OPCODE2(call_intraclass, 0, int, int)
+// OPCODE2(call_intraclass, 0, int, int)
+
+// Increment the refcount of the TOS
+OPCODE0(incr_ref, 0)
 
 // Pops the value at TOS and starts stack unwinding
 // until a frame with matching exception handler is
