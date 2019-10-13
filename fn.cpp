@@ -15,9 +15,9 @@ Frame::Frame(Frame *p, Module *m) {
 	slotSize = 0;
 	handlers = unq(std::vector<ExHandler>, 0);
 	slots.clear();
-	code        = BytecodeHolder();
-	module      = m;
-	isStatic    = 0;
+	code           = BytecodeHolder();
+	module         = m;
+	isStatic       = 0;
 	callFrames     = 0;
 	callFrameCount = 0;
 	// moduleStack = NULL;
@@ -84,7 +84,7 @@ Token Frame::findLineInfo(const uint8_t *data) {
 	return Token::PlaceholderToken;
 }
 
-ostream& operator<<(ostream& os, const Frame &f) {
+ostream &operator<<(ostream &os, const Frame &f) {
 	os << "Frame "
 	   << " (slots : " << f.slotSize << " stacksize : " << f.code.maxStackSize()
 	   << " isStatic : " << f.isStatic << ")" << endl;
@@ -111,8 +111,8 @@ FrameInstance::FrameInstance(Frame *f, Value *s_) {
 	// stackPointer       = f->slotSize;
 	// presentSlotSize    = f->slotSize;
 	// instructionPointer = 0;
-	code               = f->code.raw();
-	callFrames         = f->callFrames;
+	code       = f->code.raw();
+	callFrames = f->callFrames;
 }
 
 /*
@@ -211,8 +211,8 @@ ostream &operator<<(ostream &os, const NextClass &n) {
 }
 
 NextObject::NextObject(NextClass *c) {
-	Class = c;
-	slots = new Value[c->slotNum];
+	Class    = c;
+	slots    = new Value[c->slotNum];
 	refCount = 0;
 	// std::fill_n(slots, c->slotNum, Value::nil);
 }
@@ -228,14 +228,14 @@ void NextObject::release() {
 Module::Module(NextString n)
     : name(n), symbolTable(), functions(), variables(), importedModules(),
       classes() {
-	frame         = unq(Frame, nullptr, this);
-	frameInstance = NULL;
+	frame           = unq(Frame, nullptr, this);
+	frameInstance   = NULL;
 	instancePointer = 0;
 }
 
 FrameInstance *Module::topLevelInstance(Fiber *f) {
 	if(frameInstance == NULL) {
-		frameInstance = f->appendCallFrame(frame.get(), 0, &f->stackTop);
+		frameInstance   = f->appendCallFrame(frame.get(), 0, &f->stackTop);
 		instancePointer = f->getCurrentFramePointer();
 		initializeFramesWithModuleStack();
 	}

@@ -17,14 +17,14 @@ using namespace std;
 	}
 
 CodeGenerator::CodeGenerator() {
-	frame             = nullptr;
-	state             = COMPILE_DECLARATION;
-	onLHS             = false;
-	scopeID           = 0;
-	inClass           = false;
-	currentClass      = NULL;
-	currentVisibility = AccessModifiableEntity::PUB;
-	onRefer           = false;
+	frame                = nullptr;
+	state                = COMPILE_DECLARATION;
+	onLHS                = false;
+	scopeID              = 0;
+	inClass              = false;
+	currentClass         = NULL;
+	currentVisibility    = AccessModifiableEntity::PUB;
+	onRefer              = false;
 	tryBlockStart        = 0;
 	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
@@ -174,7 +174,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 	// If its marked as imported, then we know there's already
 	// a valid module
 	if(isImported) {
-		info.type = CallInfo::IMPORTED;
+		info.type     = CallInfo::IMPORTED;
 		info.fn       = mod->functions[signature].get();
 		info.frameIdx = module->getIndexOfImportedFrame(
 		    mod->functions[signature]->frame.get());
@@ -357,11 +357,11 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 			}
 		}
 		// Check if it is in a parent frame
-		Frame *f   = frame->parent;
+		Frame *f = frame->parent;
 		if(f != nullptr) {
 			while(f != nullptr && !f->hasVariable(name)) f = f->parent;
 			if(f != nullptr) {
-				isLocal    = 0;
+				isLocal = 0;
 				return (VarInfo){f->slots.find(name)->second.slot, MODULE};
 			}
 		}
@@ -877,11 +877,11 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			              frame, module);
 			f->name = StringLibrary::insert(
 			    string(ifs->name.start, ifs->name.length));
-			f->token                       = ifs->name;
-			f->arity                       = ifs->arity;
+			f->token = ifs->name;
+			f->arity = ifs->arity;
 			// f->frame                       = unq(Frame, frame, module);
-			f->isConstructor               = inConstructor;
-			f->frame->isStatic             = ifs->isStatic;
+			f->isConstructor   = inConstructor;
+			f->frame->isStatic = ifs->isStatic;
 			if(!inClass || inConstructor) {
 				module->frames.push_back(f->frame.get());
 				module->symbolTable[signature] = f.get();
@@ -1038,8 +1038,8 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_IMPORTS) {
-		Token        last     = *(ifs->import.end() - 1);
-		NextString   lastName = StringLibrary::insert(last.start, last.length);
+		Token      last     = *(ifs->import.end() - 1);
+		NextString lastName = StringLibrary::insert(last.start, last.length);
 		// Check for collisions first
 		if(module->importedModules.find(lastName) !=
 		   module->importedModules.end()) {

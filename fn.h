@@ -68,19 +68,19 @@ class NextClass : AccessModifiableEntity {
 	NextClass(Visibility v, Module *m, NextString name)
 	    : AccessModifiableEntity(v), module(m), name(name), functions(),
 	      members(), slotNum(0), frames() {}
-	Token       token;
-	Module *    module;
-	NextString  name;
-	FunctionMap functions;
-	VariableMap members;
-	int         slotNum;
+	Token                token;
+	Module *             module;
+	NextString           name;
+	FunctionMap          functions;
+	VariableMap          members;
+	int                  slotNum;
 	std::vector<Frame *> frames; // collection of frames in the class to speed
 	                             // up intra-class calls
 	void declareVariable(NextString name, Visibility vis, bool iss, Token t);
 	bool hasVariable(NextString name);
-	bool     hasPublicMethod(NextString sig);
-	bool     hasPublicField(NextString name);
-	Type     getEntityType();
+	bool hasPublicMethod(NextString sig);
+	bool hasPublicField(NextString name);
+	Type getEntityType();
 	NextType getClassType();
 
 	friend std::ostream &operator<<(std::ostream &os, const NextClass &f);
@@ -158,25 +158,25 @@ class Frame {
   public:
 	Frame(Frame *p, Module *m);
 	Frame() : Frame(nullptr, nullptr) {}
-	Frame *                                      parent;
-	int                                          slotSize;
-	int                                          scopeDepth;
-	BytecodeHolder                               code;
-	ExceptionHandlers                            handlers;
-	HashMap<NextString, SlotVariable>            slots;
-	std::vector<DebugInfo>                       lineInfos;
-	Module *                                     module;
-	Frame **                                     callFrames;
-	int                                          callFrameCount;
-	bool   isStatic; // to pass the info throughout compilation
-	int    declareVariable(const char *name, int len, int scope);
+	Frame *                           parent;
+	int                               slotSize;
+	int                               scopeDepth;
+	BytecodeHolder                    code;
+	ExceptionHandlers                 handlers;
+	HashMap<NextString, SlotVariable> slots;
+	std::vector<DebugInfo>            lineInfos;
+	Module *                          module;
+	Frame **                          callFrames;
+	int                               callFrameCount;
+	bool  isStatic; // to pass the info throughout compilation
+	int   declareVariable(const char *name, int len, int scope);
 	int   declareVariable(NextString name, int scope);
 	bool  hasVariable(NextString name);
 	void  insertdebug(Token t);
 	void  finalizeDebug();
 	void  insertdebug(int from, Token t);
 	void  insertdebug(int from, int to, Token t);
-	int    getCallFrameIndex(Frame *f);
+	int   getCallFrameIndex(Frame *f);
 	Token findLineInfo(const uint8_t *data);
 
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f);
@@ -190,7 +190,7 @@ class FrameInstance {
   public:
 	FrameInstance(Frame *f, Value *stack_);
 	// Re adjust the same instance for a modified frame
-	void           readjust(Frame *f);
+	void readjust(Frame *f);
 	~FrameInstance();
 	Frame *        frame;
 	Value *        stack_;
@@ -228,7 +228,7 @@ class Module {
 	ClassMap       classes;
 	FramePtr       frame;
 	// each module should carry its own frameinstance
-	FrameInstance *      frameInstance;
+	FrameInstance *frameInstance;
 	int instancePointer;         // since the fiber can reallocate callframes,
 	                             // this pointer will be useful for retrieving
 	                             // the instance later on.
@@ -259,7 +259,7 @@ class Fiber {
 
 	Fiber() {
 
-		stack_       = (Value *)malloc(sizeof(Value) * 8);
+		stack_ = (Value *)malloc(sizeof(Value) * 8);
 		std::fill_n(stack_, 8, Value::nil);
 		stackTop     = &stack_[0];
 		maxStackSize = 8;
@@ -285,7 +285,7 @@ class Fiber {
 		    if(fi.stack_[i].isObject())
 		        fi.stack_[i].toObject()->incrCount();
 		}*/
-		*fi                            = FrameInstance(f, stackTop - numArg);
+		*fi  = FrameInstance(f, stackTop - numArg);
 		*top = stackTop = stackTop + f->slotSize - numArg;
 		return fi;
 	}
@@ -303,11 +303,11 @@ class Fiber {
 		stackTop         = *top;
 		--stackTop;
 		while(stackTop >= f->stack_) {
-		    if(stackTop->isObject()) {
+			if(stackTop->isObject()) {
 				stackTop->toObject()->decrCount();
 				*stackTop = Value::nil;
-		    }
-		    --stackTop;
+			}
+			--stackTop;
 		}
 		stackTop++;
 		*top = stackTop = f->stack_;

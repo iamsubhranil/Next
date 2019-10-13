@@ -8,7 +8,7 @@
 
 class BytecodeHolder {
   public:
-	static const char *OpcodeNames[];
+	static const char *  OpcodeNames[];
 	std::vector<uint8_t> bytecodes;
 	int                  stackMaxSize;
 	int                  presentStackSize;
@@ -166,7 +166,7 @@ class BytecodeHolder {
 
 	void disassemble() const {
 		const uint8_t *data = bytecodes.data();
-		size_t   size = bytecodes.size();
+		size_t         size = bytecodes.size();
 		for(size_t i = 0; i < size;) {
 			disassemble(data, &i);
 		}
@@ -211,9 +211,9 @@ class BytecodeHolder {
 	int            getip() const { return bytecodes.size(); }
 	void           restoreStackSize(int present) {
         /*if(max > stackMaxSize) {
-		    stackMaxSize = max;
-		}*/
-		presentStackSize = present;
+            stackMaxSize = max;
+        }*/
+        presentStackSize = present;
 	}
 };
 

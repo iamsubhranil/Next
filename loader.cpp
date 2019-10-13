@@ -111,12 +111,12 @@ Module *compile_and_load(const char *fileName, bool execute) {
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	NextString      modName = generateModuleName(fileName);
+	NextString modName = generateModuleName(fileName);
 	if(ExecutionEngine::isModuleRegistered(modName))
 		return ExecutionEngine::getRegisteredModule(modName);
 	ExecutionEngine ex;
-	Scanner s(fileName);
-	Parser  p(s);
+	Scanner         s(fileName);
+	Parser          p(s);
 	registerParselets(&p);
 	Module *module = NULL;
 	try {
@@ -147,7 +147,7 @@ Module *compile_and_load_from_source(const char *source, Module *module,
 #endif
 	ExecutionEngine ex;
 	Scanner         s(source, StringLibrary::get_raw(module->name));
-	Parser  p(s);
+	Parser          p(s);
 	registerParselets(&p);
 	try {
 		vector<StmtPtr> decls = p.parseAllDeclarations();

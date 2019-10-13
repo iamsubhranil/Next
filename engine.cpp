@@ -5,7 +5,7 @@
 
 using namespace std;
 
-char ExecutionEngine::ExceptionMessage[1024] = {0};
+char            ExecutionEngine::ExceptionMessage[1024] = {0};
 vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
 
 ExecutionEngine::ExecutionEngine() {}
@@ -73,10 +73,10 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 	// Get the type
 	NextType t = NextType::getType(v);
 	// Now find the frame by unwinding the stack
-	int            num       = f->callFramePointer - 1;
+	int            num                = f->callFramePointer - 1;
 	int            instructionPointer = 0;
-	FrameInstance *matched   = NULL;
-	FrameInstance *searching = &f->callFrames[num];
+	FrameInstance *matched            = NULL;
+	FrameInstance *searching          = &f->callFrames[num];
 	ExHandler      handler;
 	while(num >= 0 && matched == NULL) {
 		// find the current instruction pointer
@@ -84,8 +84,8 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 		for(auto &i : *searching->frame->handlers) {
 			if(i.from <= (instructionPointer - 1) &&
 			   i.to >= (instructionPointer - 1) && i.caughtType == t) {
-				matched                     = searching;
-				handler                     = i;
+				matched = searching;
+				handler = i;
 				break;
 			}
 		}
@@ -284,8 +284,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 	LOOP() {
 #ifdef DEBUG_INS
-		int instructionPointer = InstructionPointer - presentFrame->code;
-		int   stackPointer = StackTop - presentFrame->stack_;
+		int   instructionPointer = InstructionPointer - presentFrame->code;
+		int   stackPointer       = StackTop - presentFrame->stack_;
 		Token t = presentFrame->frame->findLineInfo(InstructionPointer);
 		if(t.type != TOKEN_ERROR)
 			t.highlight();
@@ -536,7 +536,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(store_module_slot) : {
-				int slot = next_int();
+				int    slot = next_int();
 				Value &v =
 				    presentFrame->frame->module->getModuleStack(fiber)[slot];
 				ref_decr(v);

@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 		// cout << s.scanAllTokens();
 	} else {
 		Module *module = new Module(StringLibrary::insert("repl"));
-		string line;
+		string  line;
 		cout << ">> ";
 		while(getline(cin, line)) {
 			compile_and_load_from_source(line.c_str(), module, true);

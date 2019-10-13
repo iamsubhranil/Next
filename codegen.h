@@ -49,11 +49,11 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// marks all variables declared in scopeID(s) >= x invalid, so that
 	// they can't be referenced from a scope with ID < x, i.e. an
 	// outside scope.
-	int              scopeID;
+	int scopeID;
 	// to denote whether we are compiling an LHS expression right
 	// now, so that the compiler does not emit spontaneous bytecodes
 	// to push the value on the stack
-	bool    onLHS;
+	bool onLHS;
 	// in an LHS, this will contain information about the variable
 	VarInfo variableInfo;
 	// to denote whether we are compiling a reference expression
@@ -61,10 +61,10 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// When we are on LHS and the expression is a reference expression,
 	// this variable will hold the name of the ultimate member in that
 	// expression
-	NextString                         lastMemberReferenced;
+	NextString lastMemberReferenced;
 
 	// Denotes whether we are in a class
-	bool       inClass;
+	bool inClass;
 	// Current class pointer if we are in a class
 	NextClass *currentClass;
 	// Current visibility when we are in a class
@@ -133,8 +133,8 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 
 class CodeGeneratorException : public std::runtime_error {
   private:
-	int                count;
-	char               message[100];
+	int  count;
+	char message[100];
 
   public:
 	CodeGeneratorException(int c) : runtime_error("Error"), count(c) {
