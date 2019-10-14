@@ -18,7 +18,7 @@ class Primitives {
   public:
 	static void                                 init();
 	static HashMap<Value::Type, PrimitiveMap *> NextPrimitives;
-	static bool hasPrimitive(Value::Type type, NextString signature);
+	static bool  hasPrimitive(Value::Type type, NextString signature);
 	static Value invokePrimitive(Value::Type type, NextString signature,
 	                             Value *stack_);
 };

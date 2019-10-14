@@ -17,14 +17,14 @@ using namespace std;
 	}
 
 CodeGenerator::CodeGenerator() {
-	frame             = nullptr;
-	state             = COMPILE_DECLARATION;
-	onLHS             = false;
-	scopeID           = 0;
-	inClass           = false;
-	currentClass      = NULL;
-	currentVisibility = AccessModifiableEntity::PUB;
-	onRefer           = false;
+	frame                = nullptr;
+	state                = COMPILE_DECLARATION;
+	onLHS                = false;
+	scopeID              = 0;
+	inClass              = false;
+	currentClass         = NULL;
+	currentVisibility    = AccessModifiableEntity::PUB;
+	onRefer              = false;
 	tryBlockStart        = 0;
 	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
@@ -174,7 +174,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 	// If its marked as imported, then we know there's already
 	// a valid module
 	if(isImported) {
-		info.type = CallInfo::IMPORTED;
+		info.type     = CallInfo::IMPORTED;
 		info.fn       = mod->functions[signature].get();
 		info.frameIdx = module->getIndexOfImportedFrame(
 		    mod->functions[signature]->frame.get());
@@ -187,7 +187,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 		info.type = CallInfo::INTRA_CLASS;
 		// Search for the frame in the class
 		Frame *searching = currentClass->functions[signature]->frame.get();
-		info.frameIdx    = getFrameIndex(currentClass->frames, searching);
+		info.frameIdx    = frame->getCallFrameIndex(searching);
 		info.fn          = currentClass->functions[signature].get();
 		return info;
 	}
@@ -197,7 +197,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 		info.type = CallInfo::INTRA_MODULE;
 		// Search for the frame in the module
 		Frame *searching = module->functions[signature]->frame.get();
-		info.frameIdx    = getFrameIndex(module->frames, searching);
+		info.frameIdx    = frame->getCallFrameIndex(searching);
 		info.fn          = module->functions[signature].get();
 		return info;
 	} else { // try searching for builtin functions
@@ -249,6 +249,9 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 
 	if(!onRefer) {
 		info = resolveCall(signature, isImported, mod);
+	} else {
+		// increment the ref count of the object
+		bytecode->incr_ref();
 	}
 
 	// If this is a constructor call, we pass in
@@ -259,12 +262,19 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 		// bytecode->stackEffect(-1);
 		bytecode->pushd(0);
 	}
+	if(!onRefer && info.type == CallInfo::INTRA_CLASS) {
+		// load the object first, so no manual stack manipulation
+		// is needed
+		bytecode->load_slot_0();
+		bytecode->incr_ref();
+	}
 	// Reset the referral status for arguments
 	bool bak = onRefer;
 	onRefer  = false;
-	for(auto i = call->arguments.begin(), j = call->arguments.end(); i != j;
-	    i++)
-		(*i)->accept(this);
+	for(auto &i : call->arguments) {
+		i->accept(this);
+		bytecode->incr_ref();
+	}
 	onRefer = bak;
 	frame->insertdebug(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
@@ -275,8 +285,16 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	} else {
 		switch(info.type) {
 			case CallInfo::INTRA_CLASS:
-				bytecode->call_intraclass(info.frameIdx, argSize);
-				bytecode->stackEffect(-argSize + 1);
+				if(frame->isStatic && !info.fn->frame->isStatic) {
+					lnerr_("Non-static method '%.*s' cannot be called inside a "
+					       "static method!",
+					       call->callee->token, call->callee->token.length,
+					       call->callee->token.start);
+				}
+				// +1 for the object
+				bytecode->call(info.frameIdx, argSize + 1);
+				// argSize + 1 values sent, 1 value returned
+				bytecode->stackEffect(-argSize + 2);
 				break;
 			case CallInfo::INTRA_MODULE:
 				bytecode->call(info.frameIdx,
@@ -339,11 +357,11 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 			}
 		}
 		// Check if it is in a parent frame
-		Frame *f   = frame->parent;
+		Frame *f = frame->parent;
 		if(f != nullptr) {
 			while(f != nullptr && !f->hasVariable(name)) f = f->parent;
 			if(f != nullptr) {
-				isLocal    = 0;
+				isLocal = 0;
 				return (VarInfo){f->slots.find(name)->second.slot, MODULE};
 			}
 		}
@@ -382,12 +400,26 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 }
 
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
-                                                      bool showError) {
+                                                      bool       showError,
+                                                      Visibility vis) {
 	NextString name = StringLibrary::insert(t.start, t.length);
 	VarInfo    var  = lookForVariable(name, declare);
 	if(var.position == UNDEFINED && showError) {
 		lnerr_("No such variable found : '%s'", t,
 		       StringLibrary::get_raw(name));
+	} else if(var.position == CLASS && !currentClass->members[name].isStatic &&
+	          frame->isStatic) {
+		lnerr_(
+		    "Non-static member '%.*s' cannot be used inside a static method!",
+		    t, t.length, t.start);
+	} else if(declare && var.position == LOCAL && frame->parent == NULL &&
+	          module->variables.find(name) == module->variables.end()) {
+		module->variables[name] =
+		    Variable(vis == VIS_PUB ? AccessModifiableEntity::PUB
+		                            : AccessModifiableEntity::PRIV,
+		             t);
+		module->variables[name].isStatic = false;
+		module->variables[name].slot     = var.slot;
 	}
 	return var;
 }
@@ -845,10 +877,11 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			              frame, module);
 			f->name = StringLibrary::insert(
 			    string(ifs->name.start, ifs->name.length));
-			f->token                       = ifs->name;
-			f->arity                       = ifs->arity;
+			f->token = ifs->name;
+			f->arity = ifs->arity;
 			// f->frame                       = unq(Frame, frame, module);
-			f->isConstructor               = inConstructor;
+			f->isConstructor   = inConstructor;
+			f->frame->isStatic = ifs->isStatic;
 			if(!inClass || inConstructor) {
 				module->frames.push_back(f->frame.get());
 				module->symbolTable[signature] = f.get();
@@ -1005,8 +1038,8 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_IMPORTS) {
-		Token        last     = *(ifs->import.end() - 1);
-		NextString   lastName = StringLibrary::insert(last.start, last.length);
+		Token      last     = *(ifs->import.end() - 1);
+		NextString lastName = StringLibrary::insert(last.start, last.length);
 		// Check for collisions first
 		if(module->importedModules.find(lastName) !=
 		   module->importedModules.end()) {
@@ -1060,7 +1093,7 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	VarInfo v = lookForVariable(ifs->token, true);
+	VarInfo v = lookForVariable(ifs->token, true, false, ifs->vis);
 	if(getState() == COMPILE_BODY) {
 		if(v.position == BUILTIN) {
 			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,

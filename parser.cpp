@@ -41,8 +41,8 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 		if(infix->isAssignment() && !left->isAssignable()) {
 			return left;
 		}
-		token                = consume();
-		left                 = infix->parse(this, left, token);
+		token = consume();
+		left  = infix->parse(this, left, token);
 	}
 
 	return left;

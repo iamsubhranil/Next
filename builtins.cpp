@@ -17,7 +17,7 @@ HashMap<NextString, builtin_handler> Builtin::BuiltinHandlers =
 HashMap<NextString, Value> Builtin::BuiltinConstants =
     HashMap<NextString, Value>{};
 
-void Builtin::init(){
+void Builtin::init() {
 	BuiltinHandlers[StringLibrary::insert("clock()")] = &next_clock;
 
 	BuiltinConstants[StringLibrary::insert("clocks_per_sec")] =

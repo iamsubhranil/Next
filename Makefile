@@ -26,6 +26,12 @@ release: next
 debug: CXXFLAGS += -g3 -DDEBUG
 debug: next
 
+debug_ins: CXXFLAGS += -DDEBUG_INS
+debug_ins: debug
+
+debug_gc: CXXFLAGS += -DDEBUG_GC
+debug_gc: debug
+
 next: $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o next
 

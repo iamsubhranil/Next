@@ -1,0 +1,21 @@
+class StaticTest {
+    priv:
+        static a, b
+        c
+    pub:
+        new(x) {
+            a = b = c = x
+        }
+
+        static fn changeA() {
+            a = b = 3
+            c = 5
+        }
+
+        fn changeB() {
+            changeA()
+        }
+}
+
+obj = StaticTest(2)
+obj.changeA()

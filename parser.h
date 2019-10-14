@@ -83,7 +83,7 @@ class PostfixOperatorParselet : public InfixParselet {
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
 	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
 	bool   isAssignment() {
-		return true; // only ++/--
+        return true; // only ++/--
 	}
 };
 
@@ -128,7 +128,7 @@ class ImportDeclaration : public DeclarationParselet {
 
 class ClassDeclaration : public DeclarationParselet {
   private:
-	StmtPtr parseClassBody(Parser *p);
+	StmtPtr                                        parseClassBody(Parser *p);
 	static HashMap<TokenType, StatementParselet *> classBodyParselets;
 
   public:
@@ -234,12 +234,12 @@ using StatementParseletPtr   = std::unique_ptr<StatementParselet>;
 
 class Parser {
   private:
-	HashMap<TokenType, PrefixParseletPtr>                 prefixParselets;
-	HashMap<TokenType, InfixParseletPtr>                  infixParselets;
-	HashMap<TokenType, DeclarationParseletPtr>            declarationParselets;
-	HashMap<TokenType, StatementParseletPtr>              statementParselets;
-	Scanner &                                             scanner;
-	std::deque<Token>                                     tokenCache;
+	HashMap<TokenType, PrefixParseletPtr>      prefixParselets;
+	HashMap<TokenType, InfixParseletPtr>       infixParselets;
+	HashMap<TokenType, DeclarationParseletPtr> declarationParselets;
+	HashMap<TokenType, StatementParseletPtr>   statementParselets;
+	Scanner &                                  scanner;
+	std::deque<Token>                          tokenCache;
 
 	int getPrecedence();
 

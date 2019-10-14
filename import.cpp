@@ -38,12 +38,12 @@ ImportStatus import(vector<Token> &loc) {
 	}
 
 	bool   lastIsFolder = true;
-	auto        it           = strs.begin();
-	string      paths        = ".";
+	auto   it           = strs.begin();
+	string paths        = ".";
 	// the path will be relative to the file
 	// where the import statement is written
-	const char *lastPath     = (*loc.begin()).fileName;
-	int         lastSepLoc   = strlen(lastPath) - 1;
+	const char *lastPath   = (*loc.begin()).fileName;
+	int         lastSepLoc = strlen(lastPath) - 1;
 	// start from the back, and stop at the first '/'
 	// encountered. if none found, bail out.
 	while(lastSepLoc >= 0 && lastPath[lastSepLoc] != kPathSeparator[0])

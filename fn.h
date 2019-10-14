@@ -68,27 +68,29 @@ class NextClass : AccessModifiableEntity {
 	NextClass(Visibility v, Module *m, NextString name)
 	    : AccessModifiableEntity(v), module(m), name(name), functions(),
 	      members(), slotNum(0), frames() {}
-	Token       token;
-	Module *    module;
-	NextString  name;
-	FunctionMap functions;
-	VariableMap members;
-	int         slotNum;
+	Token                token;
+	Module *             module;
+	NextString           name;
+	FunctionMap          functions;
+	VariableMap          members;
+	int                  slotNum;
 	std::vector<Frame *> frames; // collection of frames in the class to speed
 	                             // up intra-class calls
 	void declareVariable(NextString name, Visibility vis, bool iss, Token t);
 	bool hasVariable(NextString name);
-	bool     hasPublicMethod(NextString sig);
-	bool     hasPublicField(NextString name);
-	Type     getEntityType();
+	bool hasPublicMethod(NextString sig);
+	bool hasPublicField(NextString name);
+	Type getEntityType();
 	NextType getClassType();
 
 	friend std::ostream &operator<<(std::ostream &os, const NextClass &f);
 };
 
-class GcObject {
+class NextObject {
   public:
-	GcObject() : refCount(0) {}
+	NextClass *Class;
+	Value *    slots;
+	NextObject(NextClass *c);
 	int         refCount;
 	inline void incrCount() {
 #ifdef DEBUG_GC
@@ -101,6 +103,10 @@ class GcObject {
 	}
 	inline void decrCount() {
 #ifdef DEBUG_GC
+		int *a = NULL;
+		if(refCount < 0) {
+			exit(*a);
+		}
 		std::cout << "\nDecrementing refCount for object " << this << " : " <<
 #endif
 		    --refCount;
@@ -122,15 +128,6 @@ class GcObject {
 			delete this;
 		}
 	}
-	virtual void release() = 0;
-	virtual ~GcObject() {}
-};
-
-class NextObject : public GcObject {
-  public:
-	NextClass *Class;
-	Value *    slots;
-	NextObject(NextClass *c);
 	void release();
 };
 
@@ -161,21 +158,25 @@ class Frame {
   public:
 	Frame(Frame *p, Module *m);
 	Frame() : Frame(nullptr, nullptr) {}
-	Frame *                                      parent;
-	int                                          slotSize;
-	int                                          scopeDepth;
-	BytecodeHolder                               code;
-	ExceptionHandlers                            handlers;
-	HashMap<NextString, SlotVariable>            slots;
-	std::vector<DebugInfo>                       lineInfos;
-	Module *                                     module;
-	int    declareVariable(const char *name, int len, int scope);
+	Frame *                           parent;
+	int                               slotSize;
+	int                               scopeDepth;
+	BytecodeHolder                    code;
+	ExceptionHandlers                 handlers;
+	HashMap<NextString, SlotVariable> slots;
+	std::vector<DebugInfo>            lineInfos;
+	Module *                          module;
+	Frame **                          callFrames;
+	int                               callFrameCount;
+	bool  isStatic; // to pass the info throughout compilation
+	int   declareVariable(const char *name, int len, int scope);
 	int   declareVariable(NextString name, int scope);
 	bool  hasVariable(NextString name);
 	void  insertdebug(Token t);
 	void  finalizeDebug();
 	void  insertdebug(int from, Token t);
 	void  insertdebug(int from, int to, Token t);
+	int   getCallFrameIndex(Frame *f);
 	Token findLineInfo(const uint8_t *data);
 
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f);
@@ -187,36 +188,38 @@ using FrameInstancePtr = std::unique_ptr<FrameInstance>;
 
 class FrameInstance {
   public:
-	FrameInstance(Frame *f);
+	FrameInstance(Frame *f, Value *stack_);
 	// Re adjust the same instance for a modified frame
-	void           readjust(Frame *f);
+	void readjust(Frame *f);
 	~FrameInstance();
 	Frame *        frame;
-	FrameInstance *enclosingFrame;
 	Value *        stack_;
-	Value *        moduleStack; // copy of module stack
-	Value *objectStack; // if this is a method, this will contain the slots of
-	                    // the object
 	unsigned char *code;
-	int presentSlotSize;
-	int stackPointer;
+	Frame **       callFrames;
+	// int stackPointer;
 	// to back up the pointer for consecutive
 	// calls on the same frame instance
-	int instructionPointer;
+	// int instructionPointer;
+	// int presentSlotSize;
 };
+
+class Fiber;
 
 class Module {
   public:
 	Module(NextString n);
-	FrameInstance *topLevelInstance();
+	FrameInstance *topLevelInstance(Fiber *s);
 	FrameInstance *reAdjust(Frame *f);
 	void           initializeFramesWithModuleStack();
 	bool           hasCode();
 	bool           hasSignature(NextString n);
 	bool           hasPublicFn(NextString sig);
+	bool           hasPublicVar(const Token &t);
+	bool           hasPublicVar(const NextString &t);
 	bool           hasType(const NextString &n);
 	int            getIndexOfImportedFrame(Frame *f);
 	NextType       resolveType(const NextString &n);
+	Value *        getModuleStack(Fiber *f);
 	NextString     name;
 	SymbolTable    symbolTable;
 	FunctionMap    functions;
@@ -225,10 +228,125 @@ class Module {
 	ClassMap       classes;
 	FramePtr       frame;
 	// each module should carry its own frameinstance
-	FrameInstance *      frameInstance;
+	FrameInstance *frameInstance;
+	int instancePointer;         // since the fiber can reallocate callframes,
+	                             // this pointer will be useful for retrieving
+	                             // the instance later on.
 	std::vector<Frame *> frames; // collection of frames in the module
 	std::vector<Frame *> importedFrames; // importedFrames
 	// denotes whether this module is compiled
 	bool                 isCompiled;
 	friend std::ostream &operator<<(std::ostream &os, const Module &f);
+};
+
+// Represents one lightweight thread of execution
+class Fiber {
+  public:
+	// Stack
+	Value *stack_;
+	Value *stackTop;
+	int    maxStackSize;
+	int    stackPointer;
+
+	FrameInstance *callFrames;
+	int            maxCallFrameCount;
+	int            callFramePointer;
+
+	// The fiber which called this one, if any
+	Fiber *parent;
+
+	Fiber(Frame *f) : Fiber() { appendCallFrame(f, 0, &stackTop); }
+
+	Fiber() {
+
+		stack_ = (Value *)malloc(sizeof(Value) * 8);
+		std::fill_n(stack_, 8, Value::nil);
+		stackTop     = &stack_[0];
+		maxStackSize = 8;
+		stackPointer = 0;
+
+		callFrames        = (FrameInstance *)malloc(sizeof(FrameInstance) * 8);
+		maxCallFrameCount = 8;
+		callFramePointer  = 0;
+
+		parent = NULL;
+	}
+
+	FrameInstance *appendCallFrame(Frame *f, int numArg, Value **top) {
+		stackTop = *top;
+		if(callFramePointer >= maxCallFrameCount - 1) {
+			callFrames = (FrameInstance *)realloc(
+			    callFrames, sizeof(FrameInstance) * (maxCallFrameCount *= 2));
+		}
+		ensureStack(f->code.maxStackSize());
+		FrameInstance *fi = &callFrames[callFramePointer++];
+		/*
+		for(int i = 0; i < numArg; i++) {
+		    if(fi.stack_[i].isObject())
+		        fi.stack_[i].toObject()->incrCount();
+		}*/
+		*fi  = FrameInstance(f, stackTop - numArg);
+		*top = stackTop = stackTop + f->slotSize - numArg;
+		return fi;
+	}
+
+	int getCurrentFramePointer() { return callFramePointer - 1; }
+
+	FrameInstance *getCurrentFrame() {
+		return &callFrames[callFramePointer - 1];
+	}
+
+	FrameInstance *getFrameNumber(int ptr) { return &callFrames[ptr]; }
+
+	void popFrame(Value **top) {
+		FrameInstance *f = &callFrames[--callFramePointer];
+		stackTop         = *top;
+		--stackTop;
+		while(stackTop >= f->stack_) {
+			if(stackTop->isObject()) {
+				stackTop->toObject()->decrCount();
+				*stackTop = Value::nil;
+			}
+			--stackTop;
+		}
+		stackTop++;
+		*top = stackTop = f->stack_;
+	}
+
+	void ensureStack(int needed) {
+		if(needed + (stackTop - stack_) < maxStackSize)
+			return;
+
+		stackPointer    = stackTop - stack_;
+		Value *oldStack = stack_;
+
+		maxStackSize = powerOf2Ceil(needed + (stackTop - stack_));
+		stack_       = (Value *)realloc(stack_, sizeof(Value) * maxStackSize);
+		stackTop     = &stack_[stackPointer];
+		std::fill_n(stackTop, maxStackSize - stackPointer, Value::nil);
+		// Readjust old frames if the stack is relocated
+		if(stack_ != oldStack) {
+			for(int i = 0; i < callFramePointer; i++) {
+				FrameInstance *f = &callFrames[i];
+				f->stack_        = stack_ + (f->stack_ - oldStack);
+			}
+		}
+	}
+
+	int powerOf2Ceil(int n) {
+		n--;
+		n |= n >> 1;
+		n |= n >> 2;
+		n |= n >> 4;
+		n |= n >> 8;
+		n |= n >> 16;
+		n++;
+
+		return n;
+	}
+
+	~Fiber() {
+		free(stack_);
+		free(callFrames);
+	}
 };

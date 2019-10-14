@@ -15,8 +15,11 @@ Frame::Frame(Frame *p, Module *m) {
 	slotSize = 0;
 	handlers = unq(std::vector<ExHandler>, 0);
 	slots.clear();
-	code        = BytecodeHolder();
-	module      = m;
+	code           = BytecodeHolder();
+	module         = m;
+	isStatic       = 0;
+	callFrames     = 0;
+	callFrameCount = 0;
 	// moduleStack = NULL;
 }
 
@@ -60,6 +63,17 @@ void Frame::insertdebug(int from, int to, Token t) {
 	lineInfos.push_back(DebugInfo(from, to, t));
 }
 
+int Frame::getCallFrameIndex(Frame *f) {
+	for(int i = 0; i < callFrameCount; i++) {
+		if(callFrames[i] == f)
+			return i;
+	}
+	callFrames =
+	    (Frame **)realloc(callFrames, sizeof(Frame *) * ++callFrameCount);
+	callFrames[callFrameCount - 1] = f;
+	return callFrameCount - 1;
+}
+
 Token Frame::findLineInfo(const uint8_t *data) {
 	int ip = data - code.bytecodes.data();
 	for(auto i = lineInfos.begin(), j = lineInfos.end(); i != j; i++) {
@@ -70,10 +84,10 @@ Token Frame::findLineInfo(const uint8_t *data) {
 	return Token::PlaceholderToken;
 }
 
-ostream& operator<<(ostream& os, const Frame &f) {
+ostream &operator<<(ostream &os, const Frame &f) {
 	os << "Frame "
 	   << " (slots : " << f.slotSize << " stacksize : " << f.code.maxStackSize()
-	   << ")" << endl;
+	   << " isStatic : " << f.isStatic << ")" << endl;
 	for(auto const &i : f.slots) {
 		os << "Slot #" << i.second << " : " << StringLibrary::get(i.first)
 		   << endl;
@@ -91,53 +105,51 @@ ostream& operator<<(ostream& os, const Frame &f) {
 	return os;
 }
 
-FrameInstance::FrameInstance(Frame *f) {
+FrameInstance::FrameInstance(Frame *f, Value *s_) {
 	frame  = f;
-	stack_ = (Value *)malloc(sizeof(Value) * f->code.maxStackSize());
-	std::fill_n(stack_, f->code.maxStackSize(), Value::nil);
-	stackPointer       = f->slotSize;
-	presentSlotSize    = f->slotSize;
-	instructionPointer = 0;
-	code               = f->code.raw();
-	enclosingFrame     = nullptr;
-	// for module level instance,
-	// f->module->frameInstance would be NULL
-	if(f->module->frameInstance)
-		moduleStack = f->module->frameInstance->stack_;
+	stack_ = s_;
+	// stackPointer       = f->slotSize;
+	// presentSlotSize    = f->slotSize;
+	// instructionPointer = 0;
+	code       = f->code.raw();
+	callFrames = f->callFrames;
 }
 
+/*
 void FrameInstance::readjust(Frame *f) {
-	// reallocate the stack
-	stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
-	// if there are new slots in the stack, make room
-	if(presentSlotSize < f->slotSize) {
-		// Calculate the number of new slots
-		int moveup = f->slotSize - presentSlotSize;
-		// Move stackpointer accordingly
-		stackPointer += moveup;
-		// Move all non-slot values up
-		for(int i = stackPointer - 1; i > presentSlotSize; i--) {
-			stack_[i] = stack_[i + 1];
-		}
-		presentSlotSize = f->slotSize;
-	}
-	// If there was an instance, it was halted
-	// using 'halt', which does not increase
-	// the pointer to point to next instruction.
-	// We should do that first.
-	// Also since 'bytecodes' vector can get
-	// reallocated, especially in case of an REPL,
-	// we recalculate that based on the saved
-	// instruction pointer.
-	code = &f->code.bytecodes.data()[instructionPointer + 1];
-}
+    // reallocate the stack
+    stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
+    // if there are new slots in the stack, make room
+    if(presentSlotSize < f->slotSize) {
+        // Calculate the number of new slots
+        int moveup = f->slotSize - presentSlotSize;
+        // Move stackpointer accordingly
+        stackPointer += moveup;
+        // Move all non-slot values up
+        for(int i = stackPointer - 1; i > presentSlotSize; i--) {
+            stack_[i] = stack_[i + 1];
+        }
+        presentSlotSize = f->slotSize;
+    }
+    // If there was an instance, it was halted
+    // using 'halt', which does not increase
+    // the pointer to point to next instruction.
+    // We should do that first.
+    // Also since 'bytecodes' vector can get
+    // reallocated, especially in case of an REPL,
+    // we recalculate that based on the saved
+    // instruction pointer.
+    code = &f->code.bytecodes.data()[instructionPointer + 1];
+}*/
 
 FrameInstance::~FrameInstance() {
+	/*
 	for(int i = 0; i < stackPointer; i++) {
-		if(stack_[i].isObject())
-			stack_[i].toObject()->decrCount();
+	    if(stack_[i].isObject())
+	        stack_[i].toObject()->decrCount();
 	}
 	free(stack_);
+	*/
 }
 
 ostream &operator<<(ostream &os, const Fn &f) {
@@ -199,8 +211,10 @@ ostream &operator<<(ostream &os, const NextClass &n) {
 }
 
 NextObject::NextObject(NextClass *c) {
-	Class = c;
-	slots = new Value[c->slotNum];
+	Class    = c;
+	slots    = new Value[c->slotNum];
+	refCount = 0;
+	// std::fill_n(slots, c->slotNum, Value::nil);
 }
 
 void NextObject::release() {
@@ -214,13 +228,15 @@ void NextObject::release() {
 Module::Module(NextString n)
     : name(n), symbolTable(), functions(), variables(), importedModules(),
       classes() {
-	frame         = unq(Frame, nullptr, this);
-	frameInstance = NULL;
+	frame           = unq(Frame, nullptr, this);
+	frameInstance   = NULL;
+	instancePointer = 0;
 }
 
-FrameInstance *Module::topLevelInstance() {
+FrameInstance *Module::topLevelInstance(Fiber *f) {
 	if(frameInstance == NULL) {
-		frameInstance = new FrameInstance(frame.get());
+		frameInstance   = f->appendCallFrame(frame.get(), 0, &f->stackTop);
+		instancePointer = f->getCurrentFramePointer();
 		initializeFramesWithModuleStack();
 	}
 	return frameInstance;
@@ -228,11 +244,15 @@ FrameInstance *Module::topLevelInstance() {
 
 FrameInstance *Module::reAdjust(Frame *f) {
 	Value *oldStack = frameInstance->stack_;
-	frameInstance->readjust(f);
+	// frameInstance->readjust(f);
 	if(oldStack != frameInstance->stack_) {
 		initializeFramesWithModuleStack();
 	}
 	return frameInstance;
+}
+
+Value *Module::getModuleStack(Fiber *f) {
+	return f->getFrameNumber(instancePointer)->stack_;
 }
 
 void Module::initializeFramesWithModuleStack() {
@@ -253,6 +273,17 @@ bool Module::hasSignature(NextString n) {
 bool Module::hasPublicFn(NextString n) {
 	return functions.find(n) != functions.end() &&
 	       functions[n]->vis == AccessModifiableEntity::PUB;
+}
+
+bool Module::hasPublicVar(const Token &t) {
+	NextString n = StringLibrary::insert(t.start, t.length);
+	return hasPublicVar(n);
+}
+
+bool Module::hasPublicVar(const NextString &n) {
+	bool b1 = variables.find(n) != variables.end();
+	bool b2 = variables[n].vis == AccessModifiableEntity::PUB;
+	return b1 && b2;
 }
 
 int Module::getIndexOfImportedFrame(Frame *f) {

@@ -51,11 +51,11 @@ class Expr {
 	virtual void accept(ExpressionVisitor *visitor) = 0;
 	Type         getType() { return type; }
 	bool         isAssignable() {
-		return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
-		       (type == SET);
+        return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
+               (type == SET);
 	}
-	bool         isMemberAccess() { return (type == GET) || (type == SET); }
-	bool         isVariable() { return (type == VARIABLE); }
+	bool isMemberAccess() { return (type == GET) || (type == SET); }
+	bool isVariable() { return (type == VARIABLE); }
 	friend class ExpressionVisitor;
 };
 

@@ -25,13 +25,13 @@ OPCODE0(mul, -1)
 OPCODE0(div, -1)
 OPCODE0(power, -1)
 
-OPCODE1(incr_slot, 1, int)   // <slot>
-OPCODE1(incr_module_slot, 1, int) // <slot>
-OPCODE1(incr_object_slot, 1, int) // <slot>
+OPCODE1(incr_slot, 1, int)         // <slot>
+OPCODE1(incr_module_slot, 1, int)  // <slot>
+OPCODE1(incr_object_slot, 1, int)  // <slot>
 OPCODE1(incr_field, 1, NextString) // <field>
-OPCODE1(decr_slot, 1, int)        // <slot>
-OPCODE1(decr_module_slot, 1, int) // <slot>
-OPCODE1(decr_object_slot, 1, int) // <slot>
+OPCODE1(decr_slot, 1, int)         // <slot>
+OPCODE1(decr_module_slot, 1, int)  // <slot>
+OPCODE1(decr_object_slot, 1, int)  // <slot>
 OPCODE1(decr_field, 1, NextString) // <field>
 
 OPCODE0(neg, 0)
@@ -51,8 +51,8 @@ OPCODE0(print, -1)
 
 // Pushes a Value to the stack
 OPCODE1(push, 1, Value)
-OPCODE1(pushd, 1, double)              // <double>
-OPCODE1(pushs, 1, NextString)          // <NextString>
+OPCODE1(pushd, 1, double)     // <double>
+OPCODE1(pushs, 1, NextString) // <NextString>
 OPCODE0(pushn, 1)
 OPCODE0(pop, -1)
 
@@ -68,18 +68,18 @@ OPCODE0(load_slot_5, 1)
 OPCODE0(load_slot_6, 1)
 OPCODE0(load_slot_7, 1)
 
-OPCODE1(load_slot, 1, int)               // <slot_number>
-OPCODE1(store_slot, 0, int)              // <slot_number>
+OPCODE1(load_slot, 1, int)  // <slot_number>
+OPCODE1(store_slot, 0, int) // <slot_number>
 
 // OPCODE2(load_parent_slot, 1, int, int)   // <scope_depth> <slot_number>
 // OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
 
 // FrameInstance carries module stack
-OPCODE1(load_module_slot, 1, int)   // <slot>
-OPCODE1(store_module_slot, 0, int)  // <slot>
+OPCODE1(load_module_slot, 1, int)  // <slot>
+OPCODE1(store_module_slot, 0, int) // <slot>
 
 // Unconditional jump
-OPCODE1(jump, 0, int)         // <relative_jump_offset>
+OPCODE1(jump, 0, int) // <relative_jump_offset>
 // Pop, verify and jump
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
@@ -119,7 +119,10 @@ OPCODE2(call_method, 0, NextString, int) // <signature> <slot>
 // Optimized 'call' for intraclass
 // calls (i.e. call between two methods
 // of the same class)
-OPCODE2(call_intraclass, 0, int, int)
+// OPCODE2(call_intraclass, 0, int, int)
+
+// Increment the refcount of the TOS
+OPCODE0(incr_ref, 0)
 
 // Pops the value at TOS and starts stack unwinding
 // until a frame with matching exception handler is
@@ -128,7 +131,7 @@ OPCODE0(throw_, -1)
 
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>
-OPCODE1(load_constant, 1, NextString) // <name>
+OPCODE1(load_constant, 1, NextString)     // <name>
 
 OPCODE0(halt, 0)
 

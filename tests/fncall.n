@@ -2,4 +2,9 @@ fn hello() {
     print("\nHello from a function!")
 }
 
+fn hello(x, y) {
+    print("\nArgument passed : ", x, ", ", y)
+}
+
 hello()
+hello("first", "second")

@@ -97,12 +97,10 @@ class Value {
 		return *this;
 	}
 
-	inline bool operator==(const Value &v) const {
-		return v.value == value;
-	}
+	inline bool operator==(const Value &v) const { return v.value == value; }
 
 	static void init();
 
-	static Value nil;
+	static Value      nil;
 	static NextString ValueTypeStrings[];
 };
