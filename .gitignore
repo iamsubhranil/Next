@@ -1,4 +1,5 @@
 *.out
+*.exe
 build/
 .gdb_history
 vgcore.*
