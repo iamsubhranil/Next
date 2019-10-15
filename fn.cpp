@@ -1,4 +1,5 @@
 #include "fn.h"
+#include "symboltable.h"
 
 using namespace std;
 
@@ -186,9 +187,27 @@ bool NextClass::hasPublicField(NextString name) {
 	       members[name].vis == AccessModifiableEntity::PUB;
 }
 
-bool NextClass::hasPublicMethod(NextString name) {
-	return functions.find(name) != functions.end() &&
+bool NextClass::hasPublicMethod(uint64_t name) {
+	return hasMethod(name) &&
 	       functions[name]->vis == AccessModifiableEntity::PUB;
+}
+
+bool NextClass::hasMethod(uint64_t sig) {
+	return functions.size() > sig && functions[sig] != NULL;
+}
+
+void NextClass::insertMethod(uint64_t sym, Fn *f) {
+	if(sym < functions.size()) {
+		functions[sym] = FnPtr(f);
+	} else {
+		uint64_t oldsize = functions.size();
+		functions.resize(sym + 1);
+		for(uint64_t i = oldsize; i < sym + 1; i++) {
+			functions[i] = NULL;
+		}
+		functions[sym] = FnPtr(f);
+	}
+	frames.push_back(f->frame.get());
 }
 
 AccessModifiableEntity::Type NextClass::getEntityType() {
@@ -204,8 +223,10 @@ ostream &operator<<(ostream &os, const NextClass &n) {
 	}
 	os << "Methods : " << (n.functions.empty() ? "<empty>" : "") << endl;
 	for(auto const &i : n.functions) {
-		os << "Method " << StringLibrary::get(i.first) << " : " << endl;
-		os << *(i.second.get());
+		if(i == NULL)
+			continue;
+		os << "Method " << StringLibrary::get(i->name) << " : " << endl;
+		os << *(i->frame.get());
 	}
 	return os;
 }
@@ -270,9 +291,10 @@ bool Module::hasSignature(NextString n) {
 	return symbolTable.find(n) != symbolTable.end();
 }
 
-bool Module::hasPublicFn(NextString n) {
-	return functions.find(n) != functions.end() &&
-	       functions[n]->vis == AccessModifiableEntity::PUB;
+bool Module::hasPublicFn(uint64_t na) {
+	NextString name = SymbolTable::getSymbol(na);
+	return functions.find(name) != functions.end() &&
+	       functions[name]->vis == AccessModifiableEntity::PUB;
 }
 
 bool Module::hasPublicVar(const Token &t) {

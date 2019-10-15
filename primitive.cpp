@@ -1,4 +1,5 @@
 #include "primitive.h"
+#include "symboltable.h"
 
 using namespace std;
 
@@ -6,9 +7,9 @@ using namespace std;
 #define NEXT_PRIMITIVE_FN(t, x) \
 	Value NEXT_PRIMITIVE_NAME(t, x)(const Value *stack_)
 
-#define NEXT_PRIMITIVE_ENTRY(type, name, ...)                              \
-	Primitives_##type[StringLibrary::insert(#name "(" #__VA_ARGS__ ")")] = \
-	    &NEXT_PRIMITIVE_NAME(type, name);
+#define NEXT_PRIMITIVE_ENTRY(type, name, ...)                          \
+	Primitives_##type[SymbolTable::insertSymbol(StringLibrary::insert( \
+	    #name "(" #__VA_ARGS__ ")"))] = &NEXT_PRIMITIVE_NAME(type, name);
 
 // ========== Number =================
 

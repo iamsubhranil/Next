@@ -55,13 +55,13 @@ class Variable : public AccessModifiableEntity {
 };
 class NextClass;
 
-using FnPtr       = std::unique_ptr<Fn>;
-using ClassPtr    = std::unique_ptr<NextClass>;
-using SymbolTable = HashMap<NextString, AccessModifiableEntity *>;
-using FunctionMap = HashMap<NextString, FnPtr>;
-using VariableMap = HashMap<NextString, Variable>;
-using ImportMap   = HashMap<NextString, Module *>;
-using ClassMap    = HashMap<NextString, ClassPtr>;
+using FnPtr          = std::unique_ptr<Fn>;
+using ClassPtr       = std::unique_ptr<NextClass>;
+using SymbolTableOld = HashMap<NextString, AccessModifiableEntity *>;
+using FunctionMap    = HashMap<NextString, FnPtr>;
+using VariableMap    = HashMap<NextString, Variable>;
+using ImportMap      = HashMap<NextString, Module *>;
+using ClassMap       = HashMap<NextString, ClassPtr>;
 
 class NextClass : AccessModifiableEntity {
   public:
@@ -71,15 +71,17 @@ class NextClass : AccessModifiableEntity {
 	Token                token;
 	Module *             module;
 	NextString           name;
-	FunctionMap          functions;
+	std::vector<FnPtr>   functions;
 	VariableMap          members;
 	int                  slotNum;
 	std::vector<Frame *> frames; // collection of frames in the class to speed
 	                             // up intra-class calls
 	void declareVariable(NextString name, Visibility vis, bool iss, Token t);
 	bool hasVariable(NextString name);
-	bool hasPublicMethod(NextString sig);
+	bool hasPublicMethod(uint64_t sym);
 	bool hasPublicField(NextString name);
+	bool hasMethod(uint64_t sym);
+	void insertMethod(uint64_t sym, Fn *f);
 	Type getEntityType();
 	NextType getClassType();
 
@@ -213,7 +215,7 @@ class Module {
 	void           initializeFramesWithModuleStack();
 	bool           hasCode();
 	bool           hasSignature(NextString n);
-	bool           hasPublicFn(NextString sig);
+	bool           hasPublicFn(uint64_t sig);
 	bool           hasPublicVar(const Token &t);
 	bool           hasPublicVar(const NextString &t);
 	bool           hasType(const NextString &n);
@@ -221,7 +223,7 @@ class Module {
 	NextType       resolveType(const NextString &n);
 	Value *        getModuleStack(Fiber *f);
 	NextString     name;
-	SymbolTable    symbolTable;
+	SymbolTableOld symbolTable;
 	FunctionMap    functions;
 	VariableMap    variables;
 	ImportMap      importedModules;

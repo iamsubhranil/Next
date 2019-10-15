@@ -1,5 +1,6 @@
 #pragma once
 
+#include "symboltable.h"
 #include "value.h"
 #include <cstdint>
 #include <iomanip>
@@ -95,6 +96,7 @@ class BytecodeHolder {
 	insert_type(double);
 	insert_type(uintptr_t);
 	insert_type(Value);
+	insert_type(uint64_t);
 
 #undef insert_type
 
@@ -162,6 +164,12 @@ class BytecodeHolder {
 
 	static void disassemble_Value(const uint8_t *data) {
 		std::cout << "\t" << *(Value *)data;
+	}
+
+	static void disassemble_uint64_t(const uint8_t *data) {
+		std::cout << "\t"
+		          << StringLibrary::get(
+		                 SymbolTable::getSymbol(*(uint64_t *)data));
 	}
 
 	void disassemble() const {

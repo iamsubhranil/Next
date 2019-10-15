@@ -6,6 +6,7 @@
 #include "engine.h"
 #include "import.h"
 #include "loader.h"
+#include "symboltable.h"
 
 using namespace std;
 
@@ -182,14 +183,17 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 	}
 	// If we are inside a class, first search for methods inside
 	// of it
-	if(inClass && currentClass->functions.find(signature) !=
-	                  currentClass->functions.end()) {
+	uint64_t sym;
+	if(inClass)
+		sym = SymbolTable::insertSymbol(signature);
+	if(inClass && currentClass->hasMethod(sym)) {
 		info.type = CallInfo::INTRA_CLASS;
 		// Search for the frame in the class
-		Frame *searching = currentClass->functions[signature]->frame.get();
+		Frame *searching = currentClass->functions[sym]->frame.get();
 		info.frameIdx    = frame->getCallFrameIndex(searching);
-		info.fn          = currentClass->functions[signature].get();
+		info.fn          = currentClass->functions[sym].get();
 		return info;
+
 	}
 	// Search for methods with generated signature in the present
 	// module
@@ -279,7 +283,7 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	frame->insertdebug(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
 	if(onRefer) {
-		bytecode->call_method(signature, argSize);
+		bytecode->call_method(SymbolTable::insertSymbol(signature), argSize);
 		bytecode->stackEffect(-argSize);
 		return;
 	} else {
@@ -833,6 +837,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	NextString signature;
+	uint64_t   sym;
 	// Constructors are registered as module functions,
 	// and are called in the same way as normal functions.
 	// For example, a class named LinkedList which has a
@@ -850,6 +855,9 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	} else {
 		signature = generateSignature(ifs->name, ifs->arity);
 	}
+	if(inClass) {
+		sym = SymbolTable::insertSymbol(signature);
+	}
 	if(getState() == COMPILE_DECLARATION) {
 		if((!inClass || inConstructor) && module->hasSignature(signature)) {
 			if(inConstructor) {
@@ -863,12 +871,12 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			lnerr("Previously declared at : ",
 			      module->functions.find(signature)->second->token);
 			module->functions.find(signature)->second->token.highlight();
-		} else if(inClass && currentClass->functions.find(signature) !=
-		                         currentClass->functions.end()) {
+		} else if(inClass && currentClass->hasMethod(sym)) {
 			lnerr_("Redefinition of method with same signature!", ifs->name);
 			lnerr("Previously declared at : ",
-			      module->functions.find(signature)->second->token);
-			module->functions.find(signature)->second->token.highlight();
+			      currentClass->functions[sym]->token);
+			currentClass->functions[sym]->token.highlight();
+
 		} else {
 			FnPtr f = unq(Fn,
 			              !inClass ? (AccessModifiableEntity::Visibility)(
@@ -887,15 +895,14 @@ void CodeGenerator::visit(FnStatement *ifs) {
 				module->symbolTable[signature] = f.get();
 				module->functions[signature]   = FnPtr(f.release());
 			} else {
-				currentClass->frames.push_back(f->frame.get());
-				currentClass->functions[signature] = FnPtr(f.release());
+				currentClass->insertMethod(sym, f.release());
 			}
 		}
 	} else {
 		if(!inClass || inConstructor)
 			initFrame(module->functions[signature]->frame.get());
 		else
-			initFrame(currentClass->functions[signature]->frame.get());
+			initFrame(currentClass->functions[sym]->frame.get());
 
 		if(inClass || inConstructor) {
 			// Object will be stored in 0
@@ -906,7 +913,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			if(!inClass)
 				module->functions[signature]->isNative = true;
 			else
-				currentClass->functions[signature]->isNative = true;
+				currentClass->functions[sym]->isNative = true;
 			popFrame();
 		} else {
 			if(inConstructor) {

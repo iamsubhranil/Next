@@ -115,7 +115,7 @@ OPCODE1(load_field_pushback, 1, NextString)
 // the value at present TOS to the field
 OPCODE1(store_field, -1, NextString)
 
-OPCODE2(call_method, 0, NextString, int) // <signature> <slot>
+OPCODE2(call_method, 0, uint64_t, int) // <symbol> <args>
 // Optimized 'call' for intraclass
 // calls (i.e. call between two methods
 // of the same class)

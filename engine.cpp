@@ -2,6 +2,7 @@
 #include "builtins.h"
 #include "display.h"
 #include "primitive.h"
+#include "symboltable.h"
 
 using namespace std;
 
@@ -229,6 +230,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define next_int()                      \
 	(InstructionPointer += sizeof(int), \
 	 *(int *)((InstructionPointer - sizeof(int) + 1)))
+#define next_long()                          \
+	(InstructionPointer += sizeof(uint64_t), \
+	 *(uint64_t *)((InstructionPointer - sizeof(uint64_t) + 1)))
 #define next_double()                      \
 	(InstructionPointer += sizeof(double), \
 	 *(double *)((InstructionPointer - sizeof(double) + 1)))
@@ -740,19 +744,21 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call_method) : {
-				NextString method  = next_string();
-				int        numArg_ = next_int(); // copy the object also
-				Value      v       = *(StackTop - numArg_ - 1);
+				uint64_t method  = next_long();
+				int      numArg_ = next_int(); // copy the object also
+				Value    v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
-					ASSERT(obj->Class->hasPublicMethod(method),
-					       "Method '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(method),
-					       StringLibrary::get_raw(obj->Class->name));
+					ASSERT(
+					    obj->Class->hasPublicMethod(method),
+					    "Method '%s' not found in class '%s'!",
+					    StringLibrary::get_raw(SymbolTable::getSymbol(method)),
+					    StringLibrary::get_raw(obj->Class->name));
 
 					CALL(obj->Class->functions[method]->frame.get(),
 					     numArg_ + 1);
 				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
+					method = SymbolTable::getSymbol(method);
 					// It's a dynamic module method invokation
 					// If it's a constructor call, we can't just directly
 					// invoke CALL on the frame.
@@ -766,17 +772,20 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						CALL_INSTANCE(fi, numArg_ - 1, 0, 1);
 					}
 				} else {
-					ASSERT(Primitives::hasPrimitive(v.getType(), method),
-					       "Primitive method '%s' not found in type '%s'!",
-					       StringLibrary::get_raw(method),
-					       StringLibrary::get_raw(v.getTypeString()));
+					ASSERT(
+					    Primitives::hasPrimitive(v.getType(), method),
+					    "Primitive method '%s' not found in type '%s'!",
+					    StringLibrary::get_raw(SymbolTable::getSymbol(method)),
+					    StringLibrary::get_raw(v.getTypeString()));
 
 					Value ret = Primitives::invokePrimitive(
 					    v.getType(), method, StackTop - numArg_ - 1);
 
 					// Pop the arguments
 					while(numArg_ >= 0) {
-						POP(); // TODO: Potential memory leak?
+						Value &v = POP();
+						if(v.isObject())
+							v.toObject()->freeIfZero();
 						numArg_--;
 					}
 
