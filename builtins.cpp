@@ -1,5 +1,6 @@
 #include "builtins.h"
 #include "display.h"
+#include <time.h>
 
 using namespace std;
 
