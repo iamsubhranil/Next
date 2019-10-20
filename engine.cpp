@@ -9,7 +9,43 @@ using namespace std;
 char            ExecutionEngine::ExceptionMessage[1024] = {0};
 vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
 
-ExecutionEngine::ExecutionEngine() {}
+#define initSymbol(x) uint64_t ExecutionEngine::x##Hash = 0;
+initSymbol(add);
+initSymbol(sub);
+initSymbol(mul);
+initSymbol(div);
+initSymbol(eq);
+initSymbol(neq);
+initSymbol(less);
+initSymbol(lesseq);
+initSymbol(greater);
+initSymbol(greatereq);
+initSymbol(lor);
+initSymbol(land);
+/*
+#define OPCODE0(x, y) initSymbol(x)
+#define OPCODE1(x, y, z) initSymbol(x)
+#define OPCODE2(x, y, z, a) initSymbol(x)
+#include "opcodes.h"
+*/
+
+void ExecutionEngine::init() {
+#define registerOpcodeSymbol(opcode, symbol) \
+	opcode##Hash =                           \
+	    SymbolTable::insertSymbol(StringLibrary::insert(#symbol "(_)"));
+	registerOpcodeSymbol(add, +);
+	registerOpcodeSymbol(sub, -);
+	registerOpcodeSymbol(mul, *);
+	registerOpcodeSymbol(div, /);
+	registerOpcodeSymbol(eq, ==);
+	registerOpcodeSymbol(neq, !=);
+	registerOpcodeSymbol(less, <);
+	registerOpcodeSymbol(lesseq, <=);
+	registerOpcodeSymbol(greater, >);
+	registerOpcodeSymbol(greatereq, >=);
+	registerOpcodeSymbol(lor, or);
+	registerOpcodeSymbol(land, and);
+}
 
 HashMap<NextString, Module *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
@@ -208,16 +244,10 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
-#define CALL_INSTANCE(fIns, n, x, p)                      \
+#define CALL_INSTANCE(fIns, n)                            \
 	{                                                     \
 		FrameInstance *f = fIns;                          \
 		presentFrame     = &fiber->getCurrentFrame()[-1]; \
-		/* Denotes whether or not to pop                  \
-		 * the object itself, like dynamic                \
-		 * imported function calls */                     \
-		if(p) {                                           \
-			POP();                                        \
-		}                                                 \
 		BACKUP_FRAMEINFO();                               \
 		presentFrame = f;                                 \
 		RESTORE_FRAMEINFO();                              \
@@ -225,7 +255,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	}
 
 #define CALL(frame, n) \
-	{ CALL_INSTANCE(fiber->appendCallFrame(frame, n, &StackTop), n, 0, 0); }
+	{ CALL_INSTANCE(fiber->appendCallFrame(frame, n, &StackTop), n); }
 
 #define next_int()                      \
 	(InstructionPointer += sizeof(int), \
@@ -248,16 +278,28 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, name, argtype, restype)                           \
-	{                                                                \
-		Value v = POP();                                             \
-		ASSERT(v.is##argtype() && TOP.is##argtype(),                 \
-		       "Both of the operands of " #name " are not " #argtype \
-		       " (%s and %s)!",                                      \
-		       StringLibrary::get_raw(TOP.getTypeString()),          \
-		       StringLibrary::get_raw(v.getTypeString()));           \
-		TOP.set##restype(TOP.to##argtype() op v.to##argtype());      \
-		DISPATCH();                                                  \
+#define binary(op, opname, argtype, restype, opcode)                          \
+	{                                                                         \
+		Value v = POP();                                                      \
+		if(v.is##argtype() && TOP.is##argtype()) {                            \
+			TOP.set##restype(TOP.to##argtype() op v.to##argtype());           \
+			DISPATCH();                                                       \
+		} else if(TOP.isObject()) {                                           \
+			NextObject *obj = TOP.toObject();                                 \
+			ASSERT(                                                           \
+			    obj->Class->hasPublicMethod(opcode##Hash),                    \
+			    "Method '%s' not found in class '%s'!",                       \
+			    StringLibrary::get_raw(SymbolTable::getSymbol(opcode##Hash)), \
+			    StringLibrary::get_raw(obj->Class->name));                    \
+			ref_incr(TOP);                                                    \
+			PUSH(v);                                                          \
+			CALL(obj->Class->functions[opcode##Hash]->frame.get(), 1 + 1);    \
+		}                                                                     \
+		ASSERT(v.is##argtype() && TOP.is##argtype(),                          \
+		       "Both of the operands of " #opname " are not " #argtype        \
+		       " (%s and %s)!",                                               \
+		       StringLibrary::get_raw(TOP.getTypeString()),                   \
+		       StringLibrary::get_raw(v.getTypeString()));                    \
 	}
 
 #define ref_incr(x)                      \
@@ -282,6 +324,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define ASSERT(x, str, ...)      \
 	if(!(x)) {                   \
+		BACKUP_FRAMEINFO();      \
 		RERR(str, ##__VA_ARGS__) \
 		DISPATCH()               \
 	}
@@ -304,25 +347,26 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		}
 		cout << "\n\n";
 #ifdef DEBUG_INS
-		// fflush(stdin);
-		// getchar();
+		fflush(stdin);
+		getchar();
 #endif
 #endif
 		SWITCH() {
 
-			CASE(add) : binary(+, addition, Number, Number);
-			CASE(sub) : binary(-, subtraction, Number, Number);
-			CASE(mul) : binary(*, multiplication, Number, Number);
-			CASE(div) : binary(/, division, Number, Number);
-			CASE(lor) : binary(||, or, Boolean, Boolean);
-			CASE(land) : binary(&&, and, Boolean, Boolean);
-			CASE(neq) : binary(!=, not equals to, Number, Boolean);
-			CASE(greater) : binary(>, greater than, Number, Boolean);
+			CASE(add) : binary(+, addition, Number, Number, add);
+			CASE(sub) : binary(-, subtraction, Number, Number, sub);
+			CASE(mul) : binary(*, multiplication, Number, Number, mul);
+			CASE(div) : binary(/, division, Number, Number, div);
+			CASE(lor) : binary(||, or, Boolean, Boolean, lor);
+			CASE(land) : binary(&&, and, Boolean, Boolean, land);
+			CASE(neq) : binary(!=, not equals to, Number, Boolean, neq);
+			CASE(greater) : binary(>, greater than, Number, Boolean, greater);
 			CASE(greatereq)
-			    : binary(>=, greater than or equals to, Number, Boolean);
-			CASE(less) : binary(<, lesser than, Number, Boolean);
+			    : binary(>=, greater than or equals to, Number, Boolean,
+			             greatereq);
+			CASE(less) : binary(<, lesser than, Number, Boolean, less);
 			CASE(lesseq)
-			    : binary(<=, lesser than or equals to, Number, Boolean);
+			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
 			CASE(power) : RERR("Yet not implemented!");
 
 			CASE(eq) : {
@@ -465,9 +509,16 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
+				// make sure it doesn't get garbage collected
+				// if there are still slots pointing to this
+				// object
+				if(v.isObject())
+					v.toObject()->refCount++;
 				fiber->popFrame(&StackTop);
 				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
+				if(v.isObject())
+					v.toObject()->refCount--;
 				PUSH(v);
 				DISPATCH();
 			}
@@ -488,8 +539,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(store_slot) : {
 				int slot = next_int();
-				ref_decr(Stack[slot]);
 				ref_incr(TOP);
+				ref_decr(Stack[slot]);
 				// Do not pop the value off the stack yet
 				Stack[slot] = TOP;
 				DISPATCH();
@@ -557,8 +608,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(store_object_slot) : {
 				int slot = next_int();
-				ref_decr(Stack[0].toObject()->slots[slot]);
 				ref_incr(TOP);
+				ref_decr(Stack[0].toObject()->slots[slot]);
 				Stack[0].toObject()->slots[slot] = TOP;
 				DISPATCH();
 			}
@@ -746,7 +797,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(call_method) : {
 				uint64_t method  = next_long();
 				int      numArg_ = next_int(); // copy the object also
-				Value    v       = *(StackTop - numArg_ - 1);
+				Value &  v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
 					ASSERT(
@@ -759,18 +810,28 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					     numArg_ + 1);
 				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
 					method = SymbolTable::getSymbol(method);
-					// It's a dynamic module method invokation
-					// If it's a constructor call, we can't just directly
-					// invoke CALL on the frame.
-					FrameInstance *fi = fiber->appendCallFrame(
-					    v.toModule()->functions[method]->frame.get(), numArg_,
-					    &StackTop);
-					if(v.toModule()->functions[method]->isConstructor) {
-						fi->stack_[0] = Value();
-						CALL_INSTANCE(fi, numArg_ - 1, 1, 1);
-					} else {
-						CALL_INSTANCE(fi, numArg_ - 1, 0, 1);
+					// First, readjust the stack
+					// If it's a constructor, just assign 0 in place of
+					// the module
+					Fn * f             = v.toModule()->functions[method].get();
+					bool isConstructor = f->isConstructor;
+					if(isConstructor)
+						v = Value();
+					else {
+						// shift the elements to one place left
+						// to manually pop the module
+						for(Value *v = StackTop - numArg_ - 1; v < StackTop;
+						    v++) {
+							*v = *(v + 1);
+						}
+						// decrement the stack pointer
+						StackTop--;
 					}
+
+					FrameInstance *fi = fiber->appendCallFrame(
+					    f->frame.get(), numArg_ + isConstructor, &StackTop);
+					CALL_INSTANCE(fi, numArg_ - 1);
+
 				} else {
 					ASSERT(
 					    Primitives::hasPrimitive(v.getType(), method),

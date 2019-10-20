@@ -36,10 +36,15 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	frame  = nullptr;
 	module = compileIn;
 	ExecutionEngine::registerModule(compileIn);
-	if(compileIn->name != StringLibrary::insert("core"))
-		module->importedModules[StringLibrary::insert("core")] =
-		    &CoreModule::core;
 	initFrame(module->frame.get());
+	NextString lastName = StringLibrary::insert("core");
+	if(compileIn->name != lastName) {
+		module->importedModules[lastName] = &CoreModule::core;
+		VarInfo v                         = lookForVariable(lastName, true);
+		bytecode->push(Value(module->importedModules[lastName]));
+		bytecode->store_slot(v.slot);
+		bytecode->pop();
+	}
 	compileAll(stmts);
 	bytecode->halt();
 	popFrame();
@@ -322,8 +327,8 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 
 				// Function is not found
 				lnerr_("No function with the specified signature found in "
-				       "present module!",
-				       call->callee->token);
+				       "module '%s'!",
+				       call->callee->token, StringLibrary::get_raw(mod->name));
 				NextString s = StringLibrary::insert(
 				    call->callee->token.start, call->callee->token.length);
 				for(auto const &i : module->functions) {
@@ -505,42 +510,44 @@ void CodeGenerator::visit(GetExpression *get) {
 	// expression), or VariableExpression.CallExpression
 	// the expression can actually be a
 	// module reference.
+	/*
 	if(get->object->isVariable()) {
-		// Find out the name
-		NextString name = StringLibrary::insert(get->object->token.start,
-		                                        get->object->token.length);
-		// If a variable shadows the module name, the variable name will be
-		// prioritized
-		VarInfo var = lookForVariable(name, false);
-		// Check if there is a module of the same name
-		if(var.position == UNDEFINED && module->importedModules.find(name) !=
-		                                    module->importedModules.end()) {
-			// voila
-			// Now resolve the reference.
-			// Only valid function calls and variable
-			// accesses will be optimized. Everything else
-			// will be delegated into the runtime as a
-			// method call to the module primitive.
-			Module *m = module->importedModules[name];
-			if(get->refer->getType() == Expr::Type::CALL) {
-				CallExpression *ce = (CallExpression *)get->refer.get();
-				NextString      sig =
-				    generateSignature(ce->callee->token, ce->arguments.size());
-				if(m->hasSignature(sig)) {
-					emitCall(ce, true, m);
-					return;
-				} else {
-					// Load the module* at runtime and delegate the call
-					lookForVariable(name);
-					bool b  = onRefer;
-					onRefer = true;
-					emitCall(ce);
-					onRefer = b;
-					return;
-				}
-			}
-		}
+	    // Find out the name
+	    NextString name = StringLibrary::insert(get->object->token.start,
+	                                            get->object->token.length);
+	    // If a variable shadows the module name, the variable name will be
+	    // prioritized
+	    VarInfo var = lookForVariable(name, false);
+	    // Check if there is a module of the same name
+	    if(var.position == UNDEFINED && module->importedModules.find(name) !=
+	                                        module->importedModules.end()) {
+	        // voila
+	        // Now resolve the reference.
+	        // Only valid function calls and variable
+	        // accesses will be optimized. Everything else
+	        // will be delegated into the runtime as a
+	        // method call to the module primitive.
+	        Module *m = module->importedModules[name];
+	        if(get->refer->getType() == Expr::Type::CALL) {
+	            CallExpression *ce = (CallExpression *)get->refer.get();
+	            NextString      sig =
+	                generateSignature(ce->callee->token, ce->arguments.size());
+	            if(m->hasSignature(sig)) {
+	                emitCall(ce, true, m);
+	                return;
+	            } else {
+	                // Load the module* at runtime and delegate the call
+	                lookForVariable(name);
+	                bool b  = onRefer;
+	                onRefer = true;
+	                emitCall(ce);
+	                onRefer = b;
+	                return;
+	            }
+	        }
+	    }
 	}
+	*/
 	bool lb = onLHS;
 	onLHS   = false;
 	get->object->accept(this);
@@ -1050,8 +1057,11 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 		// Check for collisions first
 		if(module->importedModules.find(lastName) !=
 		   module->importedModules.end()) {
-			lnerr_("Import collision between two modules of the same name!",
-			       ifs->token);
+			// lnerr_("Import collision between two modules of the same name!",
+			//       ifs->token);
+			// the module is already imported
+			// skip
+			return;
 		}
 		ImportStatus is = import(ifs->import);
 		Token        t =

@@ -118,13 +118,12 @@
 #include <intrin.h>
 #pragma intrinsic(ROBIN_HOOD(BITSCANFORWARD))
 #define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)             \
-	[](size_t mask) noexcept->int {                     \
+	[](size_t mask) noexcept -> int {                   \
 		unsigned long index;                            \
 		return ROBIN_HOOD(BITSCANFORWARD)(&index, mask) \
 		           ? static_cast<int>(index)            \
 		           : ROBIN_HOOD(BITNESS);               \
-	}                                                   \
-	(x)
+	}(x)
 #else
 #if ROBIN_HOOD(BITNESS) == 32
 #define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzl

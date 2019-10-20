@@ -14,7 +14,22 @@ class ExecutionEngine {
 	static Value                pendingException;
 	static std::vector<Fiber *> fibers;
 
+#define declareSymbol(x) static uint64_t x##Hash;
+	declareSymbol(add);
+	declareSymbol(sub);
+	declareSymbol(mul);
+	declareSymbol(div);
+	declareSymbol(eq);
+	declareSymbol(neq);
+	declareSymbol(less);
+	declareSymbol(lesseq);
+	declareSymbol(greater);
+	declareSymbol(greatereq);
+	declareSymbol(lor);
+	declareSymbol(land);
+
   public:
+	static void    init();
 	static Value   createRuntimeException(const char *message);
 	static bool    isModuleRegistered(NextString name);
 	static void    registerModule(Module *m);
@@ -26,6 +41,5 @@ class ExecutionEngine {
 	static FrameInstance *throwException(Value v, Fiber *f);
 	static void           printStackTrace(Fiber *f);
 	static Value          newObject(NextString module, NextString Class);
-	ExecutionEngine();
-	void execute(Module *m, Frame *f);
+	void                  execute(Module *m, Frame *f);
 };

@@ -68,8 +68,8 @@ typedef struct Token {
 	void highlight(bool showFileName = false, const char *prefix = NULL) const;
 	static const char *TokenNames[];
 	static const char *FormalNames[];
-
-	static Token PlaceholderToken;
+	bool               isOperator();
+	static Token       PlaceholderToken;
 } Token;
 
 class Scanner {

@@ -179,15 +179,26 @@ StmtPtr VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	return unq(VardeclStatement, t, e, vis);
 }
 
-std::unique_ptr<FnBodyStatement> FnDeclaration::parseFnBody(Parser *p, Token t,
-                                                            bool isNative) {
+std::unique_ptr<FnBodyStatement>
+FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative, int numArgs) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after function name!");
 	std::vector<Token> args;
-	if(!p->match(TOKEN_RIGHT_PAREN)) {
-		do {
-			args.push_back(
-			    p->consume(TOKEN_IDENTIFIER, "Expected argument name!"));
-		} while(p->match(TOKEN_COMMA));
+	if(numArgs == -1) {
+		if(!p->match(TOKEN_RIGHT_PAREN)) {
+			do {
+				args.push_back(
+				    p->consume(TOKEN_IDENTIFIER, "Expected argument name!"));
+			} while(p->match(TOKEN_COMMA));
+			p->consume(TOKEN_RIGHT_PAREN,
+			           "Expected ')' after argument declaration!");
+		}
+	} else {
+		while(numArgs--) {
+			args.push_back(p->consume(TOKEN_IDENTIFIER,
+			                          "Expected argument for operator!"));
+			if(numArgs > 0)
+				p->consume(TOKEN_COMMA, "Expected ',' after argument!");
+		}
 		p->consume(TOKEN_RIGHT_PAREN,
 		           "Expected ')' after argument declaration!");
 	}
@@ -273,6 +284,16 @@ StmtPtr StaticDeclaration::parse(Parser *p, Token t) {
 
 StmtPtr MethodDeclaration::parse(Parser *p, Token t) {
 	return FnDeclaration::parseFnStatement(p, t, true, false, VIS_PRIV);
+}
+
+StmtPtr OpMethodDeclaration::parse(Parser *p, Token t) {
+	Token op = p->consume();
+	if(!op.isOperator()) {
+		throw ParseException(op, "Expected operator!");
+	}
+	std::unique_ptr<FnBodyStatement> body =
+	    FnDeclaration::parseFnBody(p, t, false, 1);
+	return unq(FnStatement, t, op, body, true, false, false, false, VIS_PRIV);
 }
 
 StmtPtr MemberDeclaration::parse(Parser *p, Token t) {

@@ -140,8 +140,8 @@ class ClassDeclaration : public DeclarationParselet {
 class FnDeclaration : public DeclarationParselet {
   public:
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis);
-	static std::unique_ptr<FnBodyStatement> parseFnBody(Parser *p, Token t,
-	                                                    bool isNative = false);
+	static std::unique_ptr<FnBodyStatement>
+	               parseFnBody(Parser *p, Token t, bool isNative = false, int numArgs = -1);
 	static StmtPtr parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 	                                Visibility vis);
 };
@@ -215,6 +215,11 @@ class StaticDeclaration : public StatementParselet {
 };
 
 class MethodDeclaration : public StatementParselet {
+  public:
+	StmtPtr parse(Parser *p, Token t);
+};
+
+class OpMethodDeclaration : public StatementParselet {
   public:
 	StmtPtr parse(Parser *p, Token t);
 };

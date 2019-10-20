@@ -1,5 +1,6 @@
 #include "builtins.h"
 #include "core.h"
+#include "engine.h"
 #include "loader.h"
 #include "primitive.h"
 #include "qnan.h"
@@ -18,6 +19,7 @@ int main(int argc, char *argv[]) {
 	NextType::init();
 	Builtin::init();
 	Primitives::init();
+	ExecutionEngine::init();
 	// load the core module first
 	CoreModule::init();
 	if(argc > 1) {

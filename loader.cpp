@@ -79,6 +79,7 @@ void registerParselets(Parser *p) {
 	ClassDeclaration::registerParselet(TOKEN_priv, new VisibilityDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_static, new StaticDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_fn, new MethodDeclaration());
+	ClassDeclaration::registerParselet(TOKEN_op, new OpMethodDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_IDENTIFIER,
 	                                   new MemberDeclaration());
 

@@ -30,6 +30,24 @@ Token Token::errorToken(const char *message, Scanner *scanner) {
 	return token;
 }
 
+bool Token::isOperator() {
+	switch(type) {
+		case TOKEN_BANG_EQUAL:
+		case TOKEN_LESS_EQUAL:
+		case TOKEN_EQUAL_EQUAL:
+		case TOKEN_GREATER_EQUAL:
+		case TOKEN_GREATER:
+		case TOKEN_LESS:
+		case TOKEN_PLUS:
+		case TOKEN_STAR:
+		case TOKEN_MINUS:
+		case TOKEN_SLASH:
+		case TOKEN_or:
+		case TOKEN_and: return true;
+		default: return false;
+	}
+}
+
 void Token::highlight(bool showFileName, const char *prefix) const {
 	const char *tokenEnd = start, *tokenStart = start;
 	while(*tokenStart != '\n' && tokenStart != source) tokenStart--;
