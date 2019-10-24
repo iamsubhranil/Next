@@ -1,4 +1,5 @@
 #include "primitive.h"
+#include "engine.h"
 #include "symboltable.h"
 
 using namespace std;
@@ -46,6 +47,22 @@ NEXT_PRIMITIVE_FN(String, len) {
 	return Value((double)(StringLibrary::get(stack_[0].toString()).size()));
 }
 
+NEXT_PRIMITIVE_FN(String, has) {
+	if(!stack_[1].isString()) {
+		ExecutionEngine::setPendingException(
+		    ExecutionEngine::createRuntimeException(
+		        "Argument 1 of has(_) is not a string!"));
+		return Value::nil;
+	}
+
+	const string &s = StringLibrary::get(stack_[0].toString());
+	const string &s1 = StringLibrary::get(stack_[1].toString());
+	if(s.find(s1) != string::npos) {
+		return Value(true);
+	}
+	return Value(false);
+}
+
 #define NEXT_STRING_PRIMITIVE(name, ...) \
 	NEXT_PRIMITIVE_ENTRY(String, name, ##__VA_ARGS__)
 PrimitiveMap Primitives_String = PrimitiveMap{};
@@ -75,4 +92,5 @@ void Primitives::init() {
 
 	NEXT_STRING_PRIMITIVE(str);
 	NEXT_STRING_PRIMITIVE(len);
+	NEXT_STRING_PRIMITIVE(has, _);
 }

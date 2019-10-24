@@ -8,6 +8,9 @@ using namespace std;
 
 char            ExecutionEngine::ExceptionMessage[1024] = {0};
 vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
+HashMap<NextString, Module *> ExecutionEngine::loadedModules =
+    decltype(ExecutionEngine::loadedModules){};
+Value ExecutionEngine::pendingException = Value::nil;
 
 #define initSymbol(x) uint64_t ExecutionEngine::x##Hash = 0;
 initSymbol(add);
@@ -45,11 +48,9 @@ void ExecutionEngine::init() {
 	registerOpcodeSymbol(greatereq, >=);
 	registerOpcodeSymbol(lor, or);
 	registerOpcodeSymbol(land, and);
-}
 
-HashMap<NextString, Module *> ExecutionEngine::loadedModules =
-    decltype(ExecutionEngine::loadedModules){};
-Value ExecutionEngine::pendingException = Value::nil;
+	pendingException = Value::nil;
+}
 
 bool ExecutionEngine::isModuleRegistered(NextString name) {
 	return loadedModules.find(name) != loadedModules.end();
@@ -94,12 +95,14 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 }
 
 #define PUSH(x) *StackTop++ = (x);
-#define RERR(x, ...)                                                     \
-	{                                                                    \
-		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);              \
-		throwException(createRuntimeException(ExceptionMessage), fiber); \
-		RESTORE_FRAMEINFO();                                             \
-		DISPATCH();                                                      \
+#define RERR(x, ...)                                                         \
+	{                                                                        \
+		BACKUP_FRAMEINFO();                                                  \
+		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);                  \
+		presentFrame =                                                       \
+		    throwException(createRuntimeException(ExceptionMessage), fiber); \
+		RESTORE_FRAMEINFO();                                                 \
+		DISPATCH_WINC();                                                     \
 	}
 
 #define set_instruction_pointer(x) \
@@ -129,6 +132,7 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 		searching = &f->callFrames[--num];
 	}
 	if(matched == NULL) {
+		cout << "\n";
 		// no handlers matched, unwind stack
 		err("Uncaught exception occurred of type '%s.%s'!",
 		    StringLibrary::get_raw(t.module), StringLibrary::get_raw(t.name));
@@ -842,16 +846,25 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					Value ret = Primitives::invokePrimitive(
 					    v.getType(), method, StackTop - numArg_ - 1);
 
-					// Pop the arguments
-					while(numArg_ >= 0) {
-						Value &v = POP();
-						if(v.isObject())
-							v.toObject()->freeIfZero();
-						numArg_--;
-					}
+					if(pendingException != Value::nil) {
+						BACKUP_FRAMEINFO();
+						presentFrame = throwException(pendingException, fiber);
+						RESTORE_FRAMEINFO();
+						pendingException = Value::nil;
+						DISPATCH_WINC();
+					} else {
 
-					PUSH(ret);
-					DISPATCH();
+						// Pop the arguments
+						while(numArg_ >= 0) {
+							Value &v = POP();
+							if(v.isObject())
+								v.toObject()->freeIfZero();
+							numArg_--;
+						}
+
+						PUSH(ret);
+						DISPATCH();
+					}
 				}
 			}
 			/*
@@ -922,13 +935,22 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				int        args       = next_int();
 				Value *    stackStart = StackTop - args;
 				Value      res = Builtin::invoke_builtin(sig, stackStart);
-				while(args--) {
-					Value v = POP();
-					if(v.isObject())
-						v.toObject()->freeIfZero();
+
+				if(pendingException != Value::nil) {
+					BACKUP_FRAMEINFO();
+					presentFrame = throwException(pendingException, fiber);
+					RESTORE_FRAMEINFO();
+					pendingException = Value::nil;
+					DISPATCH_WINC();
+				} else {
+					while(args--) {
+						Value v = POP();
+						if(v.isObject())
+							v.toObject()->freeIfZero();
+					}
+					PUSH(res);
+					DISPATCH();
 				}
-				PUSH(res);
-				DISPATCH();
 			}
 
 			CASE(load_constant) : {
