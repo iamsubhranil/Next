@@ -208,7 +208,9 @@ Value ExecutionEngine::newObject(NextString mod, NextString c) {
 	}
 
 void ExecutionEngine::execute(Module *m, Frame *f) {
-	FrameInstance *presentFrame;
+	FrameInstance *presentFrame, *frameInstanceToCall;
+	Frame *        frameToCall;
+	int            numberOfArguments;
 	for(auto i : m->importedModules) {
 		if(i.second->frameInstance == NULL && i.second->hasCode())
 			execute(i.second, i.second->frame.get());
@@ -280,18 +282,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
-#define CALL_INSTANCE(fIns, n)                            \
-	{                                                     \
-		FrameInstance *f = fIns;                          \
-		presentFrame     = &fiber->getCurrentFrame()[-1]; \
-		BACKUP_FRAMEINFO();                               \
-		presentFrame = f;                                 \
-		RESTORE_FRAMEINFO();                              \
-		DISPATCH_WINC();                                  \
+#define CALL_INSTANCE(fIns, n)      \
+	{                               \
+		frameInstanceToCall = fIns; \
+		numberOfArguments   = n;    \
+		goto call_frameinstance;    \
 	}
 
-#define CALL(frame, n) \
-	{ CALL_INSTANCE(fiber->appendCallFrame(frame, n, &StackTop), n); }
+#define CALL(frame, n)             \
+	{                              \
+		frameToCall       = frame; \
+		numberOfArguments = n;     \
+		goto call_frame;           \
+	}
 
 #define next_int()                      \
 	(InstructionPointer += sizeof(int), \
@@ -669,11 +672,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
-					       obj->Class->name);
+					       c->name);
 
-					TOP = obj->slots[obj->Class->members[field].slot];
+					TOP = obj->slots[c->members[field].slot];
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
@@ -692,12 +696,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
-					       obj->Class->name);
+					       c->name);
 
 					Value v = TOP;
-					TOP     = obj->slots[obj->Class->members[field].slot];
+					TOP     = obj->slots[c->members[field].slot];
 					PUSH(v);
 					DISPATCH();
 				} else if(TOP.isModule()) {
@@ -719,13 +724,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
+					NextClass * c   = obj->Class;
 					TOP             = Value::nil;
 					POP();
-					ASSERT(obj->Class->hasPublicField(field),
+					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
-					       obj->Class->name);
+					       c->name);
 
-					Value &v = obj->slots[obj->Class->members[field].slot];
+					Value &v = obj->slots[c->members[field].slot];
 					ref_decr(v);
 					ref_incr(TOP);
 					v = TOP;
@@ -751,11 +757,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
-					       obj->Class->name);
+					       c->name);
 
-					Value &v = obj->slots[obj->Class->members[field].slot];
+					Value &v = obj->slots[c->members[field].slot];
 
 					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
 
@@ -784,11 +791,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
-					       obj->Class->name);
+					       c->name);
 
-					Value &v = obj->slots[obj->Class->members[field].slot];
+					Value &v = obj->slots[c->members[field].slot];
 
 					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
 
@@ -819,12 +827,12 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value &  v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
-					ASSERT(obj->Class->hasPublicMethod(method),
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicMethod(method),
 					       "Method '@t' not found in class '@s'!", method,
-					       obj->Class->name);
+					       c->name);
 
-					CALL(obj->Class->functions[method]->frame.get(),
-					     numArg_ + 1);
+					CALL(c->functions[method]->frame.get(), numArg_ + 1);
 				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
 					method = SymbolTable::getSymbol(method);
 					// First, readjust the stack
@@ -976,6 +984,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				}
 			}
 		}
+	call_frame:
+		frameInstanceToCall =
+		    fiber->appendCallFrame(frameToCall, numberOfArguments, &StackTop);
+	call_frameinstance:
+		presentFrame = &fiber->getCurrentFrame()[-1];
+		BACKUP_FRAMEINFO();
+		presentFrame = frameInstanceToCall;
+		RESTORE_FRAMEINFO();
+		DISPATCH_WINC();
 	error:
 		// Only way we can get here is by a 'goto error'
 		// statement, which was triggered either by a
