@@ -94,16 +94,42 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 	return except;
 }
 
-#define PUSH(x) *StackTop++ = (x);
-#define RERR(x, ...)                                                         \
-	{                                                                        \
-		BACKUP_FRAMEINFO();                                                  \
-		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);                  \
-		presentFrame =                                                       \
-		    throwException(createRuntimeException(ExceptionMessage), fiber); \
-		RESTORE_FRAMEINFO();                                                 \
-		DISPATCH_WINC();                                                     \
+// @s   <-- StringLibrary hash
+// @t   <-- SymbolTable no
+void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
+	int    i = 0, j = 0;
+	va_list args;
+	va_start(args, message);
+
+	while(message[i] != '\0') {
+		if(message[i] == '@') {
+			switch(message[i + 1]) {
+				case 's': {
+					NextString  h   = va_arg(args, NextString);
+					const char *str = StringLibrary::get_raw(h);
+					while(*str != '\0') ExceptionMessage[j++] = *str++;
+					i += 2;
+					break;
+				}
+				case 't': {
+					uint64_t    s = va_arg(args, uint64_t);
+					const char *str =
+					    StringLibrary::get_raw(SymbolTable::getSymbol(s));
+					while(*str != '\0') ExceptionMessage[j++] = *str++;
+					i += 2;
+					break;
+				}
+				default: ExceptionMessage[j++] = message[i++]; break;
+			}
+		} else {
+			ExceptionMessage[j++] = message[i++];
+		}
 	}
+
+	va_end(args);
+}
+
+#define PUSH(x) *StackTop++ = (x);
 
 #define set_instruction_pointer(x) \
 	instructionPointer = x->code - x->frame->code.bytecodes.data()
@@ -174,6 +200,12 @@ Value ExecutionEngine::newObject(NextString mod, NextString c) {
 	}
 	return Value::nil;
 }
+
+#define RERR(x, ...)                              \
+	{                                             \
+		formatExceptionMessage(x, ##__VA_ARGS__); \
+		goto error;                               \
+	}
 
 void ExecutionEngine::execute(Module *m, Frame *f) {
 	FrameInstance *presentFrame;
@@ -282,28 +314,25 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, opname, argtype, restype, opcode)                          \
-	{                                                                         \
-		Value v = POP();                                                      \
-		if(v.is##argtype() && TOP.is##argtype()) {                            \
-			TOP.set##restype(TOP.to##argtype() op v.to##argtype());           \
-			DISPATCH();                                                       \
-		} else if(TOP.isObject()) {                                           \
-			NextObject *obj = TOP.toObject();                                 \
-			ASSERT(                                                           \
-			    obj->Class->hasPublicMethod(opcode##Hash),                    \
-			    "Method '%s' not found in class '%s'!",                       \
-			    StringLibrary::get_raw(SymbolTable::getSymbol(opcode##Hash)), \
-			    StringLibrary::get_raw(obj->Class->name));                    \
-			ref_incr(TOP);                                                    \
-			PUSH(v);                                                          \
-			CALL(obj->Class->functions[opcode##Hash]->frame.get(), 1 + 1);    \
-		}                                                                     \
-		ASSERT(v.is##argtype() && TOP.is##argtype(),                          \
-		       "Both of the operands of " #opname " are not " #argtype        \
-		       " (%s and %s)!",                                               \
-		       StringLibrary::get_raw(TOP.getTypeString()),                   \
-		       StringLibrary::get_raw(v.getTypeString()));                    \
+#define binary(op, opname, argtype, restype, opcode)                       \
+	{                                                                      \
+		Value v = POP();                                                   \
+		if(v.is##argtype() && TOP.is##argtype()) {                         \
+			TOP.set##restype(TOP.to##argtype() op v.to##argtype());        \
+			DISPATCH();                                                    \
+		} else if(TOP.isObject()) {                                        \
+			NextObject *obj = TOP.toObject();                              \
+			ASSERT(obj->Class->hasPublicMethod(opcode##Hash),              \
+			       "Method '@t' not found in class '@s'!", opcode##Hash,   \
+			       obj->Class->name);                                      \
+			ref_incr(TOP);                                                 \
+			PUSH(v);                                                       \
+			CALL(obj->Class->functions[opcode##Hash]->frame.get(), 1 + 1); \
+		}                                                                  \
+		ASSERT(v.is##argtype() && TOP.is##argtype(),                       \
+		       "Both of the operands of " #opname " are not " #argtype     \
+		       " (@s and @s)!",                                            \
+		       TOP.getTypeString(), v.getTypeString());                    \
 	}
 
 #define ref_incr(x)                      \
@@ -328,9 +357,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define ASSERT(x, str, ...)      \
 	if(!(x)) {                   \
-		BACKUP_FRAMEINFO();      \
 		RERR(str, ##__VA_ARGS__) \
-		DISPATCH()               \
 	}
 
 	LOOP() {
@@ -643,19 +670,17 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
 					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					       "Member '@s' not found in class '@s'!", field,
+					       obj->Class->name);
 
 					TOP = obj->slots[obj->Class->members[field].slot];
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name))
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name)
 
 					PUSH(m->getModuleStack(fiber)[m->variables[field].slot]);
 					DISPATCH();
@@ -668,9 +693,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
 					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					       "Member '@s' not found in class '@s'!", field,
+					       obj->Class->name);
 
 					Value v = TOP;
 					TOP     = obj->slots[obj->Class->members[field].slot];
@@ -679,10 +703,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'",
+					       field, m->name);
 
 					Value v = TOP;
 					TOP = m->getModuleStack(fiber)[m->variables[field].slot];
@@ -699,9 +722,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					TOP             = Value::nil;
 					POP();
 					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					       "Member '@s' not found in class '@s'!", field,
+					       obj->Class->name);
 
 					Value &v = obj->slots[obj->Class->members[field].slot];
 					ref_decr(v);
@@ -711,10 +733,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				} else if(TOP.isModule()) {
 					Module *m = POP().toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name);
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
@@ -731,30 +752,27 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
 					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					       "Member '@s' not found in class '@s'!", field,
+					       obj->Class->name);
 
 					Value &v = obj->slots[obj->Class->members[field].slot];
 
-					ASSERT(v.isNumber(), "Member '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
 
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name);
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
 
-					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Variable '@s' is not a number!",
+					       field);
 
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
@@ -767,30 +785,27 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
 					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					       "Member '@s' not found in class '@s'!", field,
+					       obj->Class->name);
 
 					Value &v = obj->slots[obj->Class->members[field].slot];
 
-					ASSERT(v.isNumber(), "Member '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
 
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name);
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
 
-					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Variable '@s' is not a number!",
+					       field);
 
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
@@ -804,11 +819,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value &  v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
-					ASSERT(
-					    obj->Class->hasPublicMethod(method),
-					    "Method '%s' not found in class '%s'!",
-					    StringLibrary::get_raw(SymbolTable::getSymbol(method)),
-					    StringLibrary::get_raw(obj->Class->name));
+					ASSERT(obj->Class->hasPublicMethod(method),
+					       "Method '@t' not found in class '@s'!", method,
+					       obj->Class->name);
 
 					CALL(obj->Class->functions[method]->frame.get(),
 					     numArg_ + 1);
@@ -837,21 +850,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					CALL_INSTANCE(fi, numArg_ - 1);
 
 				} else {
-					ASSERT(
-					    Primitives::hasPrimitive(v.getType(), method),
-					    "Primitive method '%s' not found in type '%s'!",
-					    StringLibrary::get_raw(SymbolTable::getSymbol(method)),
-					    StringLibrary::get_raw(v.getTypeString()));
+					ASSERT(Primitives::hasPrimitive(v.getType(), method),
+					       "Primitive method '@t' not found in type '@s'!",
+					       method, v.getTypeString());
 
 					Value ret = Primitives::invokePrimitive(
 					    v.getType(), method, StackTop - numArg_ - 1);
 
 					if(pendingException != Value::nil) {
-						BACKUP_FRAMEINFO();
-						presentFrame = throwException(pendingException, fiber);
-						RESTORE_FRAMEINFO();
-						pendingException = Value::nil;
-						DISPATCH_WINC();
+						goto error;
 					} else {
 
 						// Pop the arguments
@@ -924,10 +931,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					TOP = Value::nil;
 				}
 				POP();
-				BACKUP_FRAMEINFO();
-				presentFrame = throwException(v, fiber);
-				RESTORE_FRAMEINFO();
-				DISPATCH_WINC();
+				pendingException = v;
+				goto error;
 			}
 
 			CASE(call_builtin) : {
@@ -937,11 +942,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value      res = Builtin::invoke_builtin(sig, stackStart);
 
 				if(pendingException != Value::nil) {
-					BACKUP_FRAMEINFO();
-					presentFrame = throwException(pendingException, fiber);
-					RESTORE_FRAMEINFO();
-					pendingException = Value::nil;
-					DISPATCH_WINC();
+					goto error;
 				} else {
 					while(args--) {
 						Value v = POP();
@@ -975,5 +976,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				}
 			}
 		}
+	error:
+		// Only way we can get here is by a 'goto error'
+		// statement, which was triggered either by a
+		// runtime error, or an user generated exception,
+		// or by a pending exception of a builtin or a
+		// primitive. In case of the later, the
+		// pendingException will already be set by the
+		// value of the exception, otherwise, we use
+		// the ExceptionMessage to create a
+		// RuntimeException, and set pendingException
+		// to the same.
+		if(pendingException == Value::nil) {
+			pendingException = createRuntimeException(ExceptionMessage);
+		}
+		BACKUP_FRAMEINFO();
+		presentFrame = throwException(pendingException, fiber);
+		RESTORE_FRAMEINFO();
+		pendingException = Value::nil;
+		DISPATCH_WINC();
 	}
 }
