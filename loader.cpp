@@ -108,11 +108,16 @@ NextString generateModuleName(const char *inp) {
 }
 
 Module *compile_and_load(const char *fileName, bool execute) {
+	NextString modName = generateModuleName(fileName);
+	return compile_and_load_with_name(fileName, modName, execute);
+}
+
+Module *compile_and_load_with_name(const char *fileName, NextString modName,
+                                   bool execute) {
 	CodeGenerator c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	NextString modName = generateModuleName(fileName);
 	if(ExecutionEngine::isModuleRegistered(modName))
 		return ExecutionEngine::getRegisteredModule(modName);
 	ExecutionEngine ex;

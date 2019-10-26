@@ -39,7 +39,7 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	initFrame(module->frame.get());
 	NextString lastName = StringLibrary::insert("core");
 	if(compileIn->name != lastName) {
-		module->importedModules[lastName] = &CoreModule::core;
+		module->importedModules[lastName] = CoreModule::core;
 		VarInfo v                         = lookForVariable(lastName, true);
 		bytecode->push(Value(module->importedModules[lastName]));
 		bytecode->store_slot(v.slot);
@@ -328,7 +328,8 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 				// Function is not found
 				lnerr_("No function with the specified signature found in "
 				       "module '%s'!",
-				       call->callee->token, StringLibrary::get_raw(mod->name));
+				       call->callee->token,
+				       StringLibrary::get_raw(module->name));
 				NextString s = StringLibrary::insert(
 				    call->callee->token.start, call->callee->token.length);
 				for(auto const &i : module->functions) {
