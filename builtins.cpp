@@ -19,10 +19,10 @@ HashMap<NextString, Value> Builtin::BuiltinConstants =
     HashMap<NextString, Value>{};
 
 void Builtin::init() {
-	BuiltinHandlers[StringLibrary::insert("clock()")] = &next_clock;
 
-	BuiltinConstants[StringLibrary::insert("clocks_per_sec")] =
-	    Value((double)CLOCKS_PER_SEC);
+	register_builtin("clock()", next_clock);
+
+	register_constant("clocks_per_sec", Value((double)CLOCKS_PER_SEC));
 }
 
 bool Builtin::has_builtin(NextString sig) {
@@ -40,12 +40,20 @@ void Builtin::register_builtin(NextString sig, builtin_handler handler) {
 	BuiltinHandlers[sig] = handler;
 }
 
+void Builtin::register_builtin(const char *sig, builtin_handler handler) {
+	register_builtin(StringLibrary::insert(sig), handler);
+}
+
 void Builtin::register_constant(NextString name, Value v) {
 	if(has_constant(name)) {
 		warn("Overriding constant value for '%s'!",
 		     StringLibrary::get_raw(name));
 	}
 	BuiltinConstants[name] = v;
+}
+
+void Builtin::register_constant(const char *sig, Value v) {
+	register_constant(StringLibrary::insert(sig), v);
 }
 
 Value Builtin::invoke_builtin(NextString sig, const Value *args) {
