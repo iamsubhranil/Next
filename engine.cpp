@@ -393,7 +393,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(div) : binary(/, division, Number, Number, div);
 			CASE(lor) : binary(||, or, Boolean, Boolean, lor);
 			CASE(land) : binary(&&, and, Boolean, Boolean, land);
-			CASE(neq) : binary(!=, not equals to, Number, Boolean, neq);
 			CASE(greater) : binary(>, greater than, Number, Boolean, greater);
 			CASE(greatereq)
 			    : binary(>=, greater than or equals to, Number, Boolean,
@@ -403,8 +402,30 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
 			CASE(power) : RERR("Yet not implemented!");
 
+			CASE(neq) : {
+				Value v = POP();
+				if(v.isObject() &&
+				   v.toObject()->Class->hasPublicMethod(neqHash)) {
+					ref_incr(v);
+					ref_incr(TOP);
+					PUSH(v);
+					CALL(v.toObject()->Class->functions[neqHash]->frame.get(),
+					     2);
+				}
+				TOP = v != TOP;
+				DISPATCH();
+			}
+
 			CASE(eq) : {
 				Value v = POP();
+				if(v.isObject() &&
+				   v.toObject()->Class->hasPublicMethod(eqHash)) {
+					ref_incr(v);
+					ref_incr(TOP);
+					PUSH(v);
+					CALL(v.toObject()->Class->functions[eqHash]->frame.get(),
+					     2);
+				}
 				TOP     = v == TOP;
 				DISPATCH();
 			}
