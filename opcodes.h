@@ -80,9 +80,9 @@ OPCODE1(store_module_slot, 0, int) // <slot>
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
-// Pop, verify and jump
-OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
-OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
+// Verify and jump, does not pop
+OPCODE1(jumpiftrue, 0, int)  // <relative_jump_offset>
+OPCODE1(jumpiffalse, 0, int) // <relative_jump_offset>
 
 // Since 'call' creates a separate stack for the callee,
 // the number of parameters is needed to copy the old arguments

@@ -130,7 +130,16 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 	dinfo("");
 	bin->token.highlight();
 #endif
+	int patch = 0;
+	int pos   = 0;
 	bin->left->accept(this);
+	if(bin->token.type == TOKEN_and) {
+		patch = 1;
+		pos   = bytecode->jumpiffalse(0);
+	} else if(bin->token.type == TOKEN_or) {
+		patch = 2;
+		pos   = bytecode->jumpiftrue(0);
+	}
 	bin->right->accept(this);
 	frame->insertdebug(bin->token);
 	switch(bin->token.type) {
@@ -146,12 +155,23 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_LESS_EQUAL: bytecode->lesseq(); break;
 		case TOKEN_GREATER: bytecode->greater(); break;
 		case TOKEN_GREATER_EQUAL: bytecode->greatereq(); break;
-		case TOKEN_and: bytecode->land(); break;
-		case TOKEN_or: bytecode->lor(); break;
+
+		// We really don't need these opcodes anymore,
+		// since the result of these will be the result
+		// of the second operand anyway
+		case TOKEN_and: /* bytecode->land(); */ break;
+		case TOKEN_or: /* bytecode->lor(); */ break;
 
 		default:
 			panic("Invalid binary operator '%s'!",
 			      Token::FormalNames[bin->token.type]);
+	}
+
+	if(patch > 0) {
+		switch(patch) {
+			case 1: bytecode->jumpiffalse(pos, bytecode->getip() - pos); break;
+			case 2: bytecode->jumpiftrue(pos, bytecode->getip() - pos); break;
+		}
 	}
 }
 
@@ -776,8 +796,11 @@ void CodeGenerator::visit(IfStatement *ifs) {
 		exitif = bytecode->jump(0);
 		jumpto = bytecode->getip();
 		ifs->elseBlock->accept(this);
-	} else
+	} else {
 		jumpto = bytecode->getip();
+	}
+	// pop off the conditional value since jif doesn't pop anymore
+	bytecode->pop();
 	// patch the conditional jump
 	bytecode->jumpiffalse(jif, jumpto - jif);
 	// if there is an else block, patch the
@@ -796,15 +819,31 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 		ifs->condition->accept(this);
 		frame->insertdebug(ifs->token);
 		int loopexit = bytecode->jumpiffalse(0);
+		// pop the boolean value. since jumpiffalse
+		// does not pop anymore
+		bytecode->pop();
 		ifs->thenBlock->accept(this);
 		bytecode->jump(pos - bytecode->getip());
 		bytecode->jumpiffalse(loopexit, bytecode->getip() - loopexit);
+		// pop off the stale boolean value
+		bytecode->pop();
 	} else {
+		// since this is a do loop, we need to
+		// pop off the conditional boolean value
+		// inside the loop since jumpiftrue does
+		// not pop anymore, but at the first
+		// iteration, we have nothing to pop yet
+		// So we insert a stale boolean value to
+		// insert the pop instruction in the loop
+		bytecode->push(Value(false));
 		int pos = bytecode->getip();
+		bytecode->pop();
 		ifs->thenBlock->accept(this);
 		ifs->condition->accept(this);
 		frame->insertdebug(ifs->token);
 		bytecode->jumpiftrue(pos - bytecode->getip());
+		// pop off the stale boolean value
+		bytecode->pop();
 	}
 }
 
