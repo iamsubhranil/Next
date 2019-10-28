@@ -1,6 +1,7 @@
 #include "primitive.h"
 #include "engine.h"
 #include "symboltable.h"
+#include <cmath>
 
 using namespace std;
 
@@ -20,6 +21,11 @@ NEXT_PRIMITIVE_FN(Number, str) {
 	static char val[1079];
 	snprintf(val, 1079, "%lf", stack_[0].toNumber());
 	return Value(StringLibrary::insert(val));
+}
+
+NEXT_PRIMITIVE_FN(Number, is_int) {
+	double intpart;
+	return Value(modf(stack_[0].toNumber(), &intpart) == 0.0);
 }
 
 #define NEXT_NUMBER_PRIMITIVE(name, ...) \
@@ -87,6 +93,7 @@ Value Primitives::invokePrimitive(Value::Type type, NextString signature,
 
 void Primitives::init() {
 	NEXT_NUMBER_PRIMITIVE(str);
+	NEXT_NUMBER_PRIMITIVE(is_int);
 
 	NEXT_BOOLEAN_PRIMITIVE(str);
 
