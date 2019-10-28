@@ -25,6 +25,7 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 		case Value::VAL_Module:
 			o << "<module " << StringLibrary::get(v.toModule()->name) << ">";
 			break;
+		case Value::VAL_Array: o << "<array " << v.toArray() << ">"; break;
 		default: panic("<unrecognized object %lx>", v.value); break;
 	}
 	return o;

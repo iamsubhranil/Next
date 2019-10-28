@@ -57,6 +57,8 @@ def BENCHMARK(name, pattern):
 
 # BENCHMARK("api_foreign_method", "100000000")
 
+BENCHMARK("arrays", r"""5e\+11""")
+
 BENCHMARK("binary_trees", r"""stretch tree of depth 13 check : -1
 8192 trees of depth 4 check : -8192
 2048 trees of depth 6 check : -2048

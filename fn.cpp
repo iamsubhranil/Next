@@ -117,40 +117,40 @@ FrameInstance::FrameInstance(Frame *f, Value *s_) {
 }
 
 /*
-void FrameInstance::readjust(Frame *f) {
-    // reallocate the stack
-    stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
-    // if there are new slots in the stack, make room
-    if(presentSlotSize < f->slotSize) {
-        // Calculate the number of new slots
-        int moveup = f->slotSize - presentSlotSize;
-        // Move stackpointer accordingly
-        stackPointer += moveup;
-        // Move all non-slot values up
-        for(int i = stackPointer - 1; i > presentSlotSize; i--) {
-            stack_[i] = stack_[i + 1];
-        }
-        presentSlotSize = f->slotSize;
-    }
-    // If there was an instance, it was halted
-    // using 'halt', which does not increase
-    // the pointer to point to next instruction.
-    // We should do that first.
-    // Also since 'bytecodes' vector can get
-    // reallocated, especially in case of an REPL,
-    // we recalculate that based on the saved
-    // instruction pointer.
-    code = &f->code.bytecodes.data()[instructionPointer + 1];
+   void FrameInstance::readjust(Frame *f) {
+// reallocate the stack
+stack_ = (Value *)realloc(stack_, sizeof(Value) * f->code.maxStackSize());
+// if there are new slots in the stack, make room
+if(presentSlotSize < f->slotSize) {
+// Calculate the number of new slots
+int moveup = f->slotSize - presentSlotSize;
+// Move stackpointer accordingly
+stackPointer += moveup;
+// Move all non-slot values up
+for(int i = stackPointer - 1; i > presentSlotSize; i--) {
+stack_[i] = stack_[i + 1];
+}
+presentSlotSize = f->slotSize;
+}
+// If there was an instance, it was halted
+// using 'halt', which does not increase
+// the pointer to point to next instruction.
+// We should do that first.
+// Also since 'bytecodes' vector can get
+// reallocated, especially in case of an REPL,
+// we recalculate that based on the saved
+// instruction pointer.
+code = &f->code.bytecodes.data()[instructionPointer + 1];
 }*/
 
 FrameInstance::~FrameInstance() {
 	/*
-	for(int i = 0; i < stackPointer; i++) {
-	    if(stack_[i].isObject())
-	        stack_[i].toObject()->decrCount();
-	}
-	free(stack_);
-	*/
+	   for(int i = 0; i < stackPointer; i++) {
+	   if(stack_[i].isObject())
+	   stack_[i].toObject()->decrCount();
+	   }
+	   free(stack_);
+	   */
 }
 
 ostream &operator<<(ostream &os, const Fn &f) {
@@ -242,7 +242,24 @@ void NextObject::release() {
 	for(int i = 0; i < Class->slotNum; i++) {
 		if(slots[i].isObject())
 			slots[i].toObject()->decrCount();
+		else if(slots[i].isArray()) {
+			// arrays need special care
+			Value *arr = slots[i].toArray();
+			// the next slot should contain the size
+#ifdef DEBUG
+			if(!slots[i + 1].isNumber()) {
+				panic("Next slot of an array should contain the size!");
+			}
+#endif
+			size_t size = slots[i + 1].toNumber();
+			for(size_t i = 0; i < size; i++) {
+				if(arr[i].isObject())
+					arr[i].toObject()->decrCount();
+			}
+			free(arr);
+		}
 	}
+
 	delete[] slots;
 }
 
@@ -278,9 +295,9 @@ Value *Module::getModuleStack(Fiber *f) {
 
 void Module::initializeFramesWithModuleStack() {
 	/*
-	for(auto i = frames.begin(), j = frames.end(); i != j; i++) {
-	    (*i)->moduleStack = frameInstance->stack_;
-	}*/
+	   for(auto i = frames.begin(), j = frames.end(); i != j; i++) {
+	   (*i)->moduleStack = frameInstance->stack_;
+	   }*/
 }
 
 bool Module::hasCode() { // denotes whether the module has any top level code

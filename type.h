@@ -21,4 +21,5 @@ class NextType {
 #define TYPE(r, n) static NextType n;
 #include "valuetypes.h"
 	static NextType Number;
+	static NextType ArrayClass;
 };
