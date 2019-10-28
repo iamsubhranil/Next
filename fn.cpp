@@ -1,5 +1,8 @@
 #include "fn.h"
 #include "symboltable.h"
+#ifdef DEBUG
+#include "display.h"
+#endif
 
 using namespace std;
 
