@@ -1,6 +1,8 @@
 #include "builtins.h"
 #include "display.h"
+#include "engine.h"
 #include "fn.h"
+#include <string>
 #include <time.h>
 
 using namespace std;
@@ -64,6 +66,18 @@ Value next_array_get(const Value *args) {
 	return arr[pos];
 }
 
+Value next_type_of(const Value *args) {
+	Value    v = args[0];
+	NextType t = NextType::getType(v);
+	NextString ret = StringLibrary::insert(StringLibrary::get(t.module) + "." +
+	                                       StringLibrary::get(t.name));
+	return Value(ret);
+}
+
+Value next_is_same_type(const Value *v) {
+	return Value(NextType::getType(v[0]) == NextType::getType(v[1]));
+}
+
 HashMap<NextString, builtin_handler> Builtin::BuiltinHandlers =
     HashMap<NextString, builtin_handler>{};
 
@@ -77,6 +91,8 @@ void Builtin::init() {
 	register_builtin("__next_array_reallocate(_,_,_)", next_array_reallocate);
 	register_builtin("__next_array_set(_,_,_)", next_array_set);
 	register_builtin("__next_array_get(_,_)", next_array_get);
+	register_builtin("type_of(_)", next_type_of);
+	register_builtin("is_same_type(_,_)", next_is_same_type);
 
 	register_constant("clocks_per_sec", Value((double)CLOCKS_PER_SEC));
 }

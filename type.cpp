@@ -46,13 +46,13 @@ NextType NextType::getPrimitiveType(const NextString &ty) {
 }
 
 NextType NextType::getType(const Value &v) {
-	if(v.isObject()) {
-		return v.toObject()->Class->getClassType();
-	}
 	switch(v.getType()) {
 		case Value::VAL_Number: return NextType::Number;
 		case Value::VAL_String: return NextType::String;
 		case Value::VAL_Boolean: return NextType::Boolean;
+		case Value::VAL_Module: return NextType::Module;
+		case Value::VAL_Array: return NextType::Array;
+		case Value::VAL_Object: return v.toObject()->Class->getClassType();
 		default: return NextType::Error;
 	}
 }
