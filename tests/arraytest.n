@@ -5,6 +5,13 @@ fn expect(arr, idx, val) {
     }
 }
 
+fn expect_err(arr, idx) {
+    try {
+        x = arr.get(idx)
+        print("[ERROR] ", arr, " should not be accessible with idx ", idx, "!\n")
+    } catch(RuntimeException e) {}
+}
+
 
 arr = core.array()
 arr.set(0, 2.32)
@@ -16,6 +23,11 @@ expect(arr, 1, "Hello")
 expect(arr, -2, "Hello")
 expect(arr, -3, 2.32)
 
+expect_err(arr, 2.32)
+expect_err(arr, "2")
+expect_err(arr, 1.000000001)
+expect_err(arr, 100)
+expect_err(arr, -100)
 
 arr.get(2).set(0, "Nest")
 arr.get(2).set(1, "Array")

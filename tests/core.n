@@ -46,8 +46,8 @@ pub class array {
         }
 
         new(x) {
-            if(x < 0) {
-                throw RuntimeException("Invalid array size!")
+            if(!is_same_type(x, 2) or !x.is_int() or x < 0) {
+                throw RuntimeException("Array size should be a positive integer!")
             }
             size = 0
             capacity = nearestPowerOfTwo(x)
@@ -67,7 +67,10 @@ pub class array {
         }
 
         fn set(pos, val) {
-            if(pos > size or -pos > size) {
+            if(!is_same_type(pos, 2) or !pos.is_int()) {
+                throw RuntimeException("Array index should be an integer!")
+            }
+            else if(pos > size or -pos > size) {
                 throw RuntimeException("Invalid array index!")
             }
             // if pos is negative, item to be accessed is
@@ -81,7 +84,10 @@ pub class array {
         }
 
         fn get(pos) {
-            if(pos >= size or -pos > size) {
+            if(!is_same_type(pos, 2) or !pos.is_int()) {
+                throw RuntimeException("Array index should be an integer!")
+            }
+            else if(pos >= size or -pos > size) {
                 throw RuntimeException("Invalid array index!")
             }
             // if pos is negative, item to be accessed is
