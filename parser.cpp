@@ -483,7 +483,8 @@ ExpPtr ReferenceParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
 }
 
 ExpPtr SubscriptParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
-	ExpPtr idx = parser->parseExpression(Precedence::REFERENCE);
+	// allow all expressions inside []
+	ExpPtr idx = parser->parseExpression();
 	parser->consume(TOKEN_RIGHT_SQUARE,
 	                "Expcted ']' at the end of subscript expression!");
 	return unq(SubscriptExpression, obj, t, idx);
