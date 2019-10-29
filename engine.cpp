@@ -3,6 +3,7 @@
 #include "display.h"
 #include "primitive.h"
 #include "symboltable.h"
+#include <cmath>
 
 using namespace std;
 
@@ -427,6 +428,27 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(subscript_get) : {
 				rightOperand = POP();
 				if(TOP.isObject()) {
+
+					if(NextType::getType(TOP) == NextType::ArrayClass) {
+					    NextObject *obj = TOP.toObject();
+					    // handle array get
+					    // Check for integer index
+					    double intpart;
+					    if(!rightOperand.isNumber() ||
+					       modf(rightOperand.toNumber(), &intpart) != 0.0) {
+					        RERR("Array index must be an integer!");
+					    }
+					    size_t idx       = intpart;
+					    size_t totalSize = obj->slots[1].toNumber();
+					    if(intpart >= totalSize || -intpart > totalSize) {
+					        RERR("Invalid array index!");
+					    }
+					    if(intpart < 0) {
+					        idx = totalSize + intpart;
+					    }
+					    TOP = obj->slots[0].toArray()[idx];
+					    DISPATCH();
+					}
 					methodToCall = subscript_getHash;
 					goto opmethodcall;
 				} else if(Primitives::hasPrimitive(TOP.getType(),
@@ -445,6 +467,54 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(subscript_set) : {
 				Value target = StackTop[-3];
 				if(target.isObject()) {
+
+					if(NextType::getType(target) == NextType::ArrayClass) {
+					    Value value   = POP();
+					    rightOperand  = POP();
+					    NextObject *obj = TOP.toObject();
+					    // handle array get
+					    // Check for integer index
+					    double intpart;
+					    if(!rightOperand.isNumber() ||
+					       modf(rightOperand.toNumber(), &intpart) != 0.0) {
+					        RERR("Array index must be an integer!");
+					    }
+					    size_t idx       = intpart;
+					    size_t totalSize = obj->slots[1].toNumber();
+					    if(intpart > totalSize || -intpart > totalSize) {
+					        RERR("Invalid array index!");
+					    }
+					    if(intpart < 0) {
+					        idx = totalSize + intpart;
+					    }
+					    Value *arr = obj->slots[0].toArray();
+					    if(idx == totalSize) {
+					        totalSize++;
+					        obj->slots[1] = Value((double)(totalSize));
+
+					        // reallocation and stuff
+					        size_t oldCapacity = obj->slots[2].toNumber();
+
+					        if(oldCapacity == totalSize) {
+								// assuming oldcapacity is already
+								// adjusted to a power of 2, which
+								// it is at initialisation
+								size_t newCapacity = oldCapacity << 1;
+								arr = (Value *)realloc(arr, sizeof(Value) *
+					                                            newCapacity);
+					            for(size_t o = oldCapacity; o < newCapacity;
+					                o++)
+					                arr[o] = Value::nil;
+					            obj->slots[0] = arr;
+					            obj->slots[2] = Value((double)newCapacity);
+					        }
+					    }
+					    ref_incr(value);
+					    ref_decr(arr[idx]);
+					    arr[idx] = value;
+					    TOP      = value;
+					    DISPATCH();
+					}
 					NextObject *obj = target.toObject();
 					ASSERT(obj->Class->hasPublicMethod(subscript_setHash),
 					       "Method [](_,_) not found in class '@s'!",

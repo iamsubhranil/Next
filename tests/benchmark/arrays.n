@@ -2,7 +2,7 @@ arr = core.array()
 i = 0
 start = clock()
 while(i++ < 1000000) {
-    arr.insert(i)
+    arr[i - 1] = i
 }
 
 sum = 0

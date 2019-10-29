@@ -63,7 +63,9 @@ pub class array {
                 items = __next_array_reallocate(items, capacity, capacity * 2)
                 capacity = capacity * 2
             }
-            ret __next_array_set(items, size - 1, val)
+            // it might be implemented in the interpreter
+            this[size - 1] = val
+            ret val
         }
 
         op [](pos, val) {
