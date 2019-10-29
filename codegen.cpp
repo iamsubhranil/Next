@@ -156,11 +156,11 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_GREATER: bytecode->greater(); break;
 		case TOKEN_GREATER_EQUAL: bytecode->greatereq(); break;
 
-		// We really don't need these opcodes anymore,
-		// since the result of these will be the result
-		// of the second operand anyway
-		case TOKEN_and: /* bytecode->land(); */ break;
-		case TOKEN_or: /* bytecode->lor(); */ break;
+		// We do need these opcodes, in the case whether the
+		// first operand was an object, and we need to call
+		// the appropiate opmethod
+		case TOKEN_and: bytecode->land(); break;
+		case TOKEN_or: bytecode->lor(); break;
 
 		default:
 			panic("Invalid binary operator '%s'!",
