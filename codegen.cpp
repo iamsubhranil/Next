@@ -462,29 +462,46 @@ void CodeGenerator::visit(AssignExpression *as) {
 	if(as->target->isMemberAccess())
 		panic("AssignExpression should not contain member access!");
 
-	//
-	if(state == COMPILE_BODY) {
-		// Resolve the expression
-		as->val->accept(this);
-	}
+	if(as->target->type == Expr::SUBSCRIPT) {
+		// it is a subscript setter
+		// subscript setters are compiled as the
+		// target first, then the value to avoid
+		// stack manipulation in case we need to
+		// call op method [](_,_)
+		if(state == COMPILE_BODY) {
+			bool b = onLHS;
+			onLHS  = true;
+			as->target->accept(this);
+			onLHS = b;
+			as->val->accept(this);
+			bytecode->subscript_set();
+		}
+	} else {
 
-	VarInfo var = lookForVariable(as->target->token, true);
+		//
+		if(state == COMPILE_BODY) {
+			// Resolve the expression
+			as->val->accept(this);
+		}
 
-	if(state == COMPILE_BODY) {
-		frame->insertdebug(as->token);
-		// target of an assignment expression cannot be a
-		// builtin constant
-		switch(var.position) {
-			case LOCAL: bytecode->store_slot(var.slot); break;
-			case CLASS: bytecode->store_object_slot(var.slot); break;
-			case MODULE: bytecode->store_module_slot(var.slot); break;
-			case BUILTIN: {
-				lnerr_("Built-in constant '%.*s' cannot be reassigned!",
-				       as->target->token, as->target->token.length,
-				       as->target->token.start);
-				break;
+		VarInfo var = lookForVariable(as->target->token, true);
+
+		if(state == COMPILE_BODY) {
+			frame->insertdebug(as->token);
+			// target of an assignment expression cannot be a
+			// builtin constant
+			switch(var.position) {
+				case LOCAL: bytecode->store_slot(var.slot); break;
+				case CLASS: bytecode->store_object_slot(var.slot); break;
+				case MODULE: bytecode->store_module_slot(var.slot); break;
+				case BUILTIN: {
+					lnerr_("Built-in constant '%.*s' cannot be reassigned!",
+					       as->target->token, as->target->token.length,
+					       as->target->token.start);
+					break;
+				}
+				default: break;
 			}
-			default: break;
 		}
 	}
 }
@@ -577,6 +594,20 @@ void CodeGenerator::visit(GetExpression *get) {
 	onLHS   = lb;
 	get->refer->accept(this);
 	onRefer = b;
+}
+
+void CodeGenerator::visit(SubscriptExpression *sube) {
+#ifdef DEBUG
+	dinfo("");
+	sube->token.highlight();
+#endif
+	bool b = onLHS;
+	onLHS  = false;
+	sube->object->accept(this);
+	sube->idx->accept(this);
+	onLHS = b;
+	if(!onLHS)
+		bytecode->subscript_get();
 }
 
 void CodeGenerator::visit(PrefixExpression *pe) {

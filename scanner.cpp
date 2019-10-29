@@ -43,7 +43,8 @@ bool Token::isOperator() {
 		case TOKEN_MINUS:
 		case TOKEN_SLASH:
 		case TOKEN_or:
-		case TOKEN_and: return true;
+		case TOKEN_and:
+		case TOKEN_SUBSCRIPT: return true;
 		default: return false;
 	}
 }
@@ -130,10 +131,10 @@ const char *Token::TokenNames[] = {
     "TOKEN_ERROR",         "TOKEN_EOF"};
 
 const char *Token::FormalNames[] = {
-    "(",     ")",          "{",  "}",          "[",      "]",      "!",
-    "!=",    ",",          ".",  ":",          "=",      "==",     ">",
-    ">=",    "<",          "<=", "-",          "+",      ";",      "/",
-    "*",     "%",          "^",  "identifier", "string", "number",
+    "(",     ")",          "{", "}",  "[",          "]",      "[]",
+    "!",     "!=",         ",", ".",  ":",          "=",      "==",
+    ">",     ">=",         "<", "<=", "-",          "+",      ";",
+    "/",     "*",          "%", "^",  "identifier", "string", "number",
 
 #define KEYWORD(x, y) #x,
 #include "keywords.h"
@@ -387,7 +388,12 @@ Token Scanner::scanNextToken() {
 		case ')': return Token::from(TOKEN_RIGHT_PAREN, this);
 		case '{': return Token::from(TOKEN_LEFT_BRACE, this);
 		case '}': return Token::from(TOKEN_RIGHT_BRACE, this);
-		case '[': return Token::from(TOKEN_LEFT_SQUARE, this);
+		case '[':
+			if(peek() == ']') {
+				advance();
+				return Token::from(TOKEN_SUBSCRIPT, this);
+			}
+			return Token::from(TOKEN_LEFT_SQUARE, this);
 		case ']': return Token::from(TOKEN_RIGHT_SQUARE, this);
 		case ';': return Token::from(TOKEN_SEMICOLON, this);
 		case ':': return Token::from(TOKEN_COLON, this);

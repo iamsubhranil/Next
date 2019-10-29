@@ -34,6 +34,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new CallParselet());
 	p->registerParselet(TOKEN_DOT, new ReferenceParselet());
+	p->registerParselet(TOKEN_LEFT_SQUARE, new SubscriptParselet());
 
 	prefix(p, TOKEN_BANG, Precedence::PREFIX);
 	prefix(p, TOKEN_PLUS, Precedence::PREFIX);

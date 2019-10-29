@@ -129,6 +129,14 @@ OPCODE0(incr_ref, 0)
 // found
 OPCODE0(throw_, -1)
 
+// Subscript opcodes.
+// Set takes three arguments, from the TOS they are
+// value, index, object. Pops three, and inserts one.
+OPCODE0(subscript_set, -2)
+// Get takes two arguments, from the TOS they are
+// index, object. Pops two, and inserts one.
+OPCODE0(subscript_get, -1)
+
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>
 OPCODE1(load_constant, 1, NextString)     // <name>

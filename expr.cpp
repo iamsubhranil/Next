@@ -58,14 +58,6 @@ void ExpressionPrinter::visit(LiteralExpression *le) {
 	out << le->value;
 }
 
-void ExpressionPrinter::visit(SetExpression *se) {
-	out << "(";
-	se->object->accept(this);
-	out << " = ";
-	se->value->accept(this);
-	out << ")";
-}
-
 void ExpressionPrinter::visit(PrefixExpression *pe) {
 	out << pe->token;
 	out << "(";
@@ -78,6 +70,22 @@ void ExpressionPrinter::visit(PostfixExpression *pe) {
 	pe->left->accept(this);
 	out << ")";
 	out << pe->token;
+}
+
+void ExpressionPrinter::visit(SetExpression *se) {
+	out << "(";
+	se->object->accept(this);
+	out << " = ";
+	se->value->accept(this);
+	out << ")";
+}
+
+void ExpressionPrinter::visit(SubscriptExpression *sube) {
+	out << "(";
+	sube->object->accept(this);
+	out << "[";
+	sube->idx->accept(this);
+	out << "])";
 }
 
 void ExpressionPrinter::visit(VariableExpression *v) {

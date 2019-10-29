@@ -11,9 +11,10 @@ class CallExpression;
 class GetExpression;
 class GroupingExpression;
 class LiteralExpression;
-class SetExpression;
 class PrefixExpression;
 class PostfixExpression;
+class SetExpression;
+class SubscriptExpression;
 class VariableExpression;
 
 class ExpressionVisitor {
@@ -24,9 +25,10 @@ class ExpressionVisitor {
 	virtual void visit(GetExpression *get)        = 0;
 	virtual void visit(GroupingExpression *group) = 0;
 	virtual void visit(LiteralExpression *lit)    = 0;
-	virtual void visit(SetExpression *sete)       = 0;
 	virtual void visit(PrefixExpression *pe)      = 0;
 	virtual void visit(PostfixExpression *pe)     = 0;
+	virtual void visit(SetExpression *sete)       = 0;
+	virtual void visit(SubscriptExpression *sube) = 0;
 	virtual void visit(VariableExpression *vis)   = 0;
 };
 
@@ -42,7 +44,8 @@ class Expr {
 		LITERAL,
 		SET,
 		PREFIX,
-		POSTFIX
+		POSTFIX,
+		SUBSCRIPT
 	};
 	Token token;
 	Type  type;
@@ -51,8 +54,8 @@ class Expr {
 	virtual void accept(ExpressionVisitor *visitor) = 0;
 	Type         getType() { return type; }
 	bool         isAssignable() {
-        return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
-               (type == SET);
+		return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
+		       (type == SET) || (type == SUBSCRIPT);
 	}
 	bool isMemberAccess() { return (type == GET) || (type == SET); }
 	bool isVariable() { return (type == VARIABLE); }
@@ -146,6 +149,15 @@ class PostfixExpression : public Expr {
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
+class SubscriptExpression : public Expr {
+  public:
+	ExpPtr object;
+	ExpPtr idx;
+	SubscriptExpression(ExpPtr &obj, Token name, ExpPtr &i)
+	    : Expr(name, SUBSCRIPT), object(obj.release()), idx(i.release()) {}
+	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+};
+
 class ExpressionPrinter : public ExpressionVisitor {
   private:
 	std::ostream &out;
@@ -159,8 +171,9 @@ class ExpressionPrinter : public ExpressionVisitor {
 	void visit(GetExpression *get);
 	void visit(GroupingExpression *group);
 	void visit(LiteralExpression *lit);
-	void visit(SetExpression *sete);
 	void visit(PrefixExpression *pe);
 	void visit(PostfixExpression *pe);
+	void visit(SetExpression *sete);
+	void visit(SubscriptExpression *sube);
 	void visit(VariableExpression *vis);
 };

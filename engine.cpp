@@ -25,17 +25,19 @@ initSymbol(greater);
 initSymbol(greatereq);
 initSymbol(lor);
 initSymbol(land);
-/*
-#define OPCODE0(x, y) initSymbol(x)
-#define OPCODE1(x, y, z) initSymbol(x)
-#define OPCODE2(x, y, z, a) initSymbol(x)
-#include "opcodes.h"
-*/
+initSymbol(subscript_get);
+initSymbol(subscript_set)
+    /*
+    #define OPCODE0(x, y) initSymbol(x)
+    #define OPCODE1(x, y, z) initSymbol(x)
+    #define OPCODE2(x, y, z, a) initSymbol(x)
+    #include "opcodes.h"
+    */
 
-void ExecutionEngine::init() {
-#define registerOpcodeSymbol(opcode, symbol) \
-	opcode##Hash =                           \
-	    SymbolTable::insertSymbol(StringLibrary::insert(#symbol "(_)"));
+    void ExecutionEngine::init() {
+#define registerOpcodeSymbol(opcode, symbol, ...) \
+	opcode##Hash = SymbolTable::insertSymbol(     \
+	    StringLibrary::insert(#symbol "(_" __VA_ARGS__ ")"));
 	registerOpcodeSymbol(add, +);
 	registerOpcodeSymbol(sub, -);
 	registerOpcodeSymbol(mul, *);
@@ -48,6 +50,8 @@ void ExecutionEngine::init() {
 	registerOpcodeSymbol(greatereq, >=);
 	registerOpcodeSymbol(lor, or);
 	registerOpcodeSymbol(land, and);
+	registerOpcodeSymbol(subscript_get, []);
+	registerOpcodeSymbol(subscript_set, [], ",_");
 
 	pendingException = Value::nil;
 }
@@ -212,7 +216,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	Frame *        frameToCall;
 	int            numberOfArguments;
 	Value          rightOperand;
-	uint64_t       opcodeHash;
+	uint64_t       methodToCall;
 	for(auto i : m->importedModules) {
 		if(i.second->frameInstance == NULL && i.second->hasCode())
 			execute(i.second, i.second->frame.get());
@@ -326,7 +330,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			TOP.set##restype(TOP.to##argtype() op rightOperand.to##argtype()); \
 			DISPATCH();                                                        \
 		} else if(TOP.isObject()) {                                            \
-			opcodeHash = opcode##Hash;                                         \
+			methodToCall = opcode##Hash;                                       \
 			goto opmethodcall;                                                 \
 		}                                                                      \
 		RERR("Both of the operands of " #opname " are not " #argtype           \
@@ -402,7 +406,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				rightOperand = POP();
 				if(TOP.isObject() &&
 				   TOP.toObject()->Class->hasPublicMethod(neqHash)) {
-					opcodeHash = neqHash;
+					methodToCall = neqHash;
 					goto opmethodcall;
 				}
 				TOP = TOP != rightOperand;
@@ -413,21 +417,63 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				rightOperand = POP();
 				if(TOP.isObject() &&
 				   TOP.toObject()->Class->hasPublicMethod(eqHash)) {
-					opcodeHash = eqHash;
+					methodToCall = eqHash;
 					goto opmethodcall;
 				}
 				TOP = TOP == rightOperand;
 				DISPATCH();
 			}
 
+			CASE(subscript_get) : {
+				rightOperand = POP();
+				if(TOP.isObject()) {
+					methodToCall = subscript_getHash;
+					goto opmethodcall;
+				} else if(Primitives::hasPrimitive(TOP.getType(),
+				                                   subscript_getHash)) {
+
+					PUSH(rightOperand);
+					methodToCall      = subscript_getHash;
+					rightOperand      = StackTop[-2];
+					numberOfArguments = 1;
+					goto call_primitive;
+				}
+				RERR("Method [](_) not found in class '@s'!",
+				     TOP.getTypeString());
+			}
+
+			CASE(subscript_set) : {
+				Value target = StackTop[-3];
+				if(target.isObject()) {
+					NextObject *obj = target.toObject();
+					ASSERT(obj->Class->hasPublicMethod(subscript_setHash),
+					       "Method [](_,_) not found in class '@s'!",
+					       target.getTypeString());
+					ref_incr(target);
+					ref_incr(StackTop[-1]);
+					ref_incr(StackTop[-2]);
+					CALL(obj->Class->functions[subscript_setHash]->frame.get(),
+					     3);
+				} else if(Primitives::hasPrimitive(target.getType(),
+				                                   subscript_setHash)) {
+
+					methodToCall      = subscript_setHash;
+					rightOperand      = StackTop[-3];
+					numberOfArguments = 2;
+					goto call_primitive;
+				}
+				RERR("Method [](_,_) not found in class '@s'!",
+				     TOP.getTypeString());
+			}
+
 		opmethodcall : {
 			NextObject *obj = TOP.toObject();
-			ASSERT(obj->Class->hasPublicMethod(opcodeHash),
-			       "Method '@t' not found in class '@s'!", opcodeHash,
+			ASSERT(obj->Class->hasPublicMethod(methodToCall),
+			       "Method '@t' not found in class '@s'!", methodToCall,
 			       obj->Class->name);
 			ref_incr(TOP);
 			PUSH(rightOperand);
-			CALL(obj->Class->functions[opcodeHash]->frame.get(), 1 + 1);
+			CALL(obj->Class->functions[methodToCall]->frame.get(), 1 + 1);
 		}
 
 			CASE(lnot) : {
@@ -843,23 +889,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call_method) : {
-				uint64_t method  = next_long();
+				methodToCall     = next_long();
 				int      numArg_ = next_int(); // copy the object also
 				Value &  v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
 					NextClass * c   = obj->Class;
-					ASSERT(c->hasPublicMethod(method),
-					       "Method '@t' not found in class '@s'!", method,
+					ASSERT(c->hasPublicMethod(methodToCall),
+					       "Method '@t' not found in class '@s'!", methodToCall,
 					       c->name);
 
-					CALL(c->functions[method]->frame.get(), numArg_ + 1);
-				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
-					method = SymbolTable::getSymbol(method);
+					CALL(c->functions[methodToCall]->frame.get(), numArg_ + 1);
+				} else if(v.isModule() &&
+				          v.toModule()->hasPublicFn(methodToCall)) {
+					methodToCall = SymbolTable::getSymbol(methodToCall);
 					// First, readjust the stack
 					// If it's a constructor, just assign 0 in place of
 					// the module
-					Fn * f             = v.toModule()->functions[method].get();
+					Fn * f = v.toModule()->functions[methodToCall].get();
 					bool isConstructor = f->isConstructor;
 					if(isConstructor)
 						v = Value();
@@ -879,28 +926,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					CALL_INSTANCE(fi, numArg_ - 1);
 
 				} else {
-					ASSERT(Primitives::hasPrimitive(v.getType(), method),
+					ASSERT(Primitives::hasPrimitive(v.getType(), methodToCall),
 					       "Primitive method '@t' not found in type '@s'!",
-					       method, v.getTypeString());
+					       methodToCall, v.getTypeString());
 
-					Value ret = Primitives::invokePrimitive(
-					    v.getType(), method, StackTop - numArg_ - 1);
-
-					if(pendingException != Value::nil) {
-						goto error;
-					} else {
-
-						// Pop the arguments
-						while(numArg_ >= 0) {
-							Value &v = POP();
-							if(v.isObject())
-								v.toObject()->freeIfZero();
-							numArg_--;
-						}
-
-						PUSH(ret);
-						DISPATCH();
-					}
+					rightOperand      = v;
+					numberOfArguments = numArg_;
+					goto call_primitive;
 				}
 			}
 			/*
@@ -974,9 +1006,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					goto error;
 				} else {
 					while(args--) {
-						Value v = POP();
-						if(v.isObject())
+						Value &v = POP();
+						if(v.isObject()) {
 							v.toObject()->freeIfZero();
+							v = Value::nil;
+						}
 					}
 					PUSH(res);
 					DISPATCH();
@@ -1005,6 +1039,31 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				}
 			}
 		}
+
+	call_primitive:
+
+		rightOperand =
+		    Primitives::invokePrimitive(rightOperand.getType(), methodToCall,
+		                                StackTop - numberOfArguments - 1);
+
+		if(pendingException != Value::nil) {
+			goto error;
+		} else {
+
+			// Pop the arguments
+			while(numberOfArguments >= 0) {
+				Value &v = POP();
+				if(v.isObject()) {
+					v.toObject()->freeIfZero();
+					v = Value::nil;
+				}
+				numberOfArguments--;
+			}
+
+			PUSH(rightOperand);
+			DISPATCH();
+		}
+
 	call_frame:
 		frameInstanceToCall =
 		    fiber->appendCallFrame(frameToCall, numberOfArguments, &StackTop);

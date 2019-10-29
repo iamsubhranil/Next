@@ -80,9 +80,10 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(GetExpression *get);
 	void visit(GroupingExpression *group);
 	void visit(LiteralExpression *lit);
-	void visit(SetExpression *sete);
 	void visit(PrefixExpression *pe);
 	void visit(PostfixExpression *pe);
+	void visit(SetExpression *sete);
+	void visit(SubscriptExpression *sube);
 	void visit(VariableExpression *vis);
 	// Statement generator
 	void visit(IfStatement *ifs);

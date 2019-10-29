@@ -183,7 +183,7 @@ std::unique_ptr<FnBodyStatement>
 FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative, int numArgs) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after function name!");
 	std::vector<Token> args;
-	if(numArgs == -1) {
+	if(numArgs == -1 || t.type == TOKEN_SUBSCRIPT) {
 		if(!p->match(TOKEN_RIGHT_PAREN)) {
 			do {
 				args.push_back(
@@ -292,7 +292,7 @@ StmtPtr OpMethodDeclaration::parse(Parser *p, Token t) {
 		throw ParseException(op, "Expected operator!");
 	}
 	std::unique_ptr<FnBodyStatement> body =
-	    FnDeclaration::parseFnBody(p, t, false, 1);
+	    FnDeclaration::parseFnBody(p, op, false, 1);
 	return unq(FnStatement, t, op, body, true, false, false, false, VIS_PRIV);
 }
 
@@ -480,6 +480,13 @@ ExpPtr CallParselet::parse(Parser *parser, ExpPtr &left, Token t) {
 ExpPtr ReferenceParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
 	ExpPtr member = parser->parseExpression(Precedence::REFERENCE);
 	return unq(GetExpression, obj, t, member);
+}
+
+ExpPtr SubscriptParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
+	ExpPtr idx = parser->parseExpression(Precedence::REFERENCE);
+	parser->consume(TOKEN_RIGHT_SQUARE,
+	                "Expcted ']' at the end of subscript expression!");
+	return unq(SubscriptExpression, obj, t, idx);
 }
 
 // Exceptions

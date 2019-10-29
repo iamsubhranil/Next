@@ -28,6 +28,8 @@ class ExecutionEngine {
 	declareSymbol(greatereq);
 	declareSymbol(lor);
 	declareSymbol(land);
+	declareSymbol(subscript_get);
+	declareSymbol(subscript_set);
 
 	static void formatExceptionMessage(const char *message, ...);
 
