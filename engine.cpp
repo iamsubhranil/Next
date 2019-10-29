@@ -211,6 +211,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	FrameInstance *presentFrame, *frameInstanceToCall;
 	Frame *        frameToCall;
 	int            numberOfArguments;
+	Value          rightOperand;
+	uint64_t       opcodeHash;
 	for(auto i : m->importedModules) {
 		if(i.second->frameInstance == NULL && i.second->hasCode())
 			execute(i.second, i.second->frame.get());
@@ -317,25 +319,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, opname, argtype, restype, opcode)                       \
-	{                                                                      \
-		Value v = POP();                                                   \
-		if(v.is##argtype() && TOP.is##argtype()) {                         \
-			TOP.set##restype(TOP.to##argtype() op v.to##argtype());        \
-			DISPATCH();                                                    \
-		} else if(TOP.isObject()) {                                        \
-			NextObject *obj = TOP.toObject();                              \
-			ASSERT(obj->Class->hasPublicMethod(opcode##Hash),              \
-			       "Method '@t' not found in class '@s'!", opcode##Hash,   \
-			       obj->Class->name);                                      \
-			ref_incr(TOP);                                                 \
-			PUSH(v);                                                       \
-			CALL(obj->Class->functions[opcode##Hash]->frame.get(), 1 + 1); \
-		}                                                                  \
-		ASSERT(v.is##argtype() && TOP.is##argtype(),                       \
-		       "Both of the operands of " #opname " are not " #argtype     \
-		       " (@s and @s)!",                                            \
-		       TOP.getTypeString(), v.getTypeString());                    \
+#define binary(op, opname, argtype, restype, opcode)                           \
+	{                                                                          \
+		rightOperand = POP();                                                  \
+		if(rightOperand.is##argtype() && TOP.is##argtype()) {                  \
+			TOP.set##restype(TOP.to##argtype() op rightOperand.to##argtype()); \
+			DISPATCH();                                                        \
+		} else if(TOP.isObject()) {                                            \
+			opcodeHash = opcode##Hash;                                         \
+			goto opmethodcall;                                                 \
+		}                                                                      \
+		RERR("Both of the operands of " #opname " are not " #argtype           \
+		     " (@s and @s)!",                                                  \
+		     TOP.getTypeString(), rightOperand.getTypeString());               \
 	}
 
 #define ref_incr(x)                      \
@@ -430,6 +426,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
+		opmethodcall : {
+			NextObject *obj = TOP.toObject();
+			ASSERT(obj->Class->hasPublicMethod(opcodeHash),
+			       "Method '@t' not found in class '@s'!", opcodeHash,
+			       obj->Class->name);
+			ref_incr(TOP);
+			PUSH(rightOperand);
+			CALL(obj->Class->functions[opcodeHash]->frame.get(), 1 + 1);
+		}
 			CASE(lnot) : {
 				if(TOP.isBoolean()) {
 					TOP.setBoolean(!TOP.toBoolean());
