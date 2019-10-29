@@ -12,13 +12,13 @@
 // performed by the callee only.
 typedef Value (*primitive_fn)(const Value *stack_);
 
-using PrimitiveMap = HashMap<NextString, primitive_fn>;
+using PrimitiveMap = HashMap<uint64_t, primitive_fn>;
 
 class Primitives {
   public:
 	static void                                 init();
 	static HashMap<Value::Type, PrimitiveMap *> NextPrimitives;
-	static bool  hasPrimitive(Value::Type type, NextString signature);
-	static Value invokePrimitive(Value::Type type, NextString signature,
+	static bool  hasPrimitive(Value::Type type, uint64_t signature);
+	static Value invokePrimitive(Value::Type type, uint64_t signature,
 	                             Value *stack_);
 };

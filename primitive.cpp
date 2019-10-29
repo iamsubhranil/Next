@@ -81,12 +81,12 @@ HashMap<Value::Type, PrimitiveMap *> Primitives::NextPrimitives = {
     {Value::VAL_String, &Primitives_String},
 };
 
-bool Primitives::hasPrimitive(Value::Type type, NextString signature) {
+bool Primitives::hasPrimitive(Value::Type type, uint64_t signature) {
 	return NextPrimitives.find(type) != NextPrimitives.end() &&
 	       NextPrimitives[type]->find(signature) != NextPrimitives[type]->end();
 }
 
-Value Primitives::invokePrimitive(Value::Type type, NextString signature,
+Value Primitives::invokePrimitive(Value::Type type, uint64_t signature,
                                   Value *stack_) {
 	return (*NextPrimitives[type])[signature](stack_);
 }
