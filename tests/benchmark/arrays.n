@@ -8,7 +8,7 @@ while(i++ < 1000000) {
 sum = 0
 i = 0
 while(i++ < 1000000) {
-    sum = sum + arr.get(i - 1)
+    sum = sum + arr[i - 1]
 }
 
 end = (clock() - start)/clocks_per_sec

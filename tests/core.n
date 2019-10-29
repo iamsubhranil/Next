@@ -66,7 +66,7 @@ pub class array {
             ret __next_array_set(items, size - 1, val)
         }
 
-        fn set(pos, val) {
+        op [](pos, val) {
             if(!is_same_type(pos, 2) or !pos.is_int()) {
                 throw RuntimeException("Array index should be an integer!")
             }
@@ -83,7 +83,7 @@ pub class array {
             ret __next_array_set(items, pos, val)
         }
 
-        fn get(pos) {
+        op [](pos) {
             if(!is_same_type(pos, 2) or !pos.is_int()) {
                 throw RuntimeException("Array index should be an integer!")
             }

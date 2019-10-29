@@ -1,22 +1,22 @@
 fn expect(arr, idx, val) {
-    if(arr.get(idx) != val) {
-        print("Error in arr.get(", idx, ") -> Expected ", val, ", Received : ", arr.get(idx), "\n")
+    if(arr[idx] != val) {
+        print("Error in arr.get(", idx, ") -> Expected ", val, ", Received : ", arr[idx], "\n")
         throw core.RuntimeException("Error in array indexing")
     }
 }
 
 fn expect_err(arr, idx) {
     try {
-        x = arr.get(idx)
+        x = arr[idx]
         print("[ERROR] ", arr, " should not be accessible with idx ", idx, "!\n")
     } catch(RuntimeException e) {}
 }
 
 
 arr = core.array()
-arr.set(0, 2.32)
-arr.set(1, "Hello")
-arr.set(2, core.array(2))
+arr[0] = 2.32
+arr[1] = "Hello"
+arr[2] = core.array(2)
 
 expect(arr, 0, 2.32)
 expect(arr, 1, "Hello")
@@ -29,11 +29,11 @@ expect_err(arr, 1.000000001)
 expect_err(arr, 100)
 expect_err(arr, -100)
 
-arr.get(2).set(0, "Nest")
-arr.get(2).set(1, "Array")
+arr[2][0] = "Nest"
+arr[2][1] = "Array"
 
-expect(arr.get(2), 0, "Nest")
-expect(arr.get(2), 1, "Array")
+expect(arr[2], 0, "Nest")
+expect(arr[2], 1, "Array")
 
 arr = 3
 
