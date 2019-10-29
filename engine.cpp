@@ -399,30 +399,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(power) : RERR("Yet not implemented!");
 
 			CASE(neq) : {
-				Value v = POP();
-				if(v.isObject() &&
-				   v.toObject()->Class->hasPublicMethod(neqHash)) {
-					ref_incr(v);
-					ref_incr(TOP);
-					PUSH(v);
-					CALL(v.toObject()->Class->functions[neqHash]->frame.get(),
-					     2);
+				rightOperand = POP();
+				if(TOP.isObject() &&
+				   TOP.toObject()->Class->hasPublicMethod(neqHash)) {
+					opcodeHash = neqHash;
+					goto opmethodcall;
 				}
-				TOP = v != TOP;
+				TOP = TOP != rightOperand;
 				DISPATCH();
 			}
 
 			CASE(eq) : {
-				Value v = POP();
-				if(v.isObject() &&
-				   v.toObject()->Class->hasPublicMethod(eqHash)) {
-					ref_incr(v);
-					ref_incr(TOP);
-					PUSH(v);
-					CALL(v.toObject()->Class->functions[eqHash]->frame.get(),
-					     2);
+				rightOperand = POP();
+				if(TOP.isObject() &&
+				   TOP.toObject()->Class->hasPublicMethod(eqHash)) {
+					opcodeHash = eqHash;
+					goto opmethodcall;
 				}
-				TOP = v == TOP;
+				TOP = TOP == rightOperand;
 				DISPATCH();
 			}
 
@@ -435,6 +429,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			PUSH(rightOperand);
 			CALL(obj->Class->functions[opcodeHash]->frame.get(), 1 + 1);
 		}
+
 			CASE(lnot) : {
 				if(TOP.isBoolean()) {
 					TOP.setBoolean(!TOP.toBoolean());
