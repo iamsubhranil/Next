@@ -1281,6 +1281,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	frame->handlers->push_back(
 	    (ExHandler){tryBlockStart, tryBlockEnd, bytecode->getip(), t});
 	bytecode->store_slot(slot); // store the thrown object
+	bytecode->pop();            // pop it manually since store_slot doesn't
 	ifs->block->accept(this);
 }
 
