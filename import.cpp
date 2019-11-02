@@ -44,9 +44,10 @@ ImportStatus import(vector<Token> &loc) {
 	// where the import statement is written
 	const char *lastPath   = (*loc.begin()).fileName;
 	int         lastSepLoc = strlen(lastPath) - 1;
-	// start from the back, and stop at the first '/'
+	// start from the back, and stop at the first '/' or '\'
 	// encountered. if none found, bail out.
-	while(lastSepLoc >= 0 && lastPath[lastSepLoc] != kPathSeparator[0])
+	while(lastSepLoc >= 0 &&
+	      (lastPath[lastSepLoc] != '/' && lastPath[lastSepLoc] != '\\'))
 		lastSepLoc--;
 	if(lastSepLoc == -1)
 		paths = ".";
