@@ -11,5 +11,26 @@ s = "Hello World!"
 print("\n", s, ".str() : ", s.str())
 print("\n", s, ".len() : ", s.len())
 
-print("\n\nThis should fail!")
-s.badPrimitive(d)
+print("\nCalling an invalid primitive over string..")
+
+try {
+    s.badPrimitive(d)
+    throw core.RuntimeException("Next is broken!")
+} catch(RuntimeException e) {
+    print("\nException caught successfully!")
+}
+
+print("\nPassing bad argument to a primitive..")
+
+try {
+    if(s.has(123)) {
+        throw core.RuntimeException("Next is broken!")
+    }
+    throw core.RuntimeException("Next is broken!")
+} catch(RuntimeException e) {
+    print("\nException caught successfully!")
+}
+
+print("\nChecking if '", s, "' has 'Hello' : ", s.has("Hello"))
+print("\nChecking if '", s, "' has 'lo Wo' : ", s.has("lo Wo"))
+print("\nChecking if '", s, "' has 'Hola'  : ", s.has("Hola"), "\n")

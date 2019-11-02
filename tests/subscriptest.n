@@ -1,0 +1,26 @@
+class Test {
+    priv:
+        x
+    pub:
+        new(a) {
+            x = a
+        }
+        
+        op [](idx) {
+            if(idx > x) {
+                ret false
+            }
+            ret true
+        }
+
+        op [](idx, val) {
+            x = idx * val
+        }
+}
+
+a = Test(5)
+a[4.5] = 4
+if(!a[17.98] or a[18.25]) {
+    throw core.RuntimeException("Subscript operators are not working as intended!")
+}
+print("Subscript operators are working perfectly!")

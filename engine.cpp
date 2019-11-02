@@ -3,11 +3,15 @@
 #include "display.h"
 #include "primitive.h"
 #include "symboltable.h"
+#include <cmath>
 
 using namespace std;
 
-char            ExecutionEngine::ExceptionMessage[1024] = {0};
-vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
+char                          ExecutionEngine::ExceptionMessage[1024] = {0};
+vector<Fiber *>               ExecutionEngine::fibers = vector<Fiber *>();
+HashMap<NextString, Module *> ExecutionEngine::loadedModules =
+    decltype(ExecutionEngine::loadedModules){};
+Value ExecutionEngine::pendingException = Value::nil;
 
 #define initSymbol(x) uint64_t ExecutionEngine::x##Hash = 0;
 initSymbol(add);
@@ -22,17 +26,19 @@ initSymbol(greater);
 initSymbol(greatereq);
 initSymbol(lor);
 initSymbol(land);
-/*
-#define OPCODE0(x, y) initSymbol(x)
-#define OPCODE1(x, y, z) initSymbol(x)
-#define OPCODE2(x, y, z, a) initSymbol(x)
-#include "opcodes.h"
-*/
+initSymbol(subscript_get);
+initSymbol(subscript_set)
+    /*
+    #define OPCODE0(x, y) initSymbol(x)
+    #define OPCODE1(x, y, z) initSymbol(x)
+    #define OPCODE2(x, y, z, a) initSymbol(x)
+    #include "opcodes.h"
+    */
 
-void ExecutionEngine::init() {
-#define registerOpcodeSymbol(opcode, symbol) \
-	opcode##Hash =                           \
-	    SymbolTable::insertSymbol(StringLibrary::insert(#symbol "(_)"));
+    void ExecutionEngine::init() {
+#define registerOpcodeSymbol(opcode, symbol, ...) \
+	opcode##Hash = SymbolTable::insertSymbol(     \
+	    StringLibrary::insert(#symbol "(_" __VA_ARGS__ ")"));
 	registerOpcodeSymbol(add, +);
 	registerOpcodeSymbol(sub, -);
 	registerOpcodeSymbol(mul, *);
@@ -45,11 +51,11 @@ void ExecutionEngine::init() {
 	registerOpcodeSymbol(greatereq, >=);
 	registerOpcodeSymbol(lor, or);
 	registerOpcodeSymbol(land, and);
-}
+	registerOpcodeSymbol(subscript_get, []);
+	registerOpcodeSymbol(subscript_set, [], ",_");
 
-HashMap<NextString, Module *> ExecutionEngine::loadedModules =
-    decltype(ExecutionEngine::loadedModules){};
-Value ExecutionEngine::pendingException = Value::nil;
+	pendingException = Value::nil;
+}
 
 bool ExecutionEngine::isModuleRegistered(NextString name) {
 	return loadedModules.find(name) != loadedModules.end();
@@ -93,14 +99,42 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 	return except;
 }
 
-#define PUSH(x) *StackTop++ = (x);
-#define RERR(x, ...)                                                     \
-	{                                                                    \
-		snprintf(ExceptionMessage, 1024, x, ##__VA_ARGS__);              \
-		throwException(createRuntimeException(ExceptionMessage), fiber); \
-		RESTORE_FRAMEINFO();                                             \
-		DISPATCH();                                                      \
+// @s   <-- StringLibrary hash
+// @t   <-- SymbolTable no
+void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
+	int     i = 0, j = 0;
+	va_list args;
+	va_start(args, message);
+
+	while(message[i] != '\0') {
+		if(message[i] == '@') {
+			switch(message[i + 1]) {
+				case 's': {
+					NextString  h   = va_arg(args, NextString);
+					const char *str = StringLibrary::get_raw(h);
+					while(*str != '\0') ExceptionMessage[j++] = *str++;
+					i += 2;
+					break;
+				}
+				case 't': {
+					uint64_t    s = va_arg(args, uint64_t);
+					const char *str =
+					    StringLibrary::get_raw(SymbolTable::getSymbol(s));
+					while(*str != '\0') ExceptionMessage[j++] = *str++;
+					i += 2;
+					break;
+				}
+				default: ExceptionMessage[j++] = message[i++]; break;
+			}
+		} else {
+			ExceptionMessage[j++] = message[i++];
+		}
 	}
+
+	va_end(args);
+}
+
+#define PUSH(x) *StackTop++ = (x);
 
 #define set_instruction_pointer(x) \
 	instructionPointer = x->code - x->frame->code.bytecodes.data()
@@ -129,6 +163,7 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 		searching = &f->callFrames[--num];
 	}
 	if(matched == NULL) {
+		cout << "\n";
 		// no handlers matched, unwind stack
 		err("Uncaught exception occurred of type '%s.%s'!",
 		    StringLibrary::get_raw(t.module), StringLibrary::get_raw(t.name));
@@ -171,8 +206,18 @@ Value ExecutionEngine::newObject(NextString mod, NextString c) {
 	return Value::nil;
 }
 
+#define RERR(x, ...)                              \
+	{                                             \
+		formatExceptionMessage(x, ##__VA_ARGS__); \
+		goto error;                               \
+	}
+
 void ExecutionEngine::execute(Module *m, Frame *f) {
-	FrameInstance *presentFrame;
+	FrameInstance *presentFrame, *frameInstanceToCall;
+	Frame *        frameToCall;
+	int            numberOfArguments;
+	Value          rightOperand;
+	uint64_t       methodToCall;
 	for(auto i : m->importedModules) {
 		if(i.second->frameInstance == NULL && i.second->hasCode())
 			execute(i.second, i.second->frame.get());
@@ -244,18 +289,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
-#define CALL_INSTANCE(fIns, n)                            \
-	{                                                     \
-		FrameInstance *f = fIns;                          \
-		presentFrame     = &fiber->getCurrentFrame()[-1]; \
-		BACKUP_FRAMEINFO();                               \
-		presentFrame = f;                                 \
-		RESTORE_FRAMEINFO();                              \
-		DISPATCH_WINC();                                  \
+#define CALL_INSTANCE(fIns, n)      \
+	{                               \
+		frameInstanceToCall = fIns; \
+		numberOfArguments   = n;    \
+		goto call_frameinstance;    \
 	}
 
-#define CALL(frame, n) \
-	{ CALL_INSTANCE(fiber->appendCallFrame(frame, n, &StackTop), n); }
+#define CALL(frame, n)             \
+	{                              \
+		frameToCall       = frame; \
+		numberOfArguments = n;     \
+		goto call_frame;           \
+	}
 
 #define next_int()                      \
 	(InstructionPointer += sizeof(int), \
@@ -278,28 +324,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, opname, argtype, restype, opcode)                          \
-	{                                                                         \
-		Value v = POP();                                                      \
-		if(v.is##argtype() && TOP.is##argtype()) {                            \
-			TOP.set##restype(TOP.to##argtype() op v.to##argtype());           \
-			DISPATCH();                                                       \
-		} else if(TOP.isObject()) {                                           \
-			NextObject *obj = TOP.toObject();                                 \
-			ASSERT(                                                           \
-			    obj->Class->hasPublicMethod(opcode##Hash),                    \
-			    "Method '%s' not found in class '%s'!",                       \
-			    StringLibrary::get_raw(SymbolTable::getSymbol(opcode##Hash)), \
-			    StringLibrary::get_raw(obj->Class->name));                    \
-			ref_incr(TOP);                                                    \
-			PUSH(v);                                                          \
-			CALL(obj->Class->functions[opcode##Hash]->frame.get(), 1 + 1);    \
-		}                                                                     \
-		ASSERT(v.is##argtype() && TOP.is##argtype(),                          \
-		       "Both of the operands of " #opname " are not " #argtype        \
-		       " (%s and %s)!",                                               \
-		       StringLibrary::get_raw(TOP.getTypeString()),                   \
-		       StringLibrary::get_raw(v.getTypeString()));                    \
+#define binary(op, opname, argtype, restype, opcode)                           \
+	{                                                                          \
+		rightOperand = POP();                                                  \
+		if(rightOperand.is##argtype() && TOP.is##argtype()) {                  \
+			TOP.set##restype(TOP.to##argtype() op rightOperand.to##argtype()); \
+			DISPATCH();                                                        \
+		} else if(TOP.isObject()) {                                            \
+			methodToCall = opcode##Hash;                                       \
+			goto opmethodcall;                                                 \
+		}                                                                      \
+		RERR("Both of the operands of " #opname " are not " #argtype           \
+		     " (@s and @s)!",                                                  \
+		     TOP.getTypeString(), rightOperand.getTypeString());               \
 	}
 
 #define ref_incr(x)                      \
@@ -324,9 +361,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 #define ASSERT(x, str, ...)      \
 	if(!(x)) {                   \
-		BACKUP_FRAMEINFO();      \
 		RERR(str, ##__VA_ARGS__) \
-		DISPATCH()               \
 	}
 
 	LOOP() {
@@ -359,7 +394,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(div) : binary(/, division, Number, Number, div);
 			CASE(lor) : binary(||, or, Boolean, Boolean, lor);
 			CASE(land) : binary(&&, and, Boolean, Boolean, land);
-			CASE(neq) : binary(!=, not equals to, Number, Boolean, neq);
 			CASE(greater) : binary(>, greater than, Number, Boolean, greater);
 			CASE(greatereq)
 			    : binary(>=, greater than or equals to, Number, Boolean,
@@ -369,11 +403,148 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
 			CASE(power) : RERR("Yet not implemented!");
 
-			CASE(eq) : {
-				Value v = POP();
-				TOP     = v == TOP;
+			CASE(neq) : {
+				rightOperand = POP();
+				if(TOP.isObject() &&
+				   TOP.toObject()->Class->hasPublicMethod(neqHash)) {
+					methodToCall = neqHash;
+					goto opmethodcall;
+				}
+				TOP = TOP != rightOperand;
 				DISPATCH();
 			}
+
+			CASE(eq) : {
+				rightOperand = POP();
+				if(TOP.isObject() &&
+				   TOP.toObject()->Class->hasPublicMethod(eqHash)) {
+					methodToCall = eqHash;
+					goto opmethodcall;
+				}
+				TOP = TOP == rightOperand;
+				DISPATCH();
+			}
+
+			CASE(subscript_get) : {
+				rightOperand = POP();
+				if(TOP.isObject()) {
+
+					if(NextType::getType(TOP) == NextType::ArrayClass) {
+					    NextObject *obj = TOP.toObject();
+					    // handle array get
+					    // Check for integer index
+					    double intpart;
+					    if(!rightOperand.isNumber() ||
+					       modf(rightOperand.toNumber(), &intpart) != 0.0) {
+					        RERR("Array index must be an integer!");
+					    }
+					    size_t idx       = intpart;
+					    size_t totalSize = obj->slots[1].toNumber();
+					    if(intpart >= totalSize || -intpart > totalSize) {
+					        RERR("Invalid array index!");
+					    }
+					    if(intpart < 0) {
+					        idx = totalSize + intpart;
+					    }
+					    TOP = obj->slots[0].toArray()[idx];
+					    DISPATCH();
+					}
+					methodToCall = subscript_getHash;
+					goto opmethodcall;
+				} else if(Primitives::hasPrimitive(TOP.getType(),
+				                                   subscript_getHash)) {
+
+					PUSH(rightOperand);
+					methodToCall      = subscript_getHash;
+					rightOperand      = StackTop[-2];
+					numberOfArguments = 1;
+					goto call_primitive;
+				}
+				RERR("Method [](_) not found in class '@s'!",
+				     TOP.getTypeString());
+			}
+
+			CASE(subscript_set) : {
+				Value target = StackTop[-3];
+				if(target.isObject()) {
+
+					if(NextType::getType(target) == NextType::ArrayClass) {
+					    Value value   = POP();
+					    rightOperand  = POP();
+					    NextObject *obj = TOP.toObject();
+					    // handle array get
+					    // Check for integer index
+					    double intpart;
+					    if(!rightOperand.isNumber() ||
+					       modf(rightOperand.toNumber(), &intpart) != 0.0) {
+					        RERR("Array index must be an integer!");
+					    }
+					    size_t idx       = intpart;
+					    size_t totalSize = obj->slots[1].toNumber();
+					    if(intpart > totalSize || -intpart > totalSize) {
+					        RERR("Invalid array index!");
+					    }
+					    if(intpart < 0) {
+					        idx = totalSize + intpart;
+					    }
+					    Value *arr = obj->slots[0].toArray();
+					    if(idx == totalSize) {
+					        totalSize++;
+					        obj->slots[1] = Value((double)(totalSize));
+
+					        // reallocation and stuff
+					        size_t oldCapacity = obj->slots[2].toNumber();
+
+					        if(oldCapacity == totalSize) {
+								// assuming oldcapacity is already
+								// adjusted to a power of 2, which
+								// it is at initialisation
+								size_t newCapacity = oldCapacity << 1;
+								arr = (Value *)realloc(arr, sizeof(Value) *
+					                                            newCapacity);
+					            for(size_t o = oldCapacity; o < newCapacity;
+					                o++)
+					                arr[o] = Value::nil;
+					            obj->slots[0] = arr;
+					            obj->slots[2] = Value((double)newCapacity);
+					        }
+					    }
+					    ref_incr(value);
+					    ref_decr(arr[idx]);
+					    arr[idx] = value;
+					    TOP      = value;
+					    DISPATCH();
+					}
+					NextObject *obj = target.toObject();
+					ASSERT(obj->Class->hasPublicMethod(subscript_setHash),
+					       "Method [](_,_) not found in class '@s'!",
+					       target.getTypeString());
+					ref_incr(target);
+					ref_incr(StackTop[-1]);
+					ref_incr(StackTop[-2]);
+					CALL(obj->Class->functions[subscript_setHash]->frame.get(),
+					     3);
+				} else if(Primitives::hasPrimitive(target.getType(),
+				                                   subscript_setHash)) {
+
+					methodToCall      = subscript_setHash;
+					rightOperand      = StackTop[-3];
+					numberOfArguments = 2;
+					goto call_primitive;
+				}
+				RERR("Method [](_,_) not found in class '@s'!",
+				     TOP.getTypeString());
+			}
+
+		opmethodcall : {
+			NextObject *obj = TOP.toObject();
+			ASSERT(obj->Class->hasPublicMethod(methodToCall),
+			       "Method '@t' not found in class '@s'!", methodToCall,
+			       obj->Class->name);
+			ref_incr(TOP);
+			PUSH(rightOperand);
+			CALL(obj->Class->functions[methodToCall]->frame.get(), 1 + 1);
+		}
 
 			CASE(lnot) : {
 				if(TOP.isBoolean()) {
@@ -433,7 +604,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jumpiftrue) : {
-				Value v   = POP();
+				Value v   = TOP;
 				int   dis = next_int();
 				bool  tr  = (v.isBoolean() && v.toBoolean()) ||
 				          (v.isNumber() && v.toNumber());
@@ -445,7 +616,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jumpiffalse) : {
-				Value v   = POP();
+				Value v   = TOP;
 				int   dis = next_int();
 				bool  tr  = v.isNil() || (v.isBoolean() && !v.toBoolean()) ||
 				          (v.isNumber() && !v.toNumber());
@@ -638,20 +809,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
+					       "Member '@s' not found in class '@s'!", field,
+					       c->name);
 
-					TOP = obj->slots[obj->Class->members[field].slot];
+					TOP = obj->slots[c->members[field].slot];
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name))
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name)
 
 					PUSH(m->getModuleStack(fiber)[m->variables[field].slot]);
 					DISPATCH();
@@ -663,22 +833,21 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
+					       "Member '@s' not found in class '@s'!", field,
+					       c->name);
 
 					Value v = TOP;
-					TOP     = obj->slots[obj->Class->members[field].slot];
+					TOP     = obj->slots[c->members[field].slot];
 					PUSH(v);
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'",
+					       field, m->name);
 
 					Value v = TOP;
 					TOP = m->getModuleStack(fiber)[m->variables[field].slot];
@@ -692,14 +861,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
+					NextClass * c   = obj->Class;
 					TOP             = Value::nil;
 					POP();
-					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					ASSERT(c->hasPublicField(field),
+					       "Member '@s' not found in class '@s'!", field,
+					       c->name);
 
-					Value &v = obj->slots[obj->Class->members[field].slot];
+					Value &v = obj->slots[c->members[field].slot];
 					ref_decr(v);
 					ref_incr(TOP);
 					v = TOP;
@@ -707,10 +876,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				} else if(TOP.isModule()) {
 					Module *m = POP().toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name);
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
@@ -726,31 +894,29 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
+					       "Member '@s' not found in class '@s'!", field,
+					       c->name);
 
-					Value &v = obj->slots[obj->Class->members[field].slot];
+					Value &v = obj->slots[c->members[field].slot];
 
-					ASSERT(v.isNumber(), "Member '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
 
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name);
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
 
-					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Variable '@s' is not a number!",
+					       field);
 
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
@@ -762,31 +928,29 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString field = next_string();
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
-					ASSERT(obj->Class->hasPublicField(field),
-					       "Member '%s' not found in class '%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(obj->Class->name));
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicField(field),
+					       "Member '@s' not found in class '@s'!", field,
+					       c->name);
 
-					Value &v = obj->slots[obj->Class->members[field].slot];
+					Value &v = obj->slots[c->members[field].slot];
 
-					ASSERT(v.isNumber(), "Member '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
 
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = TOP.toModule();
 					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '%s' found in module "
-					       "'%s'!",
-					       StringLibrary::get_raw(field),
-					       StringLibrary::get_raw(m->name));
+					       "No such public variable '@s' found in module "
+					       "'@s'!",
+					       field, m->name);
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
 
-					ASSERT(v.isNumber(), "Variable '%s' is not a number!",
-					       StringLibrary::get_raw(field));
+					ASSERT(v.isNumber(), "Variable '@s' is not a number!",
+					       field);
 
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
@@ -795,25 +959,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(call_method) : {
-				uint64_t method  = next_long();
+				methodToCall     = next_long();
 				int      numArg_ = next_int(); // copy the object also
 				Value &  v       = *(StackTop - numArg_ - 1);
 				if(v.isObject()) {
 					NextObject *obj = v.toObject();
-					ASSERT(
-					    obj->Class->hasPublicMethod(method),
-					    "Method '%s' not found in class '%s'!",
-					    StringLibrary::get_raw(SymbolTable::getSymbol(method)),
-					    StringLibrary::get_raw(obj->Class->name));
+					NextClass * c   = obj->Class;
+					ASSERT(c->hasPublicMethod(methodToCall),
+					       "Method '@t' not found in class '@s'!", methodToCall,
+					       c->name);
 
-					CALL(obj->Class->functions[method]->frame.get(),
-					     numArg_ + 1);
-				} else if(v.isModule() && v.toModule()->hasPublicFn(method)) {
-					method = SymbolTable::getSymbol(method);
+					CALL(c->functions[methodToCall]->frame.get(), numArg_ + 1);
+				} else if(v.isModule() &&
+				          v.toModule()->hasPublicFn(methodToCall)) {
+					methodToCall = SymbolTable::getSymbol(methodToCall);
 					// First, readjust the stack
 					// If it's a constructor, just assign 0 in place of
 					// the module
-					Fn * f             = v.toModule()->functions[method].get();
+					Fn * f = v.toModule()->functions[methodToCall].get();
 					bool isConstructor = f->isConstructor;
 					if(isConstructor)
 						v = Value();
@@ -833,25 +996,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					CALL_INSTANCE(fi, numArg_ - 1);
 
 				} else {
-					ASSERT(
-					    Primitives::hasPrimitive(v.getType(), method),
-					    "Primitive method '%s' not found in type '%s'!",
-					    StringLibrary::get_raw(SymbolTable::getSymbol(method)),
-					    StringLibrary::get_raw(v.getTypeString()));
+					ASSERT(Primitives::hasPrimitive(v.getType(), methodToCall),
+					       "Primitive method '@t' not found in type '@s'!",
+					       methodToCall, v.getTypeString());
 
-					Value ret = Primitives::invokePrimitive(
-					    v.getType(), method, StackTop - numArg_ - 1);
-
-					// Pop the arguments
-					while(numArg_ >= 0) {
-						Value &v = POP();
-						if(v.isObject())
-							v.toObject()->freeIfZero();
-						numArg_--;
-					}
-
-					PUSH(ret);
-					DISPATCH();
+					rightOperand      = v;
+					numberOfArguments = numArg_;
+					goto call_primitive;
 				}
 			}
 			/*
@@ -911,10 +1062,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					TOP = Value::nil;
 				}
 				POP();
-				BACKUP_FRAMEINFO();
-				presentFrame = throwException(v, fiber);
-				RESTORE_FRAMEINFO();
-				DISPATCH_WINC();
+				pendingException = v;
+				goto error;
 			}
 
 			CASE(call_builtin) : {
@@ -922,13 +1071,20 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				int        args       = next_int();
 				Value *    stackStart = StackTop - args;
 				Value      res = Builtin::invoke_builtin(sig, stackStart);
-				while(args--) {
-					Value v = POP();
-					if(v.isObject())
-						v.toObject()->freeIfZero();
+
+				if(pendingException != Value::nil) {
+					goto error;
+				} else {
+					while(args--) {
+						Value &v = POP();
+						if(v.isObject()) {
+							v.toObject()->freeIfZero();
+							v = Value::nil;
+						}
+					}
+					PUSH(res);
+					DISPATCH();
 				}
-				PUSH(res);
-				DISPATCH();
 			}
 
 			CASE(load_constant) : {
@@ -953,5 +1109,58 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				}
 			}
 		}
+
+	call_primitive:
+
+		rightOperand =
+		    Primitives::invokePrimitive(rightOperand.getType(), methodToCall,
+		                                StackTop - numberOfArguments - 1);
+
+		if(pendingException != Value::nil) {
+			goto error;
+		} else {
+
+			// Pop the arguments
+			while(numberOfArguments >= 0) {
+				Value &v = POP();
+				if(v.isObject()) {
+					v.toObject()->freeIfZero();
+					v = Value::nil;
+				}
+				numberOfArguments--;
+			}
+
+			PUSH(rightOperand);
+			DISPATCH();
+		}
+
+	call_frame:
+		frameInstanceToCall =
+		    fiber->appendCallFrame(frameToCall, numberOfArguments, &StackTop);
+	call_frameinstance:
+		presentFrame = &fiber->getCurrentFrame()[-1];
+		BACKUP_FRAMEINFO();
+		presentFrame = frameInstanceToCall;
+		RESTORE_FRAMEINFO();
+		DISPATCH_WINC();
+	error:
+		// Only way we can get here is by a 'goto error'
+		// statement, which was triggered either by a
+		// runtime error, or an user generated exception,
+		// or by a pending exception of a builtin or a
+		// primitive. In case of the later, the
+		// pendingException will already be set by the
+		// value of the exception, otherwise, we use
+		// the ExceptionMessage to create a
+		// RuntimeException, and set pendingException
+		// to the same.
+		if(pendingException == Value::nil) {
+			pendingException = createRuntimeException(ExceptionMessage);
+		}
+		BACKUP_FRAMEINFO();
+		presentFrame = throwException(pendingException, fiber);
+		RESTORE_FRAMEINFO();
+		pendingException = Value::nil;
+		DISPATCH_WINC();
 	}
 }

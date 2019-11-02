@@ -1,5 +1,7 @@
 #include "primitive.h"
+#include "engine.h"
 #include "symboltable.h"
+#include <cmath>
 
 using namespace std;
 
@@ -19,6 +21,11 @@ NEXT_PRIMITIVE_FN(Number, str) {
 	static char val[1079];
 	snprintf(val, 1079, "%lf", stack_[0].toNumber());
 	return Value(StringLibrary::insert(val));
+}
+
+NEXT_PRIMITIVE_FN(Number, is_int) {
+	double intpart;
+	return Value(modf(stack_[0].toNumber(), &intpart) == 0.0);
 }
 
 #define NEXT_NUMBER_PRIMITIVE(name, ...) \
@@ -46,6 +53,22 @@ NEXT_PRIMITIVE_FN(String, len) {
 	return Value((double)(StringLibrary::get(stack_[0].toString()).size()));
 }
 
+NEXT_PRIMITIVE_FN(String, has) {
+	if(!stack_[1].isString()) {
+		ExecutionEngine::setPendingException(
+		    ExecutionEngine::createRuntimeException(
+		        "Argument 1 of has(_) is not a string!"));
+		return Value::nil;
+	}
+
+	const string &s = StringLibrary::get(stack_[0].toString());
+	const string &s1 = StringLibrary::get(stack_[1].toString());
+	if(s.find(s1) != string::npos) {
+		return Value(true);
+	}
+	return Value(false);
+}
+
 #define NEXT_STRING_PRIMITIVE(name, ...) \
 	NEXT_PRIMITIVE_ENTRY(String, name, ##__VA_ARGS__)
 PrimitiveMap Primitives_String = PrimitiveMap{};
@@ -58,21 +81,23 @@ HashMap<Value::Type, PrimitiveMap *> Primitives::NextPrimitives = {
     {Value::VAL_String, &Primitives_String},
 };
 
-bool Primitives::hasPrimitive(Value::Type type, NextString signature) {
+bool Primitives::hasPrimitive(Value::Type type, uint64_t signature) {
 	return NextPrimitives.find(type) != NextPrimitives.end() &&
 	       NextPrimitives[type]->find(signature) != NextPrimitives[type]->end();
 }
 
-Value Primitives::invokePrimitive(Value::Type type, NextString signature,
+Value Primitives::invokePrimitive(Value::Type type, uint64_t signature,
                                   Value *stack_) {
 	return (*NextPrimitives[type])[signature](stack_);
 }
 
 void Primitives::init() {
 	NEXT_NUMBER_PRIMITIVE(str);
+	NEXT_NUMBER_PRIMITIVE(is_int);
 
 	NEXT_BOOLEAN_PRIMITIVE(str);
 
 	NEXT_STRING_PRIMITIVE(str);
 	NEXT_STRING_PRIMITIVE(len);
+	NEXT_STRING_PRIMITIVE(has, _);
 }

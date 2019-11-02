@@ -1,6 +1,7 @@
 #include "value.h"
 #include "display.h"
 #include "fn.h"
+#include <iomanip>
 
 Value Value::nil = Value();
 
@@ -13,7 +14,9 @@ NextString Value::ValueTypeStrings[] = {
 
 std::ostream &operator<<(std::ostream &o, const Value &v) {
 	switch(v.getType()) {
-		case Value::VAL_Number: o << v.toNumber(); break;
+		case Value::VAL_Number:
+			o << std::setprecision(14) << v.toNumber() << std::setprecision(6);
+			break;
 		case Value::VAL_String: o << StringLibrary::get(v.toString()); break;
 		case Value::VAL_Boolean: o << (v.toBoolean() ? "true" : "false"); break;
 		case Value::VAL_Object:
@@ -25,6 +28,7 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 		case Value::VAL_Module:
 			o << "<module " << StringLibrary::get(v.toModule()->name) << ">";
 			break;
+		case Value::VAL_Array: o << "<array " << v.toArray() << ">"; break;
 		default: panic("<unrecognized object %lx>", v.value); break;
 	}
 	return o;

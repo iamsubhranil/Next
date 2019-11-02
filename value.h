@@ -43,12 +43,12 @@ class Value {
 	Value() : value(QNAN_NIL) {}
 	Value(double d) : value(*(uint64_t *)&d) {}
 #ifdef DEBUG
-#define TYPE(r, n)                                                           \
-	Value(r s) {                                                             \
-		encode##n(s);                                                        \
-		std::cout << std::hex << #n << " " << s << " encoded to : " << value \
-		          << " (Magic : " << QNAN_##n << ")\n"                       \
-		          << std::dec;                                               \
+#define TYPE(r, n)                                                             \
+	Value(r s) {                                                               \
+		encode##n(s);                                                          \
+		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
+		          << " (Magic : " << QNAN_##n << ")\n"                         \
+		          << std::dec;        */                                       \
 	}
 #else
 #define TYPE(r, n) \
@@ -98,6 +98,8 @@ class Value {
 	}
 
 	inline bool operator==(const Value &v) const { return v.value == value; }
+
+	inline bool operator!=(const Value &v) const { return v.value != value; }
 
 	static void init();
 

@@ -7,7 +7,8 @@ NextType NextType::Error = {0, 0};
 
 #define TYPE(r, n) NextType NextType::n = {0, 0};
 #include "valuetypes.h"
-NextType NextType::Number = {0, 0};
+NextType NextType::Number     = {0, 0};
+NextType NextType::ArrayClass = {0, 0};
 
 void NextType::init() {
 	NextType::Any = {StringLibrary::insert("core"),
@@ -21,6 +22,9 @@ void NextType::init() {
 #include "valuetypes.h"
 	NextType::Number = {StringLibrary::insert("core"),
 	                    StringLibrary::insert("Number")};
+
+	NextType::ArrayClass = {StringLibrary::insert("core"),
+	                        StringLibrary::insert("array")};
 }
 
 bool NextType::isPrimitive(const NextString &ty) {
@@ -42,13 +46,13 @@ NextType NextType::getPrimitiveType(const NextString &ty) {
 }
 
 NextType NextType::getType(const Value &v) {
-	if(v.isObject()) {
-		return v.toObject()->Class->getClassType();
-	}
 	switch(v.getType()) {
 		case Value::VAL_Number: return NextType::Number;
 		case Value::VAL_String: return NextType::String;
 		case Value::VAL_Boolean: return NextType::Boolean;
+		case Value::VAL_Module: return NextType::Module;
+		case Value::VAL_Array: return NextType::Array;
+		case Value::VAL_Object: return v.toObject()->Class->getClassType();
 		default: return NextType::Error;
 	}
 }

@@ -1,5 +1,8 @@
 #include "builtins.h"
 #include "display.h"
+#include "engine.h"
+#include "fn.h"
+#include <string>
 #include <time.h>
 
 using namespace std;
@@ -12,6 +15,69 @@ Value next_clock(const Value *args) {
 	return Value((double)clock());
 }
 
+Value next_array_allocate(const Value *args) {
+	size_t size = (size_t)args[0].toNumber();
+	Value *arr  = NULL;
+
+	if(size > 0) {
+		arr = (Value *)malloc(sizeof(Value) * size);
+
+		for(size_t i = 0; i < size; i++) {
+			arr[i] = Value::nil;
+		}
+	}
+	return Value(arr);
+}
+
+Value next_array_reallocate(const Value *args) {
+	Value *arr     = args[0].toArray();
+	size_t oldSize = (size_t)args[1].toNumber();
+	size_t newSize = (size_t)args[2].toNumber();
+
+	arr = (Value *)realloc(arr, sizeof(Value) * newSize);
+
+	while(oldSize < newSize) {
+		arr[oldSize++] = Value::nil;
+	}
+
+	return Value(arr);
+}
+
+Value next_array_set(const Value *args) {
+	Value *arr = args[0].toArray();
+	size_t pos = (size_t)args[1].toNumber();
+	Value  val = args[2];
+
+	Value oldVal = arr[pos];
+
+	// perform gc if required
+	if(oldVal.isObject())
+		oldVal.toObject()->decrCount();
+
+	arr[pos] = val;
+
+	return val;
+}
+
+Value next_array_get(const Value *args) {
+	Value *arr = args[0].toArray();
+	size_t pos = (size_t)args[1].toNumber();
+
+	return arr[pos];
+}
+
+Value next_type_of(const Value *args) {
+	Value    v = args[0];
+	NextType t = NextType::getType(v);
+	NextString ret = StringLibrary::insert(StringLibrary::get(t.module) + "." +
+	                                       StringLibrary::get(t.name));
+	return Value(ret);
+}
+
+Value next_is_same_type(const Value *v) {
+	return Value(NextType::getType(v[0]) == NextType::getType(v[1]));
+}
+
 HashMap<NextString, builtin_handler> Builtin::BuiltinHandlers =
     HashMap<NextString, builtin_handler>{};
 
@@ -19,10 +85,16 @@ HashMap<NextString, Value> Builtin::BuiltinConstants =
     HashMap<NextString, Value>{};
 
 void Builtin::init() {
-	BuiltinHandlers[StringLibrary::insert("clock()")] = &next_clock;
 
-	BuiltinConstants[StringLibrary::insert("clocks_per_sec")] =
-	    Value((double)CLOCKS_PER_SEC);
+	register_builtin("clock()", next_clock);
+	register_builtin("__next_array_allocate(_)", next_array_allocate);
+	register_builtin("__next_array_reallocate(_,_,_)", next_array_reallocate);
+	register_builtin("__next_array_set(_,_,_)", next_array_set);
+	register_builtin("__next_array_get(_,_)", next_array_get);
+	register_builtin("type_of(_)", next_type_of);
+	register_builtin("is_same_type(_,_)", next_is_same_type);
+
+	register_constant("clocks_per_sec", Value((double)CLOCKS_PER_SEC));
 }
 
 bool Builtin::has_builtin(NextString sig) {
@@ -40,12 +112,20 @@ void Builtin::register_builtin(NextString sig, builtin_handler handler) {
 	BuiltinHandlers[sig] = handler;
 }
 
+void Builtin::register_builtin(const char *sig, builtin_handler handler) {
+	register_builtin(StringLibrary::insert(sig), handler);
+}
+
 void Builtin::register_constant(NextString name, Value v) {
 	if(has_constant(name)) {
 		warn("Overriding constant value for '%s'!",
 		     StringLibrary::get_raw(name));
 	}
 	BuiltinConstants[name] = v;
+}
+
+void Builtin::register_constant(const char *sig, Value v) {
+	register_constant(StringLibrary::insert(sig), v);
 }
 
 Value Builtin::invoke_builtin(NextString sig, const Value *args) {

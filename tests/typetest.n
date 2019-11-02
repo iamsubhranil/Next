@@ -1,0 +1,45 @@
+class test {
+    pub:
+        new() {}
+}
+
+a = 2
+if(type_of(a) != "core.Number") {
+    throw core.RuntimeException("type_of not working!")
+}
+
+if(type_of(a) == "something") {
+    throw core.RuntimeException("type_of(a) == \"something\") should've returned false!")
+}
+
+if(type_of(a) != "core.Number") {
+    throw core.RuntimeException("type_of(a) != \"core.Number\") should've returned true!")
+}
+
+a = test()
+
+if(type_of(a) != "typetest.test") {
+    throw core.RuntimeException("type_of(a) == \"typetest.test\") should've returned true!")
+}
+
+a = core.array()
+
+if(type_of(a) != "core.array") {
+    throw core.RuntimeException("type_of(a) == \"core.array\") should've returned true!")
+}
+
+a = 2
+b = "2"
+if(is_same_type(a, b)) {
+    throw core.RuntimeException("is_same_type(2, \"2\") should've returned false!")
+}
+
+if(!is_same_type("Hello World!", b)) {
+    throw core.RuntimeException("is_same_type(\"Hello World!\", \"2\") should've returned true!")
+}
+
+if(!is_same_type(382988.437878287, a)) {
+    throw core.RuntimeException("is_same_type(382988.437878287, 2) should've returned true!")
+}
+
+print("Type checking is working as expected!")

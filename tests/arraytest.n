@@ -1,0 +1,40 @@
+fn expect(arr, idx, val) {
+    if(arr[idx] != val) {
+        print("Error in arr.get(", idx, ") -> Expected ", val, ", Received : ", arr[idx], "\n")
+        throw core.RuntimeException("Error in array indexing")
+    }
+}
+
+fn expect_err(arr, idx) {
+    try {
+        x = arr[idx]
+        print("[ERROR] ", arr, " should not be accessible with idx ", idx, "!\n")
+    } catch(RuntimeException e) {}
+}
+
+
+arr = core.array()
+arr[0] = 2.32
+arr[1] = "Hello"
+arr[2] = core.array(2)
+
+expect(arr, 0, 2.32)
+expect(arr, 1, "Hello")
+expect(arr, -2, "Hello")
+expect(arr, -3, 2.32)
+
+expect_err(arr, 2.32)
+expect_err(arr, "2")
+expect_err(arr, 1.000000001)
+expect_err(arr, 100)
+expect_err(arr, -100)
+
+arr[2][0] = "Nest"
+arr[2][1] = "Array"
+
+expect(arr[2], 0, "Nest")
+expect(arr[2], 1, "Array")
+
+arr = 3
+
+print("Arrays are working as expected!\n")

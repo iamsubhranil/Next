@@ -39,7 +39,7 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	initFrame(module->frame.get());
 	NextString lastName = StringLibrary::insert("core");
 	if(compileIn->name != lastName) {
-		module->importedModules[lastName] = &CoreModule::core;
+		module->importedModules[lastName] = CoreModule::core;
 		VarInfo v                         = lookForVariable(lastName, true);
 		bytecode->push(Value(module->importedModules[lastName]));
 		bytecode->store_slot(v.slot);
@@ -130,7 +130,16 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 	dinfo("");
 	bin->token.highlight();
 #endif
+	int patch = 0;
+	int pos   = 0;
 	bin->left->accept(this);
+	if(bin->token.type == TOKEN_and) {
+		patch = 1;
+		pos   = bytecode->jumpiffalse(0);
+	} else if(bin->token.type == TOKEN_or) {
+		patch = 2;
+		pos   = bytecode->jumpiftrue(0);
+	}
 	bin->right->accept(this);
 	frame->insertdebug(bin->token);
 	switch(bin->token.type) {
@@ -146,12 +155,23 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_LESS_EQUAL: bytecode->lesseq(); break;
 		case TOKEN_GREATER: bytecode->greater(); break;
 		case TOKEN_GREATER_EQUAL: bytecode->greatereq(); break;
+
+		// We do need these opcodes, in the case whether the
+		// first operand was an object, and we need to call
+		// the appropiate opmethod
 		case TOKEN_and: bytecode->land(); break;
 		case TOKEN_or: bytecode->lor(); break;
 
 		default:
 			panic("Invalid binary operator '%s'!",
 			      Token::FormalNames[bin->token.type]);
+	}
+
+	if(patch > 0) {
+		switch(patch) {
+			case 1: bytecode->jumpiffalse(pos, bytecode->getip() - pos); break;
+			case 2: bytecode->jumpiftrue(pos, bytecode->getip() - pos); break;
+		}
 	}
 }
 
@@ -328,7 +348,8 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 				// Function is not found
 				lnerr_("No function with the specified signature found in "
 				       "module '%s'!",
-				       call->callee->token, StringLibrary::get_raw(mod->name));
+				       call->callee->token,
+				       StringLibrary::get_raw(module->name));
 				NextString s = StringLibrary::insert(
 				    call->callee->token.start, call->callee->token.length);
 				for(auto const &i : module->functions) {
@@ -441,29 +462,46 @@ void CodeGenerator::visit(AssignExpression *as) {
 	if(as->target->isMemberAccess())
 		panic("AssignExpression should not contain member access!");
 
-	//
-	if(state == COMPILE_BODY) {
-		// Resolve the expression
-		as->val->accept(this);
-	}
+	if(as->target->type == Expr::SUBSCRIPT) {
+		// it is a subscript setter
+		// subscript setters are compiled as the
+		// target first, then the value to avoid
+		// stack manipulation in case we need to
+		// call op method [](_,_)
+		if(state == COMPILE_BODY) {
+			bool b = onLHS;
+			onLHS  = true;
+			as->target->accept(this);
+			onLHS = b;
+			as->val->accept(this);
+			bytecode->subscript_set();
+		}
+	} else {
 
-	VarInfo var = lookForVariable(as->target->token, true);
+		//
+		if(state == COMPILE_BODY) {
+			// Resolve the expression
+			as->val->accept(this);
+		}
 
-	if(state == COMPILE_BODY) {
-		frame->insertdebug(as->token);
-		// target of an assignment expression cannot be a
-		// builtin constant
-		switch(var.position) {
-			case LOCAL: bytecode->store_slot(var.slot); break;
-			case CLASS: bytecode->store_object_slot(var.slot); break;
-			case MODULE: bytecode->store_module_slot(var.slot); break;
-			case BUILTIN: {
-				lnerr_("Built-in constant '%.*s' cannot be reassigned!",
-				       as->target->token, as->target->token.length,
-				       as->target->token.start);
-				break;
+		VarInfo var = lookForVariable(as->target->token, true);
+
+		if(state == COMPILE_BODY) {
+			frame->insertdebug(as->token);
+			// target of an assignment expression cannot be a
+			// builtin constant
+			switch(var.position) {
+				case LOCAL: bytecode->store_slot(var.slot); break;
+				case CLASS: bytecode->store_object_slot(var.slot); break;
+				case MODULE: bytecode->store_module_slot(var.slot); break;
+				case BUILTIN: {
+					lnerr_("Built-in constant '%.*s' cannot be reassigned!",
+					       as->target->token, as->target->token.length,
+					       as->target->token.start);
+					break;
+				}
+				default: break;
 			}
-			default: break;
 		}
 	}
 }
@@ -556,6 +594,20 @@ void CodeGenerator::visit(GetExpression *get) {
 	onLHS   = lb;
 	get->refer->accept(this);
 	onRefer = b;
+}
+
+void CodeGenerator::visit(SubscriptExpression *sube) {
+#ifdef DEBUG
+	dinfo("");
+	sube->token.highlight();
+#endif
+	bool b = onLHS;
+	onLHS  = false;
+	sube->object->accept(this);
+	sube->idx->accept(this);
+	onLHS = b;
+	if(!onLHS)
+		bytecode->subscript_get();
 }
 
 void CodeGenerator::visit(PrefixExpression *pe) {
@@ -775,8 +827,11 @@ void CodeGenerator::visit(IfStatement *ifs) {
 		exitif = bytecode->jump(0);
 		jumpto = bytecode->getip();
 		ifs->elseBlock->accept(this);
-	} else
+	} else {
 		jumpto = bytecode->getip();
+	}
+	// pop off the conditional value since jif doesn't pop anymore
+	bytecode->pop();
 	// patch the conditional jump
 	bytecode->jumpiffalse(jif, jumpto - jif);
 	// if there is an else block, patch the
@@ -795,15 +850,31 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 		ifs->condition->accept(this);
 		frame->insertdebug(ifs->token);
 		int loopexit = bytecode->jumpiffalse(0);
+		// pop the boolean value. since jumpiffalse
+		// does not pop anymore
+		bytecode->pop();
 		ifs->thenBlock->accept(this);
 		bytecode->jump(pos - bytecode->getip());
 		bytecode->jumpiffalse(loopexit, bytecode->getip() - loopexit);
+		// pop off the stale boolean value
+		bytecode->pop();
 	} else {
+		// since this is a do loop, we need to
+		// pop off the conditional boolean value
+		// inside the loop since jumpiftrue does
+		// not pop anymore, but at the first
+		// iteration, we have nothing to pop yet
+		// So we insert a stale boolean value to
+		// insert the pop instruction in the loop
+		bytecode->push(Value(false));
 		int pos = bytecode->getip();
+		bytecode->pop();
 		ifs->thenBlock->accept(this);
 		ifs->condition->accept(this);
 		frame->insertdebug(ifs->token);
 		bytecode->jumpiftrue(pos - bytecode->getip());
+		// pop off the stale boolean value
+		bytecode->pop();
 	}
 }
 
@@ -1210,6 +1281,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	frame->handlers->push_back(
 	    (ExHandler){tryBlockStart, tryBlockEnd, bytecode->getip(), t});
 	bytecode->store_slot(slot); // store the thrown object
+	bytecode->pop();            // pop it manually since store_slot doesn't
 	ifs->block->accept(this);
 }
 

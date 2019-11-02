@@ -106,6 +106,12 @@ class ReferenceParselet : public InfixParselet {
 	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
 };
 
+class SubscriptParselet : public InfixParselet {
+  public:
+	SubscriptParselet() : InfixParselet(Precedence::REFERENCE) {}
+	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+};
+
 class DeclarationParselet {
   public:
 	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_PRIV); }

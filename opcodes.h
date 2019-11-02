@@ -80,9 +80,9 @@ OPCODE1(store_module_slot, 0, int) // <slot>
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
-// Pop, verify and jump
-OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
-OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
+// Verify and jump, does not pop
+OPCODE1(jumpiftrue, 0, int)  // <relative_jump_offset>
+OPCODE1(jumpiffalse, 0, int) // <relative_jump_offset>
 
 // Since 'call' creates a separate stack for the callee,
 // the number of parameters is needed to copy the old arguments
@@ -128,6 +128,14 @@ OPCODE0(incr_ref, 0)
 // until a frame with matching exception handler is
 // found
 OPCODE0(throw_, -1)
+
+// Subscript opcodes.
+// Set takes three arguments, from the TOS they are
+// value, index, object. Pops three, and inserts one.
+OPCODE0(subscript_set, -2)
+// Get takes two arguments, from the TOS they are
+// index, object. Pops two, and inserts one.
+OPCODE0(subscript_get, -1)
 
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>

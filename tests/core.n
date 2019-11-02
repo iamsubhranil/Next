@@ -23,3 +23,82 @@ pub class RuntimeException {
             ret msg
         }
 }
+
+pub class array {
+    priv:
+        items, size, capacity
+
+        // this will be called only once
+        // during initialization, so it
+        // should not be much of a problem
+        fn nearestPowerOfTwo(x) {
+            res = 1
+            while(res < x) {
+                res = res * 2
+            }
+            ret res
+        }
+    pub:
+        new() {
+            size = 0
+            capacity = 1
+            items = __next_array_allocate(1)
+        }
+
+        new(x) {
+            if(!is_same_type(x, 2) or !x.is_int() or x < 0) {
+                throw RuntimeException("Array size should be a positive integer!")
+            }
+            size = 0
+            capacity = nearestPowerOfTwo(x)
+            items = __next_array_allocate(capacity)
+        }
+
+        fn insert(val) {
+            size++
+            if(size == capacity) {
+                // since there might be reallocations,
+                // items might point to invalid address
+                // if not reassigned
+                items = __next_array_reallocate(items, capacity, capacity * 2)
+                capacity = capacity * 2
+            }
+            // it might be implemented in the interpreter
+            this[size - 1] = val
+            ret val
+        }
+
+        op [](pos, val) {
+            if(!is_same_type(pos, 2) or !pos.is_int()) {
+                throw RuntimeException("Array index should be an integer!")
+            }
+            else if(pos > size or -pos > size) {
+                throw RuntimeException("Invalid array index!")
+            }
+            // if pos is negative, item to be accessed is
+            // from the end of the array
+            if(pos < 0) {
+                pos = size + pos
+            } else if(pos == size) {
+                ret insert(val)
+            }
+            ret __next_array_set(items, pos, val)
+        }
+
+        op [](pos) {
+            if(!is_same_type(pos, 2) or !pos.is_int()) {
+                throw RuntimeException("Array index should be an integer!")
+            }
+            else if(pos >= size or -pos > size) {
+                throw RuntimeException("Invalid array index!")
+            }
+            // if pos is negative, item to be accessed is
+            // from the end of the array
+            if(pos < 0) {
+                pos = size + pos
+            }
+            ret __next_array_get(items, pos)
+        }
+
+        fn size() { ret size }
+}

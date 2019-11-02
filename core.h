@@ -4,6 +4,6 @@
 
 class CoreModule {
   public:
-	static Module core;
+	static Module *core;
 	static void   init();
 };

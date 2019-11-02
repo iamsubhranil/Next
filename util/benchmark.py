@@ -57,6 +57,8 @@ def BENCHMARK(name, pattern):
 
 # BENCHMARK("api_foreign_method", "100000000")
 
+BENCHMARK("arrays", r"""500000500000""")
+
 BENCHMARK("binary_trees", r"""stretch tree of depth 13 check : -1
 8192 trees of depth 4 check : -8192
 2048 trees of depth 6 check : -2048
@@ -82,7 +84,7 @@ BENCHMARK("fib", r"""317811
 317811
 317811""")
 
-BENCHMARK("garbage_test", r"""Final object : <object of garbage_test\.MyClass> {2e\+06, 2e\+06, 2e\+06, 2e\+06}""")
+BENCHMARK("garbage_test", r"""Final object : <object of garbage_test\.MyClass> {2000000, 2000002, 2000002, 2000000}""")
 
 #BENCHMARK("fibers", r"""4999950000""")
 
@@ -95,9 +97,9 @@ false""")
 
 #BENCHMARK("map_string", r"""12799920000""")
 
-BENCHMARK("string_equals", r"""3e\+06""")
+BENCHMARK("string_equals", r"""3000000""")
 
-BENCHMARK("while", r"""1\.25e\+13""")
+BENCHMARK("while", r"""12500002500003""")
 
 LANGUAGES = [
   ("next",           [os.path.join(NEXT_BIN, 'next')], ".n"),

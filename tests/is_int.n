@@ -1,0 +1,10 @@
+a = 2.32
+if(a.is_int()) {
+    print("is_int is broken!")
+}
+a = 2
+if(!a.is_int()) {
+    print("is_int is broken")
+} else {
+    print("is_int is working correctly!")
+}

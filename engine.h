@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fn.h"
+#include <cstdarg>
 
 class ExecutionEngine {
 
@@ -27,6 +28,10 @@ class ExecutionEngine {
 	declareSymbol(greatereq);
 	declareSymbol(lor);
 	declareSymbol(land);
+	declareSymbol(subscript_get);
+	declareSymbol(subscript_set);
+
+	static void formatExceptionMessage(const char *message, ...);
 
   public:
 	static void    init();
