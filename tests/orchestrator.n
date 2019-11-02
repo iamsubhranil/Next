@@ -1,0 +1,27 @@
+import toplevel
+import helloworld
+import fncall
+
+import arraytest
+import classtest
+import exceptiontest
+import iftest
+import importest
+import opmethod
+import prepost
+import primitivetest
+import rerrtest
+import subscriptest
+import typetest
+
+prepost.test()
+iftest.test()
+primitivetest.test()
+classtest.test()
+importest.test()
+opmethod.test()
+subscriptest.test()
+arraytest.test()
+exceptiontest.test()
+rerrtest.test()
+typetest.test()

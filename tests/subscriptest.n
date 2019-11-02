@@ -18,9 +18,18 @@ class Test {
         }
 }
 
-a = Test(5)
-a[4.5] = 4
-if(!a[17.98] or a[18.25]) {
-    throw core.RuntimeException("Subscript operators are not working as intended!")
+pub fn test() {
+    res = true
+    a = Test(5)
+    a[4.5] = 4
+    if(!a[17.98] or a[18.25]) {
+        print("[Error] Subscript operators are not working as intended!\n")
+        res = false
+    }
+
+    if(res) {
+        print("Subscript operators are working perfectly!\n")
+    }
+
+    ret res
 }
-print("Subscript operators are working perfectly!")

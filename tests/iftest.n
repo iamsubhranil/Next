@@ -1,19 +1,25 @@
 fn mayBeCalled(shouldBeCalled, returnValue) {
     if(!shouldBeCalled) {
-        throw core.RuntimeException("This function should not be called! Short circuit is not working!")
+        print("[Error] This function should not be called! Short circuit is not working!\n")
     }
     ret returnValue
 }
 
-a = mayBeCalled(true, true) or mayBeCalled(false, true)
-a = mayBeCalled(true, false) or mayBeCalled(true, true)
-if(a == false) {
-    throw core.RuntimeException("Or is broken!")
-}
-a = mayBeCalled(true, false) and mayBeCalled(false, true)
-a = mayBeCalled(true, true) and mayBeCalled(true, false)
-if(a == true) {
-    throw core.RuntimeException("And is broken")
-} else {
-    print("Short circuits are working perfectly!")
+pub fn test() {
+    res = true
+    a = mayBeCalled(true, true) or mayBeCalled(false, true)
+    a = mayBeCalled(true, false) or mayBeCalled(true, true)
+    if(a == false) {
+        print("[Error] OR is broken!\n")
+        res = false
+    }
+    a = mayBeCalled(true, false) and mayBeCalled(false, true)
+    a = mayBeCalled(true, true) and mayBeCalled(true, false)
+    if(a == true) {
+        print("[Error] AND is broken!\n")
+        res = false
+    } else {
+        print("Short circuits are working perfectly!\n")
+    }
+    ret res
 }

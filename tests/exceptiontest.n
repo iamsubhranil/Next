@@ -27,19 +27,38 @@ fn recur(x) {
     }
 }
 
-try {
-    badfn(4)
-} catch(Number n) {
-    print("\nNumber Exception caught : ", n, " \n")
-} catch(String s) {
-    print("\nString Exception caught : ", s, "\n")
-} catch(Exception e) {
-    print("\nCustom Exception caught : ", e.str(), "\n")
-}
-try {
-    recur(50)
-} catch(Exception f) {
-    print("\nException caught : ", f)
-} catch(RuntimeException re) {
+pub fn test() {
+    res = true
+    try {
+        badfn(4)
+        print("[Error] badfn should've really thrown an exception now!\n")
+        res = false
+    } catch(Number n) {
+        print("[Error] Expected exception of class 'Exception', caught 'Number'! \n")
+        res = false
+    } catch(String s) {
+        print("[Error] Expected exception of class 'Exception', caught 'String'! \n")
+        res = false
+    } catch(Exception e) {
+        if(e.str() != "This is an exception") {
+            print("[Error] Expected exception message 'This is an exception'!\nReceived '", e.str(), "'!\n")
+            res = false
+        }
+    }
+    try {
+        recur(50)
+        print("[Error] recur() should've really thrown an exception now!\n")
+        res = false
+    } catch(Exception f) {
+        if(f.str() != "Too many recurs") {
+            print("[Error] Expected exception message 'Too many recurs'!\nReceived '", f.str(), "'!\n")
+            res = false
+        }
+    }
 
+    if(res) {
+        print("Exceptions are working properly!\n")
+    }
+
+    ret res
 }

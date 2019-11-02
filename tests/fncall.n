@@ -1,10 +1,19 @@
+res = false
+
 fn hello() {
-    print("\nHello from a function!")
+    res = true
 }
 
 fn hello(x, y) {
-    print("\nArgument passed : ", x, ", ", y)
+    if(x != "first" or y != "second") {
+        print("[Error] Expected x to be 'first' and y to be 'second'!\nReceived : ", x, " and ", y, "\n")
+    } else {
+        res = true
+    }
 }
 
 hello()
 hello("first", "second")
+if(res) {
+    print("Function calls are working properly!\n")
+}

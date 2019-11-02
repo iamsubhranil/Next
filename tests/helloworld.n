@@ -1,15 +1,61 @@
-print("Hello World!\n")
+print("Print is working!\n")
 a = 2
 b = 5
 c = a + b
-if(a > b) {
-    print("Next is broken!\n")
+res = true
+if(c != 7) {
+    print("[Error] Addition is not working!\n")
+    res = false
+}
+c = a - b
+if(c != -3) {
+    print("[Error] Subtraction is not working!\n")
+    res = false
+}
+c = a * b
+if(c != 10) {
+    print("[Error] Multiplication is not working!\n")
+    res = false
+}
+c = b / a
+if(c != 2.5) {
+    print("[Error] Division is not working!\n")
+    res = false
+}
+if(res) {
+    print("Basic arithmetic is working!\n")
+}
+e = a > b
+f = a == b
+if(e == true or f == true) {
+    print("[Error] Conditionals are broken!\n")
+    res = false
 }
 if(a < b) {
-    print("Next is alright!\n")
+    print("Conditionals are working!\n")
 }
-print("Looping!\n")
 do {
-    print("a is now : ", a++, "\n")
+    a = a + 1
 } while(a < b)
-print("\nAfter the loop, a is : ", a)
+if(a != 5) {
+    print("[Error] do-while loops are broken!\n")
+    res = false
+} else {
+    print("do-while loops are working!\n")
+}
+
+while(a > 0) {
+    a = a - 1
+}
+if(a != 0) {
+    print("[Error] while loops are broken!\n")
+    res = false
+} else {
+    print("while loops are working!\n")
+}
+
+if(!res) {
+    print("[Error] ONE OR MANY CORE INTERPRETER COMPONENTS ARE BROKEN!\n")
+} else {
+    print("Core interpreter is working properly!\n")
+}

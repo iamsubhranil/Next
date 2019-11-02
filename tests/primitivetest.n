@@ -1,36 +1,60 @@
-print("Testing boolean primitives..")
-v = true
-print("\n", v, ".str() : ", v.str())
-
-print("\n\nTesting number primitives..")
-d = 2.8284382828899812898938298
-print("\n", d, ".str() : ", d.str())
-
-print("\n\nTesting string primitives..")
-s = "Hello World!"
-print("\n", s, ".str() : ", s.str())
-print("\n", s, ".len() : ", s.len())
-
-print("\nCalling an invalid primitive over string..")
-
-try {
-    s.badPrimitive(d)
-    throw core.RuntimeException("Next is broken!")
-} catch(RuntimeException e) {
-    print("\nException caught successfully!")
-}
-
-print("\nPassing bad argument to a primitive..")
-
-try {
-    if(s.has(123)) {
-        throw core.RuntimeException("Next is broken!")
+pub fn test() {
+    res = true
+    v = true
+    if(v.str() != "true") {
+        print("[Error] bool.str() is broken!\n")
+        res = false
     }
-    throw core.RuntimeException("Next is broken!")
-} catch(RuntimeException e) {
-    print("\nException caught successfully!")
-}
+    
+    d = 2.8284382828899812898938298
+    if(d.str() != "2.828438") {
+        print("[Error] number.str() is broken!\n")
+        res = false
+    }
+    a = 2.32
+    if(a.is_int()) {
+        print("[Error] number.is_int() is broken!\n")
+        res = false
+    }
+    a = 2
+    if(!a.is_int()) {
+        print("[Error] number.is_int() is broken\n")
+        res = false
+    }
 
-print("\nChecking if '", s, "' has 'Hello' : ", s.has("Hello"))
-print("\nChecking if '", s, "' has 'lo Wo' : ", s.has("lo Wo"))
-print("\nChecking if '", s, "' has 'Hola'  : ", s.has("Hola"), "\n")
+    s = "Hello World!"
+    if(s.str() != "Hello World!") {
+        print("[Error] string.str() is broken!\n")
+        res = false
+    }
+    if(s.len() != 12) {
+        print("[Error] string.len() is broken!\n")
+        res = false
+    }
+    
+    try {
+        s.badPrimitive(d)
+        print("[Error] string.badPrimitve() should've resulted in an exception!\n")
+        res = false
+    } catch(RuntimeException e) {}
+
+    try {
+        if(s.has(123)) {
+            print("[Error] string.has(123) should not return true!\n")
+            res = false
+        }
+        print("[Error] string.has() should not accept 123 as a valid argument!\n")
+        res = false
+    } catch(RuntimeException e) {}
+
+    if(!s.has("Hello") or !s.has("lo Wo") or s.has("Hola")) {
+        print("[Error] string.has() is broken!\n")
+        res = false
+    }
+
+    if(res) {
+        print("Primitives are working properly!\n")
+    }
+
+    ret res
+}
