@@ -1,5 +1,5 @@
 pub fn helloworld() {
-    print("\nprinting hello world from another module!\n")
+    ret 1913
 }
 
 pub var = 10

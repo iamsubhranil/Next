@@ -1,8 +1,34 @@
-a = 2
-print("a is initialized as : ", a)
-print("\na++ : ", a++)
-print("\na : ", a)
-print("\n++a : ", ++a)
-print("\na-- : ", a--)
-print("\na : ", a)
-print("\n--a : ", --a)
+pub fn test() {
+    res = true
+    a = 2
+    if(a++ != 2) {
+        print("[Error] Post increment not working!\n")
+        res = false
+    }
+    if(a != 3) {
+        print("[Error] Post increment not working!\n")
+        res = false
+    }
+    if(++a != 4) {
+        print("[Error] Pre increment not working!\n")
+        res = false
+    }
+    if(a-- != 4) {
+        print("[Error] Post decrement not working!\n")
+        res = false
+    }
+    if(a != 3) {
+        print("[Error] Post decrement not working!\n")
+        res = false
+    }
+    if(--a != 2) {
+        print("[Error] Pre decrement not working!\n")
+        res = false
+    }
+
+    if(res) {
+        print("Pre/post in/decrements are working properly!\n")
+    }
+
+    ret res
+}

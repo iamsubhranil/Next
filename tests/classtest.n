@@ -3,42 +3,72 @@ pub class LinkedList {
         mem
         static mem2
         new(x) {
-            print("\nin constructor\n")
             mem = x
             mem2 = 8
-            print("\nreturn constructor\n")
         }
 
         fn test() {
-            print("\nin test\n")
-            print(mem)
-            print("\nreturn test\n")
+            ret mem * 2
         }
 
         fn some() {
-            print("\nin some\n")
             a = 2 + 3
             mem = 4
             mem = test()
-            print("\nreturn some\n")
-            ret 6
+            ret mem
         }
 
-        fn loop(x, y) {
-            while(mem++ < x) {
-                print("\nmem : ", mem)
-            }
+        fn loop(x) {
+            while(mem++ < x) {}
         }
 }
-x = LinkedList(2)
-print("x.mem : ", x.mem, "\tx.mem2 : ", x.mem2)
-x.mem = 5
-x.some()
-x.mem2 = x.some()
-print("\nx.mem : ", x.mem, "\tx.mem2 : ", x.mem2)
-x.mem = 1
-x.loop(10, 20)
-print("\nx.mem : ", x.mem, "\tx.mem++ : ", x.mem++)
-print("\nx.mem : ", x.mem, "\t++x.mem : ", ++x.mem)
-x.mem = LinkedList(3)
-x.mem.some()
+
+pub fn test() {
+    res = true
+    x = LinkedList(2)
+    if(x.mem != 2 or x.mem2 != 8) {
+        print("[Error] Constructors are not working!\n")
+        res = false
+    }
+    x.mem = 5
+    if(x.mem != 5) {
+        print("[Error] Member set not working!\n")
+        res = false
+    }
+    temp = x.some()
+    if(temp != 8) {
+        print("[Error] Method call not working!\n")
+        res = false
+    }
+    x.mem2 = x.some()
+    if(temp != 8) {
+        print("[Error] Member set not working!\n")
+        res = false
+    }
+    x.mem = 1
+    x.loop(10)
+    if(x.mem != 11) {
+        print("[Error] Loop failed!\n")
+        res = false
+    }
+    if(x.mem++ != 11) {
+        print("[Error] Member post increment not working!\n")
+        res = false
+    }
+    if(++x.mem != 13) {
+        print("[Error] Member pre increment not working!\n")
+        res = false
+    }
+    x.mem = LinkedList(3)
+    temp = x.mem.some()
+    
+    if(temp != 8) {
+        print("[Error] x.mem = LinkedList(3) failed!\n")
+        res = false
+    }
+
+    if(res) {
+        print("Classes are working properly!\n")
+    }
+    ret res
+}

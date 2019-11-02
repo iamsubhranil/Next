@@ -1,45 +1,60 @@
-class test {
+class testing {
     pub:
         new() {}
 }
 
-a = 2
-if(type_of(a) != "core.Number") {
-    throw core.RuntimeException("type_of not working!")
+pub fn test() {
+    res = true
+    a = 2
+    if(type_of(a) != "core.Number") {
+        print("type_of not working!\n")
+        res = false
+    }
+
+    if(type_of(a) == "something") {
+        print("type_of(a) == \"something\") should've returned false!\n")
+        res = false
+    }
+
+    if(type_of(a) != "core.Number") {
+        print("type_of(a) != \"core.Number\") should've returned true!\n")
+        res = false
+    }
+
+    a = testing()
+
+    if(type_of(a) != "typetest.testing") {
+        print("type_of(a) == \"typetest.test\") should've returned true!\n")
+        res = false
+    }
+
+    a = core.array()
+
+    if(type_of(a) != "core.array") {
+        print("type_of(a) == \"core.array\") should've returned true!\n")
+        res = false
+    }
+
+    a = 2
+    b = "2"
+    if(is_same_type(a, b)) {
+        print("is_same_type(2, \"2\") should've returned false!\n")
+        res = false
+    }
+
+    if(!is_same_type("Hello World!\n", b)) {
+        print("is_same_type(\"Hello World!\", \"2\") should've returned true!\n")
+        res = false
+    }
+
+    if(!is_same_type(382988.437878287, a)) {
+        print("is_same_type(382988.437878287, 2) should've returned true!\n")
+        res = false
+    }
+
+    if(res) {
+        print("Type checking is working as expected!\n")
+    }
+
+    ret res
 }
-
-if(type_of(a) == "something") {
-    throw core.RuntimeException("type_of(a) == \"something\") should've returned false!")
-}
-
-if(type_of(a) != "core.Number") {
-    throw core.RuntimeException("type_of(a) != \"core.Number\") should've returned true!")
-}
-
-a = test()
-
-if(type_of(a) != "typetest.test") {
-    throw core.RuntimeException("type_of(a) == \"typetest.test\") should've returned true!")
-}
-
-a = core.array()
-
-if(type_of(a) != "core.array") {
-    throw core.RuntimeException("type_of(a) == \"core.array\") should've returned true!")
-}
-
-a = 2
-b = "2"
-if(is_same_type(a, b)) {
-    throw core.RuntimeException("is_same_type(2, \"2\") should've returned false!")
-}
-
-if(!is_same_type("Hello World!", b)) {
-    throw core.RuntimeException("is_same_type(\"Hello World!\", \"2\") should've returned true!")
-}
-
-if(!is_same_type(382988.437878287, a)) {
-    throw core.RuntimeException("is_same_type(382988.437878287, 2) should've returned true!")
-}
-
-print("Type checking is working as expected!")

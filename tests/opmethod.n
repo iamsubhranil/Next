@@ -65,56 +65,75 @@ class List {
         }
 }
 
-obj = List(2, 3)
-if(obj.getMem() != 6) {
-    throw core.RuntimeException("Constructors aren't working!")
+pub fn test() {
+    res = true
+    obj = List(2, 3)
+    if(obj.getMem() != 6) {
+        print("Constructors aren't working!\n")
+        res = false
+    }
+    something = obj + 4
+    if(something != 10) {
+        print("+(_) is not working\n")
+        res = false
+    }
+    something = obj - 1
+    if(something != 9) {
+        print("-(_) is not working\n")
+        res = false
+    }
+    something = obj * 4
+    if(something != 36) {
+        print("*(_) is not working\n")
+        res = false
+    }
+    something = obj / 2
+    if(something != 18) {
+        print("/(_) is not working\n")
+        res = false
+    }
+    something = obj > 4
+    if(!something) {
+        print(">(_) is not working\n")
+        res = false
+    }
+    something = obj < 4
+    if(something) {
+        print("<(_) is not working\n")
+        res = false
+    }
+    something = obj <= 18
+    if(!something) {
+        print("<=(_) is not working\n")
+        res = false
+    }
+    something = obj >= 19
+    if(something) {
+        print(">=(_) is not working\n")
+        res = false
+    }
+    something = obj or 4
+    if(!something) {
+        print("or(_) is not working\n")
+        res = false
+    }
+    something = obj and -8
+    if(something) {
+        print("and(_) is not working\n")
+        res = false
+    }
+    something = obj == 19
+    if(something) {
+        print("==(_) is not working\n")
+        res = false
+    }
+    something = obj != 18
+    if(something) {
+        print("!=(_) is not working")
+        res = false
+    }
+    if(res) {
+        print("Operator methods are working fine!\n")
+    }
+    ret res
 }
-something = obj + 4
-if(something != 10) {
-    throw core.RuntimeException("+(_) is not working!")
-}
-something = obj - 1
-if(something != 9) {
-    throw core.RuntimeException("-(_) is not working!")
-}
-something = obj * 4
-if(something != 36) {
-    throw core.RuntimeException("*(_) is not working!")
-}
-something = obj / 2
-if(something != 18) {
-    throw core.RuntimeException("/(_) is not working!")
-}
-something = obj > 4
-if(!something) {
-    throw core.RuntimeException(">(_) is not working!")
-}
-something = obj < 4
-if(something) {
-    throw core.RuntimeException("<(_) is not working!")
-}
-something = obj <= 18
-if(!something) {
-    throw core.RuntimeException("<=(_) is not working!")
-}
-something = obj >= 19
-if(something) {
-    throw core.RuntimeException(">=(_) is not working!")
-}
-something = obj or 4
-if(!something) {
-    throw core.RuntimeException("or(_) is not working!")
-}
-something = obj and -8
-if(something) {
-    throw core.RuntimeException("and(_) is not working!")
-}
-something = obj == 19
-if(something) {
-    throw core.RuntimeException("==(_) is not working!")
-}
-something = obj != 18
-if(something) {
-    throw core.RuntimeException("!=(_) is not working")
-}
-print("Everything is working fine!")

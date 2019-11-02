@@ -12,4 +12,18 @@ fn bad() {
     a = nil + nil
 }
 
-good()
+pub fn test() {
+    res = false
+    try {
+        good()
+        print("[Error] good() should've thrown an exception by now!\n")
+    } catch(RuntimeException e) {
+        res = true
+    }
+
+    if(res) {
+        print("Runtime exceptions are working!\n")
+    }
+
+    ret res
+}
