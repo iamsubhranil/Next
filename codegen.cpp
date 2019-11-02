@@ -1235,6 +1235,9 @@ void CodeGenerator::visit(TryStatement *ifs) {
 #endif
 	int from = bytecode->getip();
 	ifs->tryBlock->accept(this);
+	// if the try block succeeds, we should get out
+	// of all the remaining catch blocks
+	int skipAll = bytecode->jump(0);
 	int to = bytecode->getip() - 1;
 	int bf = tryBlockStart, bt = tryBlockEnd;
 	tryBlockStart = from;
@@ -1255,6 +1258,8 @@ void CodeGenerator::visit(TryStatement *ifs) {
 		// patch the jump addresses
 		bytecode->jump((*i), bytecode->getip() - (*i));
 	}
+	// patch the try jump
+	bytecode->jump(skipAll, bytecode->getip() - skipAll);
 	tryBlockStart = bf;
 	tryBlockEnd   = bt;
 }
