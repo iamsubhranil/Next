@@ -1,6 +1,10 @@
 #include "parser.h"
 
 Parser::Parser(Scanner &s) : scanner(s) {
+	if(s.hasScanErrors()) {
+		throw ParseException(Token::PlaceholderToken,
+		                     "Unable to parse the given file!");
+	}
 	prefixParselets.clear();
 	infixParselets.clear();
 	tokenCache.clear();

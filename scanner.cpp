@@ -181,6 +181,7 @@ Scanner::Scanner(const char *source, const char *file) {
 	current      = source;
 	fileName     = strdup(file);
 	line         = 1;
+	scanErrors   = 0;
 }
 
 Scanner::Scanner(const char *file) {
@@ -203,6 +204,7 @@ Scanner::Scanner(const char *file) {
 		current      = c;
 		fileName     = strdup(file);
 		line         = 1;
+		scanErrors   = 0;
 	}
 }
 

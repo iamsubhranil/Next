@@ -285,7 +285,8 @@ class ParseException : public std::runtime_error {
 	ParseException(Token to, const char *msg)
 	    : runtime_error(msg), t(to), message(msg) {}
 	virtual const char *what() const throw() {
-		t.highlight();
+		if(t.fileName != NULL)
+			t.highlight();
 		return message;
 	}
 };

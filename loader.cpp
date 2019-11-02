@@ -123,10 +123,10 @@ Module *compile_and_load_with_name(const char *fileName, NextString modName,
 		return ExecutionEngine::getRegisteredModule(modName);
 	ExecutionEngine ex;
 	Scanner         s(fileName);
-	Parser          p(s);
-	registerParselets(&p);
-	Module *module = NULL;
+	Module *        module = NULL;
 	try {
+		Parser p(s);
+		registerParselets(&p);
 		vector<StmtPtr> decls = p.parseAllDeclarations();
 #ifdef DEBUG
 		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
@@ -154,9 +154,9 @@ Module *compile_and_load_from_source(const char *source, Module *module,
 #endif
 	ExecutionEngine ex;
 	Scanner         s(source, StringLibrary::get_raw(module->name));
-	Parser          p(s);
-	registerParselets(&p);
 	try {
+		Parser p(s);
+		registerParselets(&p);
 		vector<StmtPtr> decls = p.parseAllDeclarations();
 #ifdef DEBUG
 		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
