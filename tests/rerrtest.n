@@ -21,9 +21,5 @@ pub fn test() {
         res = true
     }
 
-    if(res) {
-        print("Runtime exceptions are working!\n")
-    }
-
     ret res
 }

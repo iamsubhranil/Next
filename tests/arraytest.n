@@ -41,8 +41,5 @@ pub fn test() {
 
     arr = 3
     
-    if(res) {
-        print("Arrays are working as expected!\n")
-    }
     ret res
 }

@@ -34,9 +34,5 @@ pub fn test() {
         res = false
     }
 
-    if(res) {
-        print("Imports are working perfectly!\n")
-    }
-
     ret res
 }

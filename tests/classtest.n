@@ -66,9 +66,5 @@ pub fn test() {
         print("[Error] x.mem = LinkedList(3) failed!\n")
         res = false
     }
-
-    if(res) {
-        print("Classes are working properly!\n")
-    }
     ret res
 }

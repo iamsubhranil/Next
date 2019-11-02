@@ -26,9 +26,5 @@ pub fn test() {
         res = false
     }
 
-    if(res) {
-        print("Pre/post in/decrements are working properly!\n")
-    }
-
     ret res
 }

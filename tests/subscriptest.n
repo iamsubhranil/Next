@@ -27,9 +27,5 @@ pub fn test() {
         res = false
     }
 
-    if(res) {
-        print("Subscript operators are working perfectly!\n")
-    }
-
     ret res
 }

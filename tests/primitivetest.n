@@ -52,9 +52,5 @@ pub fn test() {
         res = false
     }
 
-    if(res) {
-        print("Primitives are working properly!\n")
-    }
-
     ret res
 }

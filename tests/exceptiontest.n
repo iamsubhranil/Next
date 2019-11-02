@@ -56,9 +56,5 @@ pub fn test() {
         }
     }
 
-    if(res) {
-        print("Exceptions are working properly!\n")
-    }
-
     ret res
 }

@@ -132,8 +132,6 @@ pub fn test() {
         print("!=(_) is not working")
         res = false
     }
-    if(res) {
-        print("Operator methods are working fine!\n")
-    }
+
     ret res
 }

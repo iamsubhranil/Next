@@ -18,8 +18,7 @@ pub fn test() {
     if(a == true) {
         print("[Error] AND is broken!\n")
         res = false
-    } else {
-        print("Short circuits are working perfectly!\n")
     }
+
     ret res
 }
