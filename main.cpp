@@ -22,6 +22,8 @@ int main(int argc, char *argv[]) {
 	ExecutionEngine::init();
 	// load the core module first
 	CoreModule::init();
+	// bind all the core classes
+	NextType::bindCoreClasses();
 	if(argc > 1) {
 		compile_and_load(argv[1], true);
 		// cout << s.scanAllTokens();

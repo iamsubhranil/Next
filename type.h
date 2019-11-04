@@ -2,6 +2,8 @@
 
 #include "value.h"
 
+class NextClass;
+
 class NextType {
   public:
 	NextString module;
@@ -18,8 +20,9 @@ class NextType {
 	static NextType getType(const Value &v);
 	static NextType Any, Error;
 	static void     init();
+	static void     bindCoreClasses();
 #define TYPE(r, n) static NextType n;
 #include "valuetypes.h"
-	static NextType Number;
-	static NextType ArrayClass;
+	static NextType   Number;
+	static NextClass *ArrayClass;
 };
