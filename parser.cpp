@@ -494,4 +494,18 @@ ExpPtr SubscriptParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
 	return unq(SubscriptExpression, obj, t, idx);
 }
 
+ExpPtr ArrayLiteralParselet::parse(Parser *parser, Token t) {
+	std::vector<ExpPtr> exprs;
+	if(t.type != TOKEN_SUBSCRIPT) {
+		if(parser->lookAhead(0).type != TOKEN_RIGHT_SQUARE) {
+			do {
+				exprs.push_back(parser->parseExpression());
+			} while(parser->match(TOKEN_COMMA));
+		}
+		parser->consume(TOKEN_RIGHT_SQUARE,
+		                "Expected ']' after array declaration!");
+	}
+	return unq(ArrayLiteralExpression, t, exprs);
+}
+
 // Exceptions

@@ -14,31 +14,14 @@ import rerrtest
 import subscriptest
 import typetest
 
-modules = core.array()
-modules[0] = prepost
-modules[1] = iftest
-modules[2] = primitivetest
-modules[3] = classtest
-modules[4] = importest
-modules[5] = opmethod
-modules[6] = subscriptest
-modules[7] = arraytest
-modules[8] = exceptiontest
-modules[9] = rerrtest
-modules[10] = typetest
+modules = [prepost, iftest, primitivetest, classtest, importest, opmethod,
+            subscriptest, arraytest, exceptiontest, rerrtest, typetest]
 
-desc = core.array()
-desc[0] = "Pre and post increment/decrements"
-desc[1] = "Short circuits"
-desc[2] = "Primitive method calls"
-desc[3] = "Classes"
-desc[4] = "Imports"
-desc[5] = "Operator methods"
-desc[6] = "Subscript getter and setter"
-desc[7] = "Arrays"
-desc[8] = "Exceptions"
-desc[9] = "Runtime exceptions"
-desc[10] = "Type builtins"
+desc = ["Pre and post increment/decrements", "Short circuits",
+        "Primitive method calls", "Classes", "Imports",
+        "Operator methods", "Subscript getter and setter",
+        "Arrays", "Exceptions", "Runtime exceptions",
+        "Type builtins"]
 
 i = 0
 while(i < modules.size()) {

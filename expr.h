@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+class ArrayLiteralExpression;
 class AssignExpression;
 class BinaryExpression;
 class CallExpression;
@@ -19,22 +20,24 @@ class VariableExpression;
 
 class ExpressionVisitor {
   public:
-	virtual void visit(AssignExpression *as)      = 0;
-	virtual void visit(BinaryExpression *bin)     = 0;
-	virtual void visit(CallExpression *cal)       = 0;
-	virtual void visit(GetExpression *get)        = 0;
-	virtual void visit(GroupingExpression *group) = 0;
-	virtual void visit(LiteralExpression *lit)    = 0;
-	virtual void visit(PrefixExpression *pe)      = 0;
-	virtual void visit(PostfixExpression *pe)     = 0;
-	virtual void visit(SetExpression *sete)       = 0;
-	virtual void visit(SubscriptExpression *sube) = 0;
-	virtual void visit(VariableExpression *vis)   = 0;
+	virtual void visit(ArrayLiteralExpression *al) = 0;
+	virtual void visit(AssignExpression *as)       = 0;
+	virtual void visit(BinaryExpression *bin)      = 0;
+	virtual void visit(CallExpression *cal)        = 0;
+	virtual void visit(GetExpression *get)         = 0;
+	virtual void visit(GroupingExpression *group)  = 0;
+	virtual void visit(LiteralExpression *lit)     = 0;
+	virtual void visit(PrefixExpression *pe)       = 0;
+	virtual void visit(PostfixExpression *pe)      = 0;
+	virtual void visit(SetExpression *sete)        = 0;
+	virtual void visit(SubscriptExpression *sube)  = 0;
+	virtual void visit(VariableExpression *vis)    = 0;
 };
 
 class Expr {
   public:
 	enum Type {
+		ARRAY_LITERAL,
 		ASSIGN,
 		BINARY,
 		CALL,
@@ -64,6 +67,19 @@ class Expr {
 
 using ExpPtr = std::unique_ptr<Expr>;
 
+class ArrayLiteralExpression : public Expr {
+  public:
+	std::vector<ExpPtr> exprs;
+	ArrayLiteralExpression(Token t, std::vector<ExpPtr> &s)
+	    : Expr(t, ARRAY_LITERAL) {
+		for(auto &i : s) {
+			exprs.push_back(ExpPtr(i.release()));
+		}
+	}
+
+	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+};
+
 class AssignExpression : public Expr {
   public:
 	ExpPtr target, val;
@@ -87,8 +103,8 @@ class CallExpression : public Expr {
 	std::vector<ExpPtr> arguments;
 	CallExpression(ExpPtr &cle, Token paren, std::vector<ExpPtr> &args)
 	    : Expr(paren, CALL), callee(cle.release()) {
-		for(auto i = args.begin(), j = args.end(); i != j; i++) {
-			arguments.push_back(ExpPtr(i->release()));
+		for(auto &i : args) {
+			arguments.push_back(ExpPtr(i.release()));
 		}
 	}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
@@ -165,6 +181,7 @@ class ExpressionPrinter : public ExpressionVisitor {
   public:
 	ExpressionPrinter(std::ostream &os);
 	void print(Expr *e);
+	void visit(ArrayLiteralExpression *al);
 	void visit(AssignExpression *as);
 	void visit(BinaryExpression *bin);
 	void visit(CallExpression *cal);

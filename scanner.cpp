@@ -49,8 +49,11 @@ bool Token::isOperator() {
 	}
 }
 
-void Token::highlight(bool showFileName, const char *prefix) const {
-	const char *tokenEnd = start, *tokenStart = start;
+void Token::highlight(bool showFileName, const char *prefix,
+                      HighlightType htype) const {
+	static const char *highlights[] = {ANSI_COLOR_GREEN, ANSI_COLOR_YELLOW,
+	                                   ANSI_COLOR_RED};
+	const char *       tokenEnd = start, *tokenStart = start;
 	while(*tokenStart != '\n' && tokenStart != source) tokenStart--;
 	if(*tokenStart == '\n')
 		tokenStart++;
@@ -87,7 +90,7 @@ void Token::highlight(bool showFileName, const char *prefix) const {
 	cout << line << ":" << ch << "] ";
 	while(bak < tokenEnd) {
 		if(bak >= start && (bak - start) < length) {
-			cout << ANSI_FONT_BOLD << ANSI_COLOR_GREEN << *bak
+			cout << ANSI_FONT_BOLD << highlights[htype] << *bak
 			     << ANSI_COLOR_RESET;
 		} else
 			cout << *bak;
@@ -102,7 +105,7 @@ void Token::highlight(bool showFileName, const char *prefix) const {
 	if(type == TOKEN_EOF)
 		cout << "^";
 	else {
-		cout << ANSI_FONT_BOLD ANSI_COLOR_GREEN;
+		cout << ANSI_FONT_BOLD << highlights[htype];
 		for(int i = 0; i < length; i++) cout << "~";
 		cout << ANSI_COLOR_RESET;
 	}

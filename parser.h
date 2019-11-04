@@ -41,6 +41,11 @@ class LiteralParselet : public PrefixParselet {
 	ExpPtr parse(Parser *parser, Token t);
 };
 
+class ArrayLiteralParselet : public PrefixParselet {
+  public:
+	ExpPtr parse(Parser *parser, Token t);
+};
+
 class PrefixOperatorParselet : public PrefixParselet {
   private:
 	int precedence;
@@ -284,9 +289,6 @@ class ParseException : public std::runtime_error {
 	ParseException() : runtime_error("Error occurred while parsing!") {}
 	ParseException(Token to, const char *msg)
 	    : runtime_error(msg), t(to), message(msg) {}
-	virtual const char *what() const throw() {
-		if(t.fileName != NULL)
-			t.highlight();
-		return message;
-	}
+	virtual const char *what() const throw() { return message; }
+	Token               getToken() { return t; }
 };

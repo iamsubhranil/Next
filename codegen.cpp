@@ -10,11 +10,11 @@
 
 using namespace std;
 
-#define lnerr_(str, t, ...)           \
-	{                                 \
-		lnerr(str, t, ##__VA_ARGS__); \
-		t.highlight();                \
-		errorsOccurred++;             \
+#define lnerr_(str, t, ...)                   \
+	{                                         \
+		lnerr(str, t, ##__VA_ARGS__);         \
+		t.highlight(false, "", Token::ERROR); \
+		errorsOccurred++;                     \
 	}
 
 CodeGenerator::CodeGenerator() {
@@ -503,6 +503,43 @@ void CodeGenerator::visit(AssignExpression *as) {
 				default: break;
 			}
 		}
+	}
+}
+
+void CodeGenerator::visit(ArrayLiteralExpression *al) {
+#ifdef DEBUG
+	dinfo("");
+	al->token.highlight();
+#endif
+	// load the core module if we're not already in it
+	if(module->name != StringLibrary::insert("core")) {
+		// core is declared as the 0th slot in the module
+		bytecode->load_module_slot(0);
+		bytecode->pushd((double)al->exprs.size());
+		bytecode->call_method(
+		    SymbolTable::insertSymbol(StringLibrary::insert("array(_)")), 1);
+		bytecode->stackEffect(-1);
+	} else {
+		// we are in the core module
+		CallInfo info =
+		    resolveCall(StringLibrary::insert("array(_)"), false, NULL);
+		bytecode->pushd(0);
+		bytecode->pushd((double)al->exprs.size());
+		bytecode->call(info.frameIdx, 2);
+		bytecode->stackEffect(0);
+	}
+	if(al->exprs.size() > 0) {
+		// now evalute all the expressions
+		for(auto &i : al->exprs) {
+			// bytecode->pushd((double)j);
+			i->accept(this);
+			// bytecode->subscript_set();
+			// bytecode->pop();
+		}
+		// finally emit opcode to assign those
+		// expressions to the array, and leave
+		// the array at the top of the stack
+		bytecode->array_build(al->exprs.size());
 	}
 }
 
@@ -1152,6 +1189,11 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 			}
 			case ImportStatus::IMPORT_SUCCESS: {
 				Module *m = compile_and_load(is.fileName);
+				if(m == NULL) {
+					// compilation of the module failed
+					lnerr_("Compilation of imported module failed!", t);
+					break;
+				}
 				// The name of the imported module for the
 				// importee module would be the last part
 				// of the import statement

@@ -1,4 +1,4 @@
-arr = core.array()
+arr = []
 i = 0
 start = clock()
 while(i++ < 1000000) {

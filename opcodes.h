@@ -137,6 +137,10 @@ OPCODE0(subscript_set, -2)
 // index, object. Pops two, and inserts one.
 OPCODE0(subscript_get, -1)
 
+// Assigns the N elements from the TOP to the
+// array at [TOP - N]
+OPCODE1(array_build, 1, int)
+
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>
 OPCODE1(load_constant, 1, NextString)     // <name>

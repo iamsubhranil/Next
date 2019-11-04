@@ -17,10 +17,7 @@ fn expect_err(arr, idx) {
 
 pub fn test() {
 
-    arr = core.array()
-    arr[0] = 2.32
-    arr[1] = "Hello"
-    arr[2] = core.array(2)
+    arr = [2.32, "Hello", []]
 
     expect(arr, 0, 2.32)
     expect(arr, 1, "Hello")
@@ -33,13 +30,12 @@ pub fn test() {
     expect_err(arr, 100)
     expect_err(arr, -100)
 
-    arr[2][0] = "Nest"
-    arr[2][1] = "Array"
+    arr[2] = ["Nest", "Array"]
 
     expect(arr[2], 0, "Nest")
     expect(arr[2], 1, "Array")
 
     arr = 3
-    
+
     ret res
 }

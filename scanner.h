@@ -54,6 +54,7 @@ typedef enum {
 class Scanner;
 
 typedef struct Token {
+	typedef enum { INFO = 0, WARN = 1, ERROR = 2 } HighlightType;
 	TokenType   type;
 	const char *start;
 	const char *source;
@@ -66,7 +67,8 @@ typedef struct Token {
 	friend std::ostream &operator<<(std::ostream &os, const Token &t);
 	friend std::ostream &operator<<(std::ostream &            os,
 	                                const std::vector<Token> &tv);
-	void highlight(bool showFileName = false, const char *prefix = NULL) const;
+	void highlight(bool showFileName = false, const char *prefix = NULL,
+	               HighlightType htype = INFO) const;
 	static const char *TokenNames[];
 	static const char *FormalNames[];
 	bool               isOperator();

@@ -74,6 +74,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	int tryBlockStart, tryBlockEnd;
 
 	// Expression generator
+	void visit(ArrayLiteralExpression *as);
 	void visit(AssignExpression *as);
 	void visit(BinaryExpression *bin);
 	void visit(CallExpression *cal);

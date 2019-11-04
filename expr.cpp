@@ -8,6 +8,20 @@ void ExpressionPrinter::print(Expr *e) {
 	e->accept(this);
 }
 
+void ExpressionPrinter::visit(ArrayLiteralExpression *al) {
+	out << "[";
+	if(al->exprs.size() > 0) {
+		al->exprs[0]->accept(this);
+	}
+	size_t i = 1;
+	while(i < al->exprs.size()) {
+		out << ", ";
+		al->exprs[i]->accept(this);
+		i++;
+	}
+	out << "]";
+}
+
 void ExpressionPrinter::visit(AssignExpression *as) {
 	as->target->accept(this);
 	out << " = ";

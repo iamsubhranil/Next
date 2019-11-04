@@ -1,5 +1,6 @@
 #include "loader.h"
 #include "codegen.h"
+#include "display.h"
 #include "engine.h"
 #include "parser.h"
 
@@ -28,7 +29,8 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_nil, new LiteralParselet());
 	p->registerParselet(TOKEN_true, new LiteralParselet());
 	p->registerParselet(TOKEN_false, new LiteralParselet());
-	// p->registerParselet(TOKEN_this, new LiteralParselet());
+	p->registerParselet(TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
+	p->registerParselet(TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
 
 	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());
@@ -139,8 +141,11 @@ Module *compile_and_load_with_name(const char *fileName, NextString modName,
 		c.compile(module, decls);
 		if(execute)
 			ex.execute(module, module->frame.get());
+	} catch(ParseException pe) {
+		lnerr(pe.what(), pe.getToken());
+		pe.getToken().highlight(false, "", Token::ERROR);
 	} catch(runtime_error &r) {
-		cout << r.what();
+		cout << r.what() << "\n";
 		return NULL;
 	}
 	return module;
@@ -167,8 +172,11 @@ Module *compile_and_load_from_source(const char *source, Module *module,
 		c.compile(module, decls);
 		if(execute)
 			ex.execute(module, module->frame.get());
+	} catch(ParseException pe) {
+		lnerr(pe.what(), pe.getToken());
+		pe.getToken().highlight(false, "", Token::ERROR);
 	} catch(runtime_error &r) {
-		cout << r.what();
+		cout << r.what() << "\n";
 		return NULL;
 	}
 	return module;

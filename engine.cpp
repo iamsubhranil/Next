@@ -81,7 +81,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 		Token t;
 		if((t = f->frame->findLineInfo(f->code - (f == root ? 0 : 1))).type !=
 		   TOKEN_ERROR)
-			t.highlight(true, "At ");
+			t.highlight(true, "At ", Token::ERROR);
 		else
 			err("<source not found>");
 		f = &fiber->callFrames[--i];
@@ -130,6 +130,7 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 			ExceptionMessage[j++] = message[i++];
 		}
 	}
+	ExceptionMessage[j] = '\0';
 
 	va_end(args);
 }
@@ -1025,6 +1026,22 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			    RESTORE_FRAMEINFO();
 			    DISPATCH_WINC();
 			}*/
+			CASE(array_build) : {
+				// get the number of arguments to add
+				int         numArg = next_int();
+				NextObject *arrobj = StackTop[-numArg - 1].toObject();
+				// change the size of the array
+				arrobj->slots[1].setNumber(numArg);
+				Value *arr = arrobj->slots[0].toArray();
+				// insert all the elements
+				while(numArg--) {
+					Value v = POP();
+					ref_incr(v);
+					arr[numArg] = v;
+				}
+
+				DISPATCH();
+			}
 
 			CASE(construct_ret) : {
 				// Pop the return object
