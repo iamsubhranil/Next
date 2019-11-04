@@ -61,7 +61,7 @@ NEXT_PRIMITIVE_FN(String, has) {
 		return Value::nil;
 	}
 
-	const string &s = StringLibrary::get(stack_[0].toString());
+	const string &s  = StringLibrary::get(stack_[0].toString());
 	const string &s1 = StringLibrary::get(stack_[1].toString());
 	if(s.find(s1) != string::npos) {
 		return Value(true);

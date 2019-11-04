@@ -5,5 +5,5 @@
 class CoreModule {
   public:
 	static Module *core;
-	static void   init();
+	static void    init();
 };
