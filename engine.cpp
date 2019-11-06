@@ -1035,9 +1035,10 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value *arr = arrobj->slots[0].toArray();
 				// insert all the elements
 				while(numArg--) {
-					Value v = POP();
+					Value &v = POP();
 					ref_incr(v);
 					arr[numArg] = v;
+					v           = Value::nil;
 				}
 
 				DISPATCH();
