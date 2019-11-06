@@ -189,6 +189,7 @@ Scanner::Scanner(const char *source, const char *file) {
 
 Scanner::Scanner(const char *file) {
 	FILE *source = fopen(file, "rb");
+	scanErrors   = 0;
 	if(source == NULL) {
 		err("Unable to open file : '%s'", file);
 		scanErrors++;
@@ -207,7 +208,6 @@ Scanner::Scanner(const char *file) {
 		current      = c;
 		fileName     = strdup(file);
 		line         = 1;
-		scanErrors   = 0;
 	}
 }
 

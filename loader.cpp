@@ -142,8 +142,10 @@ Module *compile_and_load_with_name(const char *fileName, NextString modName,
 		if(execute)
 			ex.execute(module, module->frame.get());
 	} catch(ParseException pe) {
-		lnerr(pe.what(), pe.getToken());
-		pe.getToken().highlight(false, "", Token::ERROR);
+		if(pe.getToken().source != NULL) {
+			lnerr(pe.what(), pe.getToken());
+			pe.getToken().highlight(false, "", Token::ERROR);
+		}
 	} catch(runtime_error &r) {
 		cout << r.what() << "\n";
 		return NULL;
@@ -173,8 +175,10 @@ Module *compile_and_load_from_source(const char *source, Module *module,
 		if(execute)
 			ex.execute(module, module->frame.get());
 	} catch(ParseException pe) {
-		lnerr(pe.what(), pe.getToken());
-		pe.getToken().highlight(false, "", Token::ERROR);
+		if(pe.getToken().source != NULL) {
+			lnerr(pe.what(), pe.getToken());
+			pe.getToken().highlight(false, "", Token::ERROR);
+		}
 	} catch(runtime_error &r) {
 		cout << r.what() << "\n";
 		return NULL;
