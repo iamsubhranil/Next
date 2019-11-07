@@ -28,6 +28,12 @@ NEXT_PRIMITIVE_FN(Number, is_int) {
 	return Value(modf(stack_[0].toNumber(), &intpart) == 0.0);
 }
 
+NEXT_PRIMITIVE_FN(Number, to_int) {
+	double intpart;
+	modf(stack_[0].toNumber(), &intpart);
+	return Value(intpart);
+}
+
 #define NEXT_NUMBER_PRIMITIVE(name, ...) \
 	NEXT_PRIMITIVE_ENTRY(Number, name, ##__VA_ARGS__)
 PrimitiveMap Primitives_Number = PrimitiveMap{};
@@ -94,6 +100,7 @@ Value Primitives::invokePrimitive(Value::Type type, uint64_t signature,
 void Primitives::init() {
 	NEXT_NUMBER_PRIMITIVE(str);
 	NEXT_NUMBER_PRIMITIVE(is_int);
+	NEXT_NUMBER_PRIMITIVE(to_int);
 
 	NEXT_BOOLEAN_PRIMITIVE(str);
 
