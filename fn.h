@@ -262,7 +262,7 @@ class Fiber {
 	Fiber() {
 
 		stack_ = (Value *)malloc(sizeof(Value) * 8);
-		std::fill_n(stack_, 8, Value::nil);
+		std::fill_n(stack_, 8, ValueNil);
 		stackTop     = &stack_[0];
 		maxStackSize = 8;
 		stackPointer = 0;
@@ -307,7 +307,7 @@ class Fiber {
 		while(stackTop >= f->stack_) {
 			if(stackTop->isObject()) {
 				stackTop->toObject()->decrCount();
-				*stackTop = Value::nil;
+				*stackTop = ValueNil;
 			}
 			--stackTop;
 		}
@@ -325,7 +325,7 @@ class Fiber {
 		maxStackSize = powerOf2Ceil(needed + (stackTop - stack_));
 		stack_       = (Value *)realloc(stack_, sizeof(Value) * maxStackSize);
 		stackTop     = &stack_[stackPointer];
-		std::fill_n(stackTop, maxStackSize - stackPointer, Value::nil);
+		std::fill_n(stackTop, maxStackSize - stackPointer, ValueNil);
 		// Readjust old frames if the stack is relocated
 		if(stack_ != oldStack) {
 			for(int i = 0; i < callFramePointer; i++) {

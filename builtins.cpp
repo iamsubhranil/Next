@@ -23,7 +23,7 @@ Value next_array_allocate(const Value *args) {
 		arr = (Value *)malloc(sizeof(Value) * size);
 
 		for(size_t i = 0; i < size; i++) {
-			arr[i] = Value::nil;
+			arr[i] = ValueNil;
 		}
 	}
 	return Value(arr);
@@ -37,7 +37,7 @@ Value next_array_reallocate(const Value *args) {
 	arr = (Value *)realloc(arr, sizeof(Value) * newSize);
 
 	while(oldSize < newSize) {
-		arr[oldSize++] = Value::nil;
+		arr[oldSize++] = ValueNil;
 	}
 
 	return Value(arr);

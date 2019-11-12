@@ -427,7 +427,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			}
 			return unq(LiteralExpression, Value(val), t);
 		}
-		case TOKEN_nil: return unq(LiteralExpression, Value::nil, t);
+		case TOKEN_nil: return unq(LiteralExpression, ValueNil, t);
 		case TOKEN_true: return unq(LiteralExpression, Value(true), t);
 		case TOKEN_false: return unq(LiteralExpression, Value(false), t);
 		default: throw ParseException(t, "Invalid literal value!");

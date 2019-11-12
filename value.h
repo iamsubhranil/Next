@@ -40,6 +40,7 @@ class Value {
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
 	};
+	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
 	Value() : value(QNAN_NIL) {}
 	Value(double d) : value(*(uint64_t *)&d) {}
 #ifdef DEBUG
@@ -97,12 +98,25 @@ class Value {
 		return *this;
 	}
 
-	inline bool operator==(const Value &v) const { return v.value == value; }
+	constexpr inline bool operator==(const Value &v) const {
+		return v.value == value;
+	}
 
-	inline bool operator!=(const Value &v) const { return v.value != value; }
+	constexpr inline bool operator!=(const Value &v) const {
+		return v.value != value;
+	}
 
 	static void init();
-
-	static Value      nil;
+	/*
+	    static const Value valueNil;
+	    static const Value valueTrue;
+	    static const Value valueFalse;
+	    static const Value valueZero;
+	*/
 	static NextString ValueTypeStrings[];
 };
+
+constexpr Value ValueNil   = Value(QNAN_NIL);
+constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);
+constexpr Value ValueFalse = Value(QNAN_Boolean);
+constexpr Value ValueZero  = Value((uint64_t)0);

@@ -3,8 +3,12 @@
 #include "fn.h"
 #include <iomanip>
 
-Value Value::nil = Value();
-
+/*
+const Value Value::valueNil   = Value();
+const Value Value::valueTrue  = Value(true);
+const Value Value::valueFalse = Value(false);
+const Value Value::valueZero  = Value(0.0);
+*/
 NextString Value::ValueTypeStrings[] = {
     0,
     0,

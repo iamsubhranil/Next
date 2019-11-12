@@ -64,7 +64,7 @@ NEXT_PRIMITIVE_FN(String, has) {
 		ExecutionEngine::setPendingException(
 		    ExecutionEngine::createRuntimeException(
 		        "Argument 1 of has(_) is not a string!"));
-		return Value::nil;
+		return ValueNil;
 	}
 
 	const string &s  = StringLibrary::get(stack_[0].toString());

@@ -11,7 +11,7 @@ char            ExecutionEngine::ExceptionMessage[1024] = {0};
 vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
 HashMap<NextString, Module *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
-Value ExecutionEngine::pendingException = Value::nil;
+Value ExecutionEngine::pendingException = ValueNil;
 
 #define initSymbol(x) uint64_t ExecutionEngine::x##Hash = 0;
 initSymbol(add);
@@ -54,7 +54,7 @@ initSymbol(subscript_set)
 	registerOpcodeSymbol(subscript_get, []);
 	registerOpcodeSymbol(subscript_set, [], ",_");
 
-	pendingException = Value::nil;
+	pendingException = ValueNil;
 }
 
 bool ExecutionEngine::isModuleRegistered(NextString name) {
@@ -204,7 +204,7 @@ Value ExecutionEngine::newObject(NextString mod, NextString c) {
 	} else {
 		panic("Module '%s' is not loaded!", StringLibrary::get_raw(c));
 	}
-	return Value::nil;
+	return ValueNil;
 }
 
 #define RERR(x, ...)                              \
@@ -340,9 +340,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		     TOP.getTypeString(), rightOperand.getTypeString());               \
 	}
 
-#define is_falsey(v)                                   \
-	(v.isNil() || (v.isBoolean() && !v.toBoolean()) || \
-	 (v.isNumber() && v.toNumber() == 0))
+#define is_falsey(v) (v == ValueNil || v == ValueFalse || v == ValueZero)
 
 #define binary_shortcircuit(...)                  \
 	{                                             \
@@ -520,7 +518,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 								                                newCapacity);
 								for(size_t o = oldCapacity; o < newCapacity;
 								    o++)
-									arr[o] = Value::nil;
+									arr[o] = ValueNil;
 								obj->slots[0] = arr;
 								obj->slots[2] = Value((double)newCapacity);
 							}
@@ -591,7 +589,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(pushn) : {
-				PUSH(Value::nil);
+				PUSH(ValueNil);
 				DISPATCH();
 			}
 
@@ -604,7 +602,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				// call
 				if(TOP.isObject()) {
 					TOP.toObject()->freeIfZero();
-					TOP = Value::nil;
+					TOP = ValueNil;
 				}
 				POP();
 				DISPATCH();
@@ -873,7 +871,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
 					NextClass * c   = obj->Class;
-					TOP             = Value::nil;
+					TOP             = ValueNil;
 					POP();
 					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
@@ -1049,7 +1047,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					Value &v = POP();
 					ref_incr(v);
 					arr[numArg] = v;
-					v           = Value::nil;
+					v           = ValueNil;
 				}
 
 				DISPATCH();
@@ -1087,7 +1085,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				// POP the thrown object
 				Value v = TOP;
 				if(v.isObject()) {
-					TOP = Value::nil;
+					TOP = ValueNil;
 				}
 				POP();
 				pendingException = v;
@@ -1100,14 +1098,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value *    stackStart = StackTop - args;
 				Value      res = Builtin::invoke_builtin(sig, stackStart);
 
-				if(pendingException != Value::nil) {
+				if(pendingException != ValueNil) {
 					goto error;
 				} else {
 					while(args--) {
 						Value &v = POP();
 						if(v.isObject()) {
 							v.toObject()->freeIfZero();
-							v = Value::nil;
+							v = ValueNil;
 						}
 					}
 					PUSH(res);
@@ -1144,7 +1142,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		    Primitives::invokePrimitive(rightOperand.getType(), methodToCall,
 		                                StackTop - numberOfArguments - 1);
 
-		if(pendingException != Value::nil) {
+		if(pendingException != ValueNil) {
 			goto error;
 		} else {
 
@@ -1153,7 +1151,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value &v = POP();
 				if(v.isObject()) {
 					v.toObject()->freeIfZero();
-					v = Value::nil;
+					v = ValueNil;
 				}
 				numberOfArguments--;
 			}
@@ -1182,13 +1180,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		// the ExceptionMessage to create a
 		// RuntimeException, and set pendingException
 		// to the same.
-		if(pendingException == Value::nil) {
+		if(pendingException == ValueNil) {
 			pendingException = createRuntimeException(ExceptionMessage);
 		}
 		BACKUP_FRAMEINFO();
 		presentFrame = throwException(pendingException, fiber);
 		RESTORE_FRAMEINFO();
-		pendingException = Value::nil;
+		pendingException = ValueNil;
 		DISPATCH_WINC();
 	}
 }
