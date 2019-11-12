@@ -7,8 +7,8 @@
 
 using namespace std;
 
-char                          ExecutionEngine::ExceptionMessage[1024] = {0};
-vector<Fiber *>               ExecutionEngine::fibers = vector<Fiber *>();
+char            ExecutionEngine::ExceptionMessage[1024] = {0};
+vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
 HashMap<NextString, Module *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
 Value ExecutionEngine::pendingException = Value::nil;
@@ -102,7 +102,7 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 // @s   <-- StringLibrary hash
 // @t   <-- SymbolTable no
 void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
-	int     i = 0, j = 0;
+	int    i = 0, j = 0;
 	va_list args;
 	va_start(args, message);
 
@@ -604,7 +604,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jumpiftrue) : {
-				Value v   = TOP;
+				Value v   = POP();
 				int   dis = next_int();
 				bool  tr  = (v.isBoolean() && v.toBoolean()) ||
 				          (v.isNumber() && v.toNumber());
@@ -616,7 +616,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(jumpiffalse) : {
-				Value v   = TOP;
+				Value v   = POP();
 				int   dis = next_int();
 				bool  tr  = v.isNil() || (v.isBoolean() && !v.toBoolean()) ||
 				          (v.isNumber() && !v.toNumber());
