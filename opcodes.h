@@ -139,7 +139,7 @@ OPCODE0(subscript_get, -1)
 
 // Assigns the N elements from the TOP to the
 // array at [TOP - N]
-OPCODE1(array_build, 1, int)
+OPCODE1(array_build, 0, int)
 
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>

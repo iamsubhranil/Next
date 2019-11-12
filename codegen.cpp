@@ -518,7 +518,7 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 		bytecode->pushd((double)al->exprs.size());
 		bytecode->call_method(
 		    SymbolTable::insertSymbol(StringLibrary::insert("array(_)")), 1);
-		bytecode->stackEffect(-1);
+		bytecode->stackEffect(0);
 	} else {
 		// we are in the core module
 		CallInfo info =
@@ -540,6 +540,7 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 		// expressions to the array, and leave
 		// the array at the top of the stack
 		bytecode->array_build(al->exprs.size());
+		bytecode->stackEffect(-(int)al->exprs.size());
 	}
 }
 
