@@ -36,8 +36,11 @@ OPCODE1(decr_field, 1, NextString) // <field>
 
 OPCODE0(neg, 0)
 
-OPCODE0(land, -1)
-OPCODE0(lor, -1)
+// Takes address to jump for short circuiting
+// They do not change the stack size
+OPCODE1(land, 0, int)
+OPCODE1(lor, 0, int)
+
 OPCODE0(lnot, 0)
 
 OPCODE0(eq, -1)

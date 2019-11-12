@@ -131,6 +131,12 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 	bin->token.highlight();
 #endif
 	bin->left->accept(this);
+	int jumpto = -1;
+	switch(bin->token.type) {
+		case TOKEN_and: jumpto = bytecode->land(0); break;
+		case TOKEN_or: jumpto = bytecode->lor(0); break;
+		default: break;
+	}
 	bin->right->accept(this);
 	frame->insertdebug(bin->token);
 	switch(bin->token.type) {
@@ -146,8 +152,10 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_LESS_EQUAL: bytecode->lesseq(); break;
 		case TOKEN_GREATER: bytecode->greater(); break;
 		case TOKEN_GREATER_EQUAL: bytecode->greatereq(); break;
-		case TOKEN_and: bytecode->land(); break;
-		case TOKEN_or: bytecode->lor(); break;
+		case TOKEN_and:
+			bytecode->land(jumpto, bytecode->getip() - jumpto);
+			break;
+		case TOKEN_or: bytecode->lor(jumpto, bytecode->getip() - jumpto); break;
 
 		default:
 			panic("Invalid binary operator '%s'!",

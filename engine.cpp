@@ -340,6 +340,22 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		     TOP.getTypeString(), rightOperand.getTypeString());               \
 	}
 
+#define is_falsey(v)                                   \
+	(v.isNil() || (v.isBoolean() && !v.toBoolean()) || \
+	 (v.isNumber() && v.toNumber() == 0))
+
+#define binary_shortcircuit(...)                  \
+	{                                             \
+		int skipTo   = next_int();                \
+		rightOperand = TOP;                       \
+		if(__VA_ARGS__ is_falsey(rightOperand)) { \
+			JUMPTO(skipTo - sizeof(int));         \
+		} else {                                  \
+			POP();                                \
+			DISPATCH();                           \
+		}                                         \
+	}
+
 #define ref_incr(x)                      \
 	{                                    \
 		if((x).isObject()) {             \
@@ -393,8 +409,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(sub) : binary(-, subtraction, Number, Number, sub);
 			CASE(mul) : binary(*, multiplication, Number, Number, mul);
 			CASE(div) : binary(/, division, Number, Number, div);
-			CASE(lor) : binary(||, or, Boolean, Boolean, lor);
-			CASE(land) : binary(&&, and, Boolean, Boolean, land);
+			CASE(lor) : binary_shortcircuit(!);
+			CASE(land) : binary_shortcircuit();
 			CASE(greater) : binary(>, greater than, Number, Boolean, greater);
 			CASE(greatereq)
 			    : binary(>=, greater than or equals to, Number, Boolean,
@@ -547,11 +563,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		}
 
 			CASE(lnot) : {
-				if(TOP.isBoolean()) {
-					TOP.setBoolean(!TOP.toBoolean());
-					DISPATCH();
-				}
-				RERR("'!' can only be applied over boolean value!");
+				TOP.setBoolean(is_falsey(TOP));
+				DISPATCH();
 			}
 
 			CASE(neg) : {
@@ -606,9 +619,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(jumpiftrue) : {
 				Value v   = POP();
 				int   dis = next_int();
-				bool  tr  = (v.isBoolean() && v.toBoolean()) ||
-				          (v.isNumber() && v.toNumber());
-				if(tr) {
+				bool  fl  = is_falsey(v);
+				if(!fl) {
 					JUMPTO(dis -
 					       sizeof(int)); // offset the relative jump address
 				}
@@ -618,9 +630,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(jumpiffalse) : {
 				Value v   = POP();
 				int   dis = next_int();
-				bool  tr  = v.isNil() || (v.isBoolean() && !v.toBoolean()) ||
-				          (v.isNumber() && !v.toNumber());
-				if(tr) {
+				bool  fl  = is_falsey(v);
+				if(fl) {
 					JUMPTO(dis -
 					       sizeof(int)); // offset the relative jump address
 				}
