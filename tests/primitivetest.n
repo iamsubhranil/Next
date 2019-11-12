@@ -21,6 +21,11 @@ pub fn test() {
         print("[Error] number.is_int() is broken\n")
         res = false
     }
+    a = 2919.213
+    if(a.to_int() != 2919) {
+        print("[Error] number.to_int() is broken\n")
+        res = false
+    }
 
     s = "Hello World!"
     if(s.str() != "Hello World!") {
