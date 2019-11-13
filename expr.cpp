@@ -29,15 +29,12 @@ void ExpressionPrinter::visit(AssignExpression *as) {
 }
 
 void ExpressionPrinter::visit(BinaryExpression *be) {
-	out << "(";
 	be->left->accept(this);
-	out << " " << Token::FormalNames[be->token.type] << " ";
+	out << " " << be->token << " ";
 	be->right->accept(this);
-	out << ")";
 }
 
 void ExpressionPrinter::visit(CallExpression *ce) {
-	out << "(";
 	ce->callee->accept(this);
 	out << "(";
 	if(!ce->arguments.empty()) {
@@ -51,55 +48,45 @@ void ExpressionPrinter::visit(CallExpression *ce) {
 		}
 	}
 	out << ")";
-	out << ")";
 }
 
 void ExpressionPrinter::visit(GetExpression *ge) {
-	out << "(";
 	ge->object->accept(this);
 	out << ".";
 	ge->refer->accept(this);
-	out << ")";
 }
 
 void ExpressionPrinter::visit(GroupingExpression *ge) {
-	out << "( ";
+	out << "(";
 	ge->exp->accept(this);
-	out << " )";
+	out << ")";
 }
 
 void ExpressionPrinter::visit(LiteralExpression *le) {
-	out << le->value;
+	out << le->token;
 }
 
 void ExpressionPrinter::visit(PrefixExpression *pe) {
 	out << pe->token;
-	out << "(";
 	pe->right->accept(this);
-	out << ")";
 }
 
 void ExpressionPrinter::visit(PostfixExpression *pe) {
-	out << "(";
 	pe->left->accept(this);
-	out << ")";
 	out << pe->token;
 }
 
 void ExpressionPrinter::visit(SetExpression *se) {
-	out << "(";
 	se->object->accept(this);
 	out << " = ";
 	se->value->accept(this);
-	out << ")";
 }
 
 void ExpressionPrinter::visit(SubscriptExpression *sube) {
-	out << "(";
 	sube->object->accept(this);
 	out << "[";
 	sube->idx->accept(this);
-	out << "])";
+	out << "]";
 }
 
 void ExpressionPrinter::visit(VariableExpression *v) {

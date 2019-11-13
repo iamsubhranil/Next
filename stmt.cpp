@@ -3,26 +3,41 @@
 using namespace std;
 
 void StatementPrinter::print(Statement *s) {
+	tabCount = 0;
 	s->accept(this);
 }
 
+void StatementPrinter::printTabs() {
+	for(int i = 0; i < tabCount; i++) {
+		os << "\t";
+	}
+}
+
 void StatementPrinter::visit(IfStatement *s) {
+	if(!onElse)
+		printTabs();
 	os << "if";
 	ep.print(s->condition.get());
 	s->thenBlock->accept(this);
 	if(s->elseBlock != nullptr) {
+		printTabs();
 		os << "else ";
+		bool bak = onElse;
+		onElse   = true;
 		s->elseBlock->accept(this);
+		onElse = bak;
 	}
 }
 
 void StatementPrinter::visit(WhileStatement *ifs) {
+	printTabs();
 	os << "while";
 	ep.print(ifs->condition.get());
 	ifs->thenBlock->accept(this);
 }
 
 void StatementPrinter::visit(FnStatement *ifs) {
+	printTabs();
 	if(!ifs->isMethod) {
 		os << (ifs->visibility == VIS_PUB ? "pub " : "priv ");
 	}
@@ -54,7 +69,9 @@ void StatementPrinter::visit(FnBodyStatement *ifs) {
 	if(ifs->body != nullptr)
 		ifs->body->accept(this);
 }
+
 void StatementPrinter::visit(TryStatement *ifs) {
+	printTabs();
 	os << "try";
 	ifs->tryBlock->accept(this);
 	for(auto i = ifs->catchBlocks.begin(), j = ifs->catchBlocks.end(); i != j;
@@ -62,32 +79,43 @@ void StatementPrinter::visit(TryStatement *ifs) {
 		(*i)->accept(this);
 	}
 }
+
 void StatementPrinter::visit(CatchStatement *ifs) {
+	printTabs();
 	os << "catch (" << ifs->typeName << " " << ifs->varName << ")";
 	ifs->block->accept(this);
 }
+
 void StatementPrinter::visit(ImportStatement *ifs) {
+	printTabs();
 	os << "import ";
 	auto i = ifs->import.begin(), j = ifs->import.end();
 	os << *i;
+	i++;
 	while(i != j) {
 		os << "." << *i;
 		i++;
 	}
 }
+
 void StatementPrinter::visit(BlockStatement *ifs) {
 	if(ifs->isStatic) {
 		os << "static ";
 	}
-	os << "{\n";
+	os << " {\n";
+	tabCount++;
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++) {
 		(*i)->accept(this);
 		os << "\n";
 	}
+	tabCount--;
+	printTabs();
 	os << "}\n";
 }
+
 void StatementPrinter::visit(ExpressionStatement *ifs) {
+	printTabs();
 	auto i = ifs->exprs.begin(), j = ifs->exprs.end();
 	ep.print(i->get());
 	i++;
@@ -97,7 +125,9 @@ void StatementPrinter::visit(ExpressionStatement *ifs) {
 		i++;
 	}
 }
+
 void StatementPrinter::visit(VardeclStatement *ifs) {
+	printTabs();
 	os << (ifs->vis == VIS_PUB ? "pub " : "priv ");
 	os << ifs->token;
 	os << " = ";
@@ -105,17 +135,23 @@ void StatementPrinter::visit(VardeclStatement *ifs) {
 }
 
 void StatementPrinter::visit(ClassStatement *ifs) {
+	printTabs();
 	os << (ifs->vis == VIS_PUB ? "pub " : "priv ");
 	os << "class ";
-	os << ifs->name << "{\n";
+	os << ifs->name << " {\n";
+	tabCount++;
 	for(auto i = ifs->declarations.begin(), j = ifs->declarations.end(); i != j;
 	    i++) {
 		(*i)->accept(this);
 		os << "\n";
 	}
-	os << "}";
+	tabCount--;
+	printTabs();
+	os << "}\n";
 }
+
 void StatementPrinter::visit(MemberVariableStatement *ifs) {
+	printTabs();
 	if(ifs->isStatic)
 		os << "static ";
 	auto i = ifs->members.begin(), j = ifs->members.end();
@@ -127,11 +163,14 @@ void StatementPrinter::visit(MemberVariableStatement *ifs) {
 		i++;
 	}
 }
+
 void StatementPrinter::visit(VisibilityStatement *ifs) {
+	printTabs();
 	os << (ifs->token.type == TOKEN_pub ? "pub: " : "priv: ");
 }
 
 void StatementPrinter::visit(PrintStatement *ifs) {
+	printTabs();
 	os << "print(";
 	auto i = ifs->exprs.begin(), j = ifs->exprs.end();
 	ep.print(i->get());
@@ -145,11 +184,13 @@ void StatementPrinter::visit(PrintStatement *ifs) {
 }
 
 void StatementPrinter::visit(ThrowStatement *ifs) {
+	printTabs();
 	os << "throw ";
 	ep.print(ifs->expr.get());
 }
 
 void StatementPrinter::visit(ReturnStatement *ifs) {
+	printTabs();
 	os << "ret ";
 	ep.print(ifs->expr.get());
 }

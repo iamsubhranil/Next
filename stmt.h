@@ -257,9 +257,13 @@ class StatementPrinter : public StatementVisitor {
   private:
 	std::ostream &    os;
 	ExpressionPrinter ep;
+	int               tabCount;
+	void              printTabs();
+	bool              onElse;
 
   public:
-	StatementPrinter(std::ostream &o) : os(o), ep(o) {}
+	StatementPrinter(std::ostream &o)
+	    : os(o), ep(o), tabCount(0), onElse(false) {}
 	void print(Statement *s);
 	void visit(IfStatement *ifs);
 	void visit(WhileStatement *ifs);
