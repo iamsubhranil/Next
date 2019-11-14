@@ -7,8 +7,8 @@
 
 using namespace std;
 
-char            ExecutionEngine::ExceptionMessage[1024] = {0};
-vector<Fiber *> ExecutionEngine::fibers                 = vector<Fiber *>();
+char                          ExecutionEngine::ExceptionMessage[1024] = {0};
+vector<Fiber *>               ExecutionEngine::fibers = vector<Fiber *>();
 HashMap<NextString, Module *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
 Value ExecutionEngine::pendingException = ValueNil;
@@ -74,9 +74,9 @@ void ExecutionEngine::registerModule(Module *m) {
 
 // using BytecodeHolder::Opcodes;
 void ExecutionEngine::printStackTrace(Fiber *fiber, int rootFrame) {
-	int            i    = fiber->callFramePointer - 1;
-	FrameInstance *root = &fiber->callFrames[i];
-	FrameInstance *f    = root;
+	int            i          = fiber->callFramePointer - 1;
+	FrameInstance *root       = &fiber->callFrames[i];
+	FrameInstance *f          = root;
 	NextString     lastModule = 0;
 	while(i >= rootFrame) {
 		Token t;
@@ -114,7 +114,7 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 // @s   <-- StringLibrary hash
 // @t   <-- SymbolTable no
 void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
-	int    i = 0, j = 0;
+	int     i = 0, j = 0;
 	va_list args;
 	va_start(args, message);
 
@@ -577,6 +577,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			       "Method '@t' not found in class '@s'!", methodToCall,
 			       obj->Class->name);
 			ref_incr(TOP);
+			ref_incr(rightOperand);
 			PUSH(rightOperand);
 			CALL(obj->Class->functions[methodToCall]->frame.get(), 1 + 1);
 		}
