@@ -103,8 +103,8 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 void CodeGenerator::initFrame(Frame *f, Token t) {
 	f->parent = frame;
 	f->insertdebug(t);
-	frame     = f;
-	bytecode  = &f->code;
+	frame    = f;
+	bytecode = &f->code;
 }
 
 CodeGenerator::CompilationState CodeGenerator::getState() {
@@ -292,7 +292,10 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	onRefer  = false;
 	for(auto &i : call->arguments) {
 		i->accept(this);
-		bytecode->incr_ref();
+		// in we're on a builtin call,
+		// no need to increase the ref
+		if(info.type != CallInfo::BUILTIN)
+			bytecode->incr_ref();
 	}
 	onRefer = bak;
 	frame->insertdebug(call->callee->token);
