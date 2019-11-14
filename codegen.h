@@ -116,7 +116,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	                                 Visibility vis = Visibility::VIS_PRIV);
 	VarInfo          lookForVariable(NextString name, bool declare = false);
 	void             compileAll(const std::vector<StmtPtr> &statements);
-	void             initFrame(Frame *f);
+	void             initFrame(Frame *f, Token t);
 	void             popFrame();
 	CompilationState getState();
 #ifdef DEBUG

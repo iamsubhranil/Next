@@ -73,12 +73,24 @@ void ExecutionEngine::registerModule(Module *m) {
 }
 
 // using BytecodeHolder::Opcodes;
-void ExecutionEngine::printStackTrace(Fiber *fiber) {
+void ExecutionEngine::printStackTrace(Fiber *fiber, int rootFrame) {
 	int            i    = fiber->callFramePointer - 1;
 	FrameInstance *root = &fiber->callFrames[i];
 	FrameInstance *f    = root;
-	while(i >= 0) {
+	NextString     lastModule = 0;
+	while(i >= rootFrame) {
 		Token t;
+		if(f->frame->module->name != lastModule) {
+			lastModule = f->frame->module->name;
+			cout << "In module '" << ANSI_COLOR_YELLOW
+			     << StringLibrary::get_raw(lastModule) << ANSI_COLOR_RESET
+			     << "'\n";
+		}
+		if(f->frame->lineInfos.size() > 0 && f->frame->parent != NULL) {
+			f->frame->lineInfos[0].t.highlight(true, "In function ",
+			                                   Token::WARN);
+		}
+
 		if((t = f->frame->findLineInfo(f->code - (f == root ? 0 : 1))).type !=
 		   TOKEN_ERROR)
 			t.highlight(true, "At ", Token::ERROR);
@@ -140,7 +152,8 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 #define set_instruction_pointer(x) \
 	instructionPointer = x->code - x->frame->code.bytecodes.data()
 
-FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
+FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f,
+                                               int rootFrame) {
 
 	// Get the type
 	NextType t = NextType::getType(v);
@@ -150,7 +163,7 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 	FrameInstance *matched            = NULL;
 	FrameInstance *searching          = &f->callFrames[num];
 	ExHandler      handler;
-	while(num >= 0 && matched == NULL) {
+	while(num >= rootFrame && matched == NULL) {
 		// find the current instruction pointer
 		set_instruction_pointer(searching);
 		for(auto &i : *searching->frame->handlers) {
@@ -175,7 +188,7 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f) {
 			cout << StringLibrary::get(v.toObject()->slots[0].toString())
 			     << endl;
 		}
-		printStackTrace(f);
+		printStackTrace(f, rootFrame);
 		exit(1);
 	} else {
 		// pop all but the matched frame
@@ -240,6 +253,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	} else
 		presentFrame = fiber->appendCallFrame(f, 0, &fiber->stackTop);
 
+	// The problem is, all of our top level module frames
+	// live in the Fiber stack too. So while throwing an
+	// exception or printing a stack trace, we don't
+	// actually need to go back all the way to the first
+	// frame in the fiber, we need to go back to the
+	// frame from where this particular 'execute' method
+	// started execution.
+	int            RootFrameID        = fiber->callFramePointer - 1;
 	unsigned char *InstructionPointer = presentFrame->code;
 	Value *        Stack              = presentFrame->stack_;
 	Value *        StackTop           = fiber->stackTop;
@@ -1120,7 +1141,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(halt) : {
-				int instructionPointer = 0;
+				unsigned long instructionPointer = 0;
 				set_instruction_pointer(presentFrame);
 				return;
 			}
@@ -1184,7 +1205,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			pendingException = createRuntimeException(ExceptionMessage);
 		}
 		BACKUP_FRAMEINFO();
-		presentFrame = throwException(pendingException, fiber);
+		presentFrame = throwException(pendingException, fiber, RootFrameID);
 		RESTORE_FRAMEINFO();
 		pendingException = ValueNil;
 		DISPATCH_WINC();

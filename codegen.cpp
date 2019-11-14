@@ -36,7 +36,8 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	frame  = nullptr;
 	module = compileIn;
 	ExecutionEngine::registerModule(compileIn);
-	initFrame(module->frame.get());
+	initFrame(module->frame.get(),
+	          stmts.size() > 0 ? stmts[0]->token : Token::PlaceholderToken);
 	NextString lastName = StringLibrary::insert("core");
 	if(compileIn->name != lastName) {
 		module->importedModules[lastName] = CoreModule::core;
@@ -99,8 +100,9 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 	state = bak;
 }
 
-void CodeGenerator::initFrame(Frame *f) {
+void CodeGenerator::initFrame(Frame *f, Token t) {
 	f->parent = frame;
+	f->insertdebug(t);
 	frame     = f;
 	bytecode  = &f->code;
 }
@@ -985,9 +987,9 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		}
 	} else {
 		if(!inClass || inConstructor)
-			initFrame(module->functions[signature]->frame.get());
+			initFrame(module->functions[signature]->frame.get(), ifs->name);
 		else
-			initFrame(currentClass->functions[sym]->frame.get());
+			initFrame(currentClass->functions[sym]->frame.get(), ifs->name);
 
 		if(inClass || inConstructor) {
 			// Object will be stored in 0

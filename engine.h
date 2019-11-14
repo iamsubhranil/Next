@@ -43,8 +43,8 @@ class ExecutionEngine {
 	// throwException will either return
 	// the matching frameInstance if found,
 	// or call exit(1) from itself.
-	static FrameInstance *throwException(Value v, Fiber *f);
-	static void           printStackTrace(Fiber *f);
+	static FrameInstance *throwException(Value v, Fiber *f, int rootFrameID);
+	static void           printStackTrace(Fiber *f, int rootFrameID);
 	static Value          newObject(NextString module, NextString Class);
 	void                  execute(Module *m, Frame *f);
 };
