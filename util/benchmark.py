@@ -92,6 +92,8 @@ BENCHMARK("garbage_test", r"""Final object : <object of garbage_test\.MyClass> {
 BENCHMARK("method_call", r"""true
 false""")
 
+BENCHMARK("nbody", r"""-0.16907516382852
+-0.16907807065935""")
 
 #BENCHMARK("map_numeric", r"""2000001000000""")
 

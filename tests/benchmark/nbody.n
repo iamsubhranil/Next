@@ -1,0 +1,189 @@
+fn combinations(l) {
+    res = []
+    size = l.size()
+    i = 0
+    j = 0
+    while(i < size - 1) {
+        k = i + 1
+        while(k < size) {
+            res[j++] = [l[i], l[k]]
+            k++
+        }
+        i++
+    }
+    ret res
+}
+
+fn print_arr(arr) {
+    n = arr.size()
+    i = 0
+    print("[")
+    while(i < n) {
+        if(is_same_type(arr[i], arr)) {
+            print_arr(arr[i])
+        } else {
+            if(arr[i] > 0) {
+                print(" ")
+            }
+            print(arr[i])
+        }
+        if(i < n - 1) {
+            print(",")
+        }
+        print(" ")
+        i++
+    }
+    print("]\n")
+}
+
+PI = 3.14159265358979323
+SOLAR_MASS = 4 * PI * PI
+DAYS_PER_YEAR = 365.24
+SUN = 0
+JUPITER = 1
+SATURN = 2
+URANUS = 3
+NEPTUNE = 4
+
+BODIES = [
+            // sun
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], SOLAR_MASS],
+
+            // jupiter
+            [[4.84143144246472090e+00,
+                 -1.16032004402742839e+00,
+                 -1.03622044471123109e-01],
+                [1.66007664274403694e-03 * DAYS_PER_YEAR,
+                 7.69901118419740425e-03 * DAYS_PER_YEAR,
+                 -6.90460016972063023e-05 * DAYS_PER_YEAR],
+                9.54791938424326609e-04 * SOLAR_MASS],
+
+            // saturn
+            [[8.34336671824457987e+00,
+                4.12479856412430479e+00,
+                -4.03523417114321381e-01],
+               [-2.76742510726862411e-03 * DAYS_PER_YEAR,
+                4.99852801234917238e-03 * DAYS_PER_YEAR,
+                2.30417297573763929e-05 * DAYS_PER_YEAR],
+               2.85885980666130812e-04 * SOLAR_MASS],
+
+            // uranus
+            [[1.28943695621391310e+01,
+                -1.51111514016986312e+01,
+                -2.23307578892655734e-01],
+               [2.96460137564761618e-03 * DAYS_PER_YEAR,
+                2.37847173959480950e-03 * DAYS_PER_YEAR,
+                -2.96589568540237556e-05 * DAYS_PER_YEAR],
+               4.36624404335156298e-05 * SOLAR_MASS],
+
+            // neptune
+            [[1.53796971148509165e+01,
+                 -2.59193146099879641e+01,
+                 1.79258772950371181e-01],
+                [2.68067772490389322e-03 * DAYS_PER_YEAR,
+                 1.62824170038242295e-03 * DAYS_PER_YEAR,
+                 -9.51592254519715870e-05 * DAYS_PER_YEAR],
+                5.15138902046611451e-05 * SOLAR_MASS]
+        ]
+
+PAIRS = combinations(BODIES)
+
+fn advance(dt, n, bodies, pairs) {
+    i = 0
+    while(i < n) {
+        j = 0
+        size = pairs.size()
+        while(j < size) {
+            body1 = pairs[j][0]
+            body2 = pairs[j][1]
+            v1 = body1[1]
+            m1 = body1[2]
+            v2 = body2[1]
+            m2 = body2[2]
+            dx = body1[0][0] - body2[0][0]
+            dy = body1[0][1] - body2[0][1]
+            dz = body1[0][2] - body2[0][2]
+
+            mag = dt * ((dx * dx + dy * dy + dz * dz) ^ (-1.5))
+            b1m = m1 * mag
+            b2m = m2 * mag
+            v1[0] = v1[0] - (dx * b2m)
+            v1[1] = v1[1] - (dy * b2m)
+            v1[2] = v1[2] - (dz * b2m)
+            v2[0] = v2[0] + (dx * b1m)
+            v2[1] = v2[1] + (dy * b1m)
+            v2[2] = v2[2] + (dz * b1m)
+            j++
+        }
+
+        j = 0
+        size = bodies.size()
+        while(j < size) {
+            r = bodies[j][0]
+            v = bodies[j][1]
+            r[0] = r[0] + (dt * v[0])
+            r[1] = r[1] + (dt * v[1])
+            r[2] = r[2] + (dt * v[2])
+            j++
+        }
+        i++
+    }
+}
+
+fn report_energy(bodies, pairs, e) {
+    j = 0
+    size = pairs.size()
+    while(j < size) {
+        body1 = pairs[j][0]
+        body2 = pairs[j][1]
+        m1 = body1[2]
+        m2 = body2[2]
+        dx = body1[0][0] - body2[0][0]
+        dy = body1[0][1] - body2[0][1]
+        dz = body1[0][2] - body2[0][2]
+        
+        e = e - (m1 * m2) / ((dx * dx + dy * dy + dz * dz) ^ 0.5)
+        j++
+    }
+
+    j = 0
+    size = bodies.size()
+    while(j < size) {
+        v = bodies[j][1]
+        m = bodies[j][2]
+        e = e + (m * (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / 2.0)
+        j++
+    }
+    print(e, "\n")
+}
+
+fn offset_momentum(ref, bodies, px, py, pz) {
+    j = 0
+    size = bodies.size()
+    while(j < size) {
+        m = bodies[j][2]
+        v = bodies[j][1]
+        px = px - (v[0] * m)
+        py = py - (v[1] * m)
+        pz = pz - (v[2] * m)
+        j++
+    }
+    v = ref[1]
+    m = ref[2]
+    v[0] = px / m
+    v[1] = py / m
+    v[2] = pz / m
+}
+
+
+fn main(n, ref) {
+    offset_momentum(BODIES[ref], BODIES, 0.0, 0.0, 0.0)
+    report_energy(BODIES, PAIRS, 0.0)
+    advance(0.01, n, BODIES, PAIRS)
+    report_energy(BODIES, PAIRS, 0.0)
+}
+
+start = clock()
+main(50000, SUN)
+elapsed = clock() - start
+print("elapsed: ", elapsed / clocks_per_sec)
