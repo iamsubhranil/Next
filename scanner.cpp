@@ -287,6 +287,17 @@ Token Scanner::number() {
 		while(isDigit(peek())) advance();
 	}
 
+	if(peek() == 'e' || peek() == 'E') {
+		// scientific notation
+		advance();
+		// consume the sign, if there is any
+		if(peek() == '+' || peek() == '-') {
+			advance();
+		}
+		// cosume the exponent
+		while(isDigit(peek())) advance();
+	}
+
 	return Token::from(TOKEN_NUMBER, this);
 }
 
