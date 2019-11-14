@@ -1,0 +1,30 @@
+class SomeObject {
+    pub:
+        x
+        new(s) {
+            x = s
+        }
+
+        op ==(y) {
+            ret is_same_type(y, this) and y.x == x
+        }
+
+        op !=(y) {
+            ret !(this == y)
+        }
+}
+
+pub fn test() {
+    res = true
+    a = "Hello" or 0
+    if(a != "Hello") {
+        print("[Error] 'a' should contain hello now!\n")
+        res = false
+    }
+    a = 21.213 and SomeObject(56)
+    if(a != SomeObject(56)) {
+        print("[Error] 'a' should contain SomeObject(56) now!\n")
+        res = false
+    }
+    ret res
+}
