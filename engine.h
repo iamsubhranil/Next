@@ -30,6 +30,7 @@ class ExecutionEngine {
 	declareSymbol(land);
 	declareSymbol(subscript_get);
 	declareSymbol(subscript_set);
+	declareSymbol(pow);
 
 	static void formatExceptionMessage(const char *message, ...);
 

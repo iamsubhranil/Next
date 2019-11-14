@@ -60,6 +60,10 @@ class List {
             ret mem != x
         }
 
+        op ^(x) {
+            ret mem ^ x
+        }
+
         fn getMem() {
             ret mem
         }
@@ -131,7 +135,12 @@ pub fn test() {
     }
     something = obj != 18
     if(something) {
-        print("!=(_) is not working")
+        print("!=(_) is not working\n")
+        res = false
+    }
+    something = obj ^ 2
+    if(something != 324) {
+        print("^(_) is not working\n")
         res = false
     }
 

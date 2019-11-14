@@ -27,15 +27,16 @@ initSymbol(greatereq);
 initSymbol(lor);
 initSymbol(land);
 initSymbol(subscript_get);
-initSymbol(subscript_set)
-    /*
-    #define OPCODE0(x, y) initSymbol(x)
-    #define OPCODE1(x, y, z) initSymbol(x)
-    #define OPCODE2(x, y, z, a) initSymbol(x)
-    #include "opcodes.h"
-    */
+initSymbol(subscript_set);
+initSymbol(pow);
+/*
+#define OPCODE0(x, y) initSymbol(x)
+#define OPCODE1(x, y, z) initSymbol(x)
+#define OPCODE2(x, y, z, a) initSymbol(x)
+#include "opcodes.h"
+*/
 
-    void ExecutionEngine::init() {
+void ExecutionEngine::init() {
 #define registerOpcodeSymbol(opcode, symbol, ...) \
 	opcode##Hash = SymbolTable::insertSymbol(     \
 	    StringLibrary::insert(#symbol "(_" __VA_ARGS__ ")"));
@@ -53,6 +54,7 @@ initSymbol(subscript_set)
 	registerOpcodeSymbol(land, and);
 	registerOpcodeSymbol(subscript_get, []);
 	registerOpcodeSymbol(subscript_set, [], ",_");
+	registerOpcodeSymbol(pow, ^);
 
 	pendingException = ValueNil;
 }
@@ -437,7 +439,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(less) : binary(<, lesser than, Number, Boolean, less);
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
-			CASE(power) : RERR("Yet not implemented!");
+			CASE(power) : {
+				rightOperand = POP();
+				if(rightOperand.isNumber() && TOP.isNumber()) {
+					TOP.setNumber(pow(TOP.toNumber(), rightOperand.toNumber()));
+					DISPATCH();
+				} else if(TOP.isObject()) {
+					methodToCall = powHash;
+					goto opmethodcall;
+				}
+				RERR("Both of the operands of 'power of' are not Number"
+				     " (@s and @s)!",
+				     TOP.getTypeString(), rightOperand.getTypeString());
+			}
 
 			CASE(neq) : {
 				rightOperand = POP();
