@@ -44,7 +44,7 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 		VarInfo v                         = lookForVariable(lastName, true);
 		bytecode->push(Value(module->importedModules[lastName]));
 		bytecode->store_slot(v.slot);
-		bytecode->pop();
+		bytecode->pop2();
 	}
 	compileAll(stmts);
 	bytecode->halt();
@@ -264,7 +264,7 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	// can directly use the token to generate the signature.
 	NextString signature = generateSignature(call->callee->token, argSize);
 
-	CallInfo info;
+	CallInfo info = {CallInfo::UNDEFINED, NULL, 0};
 
 	if(!onRefer) {
 		info = resolveCall(signature, isImported, mod);
@@ -527,7 +527,7 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 			// bytecode->pushd((double)j);
 			i->accept(this);
 			// bytecode->subscript_set();
-			// bytecode->pop();
+			// bytecode->pop2();
 		}
 		// finally emit opcode to assign those
 		// expressions to the array, and leave
@@ -754,7 +754,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 				bytecode->load_field_pushback(lastMemberReferenced);
 				bytecode->incr_field(lastMemberReferenced);
 				// pop off the object load_field_pushback pushed back
-				bytecode->pop();
+				bytecode->pop2();
 				return;
 			}
 			switch(variableInfo.position) {
@@ -784,7 +784,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 				bytecode->load_field_pushback(lastMemberReferenced);
 				bytecode->decr_field(lastMemberReferenced);
 				// pop off the object load_field_pushback pushed back
-				bytecode->pop();
+				bytecode->pop2();
 				return;
 			}
 			switch(variableInfo.position) {
@@ -1070,7 +1070,7 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 		i->get()->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
-		bytecode->pop();
+		bytecode->pop2();
 	}
 }
 
@@ -1185,7 +1185,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 					VarInfo v = lookForVariable(lastName, true);
 					bytecode->push(Value(m));
 					bytecode->store_slot(v.slot);
-					bytecode->pop();
+					bytecode->pop2();
 				}
 				break;
 			}
@@ -1206,7 +1206,7 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 		}
 		ifs->expr->accept(this);
 		bytecode->store_slot(v.slot);
-		bytecode->pop();
+		bytecode->pop2();
 	}
 }
 
@@ -1303,7 +1303,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	frame->handlers->push_back(
 	    (ExHandler){tryBlockStart, tryBlockEnd, bytecode->getip(), t});
 	bytecode->store_slot(slot); // store the thrown object
-	bytecode->pop();            // pop it manually since store_slot doesn't
+	bytecode->pop2();           // pop it manually since store_slot doesn't
 	ifs->block->accept(this);
 }
 

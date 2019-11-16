@@ -754,13 +754,22 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			LOAD_SLOT(7)
 
 			CASE(store_slot) : {
-				int slot = next_int();
-				ref_incr(TOP);
-				ref_decr(Stack[slot]);
-				// Do not pop the value off the stack yet
-				Stack[slot] = TOP;
-				DISPATCH();
+				rightOperand = TOP;
+				goto do_store_slot;
 			}
+
+			CASE(store_slot_pop) : {
+				rightOperand = POP();
+				StackTop[1]  = ValueNil;
+			}
+
+		do_store_slot : {
+			int slot = next_int();
+			ref_incr(rightOperand);
+			ref_decr(Stack[slot]);
+			Stack[slot] = rightOperand;
+			DISPATCH();
+		}
 
 			CASE(incr_slot) : {
 				Value &v = Stack[next_int()];

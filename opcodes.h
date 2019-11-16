@@ -71,9 +71,9 @@ OPCODE0(load_slot_5, 1)
 OPCODE0(load_slot_6, 1)
 OPCODE0(load_slot_7, 1)
 
-OPCODE1(load_slot, 1, int)  // <slot_number>
-OPCODE1(store_slot, 0, int) // <slot_number>
-
+OPCODE1(load_slot, 1, int)       // <slot_number>
+OPCODE1(store_slot, 0, int)      // <slot_number>
+OPCODE1(store_slot_pop, -1, int) // <slot_number>
 // OPCODE2(load_parent_slot, 1, int, int)   // <scope_depth> <slot_number>
 // OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
 

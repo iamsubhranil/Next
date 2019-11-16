@@ -134,6 +134,13 @@ class BytecodeHolder {
 		}
 	}
 
+	void pop2() {
+		if(getLastIns() == CODE_store_slot) {
+			setLastIns(CODE_store_slot_pop);
+		} else
+			pop();
+	}
+
 	int getLastInsPos() const { return lastInsPos; }
 
 	void setLastIns(uint8_t ins) { bytecodes[lastInsPos] = ins; }
