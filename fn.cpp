@@ -260,6 +260,8 @@ void NextObject::release() {
 					arr[i].toObject()->decrCount();
 			}
 			free(arr);
+		} else if(slots[i].isHashMap()) {
+			delete slots[i].toHashMap();
 		}
 	}
 

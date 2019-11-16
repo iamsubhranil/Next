@@ -1,0 +1,58 @@
+res = true
+
+class Object {
+    pub:
+        val
+        new(v) {
+            val = v
+        }
+
+        fn hash() {
+            ret val - 10
+        }
+}
+
+class ObjectWrapper {
+    pub:
+        obj
+        new(x) {
+            obj = x
+        }
+
+        fn hash() {
+            ret obj
+        }
+}
+
+fn expect(map, idx, val) {
+    if(map[idx] != val) {
+        print("[Error] Expected map[", idx, "] to be '", val, "', received '", map[idx], "'!\n")
+        res = false
+    }
+}
+
+fn expect_err(map, idx) {
+    try {
+        v = map[idx]
+        print("[Error] Exception expected while accessing invalid index '", idx, "'!\n")
+        res = false
+    } catch(RuntimeException ce) {}
+}
+
+pub fn test() {
+    map = core.hashmap()
+    
+    map["Hello"] = "World!"
+    map[29932.3290012] = 2909023
+    map[ObjectWrapper(Object(10))] = "Stored!"
+    map[true] = "False!"
+
+    expect(map, "Hello", "World!")
+    expect(map, 29932.3290012, 2909023)
+    expect(map, 1, nil)
+    expect(map, 0, "Stored!")
+    expect(map, true, "False!")
+    expect_err(map, ObjectWrapper([]))
+
+    ret res
+}

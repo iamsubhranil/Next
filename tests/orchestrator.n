@@ -14,15 +14,17 @@ import rerrtest
 import subscriptest
 import typetest
 import truthness
+import hashmap
 
 modules = [prepost, iftest, primitivetest, classtest, importest, opmethod,
-            subscriptest, arraytest, exceptiontest, rerrtest, typetest, truthness]
+            subscriptest, arraytest, exceptiontest, rerrtest, typetest, 
+            truthness, hashmap]
 
 desc = ["Pre and post increment/decrements", "Short circuits",
         "Primitive method calls", "Classes", "Imports",
         "Operator methods", "Subscript getter and setter",
         "Arrays", "Exceptions", "Runtime exceptions",
-        "Type builtins", "Truthness evaluation"]
+        "Type builtins", "Truthness evaluation", "Hashmaps"]
 
 i = 0
 while(i < modules.size()) {

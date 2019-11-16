@@ -19,4 +19,8 @@ class Builtin {
 	static void  register_constant(const char *name, Value v);
 	static Value invoke_builtin(NextString sig, const Value *args);
 	static Value get_constant(NextString name);
+
+	static Value next_is_hashable(const Value *args);
+	static Value next_hashmap_get(const Value *args);
+	static Value next_hashmap_set(const Value *args);
 };

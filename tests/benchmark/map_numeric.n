@@ -1,0 +1,23 @@
+start = clock()
+
+map = core.hashmap()
+
+i = 0
+while(i++ < 2000000) {
+    map[i] = i
+}
+
+sum = 0
+i = 0
+while(i++ < 2000000) {
+    sum = sum + map[i]
+}
+
+print(sum, "\n")
+
+i = 0
+while(i++ < 2000000) {
+    map.remove(i)
+}
+
+print("elapsed: ", (clock() - start)/clocks_per_sec)

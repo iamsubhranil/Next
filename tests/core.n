@@ -102,3 +102,53 @@ pub class array {
 
         fn size() { ret size }
 }
+
+pub class hashmap {
+    priv:
+        map
+
+        fn get_hash(v) {
+            if(!__next_is_hashable(v)) {
+                finalhash = v
+                while(!__next_is_hashable(finalhash)) {
+                    if(__next_has_method(finalhash, "hash()")) {
+                        finalhash = finalhash.hash()
+                    } else {
+                        throw RuntimeException("Method hash() not found in the object!")
+                    }
+                }
+                ret finalhash
+            }
+            ret v
+        }
+    pub:
+        new() {
+            map = __next_hashmap_new()
+        }
+
+        fn has(v) {
+            hash = get_hash(v)
+            ret __next_hashmap_has_key(map, hash)
+        }
+
+        fn remove(v) {
+            hash = get_hash(v)
+            ret __next_hashmap_remove(map, hash)
+        }
+
+        /*
+        fn values() {
+            ret __next_hashmap_values(map)
+        }
+        */
+
+        op [](key) {
+            hash = get_hash(key)
+            ret __next_hashmap_get(map, hash)
+        }
+
+        op [](key, value) {
+            hash = get_hash(key)
+            ret __next_hashmap_set(map, hash, value)
+        }
+}
