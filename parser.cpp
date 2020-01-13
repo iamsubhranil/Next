@@ -508,4 +508,18 @@ ExpPtr ArrayLiteralParselet::parse(Parser *parser, Token t) {
 	return unq(ArrayLiteralExpression, t, exprs);
 }
 
+ExpPtr HashmapLiteralParselet::parse(Parser *parser, Token t) {
+	std::vector<ExpPtr> keys, values;
+	if(parser->lookAhead(0).type != TOKEN_RIGHT_BRACE) {
+		do {
+			keys.push_back(parser->parseExpression());
+			parser->consume(TOKEN_COLON, "Expected ':' after key!");
+			values.push_back(parser->parseExpression());
+		} while(parser->match(TOKEN_COMMA));
+	}
+	parser->consume(TOKEN_RIGHT_BRACE,
+	                "Expected '}' after hashmap declaration!");
+	return unq(HashmapLiteralExpression, t, keys, values);
+}
+
 // Exceptions

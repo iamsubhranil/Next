@@ -31,6 +31,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_false, new LiteralParselet());
 	p->registerParselet(TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
 	p->registerParselet(TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
+	p->registerParselet(TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
 
 	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());

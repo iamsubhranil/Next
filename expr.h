@@ -11,6 +11,7 @@ class BinaryExpression;
 class CallExpression;
 class GetExpression;
 class GroupingExpression;
+class HashmapLiteralExpression;
 class LiteralExpression;
 class PrefixExpression;
 class PostfixExpression;
@@ -26,6 +27,7 @@ class ExpressionVisitor {
 	virtual void visit(CallExpression *cal)        = 0;
 	virtual void visit(GetExpression *get)         = 0;
 	virtual void visit(GroupingExpression *group)  = 0;
+	virtual void visit(HashmapLiteralExpression *al) = 0;
 	virtual void visit(LiteralExpression *lit)     = 0;
 	virtual void visit(PrefixExpression *pe)       = 0;
 	virtual void visit(PostfixExpression *pe)      = 0;
@@ -44,6 +46,7 @@ class Expr {
 		VARIABLE,
 		GET,
 		GROUPING,
+		HASHMAP_LITERAL,
 		LITERAL,
 		SET,
 		PREFIX,
@@ -134,6 +137,23 @@ class GroupingExpression : public Expr {
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
+class HashmapLiteralExpression : public Expr {
+  public:
+	std::vector<ExpPtr> keys, values;
+	HashmapLiteralExpression(Token t, std::vector<ExpPtr> &k,
+	                         std::vector<ExpPtr> &v)
+	    : Expr(t, ARRAY_LITERAL) {
+		for(auto &i : k) {
+			keys.push_back(ExpPtr(i.release()));
+		}
+		for(auto &i : v) {
+			values.push_back(ExpPtr(i.release()));
+		}
+	}
+
+	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+};
+
 class LiteralExpression : public Expr {
   public:
 	Value value;
@@ -187,6 +207,7 @@ class ExpressionPrinter : public ExpressionVisitor {
 	void visit(CallExpression *cal);
 	void visit(GetExpression *get);
 	void visit(GroupingExpression *group);
+	void visit(HashmapLiteralExpression *al);
 	void visit(LiteralExpression *lit);
 	void visit(PrefixExpression *pe);
 	void visit(PostfixExpression *pe);

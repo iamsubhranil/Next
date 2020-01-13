@@ -40,12 +40,10 @@ fn expect_err(map, idx) {
 }
 
 pub fn test() {
-    map = core.hashmap()
-    
-    map["Hello"] = "World!"
-    map[29932.3290012] = 2909023
-    map[ObjectWrapper(Object(10))] = "Stored!"
-    map[true] = "False!"
+    map = {"Hello" : "World!",
+            29932.3290012 : 2909023,
+            ObjectWrapper(Object(10)) : "Stored!",
+            true : "False!"}
 
     expect(map, "Hello", "World!")
     expect(map, 29932.3290012, 2909023)
