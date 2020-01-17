@@ -498,7 +498,18 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						}
 						TOP = obj->slots[0].toArray()[idx];
 						DISPATCH();
+					} else if(obj->Class == NextType::HashMapClass &&
+					          Builtin::next_is_hashable(&rightOperand)
+					              .toBoolean()) {
+						// manually extract the hashmap
+						TOP = TOP.toObject()->slots[0];
+						PUSH(rightOperand);
+						Value v = Builtin::next_hashmap_get(&StackTop[-2]);
+						POP();
+						TOP = v;
+						DISPATCH();
 					}
+
 					methodToCall = subscript_getHash;
 					goto opmethodcall;
 				} else if(Primitives::hasPrimitive(TOP.getType(),
@@ -562,6 +573,17 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						ref_decr(arr[idx]);
 						arr[idx] = value;
 						TOP      = value;
+						DISPATCH();
+					} else if(target.toObject()->Class ==
+					              NextType::HashMapClass &&
+					          Builtin::next_is_hashable(&StackTop[-2])
+					              .toBoolean()) {
+						// manually extract the hashmap
+						StackTop[-3] = target.toObject()->slots[0];
+						Value v      = Builtin::next_hashmap_set(&StackTop[-3]);
+						POP(); // value
+						POP(); // key
+						TOP = v;
 						DISPATCH();
 					}
 					NextObject *obj = target.toObject();

@@ -4,11 +4,13 @@
 #include "stringlibrary.h"
 #include <cstdint>
 #include <iostream>
+#include <unordered_set>
 
 using NextString = uint32_t;
 
 class NextObject;
 class Module;
+class ValueHashMap;
 
 class Value {
   private:
@@ -115,6 +117,20 @@ class Value {
 	*/
 	static NextString ValueTypeStrings[];
 };
+
+template <> struct std::hash<Value> {
+	std::size_t operator()(const Value &v) const {
+		switch(v.getType()) {
+			case Value::VAL_Number: return std::hash<double>{}(v.toNumber());
+			case Value::VAL_String: return v.toString();
+			case Value::VAL_Boolean: return std::hash<bool>{}(v.toBoolean());
+            case Value::VAL_Module: return std::hash<void*>{}(v.toModule());
+			default: return 0;
+		}
+	}
+};
+
+class ValueHashMap : public HashMap<Value, Value> {};
 
 constexpr Value ValueNil   = Value(QNAN_NIL);
 constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);

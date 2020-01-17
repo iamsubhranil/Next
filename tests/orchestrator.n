@@ -14,24 +14,32 @@ import rerrtest
 import subscriptest
 import typetest
 import truthness
+import hashmap
 
-modules = [prepost, iftest, primitivetest, classtest, importest, opmethod,
-            subscriptest, arraytest, exceptiontest, rerrtest, typetest, truthness]
-
-desc = ["Pre and post increment/decrements", "Short circuits",
-        "Primitive method calls", "Classes", "Imports",
-        "Operator methods", "Subscript getter and setter",
-        "Arrays", "Exceptions", "Runtime exceptions",
-        "Type builtins", "Truthness evaluation"]
+modules = {prepost: "Pre and post increment/decrements",
+        iftest: "Short circuits",
+        primitivetest: "Primitive method calls",
+        classtest: "Classes",
+        importest: "Imports",
+        opmethod: "Operator methods",
+        subscriptest: "Subscript getter and setter",
+        arraytest: "Arrays",
+        exceptiontest: "Exceptions",
+        rerrtest: "Runtime exceptions",
+        typetest: "Type builtins",
+        truthness: "Truthness evaluation",
+        hashmap: "Hashmaps"}
 
 i = 0
-while(i < modules.size()) {
-    print("[Testing] ", desc[i], " -> ")
-    res = modules[i].test()
+k = modules.keys()
+v = modules.values()
+while(i < k.size()) {
+    print("[Testing] ", modules[k[i]], " -> ")
+    res = k[i].test()
     if(res) {
         print("PASSED\n")
     } else {
-        print("\n[FAILED] ", desc[i], "\n")
+        print("\n[FAILED] ", modules[k[i]], "\n")
     }
     i++
 }

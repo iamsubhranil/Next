@@ -88,6 +88,7 @@ BENCHMARK("garbage_test", r"""Final object : <object of garbage_test\.MyClass> {
 
 #BENCHMARK("fibers", r"""4999950000""")
 
+BENCHMARK("map_numeric", r"""2000001000000""")
 
 BENCHMARK("method_call", r"""true
 false""")
@@ -95,7 +96,6 @@ false""")
 BENCHMARK("nbody", r"""-0.16907516382852
 -0.16907807065935""")
 
-#BENCHMARK("map_numeric", r"""2000001000000""")
 
 #BENCHMARK("map_string", r"""12799920000""")
 

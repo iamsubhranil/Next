@@ -537,6 +537,45 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	}
 }
 
+void CodeGenerator::visit(HashmapLiteralExpression *al) {
+#ifdef DEBUG
+	dinfo("");
+	al->token.highlight();
+#endif
+	// load the core module if we're not already in it
+	if(module->name != StringLibrary::insert("core")) {
+		// core is declared as the 0th slot in the module
+		bytecode->load_module_slot(0);
+		bytecode->call_method(
+		    SymbolTable::insertSymbol(StringLibrary::insert("hashmap()")), 0);
+	} else {
+		// we are in the core module
+		CallInfo info =
+		    resolveCall(StringLibrary::insert("hashmap()"), false, NULL);
+		bytecode->pushd(0);
+		bytecode->call(info.frameIdx, 1);
+		bytecode->stackEffect(0);
+	}
+
+	char tempname[20] = {0};
+	int  len  = snprintf(&tempname[0], 20, "temp %d", frame->slotSize);
+	int  slot = frame->declareVariable(tempname, len, scopeID);
+	bytecode->store_slot_pop(slot);
+	if(al->keys.size() > 0) {
+		// now evalute all the key:value pairs
+		int p = 0;
+		for(auto &i : al->keys) {
+		    bytecode->load_slot(slot);
+			i->accept(this);
+			al->values[p]->accept(this);
+			bytecode->subscript_set();
+			bytecode->pop();
+			p++;
+		}
+	}
+	bytecode->load_slot(slot);
+}
+
 void CodeGenerator::visit(LiteralExpression *lit) {
 #ifdef DEBUG
 	dinfo("");

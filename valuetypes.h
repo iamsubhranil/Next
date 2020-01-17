@@ -7,4 +7,5 @@ TYPE(bool, Boolean)
 TYPE(NextObject *, Object)
 TYPE(Module *, Module)
 TYPE(Value *, Array)
+TYPE(ValueHashMap *, HashMap)
 #undef TYPE

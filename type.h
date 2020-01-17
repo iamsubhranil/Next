@@ -25,4 +25,5 @@ class NextType {
 #include "valuetypes.h"
 	static NextType   Number;
 	static NextClass *ArrayClass;
+	static NextClass *HashMapClass;
 };

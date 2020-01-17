@@ -62,6 +62,24 @@ void ExpressionPrinter::visit(GroupingExpression *ge) {
 	out << ")";
 }
 
+void ExpressionPrinter::visit(HashmapLiteralExpression *hl) {
+	out << "{";
+	if(hl->keys.size() > 0) {
+		hl->keys[0]->accept(this);
+		out << " : ";
+		hl->values[0]->accept(this);
+	}
+	size_t i = 1;
+	while(i < hl->keys.size()) {
+		out << ", ";
+		hl->keys[i]->accept(this);
+		out << " : ";
+		hl->values[i]->accept(this);
+		i++;
+	}
+	out << "}";
+}
+
 void ExpressionPrinter::visit(LiteralExpression *le) {
 	out << le->token;
 }

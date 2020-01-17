@@ -8,8 +8,9 @@ NextType NextType::Error = {0, 0};
 
 #define TYPE(r, n) NextType NextType::n = {0, 0};
 #include "valuetypes.h"
-NextType   NextType::Number     = {0, 0};
-NextClass *NextType::ArrayClass = NULL;
+NextType   NextType::Number       = {0, 0};
+NextClass *NextType::ArrayClass   = NULL;
+NextClass *NextType::HashMapClass = NULL;
 
 void NextType::init() {
 	NextType::Any = {StringLibrary::insert("core"),
@@ -58,4 +59,6 @@ NextType NextType::getType(const Value &v) {
 void NextType::bindCoreClasses() {
 	NextType::ArrayClass =
 	    CoreModule::core->classes[StringLibrary::insert("array")].get();
+	NextType::HashMapClass =
+	    CoreModule::core->classes[StringLibrary::insert("hashmap")].get();
 }
