@@ -68,6 +68,10 @@ Value next_array_get(const Value *args) {
 	return arr[pos];
 }
 
+Value next_array_validate_item(const Value *args) {
+    return Value(args[0].isArray());
+}
+
 Value next_type_of(const Value *args) {
 	Value      v   = args[0];
 	NextType   t   = NextType::getType(v);
@@ -84,7 +88,8 @@ Value Builtin::next_is_hashable(const Value *v) {
 	switch(v->getType()) {
 		case Value::VAL_Number:
 		case Value::VAL_String:
-		case Value::VAL_Boolean: return ValueTrue;
+		case Value::VAL_Boolean:
+        case Value::VAL_Module: return ValueTrue;
 		default: return ValueFalse;
 	}
 }
@@ -140,6 +145,36 @@ Value next_hashmap_remove(const Value *v) {
 	return ValueNil;
 }
 
+Value next_hashmap_size(const Value *v) {
+    return Value((double)v[0].toHashMap()->size());
+}
+
+Value next_hashmap_keys(const Value *v) {
+    ValueHashMap *vh = v[0].toHashMap();
+
+    Value *arr = (Value*)malloc(sizeof(Value) * vh->size());
+    int i = 0;
+    for(auto kv : *vh) {
+        arr[i++] = kv.first;
+        if(kv.first.isObject())
+            kv.first.toObject()->incrCount();
+    }
+    return Value(arr);
+}
+
+Value next_hashmap_values(const Value *v) {
+    ValueHashMap *vh = v[0].toHashMap();
+
+    Value *arr = (Value*)malloc(sizeof(Value) * vh->size());
+    int i = 0;
+    for(auto kv : *vh) {
+        arr[i++] = kv.second;
+        if(kv.first.isObject())
+            kv.first.toObject()->incrCount();
+    }
+    return Value(arr);
+}
+
 HashMap<NextString, builtin_handler> Builtin::BuiltinHandlers =
     HashMap<NextString, builtin_handler>{};
 
@@ -153,6 +188,7 @@ void Builtin::init() {
 	register_builtin("__next_array_reallocate(_,_,_)", next_array_reallocate);
 	register_builtin("__next_array_set(_,_,_)", next_array_set);
 	register_builtin("__next_array_get(_,_)", next_array_get);
+	register_builtin("__next_array_validate_item(_)", next_array_validate_item);
 	register_builtin("type_of(_)", next_type_of);
 	register_builtin("is_same_type(_,_)", next_is_same_type);
 	register_builtin("__next_is_hashable(_)", next_is_hashable);
@@ -162,6 +198,9 @@ void Builtin::init() {
 	register_builtin("__next_hashmap_get(_,_)", next_hashmap_get);
 	register_builtin("__next_hashmap_set(_,_,_)", next_hashmap_set);
 	register_builtin("__next_hashmap_remove(_,_)", next_hashmap_remove);
+	register_builtin("__next_hashmap_size(_)", next_hashmap_size);
+	register_builtin("__next_hashmap_keys(_)", next_hashmap_keys);
+	register_builtin("__next_hashmap_values(_)", next_hashmap_values);
 
 	register_constant("clocks_per_sec", Value((double)CLOCKS_PER_SEC));
 }

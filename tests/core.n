@@ -54,6 +54,21 @@ pub class array {
             items = __next_array_allocate(capacity)
         }
 
+        new(x, i) {
+            if(!__next_array_validate_item(i)) {
+                throw RuntimeException("Invalid items!")
+            }
+            if(!is_same_type(x, 2) or !x.is_int() or x < 0) {
+                throw RuntimeException("Array size should be a positive integer!")
+            }
+            capacity = nearestPowerOfTwo(x)
+            items = i
+            if(capacity != x) {
+                items = __next_array_reallocate(items, x, capacity)
+            }
+            size = x
+        }
+
         fn insert(val) {
             size++
             if(size == capacity) {
@@ -136,11 +151,21 @@ pub class hashmap {
             ret __next_hashmap_remove(map, hash)
         }
 
-        /*
-        fn values() {
-            ret __next_hashmap_values(map)
+        fn size() {
+            ret __next_hashmap_size(map)
         }
-        */
+
+        fn values() {
+            s = size()
+            i = __next_hashmap_values(map)
+            ret array(s, i)
+        }
+
+        fn keys() {
+            s = size()
+            i = __next_hashmap_keys(map)
+            ret array(s, i)
+        }
 
         op [](key) {
             hash = get_hash(key)

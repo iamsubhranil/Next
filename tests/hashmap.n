@@ -52,5 +52,22 @@ pub fn test() {
     expect(map, true, "False!")
     expect_err(map, ObjectWrapper([]))
 
+    if(map.size() != 4) {
+        print("[Error] Map size expected to be 4!\n")
+        res = false
+    }
+
+    k = map.keys()
+    v = map.values()
+
+    i = 0
+    while(i < k.size()) {
+        if(map[k[i]] != v[i]) {
+            print("[Error] '", map[k[i]], "' expected to be '", v[i], "'!")
+            res = false
+        }
+        i++
+    }
+
     ret res
 }

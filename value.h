@@ -124,6 +124,7 @@ template <> struct std::hash<Value> {
 			case Value::VAL_Number: return std::hash<double>{}(v.toNumber());
 			case Value::VAL_String: return v.toString();
 			case Value::VAL_Boolean: return std::hash<bool>{}(v.toBoolean());
+            case Value::VAL_Module: return std::hash<void*>{}(v.toModule());
 			default: return 0;
 		}
 	}
