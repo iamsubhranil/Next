@@ -303,7 +303,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define JUMPTO(x)                                      \
 	{                                                  \
 		InstructionPointer = InstructionPointer + (x); \
-		continue;                                      \
+		DISPATCH_WINC();                               \
 	}
 
 #define RESTORE_FRAMEINFO()                    \
@@ -404,8 +404,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 	LOOP() {
 #ifdef DEBUG_INS
-		int   instructionPointer = InstructionPointer - presentFrame->code;
-		int   stackPointer       = StackTop - presentFrame->stack_;
+		int instructionPointer =
+		    InstructionPointer - presentFrame->frame->code.raw();
+		int   stackPointer = StackTop - presentFrame->stack_;
 		Token t = presentFrame->frame->findLineInfo(InstructionPointer);
 		if(t.type != TOKEN_ERROR)
 			t.highlight();
@@ -421,7 +422,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		cout << "\n\n";
 #ifdef DEBUG_INS
 		fflush(stdin);
-		//getchar();
+		// getchar();
 #endif
 #endif
 		SWITCH() {
@@ -761,11 +762,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
 				if(v.isObject()) {
-                    // manually decrease the refcount
-                    // since calling decrcount may free
-                    // the object
+					// manually decrease the refcount
+					// since calling decrcount may free
+					// the object
 					v.toObject()->refCount--;
-                }
+				}
 				PUSH(v);
 				DISPATCH();
 			}
@@ -801,6 +802,24 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			Stack[slot] = rightOperand;
 			DISPATCH();
 		}
+
+			CASE(iterate_next) : {
+				Value v    = TOP;
+				int   slot = next_int();
+				int   fwd  = next_int();
+				if(v.isObject() &&
+				   v.toObject()->Class == NextType::ArrayClass) {
+					double pos = Stack[slot].toNumber() + 1;
+					if(pos < v.toObject()->slots[1].toNumber()) {
+						PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
+						Stack[slot].setNumber(pos);
+						DISPATCH();
+					} else {
+						JUMPTO(fwd - 2 * sizeof(int));
+					}
+				}
+				RERR("Object is not iterable!")
+			}
 
 			CASE(incr_slot) : {
 				Value &v = Stack[next_int()];

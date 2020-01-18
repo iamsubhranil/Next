@@ -1,0 +1,22 @@
+pub fn test() { 
+    sum = 0
+    res = true
+    for(i in [2, 3, 4]) {
+        sum = sum + i
+    }
+    if(sum != 9) {
+        print("[Error] Expected sum 9, received : ", sum, "!\n")
+        res = false
+    }
+    a = ["k", "m", "n"]
+    for(i in a) {
+        if(i == "n") {
+            a[3] = 9
+        }
+    }
+    if(a[3] != 9) {
+        print("[Error] Expected a[3] to be 9!\n")
+        res = false
+    }
+    ret res
+}

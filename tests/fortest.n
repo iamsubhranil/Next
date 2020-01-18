@@ -34,4 +34,3 @@ pub fn test() {
     }
     ret res
 }
-test()

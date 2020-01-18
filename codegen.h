@@ -121,6 +121,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void             initFrame(Frame *f, Token t);
 	void             popFrame();
 	CompilationState getState();
+	int              createTempSlot();
 #ifdef DEBUG
 	void disassembleFrame(Frame *f, NextString name);
 #endif
