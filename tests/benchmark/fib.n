@@ -7,10 +7,8 @@ pub fn fib(n) {
     }
 }
 start = clock()
-a = 0
-while(a < 5) {
+for(a = 0;a < 5;a++) {
     print(fib(28), "\n")
-    a = a + 1
 }
 elapsed = (clock() - start) / clocks_per_sec
 print("elapsed: ", elapsed)

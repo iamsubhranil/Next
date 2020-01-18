@@ -1,15 +1,12 @@
 fn combinations(l) {
     res = []
     size = l.size()
-    i = 0
-    j = 0
-    while(i < size - 1) {
+    for(i = 0,j = 0;i < size - 1;i++) {
         k = i + 1
         while(k < size) {
             res[j++] = [l[i], l[k]]
             k++
         }
-        i++
     }
     ret res
 }
@@ -89,11 +86,9 @@ BODIES = [
 PAIRS = combinations(BODIES)
 
 fn advance(dt, n, bodies, pairs) {
-    i = 0
-    while(i < n) {
-        j = 0
+    for(i=0;i < n;i++) {
         size = pairs.size()
-        while(j < size) {
+        for(j=0;j < size;j++) {
             body1 = pairs[j][0]
             body2 = pairs[j][1]
             v1 = body1[1]
@@ -113,27 +108,22 @@ fn advance(dt, n, bodies, pairs) {
             v2[0] = v2[0] + (dx * b1m)
             v2[1] = v2[1] + (dy * b1m)
             v2[2] = v2[2] + (dz * b1m)
-            j++
         }
 
-        j = 0
         size = bodies.size()
-        while(j < size) {
+        for(j=0;j < size;j++) {
             r = bodies[j][0]
             v = bodies[j][1]
             r[0] = r[0] + (dt * v[0])
             r[1] = r[1] + (dt * v[1])
             r[2] = r[2] + (dt * v[2])
-            j++
         }
-        i++
     }
 }
 
 fn report_energy(bodies, pairs, e) {
-    j = 0
     size = pairs.size()
-    while(j < size) {
+    for(j=0;j < size;j++) {
         body1 = pairs[j][0]
         body2 = pairs[j][1]
         m1 = body1[2]
@@ -143,30 +133,24 @@ fn report_energy(bodies, pairs, e) {
         dz = body1[0][2] - body2[0][2]
         
         e = e - (m1 * m2) / ((dx * dx + dy * dy + dz * dz) ^ 0.5)
-        j++
     }
-
-    j = 0
     size = bodies.size()
-    while(j < size) {
+    for(j=0;j < size;j++) {
         v = bodies[j][1]
         m = bodies[j][2]
         e = e + (m * (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / 2.0)
-        j++
     }
     print(e, "\n")
 }
 
 fn offset_momentum(ref, bodies, px, py, pz) {
-    j = 0
     size = bodies.size()
-    while(j < size) {
+    for(j=0;j < size;j++) {
         m = bodies[j][2]
         v = bodies[j][1]
         px = px - (v[0] * m)
         py = py - (v[1] * m)
         pz = pz - (v[2] * m)
-        j++
     }
     v = ref[1]
     m = ref[2]

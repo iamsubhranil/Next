@@ -2,21 +2,18 @@ start = clock()
 
 map = core.hashmap()
 
-i = 0
-while(i++ < 2000000) {
+for(i=1;i <= 2000000;i++) {
     map[i] = i
 }
 
 sum = 0
-i = 0
-while(i++ < 2000000) {
+for(i = 1;i <= 2000000;i++) {
     sum = sum + map[i]
 }
 
 print(sum, "\n")
 
-i = 0
-while(i++ < 2000000) {
+for(i = 0;i <= 2000000;i++) {
     map.remove(i)
 }
 

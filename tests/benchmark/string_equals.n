@@ -1,8 +1,7 @@
 start = clock()
 
 count = 0
-i = 0
-while (i++ < 1000000) {
+for(i=0;i < 1000000;i++) {
   if ("abc" == "abc") { count = count + 1 }
   if ("a slightly longer string" ==
       "a slightly longer string") { count = count + 1 }

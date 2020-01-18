@@ -37,9 +37,7 @@ while(d++ < maxDepth) {
     iterations = iterations * 2
 }
 
-depth = minDepth
-
-while(depth < stretchDepth) {
+for(depth = minDepth; depth < stretchDepth; depth = depth + 2) {
     check = 0
     i = 0
     while(i++ < iterations) {
@@ -48,7 +46,6 @@ while(depth < stretchDepth) {
 
     print(iterations * 2," trees of depth ", depth, " check : ", check, "\n")
     iterations = iterations / 4
-    depth = depth + 2
 }
 
 print("long lived tree of depth ", maxDepth, " check : ", longLivedTree.check())
