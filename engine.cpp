@@ -421,7 +421,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		cout << "\n\n";
 #ifdef DEBUG_INS
 		fflush(stdin);
-		getchar();
+		//getchar();
 #endif
 #endif
 		SWITCH() {
@@ -452,6 +452,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				     " (@s and @s)!",
 				     TOP.getTypeString(), rightOperand.getTypeString());
 			}
+
+			CASE(in_) : { RERR("Not yet implemented!"); }
 
 			CASE(neq) : {
 				rightOperand = POP();
@@ -747,16 +749,23 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
+				// Reset the link if there
+				// was any
+				*StackTop = ValueNil;
 				// make sure it doesn't get garbage collected
 				// if there are still slots pointing to this
 				// object
 				if(v.isObject())
-					v.toObject()->refCount++;
+					v.toObject()->incrCount();
 				fiber->popFrame(&StackTop);
 				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
-				if(v.isObject())
+				if(v.isObject()) {
+                    // manually decrease the refcount
+                    // since calling decrcount may free
+                    // the object
 					v.toObject()->refCount--;
+                }
 				PUSH(v);
 				DISPATCH();
 			}
@@ -1125,7 +1134,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value v = Stack[0];
 				// Increment the refCount so that it doesn't get
 				// garbage collected on delete
-				v.toObject()->refCount++;
+				v.toObject()->incrCount();
 				fiber->popFrame(&StackTop);
 				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();

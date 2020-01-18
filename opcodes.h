@@ -50,6 +50,11 @@ OPCODE0(lesseq, -1)
 OPCODE0(greater, -1)
 OPCODE0(greatereq, -1)
 
+// Performs membership check
+// a in b returns true if b is an array
+// and a is a member of b.
+OPCODE0(in_, 0)
+
 OPCODE0(print, -1)
 
 // Pushes a Value to the stack

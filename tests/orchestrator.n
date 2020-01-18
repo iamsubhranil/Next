@@ -15,6 +15,7 @@ import subscriptest
 import typetest
 import truthness
 import hashmap
+import fortest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -28,7 +29,8 @@ modules = {prepost: "Pre and post increment/decrements",
         rerrtest: "Runtime exceptions",
         typetest: "Type builtins",
         truthness: "Truthness evaluation",
-        hashmap: "Hashmaps"}
+        hashmap: "Hashmaps",
+        fortest: "For loops"}
 
 i = 0
 k = modules.keys()

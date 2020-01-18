@@ -1,0 +1,37 @@
+pub fn test() {
+    res = true
+    result = 0
+    for(i=0;i < 10;i++) {
+        result = result + i
+    }
+    if(result != 45) {
+        print("[Error] Expected result 55, received : ", result, "\n")
+        res = false
+    }
+    result = 0
+    for(i=0,j=1;i < j;i++) {
+        result = result + i + j
+    }
+    if(result != 1) {
+        print("[Error] Expected result 1, received : ", result, "\n")
+        res = false
+    }
+    result = 0
+    for(a = 0;a < 20;a++) {
+        result = result + a
+    }
+    if(result != 190) {
+        print("[Error] Expected result 210, received : ", result, "\n")
+        res = false
+    }
+    result = 0
+    for(i=0,j=0;i < 2;i++) {
+        result = result + i + j
+    }
+    if(result != 1) {
+        print("[Error] Expected result 1, received : ", result, "\n")
+        res = false
+    }
+    ret res
+}
+test()

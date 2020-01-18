@@ -384,6 +384,43 @@ StmtPtr ReturnStatementParselet::parse(Parser *p, Token t) {
 	return unq(ReturnStatement, t, th);
 }
 
+StmtPtr ForStatementParselet::parse(Parser *p, Token t) {
+	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after for!");
+	std::vector<ExpPtr> inits, incrs;
+	ExpPtr              cond        = NULL;
+	bool                is_iterator = false;
+	if(p->match(TOKEN_SEMICOLON)) {
+		is_iterator = false;
+	} else {
+		inits.push_back(p->parseExpression());
+		if(inits[0]->type == Expr::BINARY &&
+		   ((BinaryExpression *)inits[0].get())->token.type == TOKEN_in) {
+			is_iterator = true;
+		} else {
+			while(p->match(TOKEN_COMMA)) {
+				inits.push_back(p->parseExpression());
+			}
+			p->consume(TOKEN_SEMICOLON, "Expected ';' after initializer!");
+		}
+	}
+	if(!is_iterator) {
+		if(p->match(TOKEN_SEMICOLON)) {
+			cond = NULL;
+		} else {
+			cond = p->parseExpression();
+			p->consume(TOKEN_SEMICOLON, "Expected ';' after condition!");
+		}
+		if(p->lookAhead(0).type != TOKEN_RIGHT_PAREN) {
+			incrs.push_back(p->parseExpression());
+			while(p->match(TOKEN_COMMA)) {
+				incrs.push_back(p->parseExpression());
+			}
+		}
+	}
+	p->consume(TOKEN_RIGHT_PAREN, "Expected ')' after for conditions!");
+	StmtPtr body = p->parseBlock();
+	return unq(ForStatement, t, is_iterator, inits, cond, incrs, body);
+}
 // Expressions
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {

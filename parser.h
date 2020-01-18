@@ -211,6 +211,10 @@ class ReturnStatementParselet : public StatementParselet {
 	StmtPtr parse(Parser *p, Token t);
 };
 
+class ForStatementParselet : public StatementParselet {
+    public:
+        StmtPtr parse(Parser *p, Token t);
+};
 // Class Body Statements
 
 class ConstructorDeclaration : public StatementParselet {
