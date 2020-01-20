@@ -27,8 +27,7 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 			o << "<object of "
 			  << StringLibrary::get(v.toObject()->Class->module->name) << "."
 			  << StringLibrary::get(v.toObject()->Class->name) /* << " at "
-			  << v.toObject() */
-			  << ">";
+			  << v.toObject() */ << ">";
 			break;
 		case Value::VAL_NIL: o << "nil"; break;
 		case Value::VAL_Module:

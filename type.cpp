@@ -62,6 +62,6 @@ void NextType::bindCoreClasses() {
 	    CoreModule::core->classes[StringLibrary::insert("array")].get();
 	NextType::HashMapClass =
 	    CoreModule::core->classes[StringLibrary::insert("hashmap")].get();
-	NextType::RangeClass =
-	    CoreModule::core->classes[StringLibrary::insert("range")].get();
+    NextType::RangeClass =
+        CoreModule::core->classes[StringLibrary::insert("range")].get();
 }
