@@ -238,7 +238,7 @@ NextObject::NextObject(NextClass *c) {
 	Class    = c;
 	slots    = new Value[c->slotNum];
 	refCount = 0;
-	// std::fill_n(slots, c->slotNum, Value::nil);
+	// std::fill_n(slots, c->slotNum, ValueNil);
 }
 
 void NextObject::release() {

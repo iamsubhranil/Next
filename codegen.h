@@ -104,6 +104,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
+    void visit(ForStatement *ifs);
 
 	CallInfo         resolveCall(NextString signature, bool isImported = false,
 	                             Module *mod = NULL);
@@ -120,6 +121,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void             initFrame(Frame *f, Token t);
 	void             popFrame();
 	CompilationState getState();
+	int              createTempSlot();
 #ifdef DEBUG
 	void disassembleFrame(Frame *f, NextString name);
 #endif

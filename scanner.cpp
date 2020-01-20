@@ -80,15 +80,15 @@ void Token::highlight(bool showFileName, const char *prefix,
 		extra++;
 		lbak /= 10;
 	}
-
-	if(prefix != NULL) {
-		cout << prefix;
-	}
 	cout << "[";
 	if(showFileName) {
 		cout << fileName << ":";
 	}
 	cout << line << ":" << ch << "] ";
+
+	if(prefix != NULL) {
+		cout << prefix;
+	}
 	while(bak < tokenEnd) {
 		if(bak >= start && (bak - start) < length) {
 			cout << ANSI_FONT_BOLD << highlights[htype] << *bak

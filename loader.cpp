@@ -59,6 +59,7 @@ void registerParselets(Parser *p) {
 
 	infixLeft(p, TOKEN_PLUS, Precedence::SUM);
 	infixLeft(p, TOKEN_MINUS, Precedence::SUM);
+	infixLeft(p, TOKEN_in, Precedence::SUM);
 	infixLeft(p, TOKEN_STAR, Precedence::PRODUCT);
 	infixLeft(p, TOKEN_SLASH, Precedence::PRODUCT);
 
@@ -77,6 +78,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_print, new PrintStatementParselet());
 	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
 	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
+	p->registerParselet(TOKEN_for, new ForStatementParselet());
 
 	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());

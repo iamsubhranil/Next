@@ -177,3 +177,73 @@ pub class hashmap {
             ret __next_hashmap_set(map, hash, value)
         }
 }
+
+pub class range{
+    priv:
+        from, to, step, pos
+    pub:
+        new(x) {
+            if(!is_same_type(x, 2) or !x.is_int()) {
+                throw RuntimeException("Range upto must be an integer!")
+            }
+            from = 0
+            to = x
+            step = 1
+            pos = 0
+        }
+
+        new(x, y) {
+            if(!is_same_type(x, 2) or !x.is_int()) {
+                throw RuntimeException("Range from must be an integer!")
+            }
+            if(!is_same_type(y, 2) or !y.is_int()) {
+                throw RuntimeException("Range upto must be an integer!")
+            }
+            from = x
+            to = y
+            step = 1
+            pos = x
+        }
+
+        new(x, y, z) {
+            if(!is_same_type(x, 2) or !x.is_int()) {
+                throw RuntimeException("Range from must be an integer!")
+            }
+            if(!is_same_type(y, 2) or !y.is_int()) {
+                throw RuntimeException("Range upto must be an integer!")
+            }
+            if(!is_same_type(z, 2) or !z.is_int() or z < 0) {
+                throw RuntimeException("Range step must be an integer!")
+            }
+            from = x
+            to = y
+            step = z
+            pos = x
+        }
+
+        fn next() {
+            if(pos < to) {
+                pos = pos + step
+            }
+            ret pos
+        }
+
+        fn from() {
+            ret from
+        }
+
+        fn to() {
+            ret to
+        }
+
+        fn step() {
+            ret step
+        }
+
+        fn includes(x) {
+            if(x >= from and x < to){
+                ret true
+            }
+            ret false
+        }
+}

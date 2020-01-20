@@ -26,4 +26,5 @@ class NextType {
 	static NextType   Number;
 	static NextClass *ArrayClass;
 	static NextClass *HashMapClass;
+	static NextClass *RangeClass;
 };

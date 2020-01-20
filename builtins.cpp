@@ -69,7 +69,7 @@ Value next_array_get(const Value *args) {
 }
 
 Value next_array_validate_item(const Value *args) {
-    return Value(args[0].isArray());
+	return Value(args[0].isArray());
 }
 
 Value next_type_of(const Value *args) {
@@ -89,7 +89,7 @@ Value Builtin::next_is_hashable(const Value *v) {
 		case Value::VAL_Number:
 		case Value::VAL_String:
 		case Value::VAL_Boolean:
-        case Value::VAL_Module: return ValueTrue;
+		case Value::VAL_Module: return ValueTrue;
 		default: return ValueFalse;
 	}
 }
@@ -146,33 +146,33 @@ Value next_hashmap_remove(const Value *v) {
 }
 
 Value next_hashmap_size(const Value *v) {
-    return Value((double)v[0].toHashMap()->size());
+	return Value((double)v[0].toHashMap()->size());
 }
 
 Value next_hashmap_keys(const Value *v) {
-    ValueHashMap *vh = v[0].toHashMap();
+	ValueHashMap *vh = v[0].toHashMap();
 
-    Value *arr = (Value*)malloc(sizeof(Value) * vh->size());
-    int i = 0;
-    for(auto kv : *vh) {
-        arr[i++] = kv.first;
-        if(kv.first.isObject())
-            kv.first.toObject()->incrCount();
-    }
-    return Value(arr);
+	Value *arr = (Value *)malloc(sizeof(Value) * vh->size());
+	int    i   = 0;
+	for(auto kv : *vh) {
+		arr[i++] = kv.first;
+		if(kv.first.isObject())
+			kv.first.toObject()->incrCount();
+	}
+	return Value(arr);
 }
 
 Value next_hashmap_values(const Value *v) {
-    ValueHashMap *vh = v[0].toHashMap();
+	ValueHashMap *vh = v[0].toHashMap();
 
-    Value *arr = (Value*)malloc(sizeof(Value) * vh->size());
-    int i = 0;
-    for(auto kv : *vh) {
-        arr[i++] = kv.second;
-        if(kv.first.isObject())
-            kv.first.toObject()->incrCount();
-    }
-    return Value(arr);
+	Value *arr = (Value *)malloc(sizeof(Value) * vh->size());
+	int    i   = 0;
+	for(auto kv : *vh) {
+		arr[i++] = kv.second;
+		if(kv.first.isObject())
+			kv.first.toObject()->incrCount();
+	}
+	return Value(arr);
 }
 
 HashMap<NextString, builtin_handler> Builtin::BuiltinHandlers =

@@ -127,6 +127,13 @@ Module *CodeGenerator::compile(NextString name, const vector<StmtPtr> &stmts) {
 	return module;
 }
 
+int CodeGenerator::createTempSlot() {
+	char tempname[20] = {0};
+	int  len          = snprintf(&tempname[0], 20, "temp %d", frame->slotSize);
+	int  slot         = frame->declareVariable(tempname, len, scopeID);
+	return slot;
+}
+
 void CodeGenerator::visit(BinaryExpression *bin) {
 #ifdef DEBUG
 	dinfo("");
@@ -158,6 +165,7 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 			bytecode->land(jumpto, bytecode->getip() - jumpto);
 			break;
 		case TOKEN_or: bytecode->lor(jumpto, bytecode->getip() - jumpto); break;
+		case TOKEN_in: bytecode->in_(); break;
 
 		default:
 			panic("Invalid binary operator '%s'!",
@@ -548,24 +556,22 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 		bytecode->load_module_slot(0);
 		bytecode->call_method(
 		    SymbolTable::insertSymbol(StringLibrary::insert("hashmap()")), 0);
+		// bytecode->stackEffect(1);
 	} else {
 		// we are in the core module
 		CallInfo info =
 		    resolveCall(StringLibrary::insert("hashmap()"), false, NULL);
 		bytecode->pushd(0);
 		bytecode->call(info.frameIdx, 1);
-		bytecode->stackEffect(0);
+		// bytecode->stackEffect(1);
 	}
-
-	char tempname[20] = {0};
-	int  len  = snprintf(&tempname[0], 20, "temp %d", frame->slotSize);
-	int  slot = frame->declareVariable(tempname, len, scopeID);
+	int slot = createTempSlot();
 	bytecode->store_slot_pop(slot);
 	if(al->keys.size() > 0) {
 		// now evalute all the key:value pairs
 		int p = 0;
 		for(auto &i : al->keys) {
-		    bytecode->load_slot(slot);
+			bytecode->load_slot(slot);
 			i->accept(this);
 			al->values[p]->accept(this);
 			bytecode->subscript_set();
@@ -937,6 +943,97 @@ void CodeGenerator::visit(ReturnStatement *ifs) {
 	ifs->expr->accept(this);
 	frame->insertdebug(ifs->token);
 	bytecode->ret();
+}
+
+void CodeGenerator::visit(ForStatement *ifs) {
+#ifdef DEBUG
+	dinfo("");
+	ifs->token.highlight();
+#endif
+	if(ifs->is_iterator) {
+		// iterators
+		// first, validate the in expression
+		BinaryExpression *it = (BinaryExpression *)ifs->init[0].get();
+		if(it->left->type != Expr::VARIABLE) {
+			lnerr_("Iterator assignment is not a variable!", it->left->token);
+		} else {
+			// create a new scope
+			pushScope();
+			// create a temporary slot to store the iterator pointer
+			int slot = createTempSlot();
+			// get info about the assignment variable
+			VarInfo var = lookForVariable(it->left->token, true);
+			// then, evalute the RHS
+			it->right->accept(this);
+			// initialize the iterator
+			bytecode->iterate_init(slot);
+			// iterate
+			int pos = bytecode->iterate_next(slot, 0);
+			// store the iterated value in the given variable
+			switch(var.position) {
+				case LOCAL: bytecode->store_slot_pop(var.slot); break;
+				case MODULE:
+					bytecode->store_module_slot(var.slot);
+					bytecode->pop();
+					break;
+				case CLASS:
+					bytecode->store_object_slot(var.slot);
+					bytecode->pop();
+					break;
+				default: break;
+			}
+			// execute the body
+			ifs->body->accept(this);
+			// jump back to iterate
+			bytecode->jump(pos - bytecode->getip());
+			// patch the exit
+			bytecode->iterate_next(pos, slot, bytecode->getip() - pos);
+			// finally, pop the RHS
+			bytecode->pop();
+			// pop the scope
+			popScope();
+		}
+	} else {
+		// push a new scope so that
+		// if any new variables are declared,
+		// they will only be visible to
+		// the loop
+		pushScope();
+		// evaluate the initializers
+		if(ifs->init.size() > 0) {
+			for(auto &a : ifs->init) {
+				a->accept(this);
+				// pop the result
+				bytecode->pop();
+			}
+		}
+		// evalute the condition
+		int cond_at    = bytecode->getip();
+		int patch_exit = -1;
+		if(ifs->cond.get() != NULL) {
+			ifs->cond->accept(this);
+			// exit if the condition is violated
+			patch_exit = bytecode->jumpiffalse(0);
+		}
+		// evalute the body
+		ifs->body->accept(this);
+		// evalute the incrementers
+		if(ifs->incr.size() > 0) {
+			for(auto &a : ifs->incr) {
+				a->accept(this);
+				// pop the result
+				bytecode->pop();
+			}
+		}
+		// come out to the parent scope
+		popScope();
+		// finally, jump back to the beginning
+		bytecode->jump(cond_at - bytecode->getip());
+		// and patch the exit
+		if(patch_exit != -1) {
+			bytecode->jumpiffalse(patch_exit, bytecode->getip() - patch_exit);
+		}
+	}
 }
 
 NextString CodeGenerator::generateSignature(const string &name, int arity) {

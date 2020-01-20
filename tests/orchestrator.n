@@ -15,6 +15,9 @@ import subscriptest
 import typetest
 import truthness
 import hashmap
+import fortest
+import iterator
+import rangetest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -28,18 +31,17 @@ modules = {prepost: "Pre and post increment/decrements",
         rerrtest: "Runtime exceptions",
         typetest: "Type builtins",
         truthness: "Truthness evaluation",
-        hashmap: "Hashmaps"}
+        hashmap: "Hashmaps",
+        fortest: "For loops",
+        iterator: "Iterators",
+        rangetest: "Ranges"}
 
-i = 0
-k = modules.keys()
-v = modules.values()
-while(i < k.size()) {
-    print("[Testing] ", modules[k[i]], " -> ")
-    res = k[i].test()
+for(k in modules.keys()) {
+    print("[Testing] ", modules[k], " -> ")
+    res = k.test()
     if(res) {
         print("PASSED\n")
     } else {
-        print("\n[FAILED] ", modules[k[i]], "\n")
+        print("\n[FAILED] ", modules[k], "\n")
     }
-    i++
 }

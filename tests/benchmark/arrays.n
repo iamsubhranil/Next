@@ -1,14 +1,12 @@
 arr = []
-i = 0
 start = clock()
-while(i++ < 1000000) {
-    arr[i - 1] = i
+for(i in core.range(1000000)) {
+    arr[i] = i + 1
 }
 
 sum = 0
-i = 0
-while(i++ < 1000000) {
-    sum = sum + arr[i - 1]
+for(i in arr) {
+    sum = sum + i
 }
 
 end = (clock() - start)/clocks_per_sec

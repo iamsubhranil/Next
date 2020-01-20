@@ -9,10 +9,9 @@ class MyClass {
         }
 }
 start = clock()
-i = 0
 j = nil
-while(i++ < 2000000) {
-    j = MyClass(i)
+for(i in core.range(2000000)) {
+    j = MyClass(i + 1)
 }
 print("Final object : ", j, " {", j.a, ", ", j.b, ", ", j.c, ", ", j.d, "}\n")
 print("elapsed: ", (clock() - start) / clocks_per_sec)

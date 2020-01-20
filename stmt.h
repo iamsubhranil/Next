@@ -19,6 +19,7 @@ class VisibilityStatement;
 class PrintStatement;
 class ThrowStatement;
 class ReturnStatement;
+class ForStatement;
 
 class StatementVisitor {
   public:
@@ -38,6 +39,7 @@ class StatementVisitor {
 	virtual void visit(PrintStatement *ifs)          = 0;
 	virtual void visit(ThrowStatement *ifs)          = 0;
 	virtual void visit(ReturnStatement *ifs)         = 0;
+	virtual void visit(ForStatement *ifs)            = 0;
 };
 
 typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV } Visibility;
@@ -60,7 +62,8 @@ class Statement {
 		VISIBILITY,
 		PRINT,
 		THROW,
-		RETURN
+		RETURN,
+		FOR
 	};
 	Token token;
 	Type  type;
@@ -253,6 +256,25 @@ class ReturnStatement : public Statement {
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
+class ForStatement : public Statement {
+    public:
+        bool is_iterator;
+        ExpPtr cond;
+        std::vector<ExpPtr> init, incr;
+        StmtPtr body;
+        ForStatement(Token t, bool isi, std::vector<ExpPtr> &i, ExpPtr &c, std::vector<ExpPtr> &inc, StmtPtr &b)
+            : Statement(t, FOR), is_iterator(isi), cond(c.release()),
+            body(b.release()){
+                for(auto& ini : i) {
+                    init.push_back(ExpPtr(ini.release()));
+                }
+                for(auto& inc : inc) {
+                    incr.push_back(ExpPtr(inc.release()));
+                }
+            }
+        void accept(StatementVisitor *vis) { vis->visit(this); }
+};
+
 class StatementPrinter : public StatementVisitor {
   private:
 	std::ostream &    os;
@@ -281,4 +303,5 @@ class StatementPrinter : public StatementVisitor {
 	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
+	void visit(ForStatement *ifs);
 };

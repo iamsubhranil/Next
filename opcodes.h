@@ -50,6 +50,11 @@ OPCODE0(lesseq, -1)
 OPCODE0(greater, -1)
 OPCODE0(greatereq, -1)
 
+// Performs membership check
+// a in b returns true if b is an array
+// and a is a member of b.
+OPCODE0(in_, 0)
+
 OPCODE0(print, -1)
 
 // Pushes a Value to the stack
@@ -147,6 +152,13 @@ OPCODE1(array_build, 0, int)
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>
 OPCODE1(load_constant, 1, NextString)     // <name>
+
+// Initializes the iterator
+OPCODE1(iterate_init, 1, int) // <slot>
+// Pushes the next value in the array present in
+// TOS as the new TOS. Jumps <slot> distance forward
+// if the array is exhausted.
+OPCODE2(iterate_next, 1, int, int) // <slot> <jump_distance>
 
 OPCODE0(halt, 0)
 

@@ -194,3 +194,30 @@ void StatementPrinter::visit(ReturnStatement *ifs) {
 	os << "ret ";
 	ep.print(ifs->expr.get());
 }
+
+void StatementPrinter::visit(ForStatement *ifs) {
+	printTabs();
+	os << "for(";
+	if(ifs->init.size() > 0) {
+		ep.print(ifs->init[0].get());
+		for(size_t i = 1; i < ifs->init.size(); i++) {
+			os << ", ";
+			ep.print(ifs->init[i].get());
+		}
+	}
+	if(!ifs->is_iterator) {
+		os << "; ";
+		if(ifs->cond.get() != NULL)
+			ep.print(ifs->cond.get());
+		os << "; ";
+		if(ifs->incr.size() > 0) {
+			ep.print(ifs->incr[0].get());
+			for(size_t i = 1; i < ifs->incr.size(); i++) {
+				os << ", ";
+				ep.print(ifs->incr[i].get());
+			}
+		}
+	}
+	os << ")";
+	ifs->body->accept(this);
+}
