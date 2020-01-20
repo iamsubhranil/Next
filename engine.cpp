@@ -417,8 +417,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		     << " IP: " << setw(4) << instructionPointer
 		     << " SP: " << stackPointer << " ";
 		fflush(stdout);
-		for(int i = 0; i < presentFrame->frame->code.maxStackSize();i++) {
-            cout << " | " << presentFrame->stack_[i];
+		for(int i = 0; i < presentFrame->frame->code.maxStackSize(); i++) {
+			cout << " | " << presentFrame->stack_[i];
 		}
 		cout << " | \n";
 		BytecodeHolder::disassemble(InstructionPointer);
@@ -669,7 +669,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				// call
 				if(TOP.isObject()) {
 					TOP.toObject()->freeIfZero();
-					TOP = ValueNil;
+					// TOP = ValueNil;
 				}
 				POP();
 				DISPATCH();
@@ -798,7 +798,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(store_slot_pop) : {
 				rightOperand = POP();
-				*StackTop = ValueNil;
+				//*StackTop = ValueNil;
 			}
 
 		do_store_slot : {
@@ -809,50 +809,50 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			DISPATCH();
 		}
 
-		    CASE(iterate_init) : {
-                Value v = TOP;
-                int slot = next_int();
-                if(v.isObject()) {
-                    if(v.toObject()->Class == NextType::ArrayClass) {
-                        Stack[slot] = Value(-1.0);
-                        DISPATCH();
-                    } else if(v.toObject()->Class == NextType::RangeClass) {
-                        Stack[slot] = Value(v.toObject()->slots[0].toNumber()
-                            - v.toObject()->slots[2].toNumber());
-                        DISPATCH();
-                    }
-                }
-                RERR("Invalid iterator object!")
-		    }
-
-			CASE(iterate_next) : {
+			CASE(iterate_init) : {
 				Value v    = TOP;
 				int   slot = next_int();
-				int   fwd  = next_int();
-                double orig = Stack[slot].toNumber();
 				if(v.isObject()) {
-                    if(v.toObject()->Class == NextType::ArrayClass) {
-                        double pos = orig + 1;
-                        if(pos < v.toObject()->slots[1].toNumber()) {
-                            PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
-                            Stack[slot] = Value(pos);
-                            DISPATCH();
-                        } else {
-                            JUMPTO(fwd - 2 * sizeof(int));
-                        }
-				    } else if(v.toObject()->Class == NextType::RangeClass) {
-                        double to = v.toObject()->slots[1].toNumber();
-                        double step = v.toObject()->slots[2].toNumber();
-                        orig += step;
-                        if(orig < to) {
-                            PUSH(Value(orig));
-                            Stack[slot] = Value(orig);
-                            DISPATCH();
-                        } else {
-                            JUMPTO(fwd - 2 * sizeof(int));
-                        }
-				    }
-                }
+					if(v.toObject()->Class == NextType::ArrayClass) {
+						Stack[slot] = Value(-1.0);
+						DISPATCH();
+					} else if(v.toObject()->Class == NextType::RangeClass) {
+						Stack[slot] = Value(v.toObject()->slots[0].toNumber() -
+						                    v.toObject()->slots[2].toNumber());
+						DISPATCH();
+					}
+				}
+				RERR("Invalid iterator object!")
+			}
+
+			CASE(iterate_next) : {
+				Value  v    = TOP;
+				int    slot = next_int();
+				int    fwd  = next_int();
+				double orig = Stack[slot].toNumber();
+				if(v.isObject()) {
+					if(v.toObject()->Class == NextType::ArrayClass) {
+						double pos = orig + 1;
+						if(pos < v.toObject()->slots[1].toNumber()) {
+							PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
+							Stack[slot] = Value(pos);
+							DISPATCH();
+						} else {
+							JUMPTO(fwd - 2 * sizeof(int));
+						}
+					} else if(v.toObject()->Class == NextType::RangeClass) {
+						double to   = v.toObject()->slots[1].toNumber();
+						double step = v.toObject()->slots[2].toNumber();
+						orig += step;
+						if(orig < to) {
+							PUSH(Value(orig));
+							Stack[slot] = Value(orig);
+							DISPATCH();
+						} else {
+							JUMPTO(fwd - 2 * sizeof(int));
+						}
+					}
+				}
 				RERR("Object is not iterable!")
 			}
 
@@ -999,10 +999,10 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(store_field) : {
 				NextString field = next_string();
 				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
+					NextObject *obj = POP().toObject();
 					NextClass * c   = obj->Class;
-					TOP             = ValueNil;
-					POP();
+					// TOP             = ValueNil;
+					// POP();
 					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
 					       c->name);
@@ -1177,7 +1177,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					Value &v = POP();
 					ref_incr(v);
 					arr[numArg] = v;
-					v           = ValueNil;
+					// v           = ValueNil;
 				}
 
 				DISPATCH();
@@ -1235,7 +1235,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						Value &v = POP();
 						if(v.isObject()) {
 							v.toObject()->freeIfZero();
-							v = ValueNil;
+							// v = ValueNil;
 						}
 					}
 					PUSH(res);
