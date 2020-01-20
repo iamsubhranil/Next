@@ -302,14 +302,13 @@ class Fiber {
 
 	void popFrame(Value **top) {
 		FrameInstance *f = &callFrames[--callFramePointer];
-		stackTop         = *top;
+		stackTop         = f->stack_ + f->frame->code.maxStackSize();
 		--stackTop;
 		while(stackTop >= f->stack_) {
-			if(stackTop->isObject()) {
+			if(stackTop->isObject() && stackTop < *top) {
 				stackTop->toObject()->decrCount();
-				*stackTop = ValueNil;
 			}
-			--stackTop;
+			*stackTop-- = ValueNil;
 		}
 		stackTop++;
 		*top = stackTop = f->stack_;

@@ -1,0 +1,69 @@
+res = true
+
+fn expect_err_to(x) {
+    try {
+        c = core.range(x)
+        print("[Error] Should've thrown exception for range to '", x, "'! \n")
+        res = false
+    } catch(RuntimeException e) {}
+}
+
+fn expect_err_from(x) {
+    try {
+        c = core.range(x, 1000)
+        print("[Error] Should've thrown exception for range from '", x, "'! \n")
+        res = false
+    } catch(RuntimeException e) {}
+}
+
+fn expect_err_step(x) {
+    try {
+        c = core.range(0, 1000, x)
+        print("[Error] Should've thrown exception for range step '", x, "'! \n")
+        res = false
+    } catch(RuntimeException e) {}
+}
+
+fn expect_sum_from_to_step(f, t, s, sum) {
+    total = 0
+    for(i in core.range(f, t, s)) {
+        total = total + i
+    }
+
+    if(total != sum) {
+        print("[Error] Expected sum '", sum, "', received '", total, "'!\n")
+        res = false
+    }
+}
+
+fn expect_sum_to(t, s) {
+    expect_sum_from_to_step(0, t, 1, s)
+}
+
+fn expect_sum_from_to(f, t, s) {
+    expect_sum_from_to_step(f, t, 1, s)
+}
+
+pub fn test() {
+    expect_err_to(2.32)
+    expect_err_to("a")
+    expect_err_to(true)
+    expect_err_to([])
+
+    expect_err_from(2.32)
+    expect_err_from("a")
+    expect_err_from(true)
+    expect_err_from([])
+
+    expect_err_from(2.32)
+    expect_err_from("a")
+    expect_err_from(true)
+    expect_err_from([])
+
+    expect_sum_to(10, 45)
+    expect_sum_from_to(-20, 21, 0)
+    expect_sum_from_to(31, 31, 0)
+    expect_sum_from_to_step(2, 15, 2, 56)
+
+    ret res
+}

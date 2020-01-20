@@ -11,6 +11,7 @@ NextType NextType::Error = {0, 0};
 NextType   NextType::Number       = {0, 0};
 NextClass *NextType::ArrayClass   = NULL;
 NextClass *NextType::HashMapClass = NULL;
+NextClass *NextType::RangeClass   = NULL;
 
 void NextType::init() {
 	NextType::Any = {StringLibrary::insert("core"),
@@ -61,4 +62,6 @@ void NextType::bindCoreClasses() {
 	    CoreModule::core->classes[StringLibrary::insert("array")].get();
 	NextType::HashMapClass =
 	    CoreModule::core->classes[StringLibrary::insert("hashmap")].get();
+    NextType::RangeClass =
+        CoreModule::core->classes[StringLibrary::insert("range")].get();
 }

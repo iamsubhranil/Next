@@ -961,13 +961,12 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			pushScope();
 			// create a temporary slot to store the iterator pointer
 			int slot = createTempSlot();
-			// initialize the slot with -1
-			bytecode->push(Value((double)-1));
-			bytecode->store_slot_pop(slot);
 			// get info about the assignment variable
 			VarInfo var = lookForVariable(it->left->token, true);
 			// then, evalute the RHS
 			it->right->accept(this);
+			// initialize the iterator
+			bytecode->iterate_init(slot);
 			// iterate
 			int pos = bytecode->iterate_next(slot, 0);
 			// store the iterated value in the given variable
@@ -991,6 +990,8 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			bytecode->iterate_next(pos, slot, bytecode->getip() - pos);
 			// finally, pop the RHS
 			bytecode->pop();
+			// pop the scope
+			popScope();
 		}
 	} else {
 		// push a new scope so that

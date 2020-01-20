@@ -37,7 +37,7 @@ while(d++ < maxDepth) {
     iterations = iterations * 2
 }
 
-for(depth = minDepth; depth < stretchDepth; depth = depth + 2) {
+for(depth in core.range(minDepth, stretchDepth, 2)) {
     check = 0
     i = 0
     while(i++ < iterations) {

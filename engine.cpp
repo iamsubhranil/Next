@@ -82,6 +82,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber, int rootFrame) {
 	NextString     lastModule = 0;
 	while(i >= rootFrame) {
 		Token t;
+
 		if(f->frame->module->name != lastModule) {
 			lastModule = f->frame->module->name;
 			cout << "In module '" << ANSI_COLOR_YELLOW
@@ -414,14 +415,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			cout << "<source not found>\n";
 		cout << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
 		     << " IP: " << setw(4) << instructionPointer
-		     << " SP: " << stackPointer << "\n";
+		     << " SP: " << stackPointer << " ";
+		fflush(stdout);
+		for(int i = 0; i < presentFrame->frame->code.maxStackSize();i++) {
+            cout << " | " << presentFrame->stack_[i];
+		}
+		cout << " | \n";
 		BytecodeHolder::disassemble(InstructionPointer);
 		if(stackPointer > presentFrame->frame->code.maxStackSize()) {
 			RERR("Invalid stack access!");
 		}
 		cout << "\n\n";
 #ifdef DEBUG_INS
-		fflush(stdin);
+		fflush(stdout);
 		// getchar();
 #endif
 #endif
@@ -765,7 +771,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					// manually decrease the refcount
 					// since calling decrcount may free
 					// the object
-					v.toObject()->refCount--;
+					v.toObject()->incrCount();
 				}
 				PUSH(v);
 				DISPATCH();
@@ -792,7 +798,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(store_slot_pop) : {
 				rightOperand = POP();
-				StackTop[1]  = ValueNil;
+				*StackTop = ValueNil;
 			}
 
 		do_store_slot : {
@@ -803,21 +809,50 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			DISPATCH();
 		}
 
+		    CASE(iterate_init) : {
+                Value v = TOP;
+                int slot = next_int();
+                if(v.isObject()) {
+                    if(v.toObject()->Class == NextType::ArrayClass) {
+                        Stack[slot] = Value(-1.0);
+                        DISPATCH();
+                    } else if(v.toObject()->Class == NextType::RangeClass) {
+                        Stack[slot] = Value(v.toObject()->slots[0].toNumber()
+                            - v.toObject()->slots[2].toNumber());
+                        DISPATCH();
+                    }
+                }
+                RERR("Invalid iterator object!")
+		    }
+
 			CASE(iterate_next) : {
 				Value v    = TOP;
 				int   slot = next_int();
 				int   fwd  = next_int();
-				if(v.isObject() &&
-				   v.toObject()->Class == NextType::ArrayClass) {
-					double pos = Stack[slot].toNumber() + 1;
-					if(pos < v.toObject()->slots[1].toNumber()) {
-						PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
-						Stack[slot].setNumber(pos);
-						DISPATCH();
-					} else {
-						JUMPTO(fwd - 2 * sizeof(int));
-					}
-				}
+                double orig = Stack[slot].toNumber();
+				if(v.isObject()) {
+                    if(v.toObject()->Class == NextType::ArrayClass) {
+                        double pos = orig + 1;
+                        if(pos < v.toObject()->slots[1].toNumber()) {
+                            PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
+                            Stack[slot] = Value(pos);
+                            DISPATCH();
+                        } else {
+                            JUMPTO(fwd - 2 * sizeof(int));
+                        }
+				    } else if(v.toObject()->Class == NextType::RangeClass) {
+                        double to = v.toObject()->slots[1].toNumber();
+                        double step = v.toObject()->slots[2].toNumber();
+                        orig += step;
+                        if(orig < to) {
+                            PUSH(Value(orig));
+                            Stack[slot] = Value(orig);
+                            DISPATCH();
+                        } else {
+                            JUMPTO(fwd - 2 * sizeof(int));
+                        }
+				    }
+                }
 				RERR("Object is not iterable!")
 			}
 
