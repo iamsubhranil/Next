@@ -89,48 +89,20 @@ class NextClass : AccessModifiableEntity {
 };
 
 class NextObject {
+    private:
+        static NextObject root;
+        static NextObject* last;
+        NextObject *next;
+        int color; // white gray black
+        NextObject();
   public:
 	NextClass *Class;
 	Value *    slots;
 	NextObject(NextClass *c);
-	int         refCount;
-	inline void incrCount() {
-#ifdef DEBUG_GC
-		std::cout << "\nIncrementing refCount for object " << this << " : " <<
-#endif
-		    ++refCount;
-#ifdef DEBUG_GC
-		std::cout << std::endl;
-#endif
-	}
-	inline void decrCount() {
-#ifdef DEBUG_GC
-		int *a = NULL;
-		if(refCount < 0) {
-			exit(*a);
-		}
-		std::cout << "\nDecrementing refCount for object " << this << " : " <<
-#endif
-		    --refCount;
-#ifdef DEBUG_GC
-		std::cout << std::endl;
-#endif
-		freeIfZero();
-	}
-	inline void freeIfZero() {
-		if(refCount == 0) {
-#ifdef DEBUG_GC
-			std::cout << "\nGarbage collecting object.." << this << std::endl;
-#endif
-			release();
-#ifdef DEBUG_GC
-			std::cout << std::endl;
-#endif
-			// Suicide
-			delete this;
-		}
-	}
-	void release();
+    void mark();
+    size_t release();
+    // returns memory released
+    static size_t sweep();
 };
 
 struct ExHandler {
@@ -302,15 +274,6 @@ class Fiber {
 
 	void popFrame(Value **top) {
 		FrameInstance *f = &callFrames[--callFramePointer];
-		stackTop         = f->stack_ + f->frame->code.maxStackSize();
-		--stackTop;
-		while(stackTop >= f->stack_) {
-			if(stackTop->isObject() && stackTop < *top) {
-				stackTop->toObject()->decrCount();
-			}
-			*stackTop-- = ValueNil;
-		}
-		stackTop++;
 		*top = stackTop = f->stack_;
 	}
 

@@ -276,9 +276,6 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 
 	if(!onRefer) {
 		info = resolveCall(signature, isImported, mod);
-	} else {
-		// increment the ref count of the object
-		bytecode->incr_ref();
 	}
 
 	// If this is a constructor call, we pass in
@@ -293,17 +290,12 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 		// load the object first, so no manual stack manipulation
 		// is needed
 		bytecode->load_slot_0();
-		bytecode->incr_ref();
 	}
 	// Reset the referral status for arguments
 	bool bak = onRefer;
 	onRefer  = false;
 	for(auto &i : call->arguments) {
 		i->accept(this);
-		// in we're on a builtin call,
-		// no need to increase the ref
-		if(info.type != CallInfo::BUILTIN)
-			bytecode->incr_ref();
 	}
 	onRefer = bak;
 	frame->insertdebug(call->callee->token);

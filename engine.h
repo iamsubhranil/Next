@@ -15,6 +15,7 @@ class ExecutionEngine {
 	static Value                pendingException;
 	static std::vector<Fiber *> fibers;
 
+
 #define declareSymbol(x) static uint64_t x##Hash;
 	declareSymbol(add);
 	declareSymbol(sub);
@@ -34,7 +35,12 @@ class ExecutionEngine {
 
 	static void formatExceptionMessage(const char *message, ...);
 
+	static size_t total_allocated;
+	static size_t next_gc;
+
   public:
+    static void     gc();
+    static NextObject* createObject(NextClass *c);
 	static void    init();
 	static Value   createRuntimeException(const char *message);
 	static bool    isModuleRegistered(NextString name);

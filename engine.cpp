@@ -11,7 +11,9 @@ char                          ExecutionEngine::ExceptionMessage[1024] = {0};
 vector<Fiber *>               ExecutionEngine::fibers = vector<Fiber *>();
 HashMap<NextString, Module *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
-Value ExecutionEngine::pendingException = ValueNil;
+Value  ExecutionEngine::pendingException = ValueNil;
+size_t ExecutionEngine::total_allocated  = 0;
+size_t ExecutionEngine::next_gc          = 1024 * 1024;
 
 #define initSymbol(x) uint64_t ExecutionEngine::x##Hash = 0;
 initSymbol(add);
@@ -114,6 +116,36 @@ Value ExecutionEngine::createRuntimeException(const char *message) {
 	return except;
 }
 
+void ExecutionEngine::gc() {
+#ifdef DEBUG_GC
+	cout << "[GC] GC started. next_gc : " << next_gc
+	     << " bytes, total_allocated : " << total_allocated << " bytes..\n";
+#endif
+	for(auto &f : fibers) {
+		Value *top = f->stack_ + f->maxStackSize;
+		while(--top >= f->stack_) {
+			if((*top).isObject())
+				(*top).toObject()->mark();
+		}
+	}
+	if(total_allocated >= next_gc)
+		next_gc *= 2;
+	total_allocated -= NextObject::sweep();
+#ifdef DEBUG_GC
+	cout << "[GC] GC finished. next_gc : " << next_gc
+	     << " bytes, total_allocated : " << total_allocated << " bytes..\n";
+#endif
+}
+
+NextObject *ExecutionEngine::createObject(NextClass *c) {
+	if(total_allocated >= next_gc)
+		gc();
+	NextObject *ret = new NextObject(c);
+	total_allocated += sizeof(NextObject);
+	total_allocated += sizeof(Value) * c->slotNum;
+	return ret;
+}
+
 // @s   <-- StringLibrary hash
 // @t   <-- SymbolTable no
 void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
@@ -212,7 +244,7 @@ Value ExecutionEngine::newObject(NextString mod, NextString c) {
 	if(loadedModules.find(mod) != loadedModules.end()) {
 		ClassMap &cm = loadedModules[mod]->classes;
 		if(cm.find(c) != cm.end()) {
-			return Value(new NextObject(cm[c].get()));
+			return Value(createObject(cm[c].get()));
 		} else {
 			panic("Class '%s' not found in module '%s'!",
 			      StringLibrary::get_raw(c), StringLibrary::get_raw(mod));
@@ -378,20 +410,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		}                                         \
 	}
 
-#define ref_incr(x)                      \
-	{                                    \
-		if((x).isObject()) {             \
-			(x).toObject()->incrCount(); \
-		}                                \
-	}
-
-#define ref_decr(x)                      \
-	{                                    \
-		if((x).isObject()) {             \
-			(x).toObject()->decrCount(); \
-		}                                \
-	}
-
 #define LOAD_SLOT(x)        \
 	CASE(load_slot_##x) : { \
 		PUSH(Stack[x]);     \
@@ -417,8 +435,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		     << " IP: " << setw(4) << instructionPointer
 		     << " SP: " << stackPointer << " ";
 		fflush(stdout);
-		for(int i = 0; i < presentFrame->frame->code.maxStackSize();i++) {
-            cout << " | " << presentFrame->stack_[i];
+		for(int i = 0; i < presentFrame->frame->code.maxStackSize(); i++) {
+			cout << " | " << presentFrame->stack_[i];
 		}
 		cout << " | \n";
 		BytecodeHolder::disassemble(InstructionPointer);
@@ -578,8 +596,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 								obj->slots[2] = Value((double)newCapacity);
 							}
 						}
-						ref_incr(value);
-						ref_decr(arr[idx]);
 						arr[idx] = value;
 						TOP      = value;
 						DISPATCH();
@@ -599,9 +615,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					ASSERT(obj->Class->hasPublicMethod(subscript_setHash),
 					       "Method [](_,_) not found in class '@s'!",
 					       target.getTypeString());
-					ref_incr(target);
-					ref_incr(StackTop[-1]);
-					ref_incr(StackTop[-2]);
 					CALL(obj->Class->functions[subscript_setHash]->frame.get(),
 					     3);
 				} else if(Primitives::hasPrimitive(target.getType(),
@@ -621,8 +634,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			ASSERT(obj->Class->hasPublicMethod(methodToCall),
 			       "Method '@t' not found in class '@s'!", methodToCall,
 			       obj->Class->name);
-			ref_incr(TOP);
-			ref_incr(rightOperand);
 			PUSH(rightOperand);
 			CALL(obj->Class->functions[methodToCall]->frame.get(), 1 + 1);
 		}
@@ -661,16 +672,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(pop) : {
-				// If the refcount of the
-				// object is already zero,
-				// it isn't stored in any
-				// slot and probably generated
-				// by an unused constructor
-				// call
-				if(TOP.isObject()) {
-					TOP.toObject()->freeIfZero();
-					TOP = ValueNil;
-				}
 				POP();
 				DISPATCH();
 			}
@@ -706,11 +707,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(print) : {
 				Value v = POP();
 				std::cout << v;
-				DISPATCH();
-			}
-
-			CASE(incr_ref) : {
-				ref_incr(TOP);
 				DISPATCH();
 			}
 
@@ -756,23 +752,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
-				// Reset the link if there
-				// was any
-				*StackTop = ValueNil;
-				// make sure it doesn't get garbage collected
-				// if there are still slots pointing to this
-				// object
-				if(v.isObject())
-					v.toObject()->incrCount();
 				fiber->popFrame(&StackTop);
 				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
-				if(v.isObject()) {
-					// manually decrease the refcount
-					// since calling decrcount may free
-					// the object
-					v.toObject()->incrCount();
-				}
 				PUSH(v);
 				DISPATCH();
 			}
@@ -796,63 +778,58 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				goto do_store_slot;
 			}
 
-			CASE(store_slot_pop) : {
-				rightOperand = POP();
-				*StackTop = ValueNil;
-			}
+			CASE(store_slot_pop) : { rightOperand = POP(); }
 
 		do_store_slot : {
-			int slot = next_int();
-			ref_incr(rightOperand);
-			ref_decr(Stack[slot]);
+			int slot    = next_int();
 			Stack[slot] = rightOperand;
 			DISPATCH();
 		}
 
-		    CASE(iterate_init) : {
-                Value v = TOP;
-                int slot = next_int();
-                if(v.isObject()) {
-                    if(v.toObject()->Class == NextType::ArrayClass) {
-                        Stack[slot] = Value(-1.0);
-                        DISPATCH();
-                    } else if(v.toObject()->Class == NextType::RangeClass) {
-                        Stack[slot] = Value(v.toObject()->slots[0].toNumber()
-                            - v.toObject()->slots[2].toNumber());
-                        DISPATCH();
-                    }
-                }
-                RERR("Invalid iterator object!")
-		    }
-
-			CASE(iterate_next) : {
+			CASE(iterate_init) : {
 				Value v    = TOP;
 				int   slot = next_int();
-				int   fwd  = next_int();
-                double orig = Stack[slot].toNumber();
 				if(v.isObject()) {
-                    if(v.toObject()->Class == NextType::ArrayClass) {
-                        double pos = orig + 1;
-                        if(pos < v.toObject()->slots[1].toNumber()) {
-                            PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
-                            Stack[slot] = Value(pos);
-                            DISPATCH();
-                        } else {
-                            JUMPTO(fwd - 2 * sizeof(int));
-                        }
-				    } else if(v.toObject()->Class == NextType::RangeClass) {
-                        double to = v.toObject()->slots[1].toNumber();
-                        double step = v.toObject()->slots[2].toNumber();
-                        orig += step;
-                        if(orig < to) {
-                            PUSH(Value(orig));
-                            Stack[slot] = Value(orig);
-                            DISPATCH();
-                        } else {
-                            JUMPTO(fwd - 2 * sizeof(int));
-                        }
-				    }
-                }
+					if(v.toObject()->Class == NextType::ArrayClass) {
+						Stack[slot] = Value(-1.0);
+						DISPATCH();
+					} else if(v.toObject()->Class == NextType::RangeClass) {
+						Stack[slot] = Value(v.toObject()->slots[0].toNumber() -
+						                    v.toObject()->slots[2].toNumber());
+						DISPATCH();
+					}
+				}
+				RERR("Invalid iterator object!")
+			}
+
+			CASE(iterate_next) : {
+				Value  v    = TOP;
+				int    slot = next_int();
+				int    fwd  = next_int();
+				double orig = Stack[slot].toNumber();
+				if(v.isObject()) {
+					if(v.toObject()->Class == NextType::ArrayClass) {
+						double pos = orig + 1;
+						if(pos < v.toObject()->slots[1].toNumber()) {
+							PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
+							Stack[slot] = Value(pos);
+							DISPATCH();
+						} else {
+							JUMPTO(fwd - 2 * sizeof(int));
+						}
+					} else if(v.toObject()->Class == NextType::RangeClass) {
+						double to   = v.toObject()->slots[1].toNumber();
+						double step = v.toObject()->slots[2].toNumber();
+						orig += step;
+						if(orig < to) {
+							PUSH(Value(orig));
+							Stack[slot] = Value(orig);
+							DISPATCH();
+						} else {
+							JUMPTO(fwd - 2 * sizeof(int));
+						}
+					}
+				}
 				RERR("Object is not iterable!")
 			}
 
@@ -904,8 +881,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				int    slot = next_int();
 				Value &v =
 				    presentFrame->frame->module->getModuleStack(fiber)[slot];
-				ref_decr(v);
-				ref_incr(TOP);
 				v = TOP;
 				DISPATCH();
 			}
@@ -917,9 +892,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			}
 
 			CASE(store_object_slot) : {
-				int slot = next_int();
-				ref_incr(TOP);
-				ref_decr(Stack[0].toObject()->slots[slot]);
+				int slot                         = next_int();
 				Stack[0].toObject()->slots[slot] = TOP;
 				DISPATCH();
 			}
@@ -1001,16 +974,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				if(TOP.isObject()) {
 					NextObject *obj = TOP.toObject();
 					NextClass * c   = obj->Class;
-					TOP             = ValueNil;
 					POP();
 					ASSERT(c->hasPublicField(field),
 					       "Member '@s' not found in class '@s'!", field,
 					       c->name);
 
 					Value &v = obj->slots[c->members[field].slot];
-					ref_decr(v);
-					ref_incr(TOP);
-					v = TOP;
+					v        = TOP;
 					DISPATCH();
 				} else if(TOP.isModule()) {
 					Module *m = POP().toModule();
@@ -1021,8 +991,6 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 					Value &v =
 					    m->getModuleStack(fiber)[m->variables[field].slot];
-					ref_decr(v);
-					ref_incr(TOP);
 					v = TOP;
 					DISPATCH();
 				}
@@ -1174,10 +1142,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				Value *arr = arrobj->slots[0].toArray();
 				// insert all the elements
 				while(numArg--) {
-					Value &v = POP();
-					ref_incr(v);
+					Value &v    = POP();
 					arr[numArg] = v;
-					v           = ValueNil;
+					// v           = ValueNil;
 				}
 
 				DISPATCH();
@@ -1186,17 +1153,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(construct_ret) : {
 				// Pop the return object
 				Value v = Stack[0];
-				// Increment the refCount so that it doesn't get
-				// garbage collected on delete
-				v.toObject()->incrCount();
 				fiber->popFrame(&StackTop);
 				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
-				// Reset the refCount, so that if
-				// it isn't stored in a slot in the
-				// callee function, it gets garbage
-				// collected at POP
-				v.toObject()->refCount = 0;
 				PUSH(v);
 				DISPATCH();
 			}
@@ -1205,8 +1164,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				NextString  mod = next_string();
 				NextString  cls = next_string();
 				NextObject *no =
-				    new NextObject(loadedModules[mod]->classes[cls].get());
-				no->incrCount();
+				    createObject(loadedModules[mod]->classes[cls].get());
 				Stack[0] = no;
 				DISPATCH();
 			}
@@ -1232,11 +1190,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					goto error;
 				} else {
 					while(args--) {
-						Value &v = POP();
-						if(v.isObject()) {
-							v.toObject()->freeIfZero();
-							v = ValueNil;
-						}
+						POP();
 					}
 					PUSH(res);
 					DISPATCH();
@@ -1278,11 +1232,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			// Pop the arguments
 			while(numberOfArguments >= 0) {
-				Value &v = POP();
-				if(v.isObject()) {
-					v.toObject()->freeIfZero();
-					v = ValueNil;
-				}
+				POP();
 				numberOfArguments--;
 			}
 

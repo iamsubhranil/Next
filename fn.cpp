@@ -234,38 +234,97 @@ ostream &operator<<(ostream &os, const NextClass &n) {
 	return os;
 }
 
+NextObject  NextObject::root = NextObject();
+NextObject *NextObject::last = &root;
+
+NextObject::NextObject() {
+	Class = NULL;
+	slots = NULL;
+	color = 0;
+	next  = NULL;
+}
+
 NextObject::NextObject(NextClass *c) {
-	Class    = c;
-	slots    = new Value[c->slotNum];
-	refCount = 0;
+	Class      = c;
+	slots      = new Value[c->slotNum];
+	color      = 0;
+	next       = NULL;
+	last->next = this;
+	last       = this;
 	// std::fill_n(slots, c->slotNum, ValueNil);
 }
 
-void NextObject::release() {
+void NextObject::mark() {
+	if(color != 0)
+		return;
+	color = 1; // gray
 	for(int i = 0; i < Class->slotNum; i++) {
-		if(slots[i].isObject())
-			slots[i].toObject()->decrCount();
-		else if(slots[i].isArray()) {
-			// arrays need special care
-			Value *arr = slots[i].toArray();
-			// the next slot should contain the size
-#ifdef DEBUG
-			if(!slots[i + 1].isNumber()) {
-				panic("Next slot of an array should contain the size!");
-			}
-#endif
-			size_t size = slots[i + 1].toNumber();
-			for(size_t i = 0; i < size; i++) {
-				if(arr[i].isObject())
-					arr[i].toObject()->decrCount();
-			}
-			free(arr);
-		} else if(slots[i].isHashMap()) {
-			delete slots[i].toHashMap();
+		switch(slots[i].getType()) {
+			case Value::VAL_Object: slots[i].toObject()->mark(); break;
+			case Value::VAL_Array:
+				for(int j = 0; j < slots[1].toNumber(); j++) {
+					Value v = slots[0].toArray()[j];
+					switch(v.getType()) {
+						case Value::VAL_Object: v.toObject()->mark();
+						default: break;
+					}
+				}
+				break;
+			case Value::VAL_HashMap:
+				for(auto &f : *slots[i].toHashMap()) {
+					Value k = f.first;
+					Value v = f.second;
+					if(k.isObject())
+						k.toObject()->mark();
+					if(v.isObject())
+						v.toObject()->mark();
+				}
+				break;
+			default: break;
 		}
 	}
+	color = 2; // black
+}
 
+size_t NextObject::release() {
+	size_t released = 0;
+	released += sizeof(Value) * Class->slotNum;
+	released += sizeof(NextObject);
+	if(Class == NextType::ArrayClass)
+		free(slots[0].toArray());
+	else if(Class == NextType::HashMapClass) {
+		delete slots[0].toHashMap();
+	}
 	delete[] slots;
+	return released;
+}
+
+size_t NextObject::sweep() {
+#ifdef DEBUG_GC
+	cout << "[GC] Sweeping started..\n";
+#endif
+	size_t      released = 0;
+	NextObject *parent = &root, *next = root.next;
+	while(next != NULL) {
+		if(next->color == 0) {
+			released += next->release();
+			parent->next = next->next;
+			delete next;
+			next = parent;
+		}
+		parent = next;
+		next   = next->next;
+	}
+	// retraverse, marking everybody white
+	next = &root;
+	while(next != NULL) {
+		next->color = 0;
+		next        = next->next;
+	}
+#ifdef DEBUG_GC
+	cout << "[GC] Sweeping finished. Collected " << released << " bytes..\n";
+#endif
+	return released;
 }
 
 Module::Module(NextString n)
@@ -286,6 +345,7 @@ FrameInstance *Module::topLevelInstance(Fiber *f) {
 }
 
 FrameInstance *Module::reAdjust(Frame *f) {
+	(void)f;
 	Value *oldStack = frameInstance->stack_;
 	// frameInstance->readjust(f);
 	if(oldStack != frameInstance->stack_) {

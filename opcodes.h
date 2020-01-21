@@ -129,9 +129,6 @@ OPCODE2(call_method, 0, uint64_t, int) // <symbol> <args>
 // of the same class)
 // OPCODE2(call_intraclass, 0, int, int)
 
-// Increment the refcount of the TOS
-OPCODE0(incr_ref, 0)
-
 // Pops the value at TOS and starts stack unwinding
 // until a frame with matching exception handler is
 // found

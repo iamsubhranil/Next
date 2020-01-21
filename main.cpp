@@ -37,5 +37,6 @@ int main(int argc, char *argv[]) {
 		}
 		cout << endl;
 	}
+	ExecutionEngine::gc();
 	return 0;
 }

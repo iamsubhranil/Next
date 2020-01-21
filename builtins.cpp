@@ -50,12 +50,6 @@ Value next_array_set(const Value *args) {
 	size_t pos = (size_t)args[1].toNumber();
 	Value  val = args[2];
 
-	Value oldVal = arr[pos];
-
-	// perform gc if required
-	if(oldVal.isObject())
-		oldVal.toObject()->decrCount();
-
 	arr[pos] = val;
 
 	return val;
@@ -124,15 +118,9 @@ Value Builtin::next_hashmap_get(const Value *v) {
 
 Value Builtin::next_hashmap_set(const Value *v) {
 	ValueHashMap *vh = v[0].toHashMap();
-	if(v[2].isObject()) {
-		v[2].toObject()->incrCount();
-	}
 	if(next_hashmap_has_key(v).toBoolean()) {
 		Value &val = vh->at(v[1]);
-		if(val.isObject()) {
-			val.toObject()->decrCount();
-		}
-		val = v[2];
+		val        = v[2];
 	} else {
 		vh->insert({v[1], v[2]});
 	}
@@ -156,8 +144,6 @@ Value next_hashmap_keys(const Value *v) {
 	int    i   = 0;
 	for(auto kv : *vh) {
 		arr[i++] = kv.first;
-		if(kv.first.isObject())
-			kv.first.toObject()->incrCount();
 	}
 	return Value(arr);
 }
@@ -169,8 +155,6 @@ Value next_hashmap_values(const Value *v) {
 	int    i   = 0;
 	for(auto kv : *vh) {
 		arr[i++] = kv.second;
-		if(kv.first.isObject())
-			kv.first.toObject()->incrCount();
 	}
 	return Value(arr);
 }
