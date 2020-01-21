@@ -57,5 +57,16 @@ pub fn test() {
         res = false
     }
 
+    try {
+        t = s.append(212)
+        print("[Error] string.append() should not accept 212 as a valid argument!\n")
+        res = false
+    } catch(RuntimeException e) {}
+
+    if(s.append(" Subhranil!") != "Hello World! Subhranil!") {
+        print("[Error] string.append() is broken!\n")
+        res = false
+    }
+
     ret res
 }

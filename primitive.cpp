@@ -75,6 +75,20 @@ NEXT_PRIMITIVE_FN(String, has) {
 	return Value(false);
 }
 
+NEXT_PRIMITIVE_FN(String, append) {
+	if(!stack_[1].isString()) {
+		ExecutionEngine::setPendingException(
+		    ExecutionEngine::createRuntimeException(
+		        "Argument 1 of append(_) is not a string!"));
+		return ValueNil;
+	}
+
+	const string &s  = StringLibrary::get(stack_[0].toString());
+	const string &s1 = StringLibrary::get(stack_[1].toString());
+
+	return Value(StringLibrary::insert(s + s1));
+}
+
 #define NEXT_STRING_PRIMITIVE(name, ...) \
 	NEXT_PRIMITIVE_ENTRY(String, name, ##__VA_ARGS__)
 PrimitiveMap Primitives_String = PrimitiveMap{};
@@ -107,4 +121,5 @@ void Primitives::init() {
 	NEXT_STRING_PRIMITIVE(str);
 	NEXT_STRING_PRIMITIVE(len);
 	NEXT_STRING_PRIMITIVE(has, _);
+	NEXT_STRING_PRIMITIVE(append, _);
 }
