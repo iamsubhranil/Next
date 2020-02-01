@@ -69,8 +69,8 @@ Value next_array_validate_item(const Value *args) {
 Value next_type_of(const Value *args) {
 	Value      v   = args[0];
 	NextType   t   = NextType::getType(v);
-	NextString ret = StringLibrary::insert(StringLibrary::get(t.module) + "." +
-	                                       StringLibrary::get(t.name));
+	NextString ret = StringLibrary::append(
+	    {StringLibrary::get(t.module), ".", StringLibrary::get(t.name)});
 	return Value(ret);
 }
 

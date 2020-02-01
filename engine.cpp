@@ -1079,11 +1079,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					CALL(c->functions[methodToCall]->frame.get(), numArg_ + 1);
 				} else if(v.isModule() &&
 				          v.toModule()->hasPublicFn(methodToCall)) {
-					methodToCall = SymbolTable::getSymbol(methodToCall);
+					NextString mtc = SymbolTable::getSymbol(methodToCall);
 					// First, readjust the stack
 					// If it's a constructor, just assign 0 in place of
 					// the module
-					Fn * f = v.toModule()->functions[methodToCall].get();
+					Fn * f             = v.toModule()->functions[mtc].get();
 					bool isConstructor = f->isConstructor;
 					if(isConstructor)
 						v = Value();

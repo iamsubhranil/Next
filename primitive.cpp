@@ -56,7 +56,7 @@ NEXT_PRIMITIVE_FN(String, str) {
 }
 
 NEXT_PRIMITIVE_FN(String, len) {
-	return Value((double)(StringLibrary::get(stack_[0].toString()).size()));
+	return Value((double)(StringLibrary::get_len(stack_[0].toString())));
 }
 
 NEXT_PRIMITIVE_FN(String, has) {
@@ -83,10 +83,8 @@ NEXT_PRIMITIVE_FN(String, append) {
 		return ValueNil;
 	}
 
-	const string &s  = StringLibrary::get(stack_[0].toString());
-	const string &s1 = StringLibrary::get(stack_[1].toString());
-
-	return Value(StringLibrary::insert(s + s1));
+	return Value(
+	    StringLibrary::append({stack_[0].toString(), stack_[1].toString()}));
 }
 
 #define NEXT_STRING_PRIMITIVE(name, ...) \

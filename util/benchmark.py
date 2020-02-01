@@ -97,7 +97,7 @@ BENCHMARK("nbody", r"""-0.16907516382852
 -0.16907807065935""")
 
 
-#BENCHMARK("map_string", r"""12799920000""")
+BENCHMARK("map_string", r"""12799920000""")
 
 BENCHMARK("string_equals", r"""3000000""")
 

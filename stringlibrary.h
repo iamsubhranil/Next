@@ -1,18 +1,40 @@
 #pragma once
 
-#include "hashmap.h"
-#include <string>
-#include <vector>
+#include <cstring>
+#include <unordered_set>
+
+struct _NextString {
+	char *   str;
+	int      len;
+	uint32_t hash_;
+};
+
+typedef _NextString *NextString;
+
+struct NextStringHash {
+	std::size_t operator()(_NextString *v) const { return v->hash_; }
+};
+
+struct NextStringEqual {
+	bool operator()(const _NextString *a, const _NextString *b) const {
+		return a->hash_ == b->hash_ && a->len == b->len &&
+		       strcmp(a->str, b->str) == 0;
+	}
+};
 
 class StringLibrary {
   private:
-	static HashMap<uint32_t, std::string> strings;
+	static std::unordered_set<NextString, NextStringHash, NextStringEqual>
+	    strings;
 
   public:
-	static uint32_t           insert(const std::string &s);
-	static uint32_t           insert(const char *s);
-	static uint32_t           insert(const char *s, size_t length);
-	static const std::string &get(uint32_t hash_);
-	static const char *       get_raw(uint32_t hash_);
-	static void               print(std::ostream &os);
+	static NextString  insert(const std::string &s);
+	static NextString  insert(const char *s);
+	static NextString  insert(const char *s, size_t length);
+	static NextString  append(std::initializer_list<const char *> parts);
+	static NextString  append(std::initializer_list<NextString> parts);
+	static const char *get(NextString str);
+	static const char *get_raw(NextString str);
+	static int         get_len(NextString str);
+	static void        print(std::ostream &os);
 };

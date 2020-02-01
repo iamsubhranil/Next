@@ -4,6 +4,7 @@
 #include "value.h"
 #include <cstdint>
 #include <iomanip>
+#include <iostream>
 #include <memory>
 #include <vector>
 

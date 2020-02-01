@@ -1,12 +1,9 @@
 #pragma once
 
+#include "hashmap.h"
 #include "qnan.h"
 #include "stringlibrary.h"
 #include <cstdint>
-#include <iostream>
-#include <unordered_set>
-
-using NextString = uint32_t;
 
 class NextObject;
 class Module;
@@ -122,9 +119,9 @@ template <> struct std::hash<Value> {
 	std::size_t operator()(const Value &v) const {
 		switch(v.getType()) {
 			case Value::VAL_Number: return std::hash<double>{}(v.toNumber());
-			case Value::VAL_String: return v.toString();
+			case Value::VAL_String: return NextStringHash{}(v.toString());
 			case Value::VAL_Boolean: return std::hash<bool>{}(v.toBoolean());
-            case Value::VAL_Module: return std::hash<void*>{}(v.toModule());
+			case Value::VAL_Module: return std::hash<void *>{}(v.toModule());
 			default: return 0;
 		}
 	}
