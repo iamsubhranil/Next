@@ -89,20 +89,21 @@ class NextClass : AccessModifiableEntity {
 };
 
 class NextObject {
-    private:
-        static NextObject root;
-        static NextObject* last;
-        NextObject *next;
-        int color; // white gray black
-        NextObject();
+  private:
+	static NextObject  root;
+	static NextObject *last;
+	NextObject *       next;
+	int                color; // white gray black
+	NextObject();
+
   public:
 	NextClass *Class;
 	Value *    slots;
 	NextObject(NextClass *c);
-    void mark();
-    size_t release();
-    // returns memory released
-    static size_t sweep();
+	void   mark();
+	size_t release();
+	// returns memory released
+	static size_t sweep();
 };
 
 struct ExHandler {

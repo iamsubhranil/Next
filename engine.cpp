@@ -2,6 +2,7 @@
 #include "builtins.h"
 #include "display.h"
 #include "primitive.h"
+#include "stringconstants.h"
 #include "symboltable.h"
 #include <cmath>
 
@@ -15,49 +16,7 @@ Value  ExecutionEngine::pendingException = ValueNil;
 size_t ExecutionEngine::total_allocated  = 0;
 size_t ExecutionEngine::next_gc          = 1024 * 1024;
 
-#define initSymbol(x) uint64_t ExecutionEngine::x##Hash = 0;
-initSymbol(add);
-initSymbol(sub);
-initSymbol(mul);
-initSymbol(div);
-initSymbol(eq);
-initSymbol(neq);
-initSymbol(less);
-initSymbol(lesseq);
-initSymbol(greater);
-initSymbol(greatereq);
-initSymbol(lor);
-initSymbol(land);
-initSymbol(subscript_get);
-initSymbol(subscript_set);
-initSymbol(pow);
-/*
-#define OPCODE0(x, y) initSymbol(x)
-#define OPCODE1(x, y, z) initSymbol(x)
-#define OPCODE2(x, y, z, a) initSymbol(x)
-#include "opcodes.h"
-*/
-
 void ExecutionEngine::init() {
-#define registerOpcodeSymbol(opcode, symbol, ...) \
-	opcode##Hash = SymbolTable::insertSymbol(     \
-	    StringLibrary::insert(#symbol "(_" __VA_ARGS__ ")"));
-	registerOpcodeSymbol(add, +);
-	registerOpcodeSymbol(sub, -);
-	registerOpcodeSymbol(mul, *);
-	registerOpcodeSymbol(div, /);
-	registerOpcodeSymbol(eq, ==);
-	registerOpcodeSymbol(neq, !=);
-	registerOpcodeSymbol(less, <);
-	registerOpcodeSymbol(lesseq, <=);
-	registerOpcodeSymbol(greater, >);
-	registerOpcodeSymbol(greatereq, >=);
-	registerOpcodeSymbol(lor, or);
-	registerOpcodeSymbol(land, and);
-	registerOpcodeSymbol(subscript_get, []);
-	registerOpcodeSymbol(subscript_set, [], ",_");
-	registerOpcodeSymbol(pow, ^);
-
 	pendingException = ValueNil;
 }
 
@@ -110,8 +69,8 @@ void ExecutionEngine::setPendingException(Value v) {
 }
 
 Value ExecutionEngine::createRuntimeException(const char *message) {
-	Value except                = newObject(StringLibrary::insert("core"),
-                             StringLibrary::insert("RuntimeException"));
+	Value except =
+	    newObject(StringConstants::core, StringConstants::RuntimeException);
 	except.toObject()->slots[0] = Value(StringLibrary::insert(message));
 	return except;
 }
@@ -218,8 +177,8 @@ FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f,
 		    StringLibrary::get_raw(t.module), StringLibrary::get_raw(t.name));
 		// if it's a runtime exception, there is a message
 		if(NextType::getType(v) ==
-		   (NextType){StringLibrary::insert("core"),
-		              StringLibrary::insert("RuntimeException")}) {
+		   (NextType){StringConstants::core,
+		              StringConstants::RuntimeException}) {
 			cout << StringLibrary::get(v.toObject()->slots[0].toString())
 			     << endl;
 		}
@@ -388,7 +347,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			TOP.set##restype(TOP.to##argtype() op rightOperand.to##argtype()); \
 			DISPATCH();                                                        \
 		} else if(TOP.isObject()) {                                            \
-			methodToCall = opcode##Hash;                                       \
+			methodToCall = SymbolConstants::sig_##opcode;                      \
 			goto opmethodcall;                                                 \
 		}                                                                      \
 		RERR("Both of the operands of " #opname " are not " #argtype           \
@@ -470,7 +429,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					TOP.setNumber(pow(TOP.toNumber(), rightOperand.toNumber()));
 					DISPATCH();
 				} else if(TOP.isObject()) {
-					methodToCall = powHash;
+					methodToCall = SymbolConstants::sig_pow;
 					goto opmethodcall;
 				}
 				RERR("Both of the operands of 'power of' are not Number"
@@ -482,9 +441,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(neq) : {
 				rightOperand = POP();
-				if(TOP.isObject() &&
-				   TOP.toObject()->Class->hasPublicMethod(neqHash)) {
-					methodToCall = neqHash;
+				if(TOP.isObject() && TOP.toObject()->Class->hasPublicMethod(
+				                         SymbolConstants::sig_neq)) {
+					methodToCall = SymbolConstants::sig_neq;
 					goto opmethodcall;
 				}
 				TOP = TOP != rightOperand;
@@ -493,9 +452,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(eq) : {
 				rightOperand = POP();
-				if(TOP.isObject() &&
-				   TOP.toObject()->Class->hasPublicMethod(eqHash)) {
-					methodToCall = eqHash;
+				if(TOP.isObject() && TOP.toObject()->Class->hasPublicMethod(
+				                         SymbolConstants::sig_eq)) {
+					methodToCall = SymbolConstants::sig_eq;
 					goto opmethodcall;
 				}
 				TOP = TOP == rightOperand;
@@ -537,13 +496,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						DISPATCH();
 					}
 
-					methodToCall = subscript_getHash;
+					methodToCall = SymbolConstants::sig_subscript_get;
 					goto opmethodcall;
-				} else if(Primitives::hasPrimitive(TOP.getType(),
-				                                   subscript_getHash)) {
+				} else if(Primitives::hasPrimitive(
+				              TOP.getType(),
+				              SymbolConstants::sig_subscript_get)) {
 
 					PUSH(rightOperand);
-					methodToCall      = subscript_getHash;
+					methodToCall      = SymbolConstants::sig_subscript_get;
 					rightOperand      = StackTop[-2];
 					numberOfArguments = 1;
 					goto call_primitive;
@@ -612,15 +572,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						DISPATCH();
 					}
 					NextObject *obj = target.toObject();
-					ASSERT(obj->Class->hasPublicMethod(subscript_setHash),
+					ASSERT(obj->Class->hasPublicMethod(
+					           SymbolConstants::sig_subscript_set),
 					       "Method [](_,_) not found in class '@s'!",
 					       target.getTypeString());
-					CALL(obj->Class->functions[subscript_setHash]->frame.get(),
+					CALL(obj->Class
+					         ->functions[SymbolConstants::sig_subscript_set]
+					         ->frame.get(),
 					     3);
-				} else if(Primitives::hasPrimitive(target.getType(),
-				                                   subscript_setHash)) {
+				} else if(Primitives::hasPrimitive(
+				              target.getType(),
+				              SymbolConstants::sig_subscript_set)) {
 
-					methodToCall      = subscript_setHash;
+					methodToCall      = SymbolConstants::sig_subscript_set;
 					rightOperand      = StackTop[-3];
 					numberOfArguments = 2;
 					goto call_primitive;

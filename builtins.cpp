@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "fn.h"
 #include "primitive.h"
+#include "stringconstants.h"
 #include "value.h"
 #include <string>
 #include <time.h>
@@ -67,10 +68,10 @@ Value next_array_validate_item(const Value *args) {
 }
 
 Value next_type_of(const Value *args) {
-	Value      v   = args[0];
-	NextType   t   = NextType::getType(v);
-	NextString ret = StringLibrary::append(
-	    {StringLibrary::get(t.module), ".", StringLibrary::get(t.name)});
+	Value      v = args[0];
+	NextType   t = NextType::getType(v);
+	NextString ret =
+	    StringLibrary::append({t.module, StringConstants::sym_dot, t.name});
 	return Value(ret);
 }
 

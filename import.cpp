@@ -5,6 +5,9 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef DEBUG
+#include <iostream>
+#endif
 
 int dirExists(const char *path_) {
 	struct stat info;

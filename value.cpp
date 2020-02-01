@@ -1,14 +1,9 @@
 #include "value.h"
 #include "display.h"
 #include "fn.h"
+#include "stringconstants.h"
 #include <iomanip>
 
-/*
-const Value Value::valueNil   = Value();
-const Value Value::valueTrue  = Value(true);
-const Value Value::valueFalse = Value(false);
-const Value Value::valueZero  = Value(0.0);
-*/
 NextString Value::ValueTypeStrings[] = {
     0,
     0,
@@ -35,6 +30,9 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 			o << "<module " << StringLibrary::get(v.toModule()->name) << ">";
 			break;
 		case Value::VAL_Array: o << "<array " << v.toArray() << ">"; break;
+		case Value::VAL_HashMap:
+			o << "<hashmap " << v.toHashMap() << ">";
+			break;
 		default: panic("<unrecognized object %lx>", v.value); break;
 	}
 	return o;
@@ -43,8 +41,8 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 void Value::init() {
 	int i = 0;
 
-	ValueTypeStrings[i++] = StringLibrary::insert("Number");
-	ValueTypeStrings[i++] = StringLibrary::insert("Nil");
-#define TYPE(r, n) ValueTypeStrings[i++] = StringLibrary::insert(#n);
+	ValueTypeStrings[i++] = StringConstants::Number;
+	ValueTypeStrings[i++] = StringConstants::Nil;
+#define TYPE(r, n) ValueTypeStrings[i++] = StringConstants::type_##n;
 #include "valuetypes.h"
 }

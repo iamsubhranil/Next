@@ -1,6 +1,7 @@
 #include "type.h"
 #include "core.h"
 #include "fn.h"
+#include "stringconstants.h"
 
 NextType NextType::Any = {0, 0};
 
@@ -14,32 +15,30 @@ NextClass *NextType::HashMapClass = NULL;
 NextClass *NextType::RangeClass   = NULL;
 
 void NextType::init() {
-	NextType::Any = {StringLibrary::insert("core"),
-	                 StringLibrary::insert("any")};
+	NextType::Any = {StringConstants::core, StringConstants::any_};
 
-	NextType::Error = {StringLibrary::insert("core"),
-	                   StringLibrary::insert("error")};
+	NextType::Error = {StringConstants::core, StringConstants::error};
 
 #define TYPE(r, n) \
-	NextType::n = {StringLibrary::insert("core"), StringLibrary::insert(#n)};
+	NextType::n = {StringConstants::core, StringConstants::type_##n};
 #include "valuetypes.h"
-	NextType::Number = {StringLibrary::insert("core"),
-	                    StringLibrary::insert("Number")};
+	NextType::Number = {StringConstants::core, StringConstants::Number};
 }
 
 bool NextType::isPrimitive(const NextString &ty) {
-#define TYPE(r, n)                      \
-	if(StringLibrary::insert(#n) == ty) \
+	if(ty == StringConstants::Number)
 		return true;
+#define TYPE(r, n)                             \
+	else if(ty == StringConstants::type_##n) { \
+		return true;                           \
+	}
 #include "valuetypes.h"
-	if(StringLibrary::insert("Number") == ty)
-		return true;
 	return false;
 }
 
 NextType NextType::getPrimitiveType(const NextString &ty) {
 #define TYPE(r, n)                      \
-	if(StringLibrary::insert(#n) == ty) \
+	if(StringConstants::type_##n == ty) \
 		return NextType::n;
 #include "valuetypes.h"
 	return NextType::Error;
@@ -59,9 +58,9 @@ NextType NextType::getType(const Value &v) {
 
 void NextType::bindCoreClasses() {
 	NextType::ArrayClass =
-	    CoreModule::core->classes[StringLibrary::insert("array")].get();
+	    CoreModule::core->classes[StringConstants::array_].get();
 	NextType::HashMapClass =
-	    CoreModule::core->classes[StringLibrary::insert("hashmap")].get();
+	    CoreModule::core->classes[StringConstants::hashmap].get();
 	NextType::RangeClass =
-	    CoreModule::core->classes[StringLibrary::insert("range")].get();
+	    CoreModule::core->classes[StringConstants::range].get();
 }

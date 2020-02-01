@@ -6,6 +6,7 @@
 #include "engine.h"
 #include "import.h"
 #include "loader.h"
+#include "stringconstants.h"
 #include "symboltable.h"
 
 using namespace std;
@@ -38,7 +39,7 @@ void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
 	ExecutionEngine::registerModule(compileIn);
 	initFrame(module->frame.get(),
 	          stmts.size() > 0 ? stmts[0]->token : Token::PlaceholderToken);
-	NextString lastName = StringLibrary::insert("core");
+	NextString lastName = StringConstants::core;
 	if(compileIn->name != lastName) {
 		module->importedModules[lastName] = CoreModule::core;
 		VarInfo v                         = lookForVariable(lastName, true);
@@ -505,17 +506,16 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	al->token.highlight();
 #endif
 	// load the core module if we're not already in it
-	if(module->name != StringLibrary::insert("core")) {
+	if(module->name != StringConstants::core) {
 		// core is declared as the 0th slot in the module
 		bytecode->load_module_slot(0);
 		bytecode->pushd((double)al->exprs.size());
 		bytecode->call_method(
-		    SymbolTable::insertSymbol(StringLibrary::insert("array(_)")), 1);
+		    SymbolTable::insertSymbol(StringConstants::sig_array_1), 1);
 		bytecode->stackEffect(0);
 	} else {
 		// we are in the core module
-		CallInfo info =
-		    resolveCall(StringLibrary::insert("array(_)"), false, NULL);
+		CallInfo info = resolveCall(StringConstants::sig_array_1, false, NULL);
 		bytecode->pushd(0);
 		bytecode->pushd((double)al->exprs.size());
 		bytecode->call(info.frameIdx, 2);
@@ -543,16 +543,16 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 	al->token.highlight();
 #endif
 	// load the core module if we're not already in it
-	if(module->name != StringLibrary::insert("core")) {
+	if(module->name != StringConstants::core) {
 		// core is declared as the 0th slot in the module
 		bytecode->load_module_slot(0);
 		bytecode->call_method(
-		    SymbolTable::insertSymbol(StringLibrary::insert("hashmap()")), 0);
+		    SymbolTable::insertSymbol(StringConstants::sig_hashmap_0), 0);
 		// bytecode->stackEffect(1);
 	} else {
 		// we are in the core module
 		CallInfo info =
-		    resolveCall(StringLibrary::insert("hashmap()"), false, NULL);
+		    resolveCall(StringConstants::sig_hashmap_0, false, NULL);
 		bytecode->pushd(0);
 		bytecode->call(info.frameIdx, 1);
 		// bytecode->stackEffect(1);
