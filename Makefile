@@ -44,6 +44,9 @@ benchmark: release
 benchmark_baseline: release
 	$(V) ./util/benchmark.py --generate-baseline
 
+core:
+	$(V) ./util/convertcore.py core.n core_source.h
+
 depend: .depend
 
 .depend: $(SRCS)
