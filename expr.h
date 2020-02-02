@@ -21,19 +21,19 @@ class VariableExpression;
 
 class ExpressionVisitor {
   public:
-	virtual void visit(ArrayLiteralExpression *al) = 0;
-	virtual void visit(AssignExpression *as)       = 0;
-	virtual void visit(BinaryExpression *bin)      = 0;
-	virtual void visit(CallExpression *cal)        = 0;
-	virtual void visit(GetExpression *get)         = 0;
-	virtual void visit(GroupingExpression *group)  = 0;
+	virtual void visit(ArrayLiteralExpression *al)   = 0;
+	virtual void visit(AssignExpression *as)         = 0;
+	virtual void visit(BinaryExpression *bin)        = 0;
+	virtual void visit(CallExpression *cal)          = 0;
+	virtual void visit(GetExpression *get)           = 0;
+	virtual void visit(GroupingExpression *group)    = 0;
 	virtual void visit(HashmapLiteralExpression *al) = 0;
-	virtual void visit(LiteralExpression *lit)     = 0;
-	virtual void visit(PrefixExpression *pe)       = 0;
-	virtual void visit(PostfixExpression *pe)      = 0;
-	virtual void visit(SetExpression *sete)        = 0;
-	virtual void visit(SubscriptExpression *sube)  = 0;
-	virtual void visit(VariableExpression *vis)    = 0;
+	virtual void visit(LiteralExpression *lit)       = 0;
+	virtual void visit(PrefixExpression *pe)         = 0;
+	virtual void visit(PostfixExpression *pe)        = 0;
+	virtual void visit(SetExpression *sete)          = 0;
+	virtual void visit(SubscriptExpression *sube)    = 0;
+	virtual void visit(VariableExpression *vis)      = 0;
 };
 
 class Expr {
@@ -194,6 +194,7 @@ class SubscriptExpression : public Expr {
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
+#ifdef DEBUG
 class ExpressionPrinter : public ExpressionVisitor {
   private:
 	std::ostream &out;
@@ -215,3 +216,4 @@ class ExpressionPrinter : public ExpressionVisitor {
 	void visit(SubscriptExpression *sube);
 	void visit(VariableExpression *vis);
 };
+#endif

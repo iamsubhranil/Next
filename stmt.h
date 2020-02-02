@@ -257,24 +257,26 @@ class ReturnStatement : public Statement {
 };
 
 class ForStatement : public Statement {
-    public:
-        bool is_iterator;
-        ExpPtr cond;
-        std::vector<ExpPtr> init, incr;
-        StmtPtr body;
-        ForStatement(Token t, bool isi, std::vector<ExpPtr> &i, ExpPtr &c, std::vector<ExpPtr> &inc, StmtPtr &b)
-            : Statement(t, FOR), is_iterator(isi), cond(c.release()),
-            body(b.release()){
-                for(auto& ini : i) {
-                    init.push_back(ExpPtr(ini.release()));
-                }
-                for(auto& inc : inc) {
-                    incr.push_back(ExpPtr(inc.release()));
-                }
-            }
-        void accept(StatementVisitor *vis) { vis->visit(this); }
+  public:
+	bool                is_iterator;
+	ExpPtr              cond;
+	std::vector<ExpPtr> init, incr;
+	StmtPtr             body;
+	ForStatement(Token t, bool isi, std::vector<ExpPtr> &i, ExpPtr &c,
+	             std::vector<ExpPtr> &inc, StmtPtr &b)
+	    : Statement(t, FOR), is_iterator(isi), cond(c.release()),
+	      body(b.release()) {
+		for(auto &ini : i) {
+			init.push_back(ExpPtr(ini.release()));
+		}
+		for(auto &inc : inc) {
+			incr.push_back(ExpPtr(inc.release()));
+		}
+	}
+	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
+#ifdef DEBUG
 class StatementPrinter : public StatementVisitor {
   private:
 	std::ostream &    os;
@@ -305,3 +307,4 @@ class StatementPrinter : public StatementVisitor {
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);
 };
+#endif

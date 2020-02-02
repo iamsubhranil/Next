@@ -1,3 +1,5 @@
+#ifdef DEBUG
+
 #include "stmt.h"
 
 using namespace std;
@@ -221,3 +223,4 @@ void StatementPrinter::visit(ForStatement *ifs) {
 	os << ")";
 	ifs->body->accept(this);
 }
+#endif

@@ -1,3 +1,5 @@
+#ifdef DEBUG
+
 #include "expr.h"
 
 using namespace std;
@@ -110,3 +112,5 @@ void ExpressionPrinter::visit(SubscriptExpression *sube) {
 void ExpressionPrinter::visit(VariableExpression *v) {
 	out << v->token;
 }
+
+#endif
