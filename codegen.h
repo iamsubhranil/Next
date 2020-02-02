@@ -104,7 +104,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
-    void visit(ForStatement *ifs);
+	void visit(ForStatement *ifs);
 
 	CallInfo         resolveCall(NextString signature, bool isImported = false,
 	                             Module *mod = NULL);
