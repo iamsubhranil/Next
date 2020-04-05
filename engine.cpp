@@ -469,13 +469,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					if(obj->Class == NextType::ArrayClass) {
 						// handle array get
 						// Check for integer index
-						double intpart;
-						if(!rightOperand.isNumber() ||
-						   modf(rightOperand.toNumber(), &intpart) != 0.0) {
+						long intpart;
+						if(!rightOperand.isInteger()) {
 							RERR("Array index must be an integer!");
 						}
-						size_t idx       = intpart;
-						size_t totalSize = obj->slots[1].toNumber();
+						intpart        = rightOperand.toInteger();
+						long idx       = intpart;
+						long totalSize = obj->slots[1].toInteger();
 						if(intpart >= totalSize || -intpart > totalSize) {
 							RERR("Invalid array index!");
 						}
@@ -521,13 +521,13 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 						NextObject *obj = TOP.toObject();
 						// handle array get
 						// Check for integer index
-						double intpart;
-						if(!rightOperand.isNumber() ||
-						   modf(rightOperand.toNumber(), &intpart) != 0.0) {
+						long intpart;
+						if(!rightOperand.isInteger()) {
 							RERR("Array index must be an integer!");
 						}
-						size_t idx       = intpart;
-						size_t totalSize = obj->slots[1].toNumber();
+						intpart        = rightOperand.toInteger();
+						long idx       = intpart;
+						long totalSize = obj->slots[1].toInteger();
 						if(intpart > totalSize || -intpart > totalSize) {
 							RERR("Invalid array index!");
 						}
@@ -540,7 +540,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 							obj->slots[1] = Value((double)(totalSize));
 
 							// reallocation and stuff
-							size_t oldCapacity = obj->slots[2].toNumber();
+							long oldCapacity = obj->slots[2].toInteger();
 
 							if(oldCapacity == totalSize) {
 								// assuming oldcapacity is already

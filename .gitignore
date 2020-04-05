@@ -16,3 +16,5 @@ perf.*
 tests/benchmark/baseline.txt
 bench_results
 programs/
+.idea/
+gc_map/

@@ -3,6 +3,7 @@
 #include "hashmap.h"
 #include "qnan.h"
 #include "stringlibrary.h"
+#include <cmath>
 #include <cstdint>
 
 class NextObject;
@@ -69,11 +70,14 @@ class Value {
 #include "valuetypes.h"
 	inline bool isNil() const { return value == QNAN_NIL; }
 	inline bool isNumber() const { return (value & VAL_QNAN) != VAL_QNAN; }
+	inline bool isInteger() const {
+		return isNumber() && floor(toNumber()) == toNumber();
+	}
 #define TYPE(r, n) \
 	inline r to##n() const { return (r)(VAL_MASK & value); }
 #include "valuetypes.h"
 	inline double toNumber() const { return *(double *)&value; }
-
+	inline long   toInteger() const { return (long)toNumber(); }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"

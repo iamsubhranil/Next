@@ -24,14 +24,11 @@ NEXT_PRIMITIVE_FN(Number, str) {
 }
 
 NEXT_PRIMITIVE_FN(Number, is_int) {
-	double intpart;
-	return Value(modf(stack_[0].toNumber(), &intpart) == 0.0);
+	return Value(stack_[0].isInteger());
 }
 
 NEXT_PRIMITIVE_FN(Number, to_int) {
-	double intpart;
-	modf(stack_[0].toNumber(), &intpart);
-	return Value(intpart);
+	return Value((double)stack_[0].toInteger());
 }
 
 #define NEXT_NUMBER_PRIMITIVE(name, ...) \
