@@ -78,7 +78,7 @@ int Frame::getCallFrameIndex(Frame *f) {
 	return callFrameCount - 1;
 }
 
-Token Frame::findLineInfo(const uint8_t *data) {
+Token Frame::findLineInfo(const BytecodeHolder::Opcode *data) {
 	int ip = data - code.bytecodes.data();
 	for(auto i = lineInfos.begin(), j = lineInfos.end(); i != j; i++) {
 		if(i->from <= ip && i->to >= ip)

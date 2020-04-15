@@ -254,10 +254,14 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	// frame in the fiber, we need to go back to the
 	// frame from where this particular 'execute' method
 	// started execution.
-	int            RootFrameID        = fiber->callFramePointer - 1;
-	unsigned char *InstructionPointer = presentFrame->code;
-	Value *        Stack              = presentFrame->stack_;
-	Value *        StackTop           = fiber->stackTop;
+	int                     RootFrameID        = fiber->callFramePointer - 1;
+	BytecodeHolder::Opcode *InstructionPointer = presentFrame->code;
+	Value *                 Stack              = presentFrame->stack_;
+	Value *                 StackTop           = fiber->stackTop;
+
+	// variable to denote the relocation of instruction
+	// pointer after extracting an argument
+	size_t reloc = 0;
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
@@ -298,6 +302,9 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		DISPATCH_WINC();                               \
 	}
 
+#define JUMPTO_OFFSET(x) \
+	{ JUMPTO((x) - (sizeof(int) / sizeof(BytecodeHolder::Opcode))); }
+
 #define RESTORE_FRAMEINFO()                    \
 	InstructionPointer = presentFrame->code;   \
 	Stack              = presentFrame->stack_; \
@@ -319,24 +326,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		goto call_frame;           \
 	}
 
-#define next_int()                      \
-	(InstructionPointer += sizeof(int), \
-	 *(int *)((InstructionPointer - sizeof(int) + 1)))
-#define next_long()                          \
-	(InstructionPointer += sizeof(uint64_t), \
-	 *(uint64_t *)((InstructionPointer - sizeof(uint64_t) + 1)))
-#define next_double()                      \
-	(InstructionPointer += sizeof(double), \
-	 *(double *)((InstructionPointer - sizeof(double) + 1)))
-#define next_string()                          \
-	(InstructionPointer += sizeof(NextString), \
-	 *(NextString *)(InstructionPointer - sizeof(NextString) + 1))
-#define next_ptr()                            \
-	(InstructionPointer += sizeof(uintptr_t), \
-	 *(uintptr_t *)(InstructionPointer - sizeof(uintptr_t) + 1))
-#define next_value()                      \
-	(InstructionPointer += sizeof(Value), \
-	 *(Value *)(InstructionPointer - sizeof(Value) + 1))
+#define relocip(x)                                       \
+	(reloc = sizeof(x) / sizeof(BytecodeHolder::Opcode), \
+	 InstructionPointer += reloc, *(x *)((InstructionPointer - reloc + 1)))
+#define next_int() relocip(int)
+#define next_long() relocip(uint64_t)
+#define next_double() relocip(double)
+#define next_string() relocip(NextString)
+#define next_ptr() relocip(uintptr_t)
+#define next_value() relocip(Value)
 	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
@@ -362,7 +360,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		int skipTo   = next_int();                \
 		rightOperand = TOP;                       \
 		if(__VA_ARGS__ is_falsey(rightOperand)) { \
-			JUMPTO(skipTo - sizeof(int));         \
+			JUMPTO_OFFSET(skipTo);                \
 		} else {                                  \
 			POP();                                \
 			DISPATCH();                           \
@@ -642,8 +640,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(jump) : {
 				int offset = next_int();
-				JUMPTO(offset -
-				       sizeof(int)); // offset the relative jump address
+				JUMPTO_OFFSET(offset); // offset the relative jump address
 			}
 
 			CASE(jumpiftrue) : {
@@ -651,8 +648,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				int   dis = next_int();
 				bool  fl  = is_falsey(v);
 				if(!fl) {
-					JUMPTO(dis -
-					       sizeof(int)); // offset the relative jump address
+					JUMPTO_OFFSET(dis); // offset the relative jump address
 				}
 				DISPATCH();
 			}
@@ -662,8 +658,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				int   dis = next_int();
 				bool  fl  = is_falsey(v);
 				if(fl) {
-					JUMPTO(dis -
-					       sizeof(int)); // offset the relative jump address
+					JUMPTO_OFFSET(dis); // offset the relative jump address
 				}
 				DISPATCH();
 			}
@@ -745,7 +740,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(store_slot_pop) : { rightOperand = POP(); }
 
 		do_store_slot : {
-			int slot    = next_int();
+			int slot = next_int();
+			// cout << "slot: " << slot << "\n";
 			Stack[slot] = rightOperand;
 			DISPATCH();
 		}
@@ -779,7 +775,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 							Stack[slot] = Value(pos);
 							DISPATCH();
 						} else {
-							JUMPTO(fwd - 2 * sizeof(int));
+							JUMPTO(fwd - (2 * sizeof(int) /
+							              sizeof(BytecodeHolder::Opcode)));
 						}
 					} else if(v.toObject()->Class == NextType::RangeClass) {
 						double to   = v.toObject()->slots[1].toNumber();
@@ -790,7 +787,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 							Stack[slot] = Value(orig);
 							DISPATCH();
 						} else {
-							JUMPTO(fwd - 2 * sizeof(int));
+							JUMPTO(fwd - (2 * sizeof(int) /
+							              sizeof(BytecodeHolder::Opcode)));
 						}
 					}
 				}

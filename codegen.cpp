@@ -136,7 +136,7 @@ int CodeGenerator::createTempSlot() {
 }
 
 void CodeGenerator::visit(BinaryExpression *bin) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	bin->token.highlight();
 #endif
@@ -175,7 +175,7 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 }
 
 void CodeGenerator::visit(GroupingExpression *g) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	g->token.highlight();
 #endif
@@ -260,7 +260,7 @@ CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
 
 void CodeGenerator::emitCall(CallExpression *call, bool isImported,
                              Module *mod) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("Generating call for");
 	call->callee->token.highlight();
 #endif
@@ -449,7 +449,7 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 }
 
 void CodeGenerator::visit(AssignExpression *as) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	as->token.highlight();
 #endif
@@ -501,7 +501,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 }
 
 void CodeGenerator::visit(ArrayLiteralExpression *al) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	al->token.highlight();
 #endif
@@ -538,7 +538,7 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 }
 
 void CodeGenerator::visit(HashmapLiteralExpression *al) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	al->token.highlight();
 #endif
@@ -575,7 +575,7 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 }
 
 void CodeGenerator::visit(LiteralExpression *lit) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	lit->token.highlight();
 #endif
@@ -592,7 +592,7 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 
 void CodeGenerator::visit(SetExpression *sete) {
 	if(state == COMPILE_BODY) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 		dinfo("");
 		sete->token.highlight();
 #endif
@@ -606,7 +606,7 @@ void CodeGenerator::visit(SetExpression *sete) {
 }
 
 void CodeGenerator::visit(GetExpression *get) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	get->token.highlight();
 #endif
@@ -665,7 +665,7 @@ void CodeGenerator::visit(GetExpression *get) {
 }
 
 void CodeGenerator::visit(SubscriptExpression *sube) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	sube->token.highlight();
 #endif
@@ -679,7 +679,7 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 }
 
 void CodeGenerator::visit(PrefixExpression *pe) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	pe->token.highlight();
 #endif
@@ -774,7 +774,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 }
 
 void CodeGenerator::visit(PostfixExpression *pe) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	pe->token.highlight();
 #endif
@@ -853,7 +853,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 }
 
 void CodeGenerator::visit(VariableExpression *vis) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	vis->token.highlight();
 #endif
@@ -883,7 +883,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 }
 
 void CodeGenerator::visit(IfStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -906,7 +906,7 @@ void CodeGenerator::visit(IfStatement *ifs) {
 }
 
 void CodeGenerator::visit(WhileStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -928,7 +928,7 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 }
 
 void CodeGenerator::visit(ReturnStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -938,7 +938,7 @@ void CodeGenerator::visit(ReturnStatement *ifs) {
 }
 
 void CodeGenerator::visit(ForStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1039,7 +1039,7 @@ NextString CodeGenerator::generateSignature(const string &name, int arity) {
 		}
 	}
 	sig += ")";
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	cout << "Signature generated : " << sig << "\n";
 #endif
 	return StringLibrary::insert(sig);
@@ -1050,7 +1050,7 @@ NextString CodeGenerator::generateSignature(const Token &name, int arity) {
 }
 
 void CodeGenerator::visit(FnStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1161,7 +1161,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 }
 
 void CodeGenerator::visit(FnBodyStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1175,7 +1175,7 @@ void CodeGenerator::visit(FnBodyStatement *ifs) {
 }
 
 void CodeGenerator::visit(BlockStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1190,7 +1190,7 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 }
 
 void CodeGenerator::visit(ExpressionStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1203,7 +1203,7 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 }
 
 void CodeGenerator::visit(PrintStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1215,7 +1215,7 @@ void CodeGenerator::visit(PrintStatement *ifs) {
 }
 
 void CodeGenerator::visit(ClassStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1258,7 +1258,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 }
 
 void CodeGenerator::visit(ImportStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1322,7 +1322,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 }
 
 void CodeGenerator::visit(VardeclStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1339,7 +1339,7 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 }
 
 void CodeGenerator::visit(MemberVariableStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1364,7 +1364,7 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 }
 
 void CodeGenerator::visit(VisibilityStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1374,7 +1374,7 @@ void CodeGenerator::visit(VisibilityStatement *ifs) {
 }
 
 void CodeGenerator::visit(TryStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1410,7 +1410,7 @@ void CodeGenerator::visit(TryStatement *ifs) {
 }
 
 void CodeGenerator::visit(CatchStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif
@@ -1436,7 +1436,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 }
 
 void CodeGenerator::visit(ThrowStatement *ifs) {
-#ifdef DEBUG
+#ifdef DEBUG_CODEGEN
 	dinfo("");
 	ifs->token.highlight();
 #endif

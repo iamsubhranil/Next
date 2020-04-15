@@ -152,7 +152,7 @@ class Frame {
 	void  insertdebug(int from, Token t);
 	void  insertdebug(int from, int to, Token t);
 	int   getCallFrameIndex(Frame *f);
-	Token findLineInfo(const uint8_t *data);
+	Token findLineInfo(const BytecodeHolder::Opcode *data);
 
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f);
 };
@@ -167,10 +167,10 @@ class FrameInstance {
 	// Re adjust the same instance for a modified frame
 	void readjust(Frame *f);
 	~FrameInstance();
-	Frame *        frame;
-	Value *        stack_;
-	unsigned char *code;
-	Frame **       callFrames;
+	Frame *                 frame;
+	Value *                 stack_;
+	BytecodeHolder::Opcode *code;
+	Frame **                callFrames;
 	// int stackPointer;
 	// to back up the pointer for consecutive
 	// calls on the same frame instance
