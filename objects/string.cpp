@@ -212,7 +212,7 @@ String *String::append(const char *val1, size_t size1, const char *val2,
 	char * v    = (char *)GcObject_malloc(size + 1);
 	memcpy(v, val1, size1);
 	memcpy(&v[size1], val2, size2);
-	v[size + 1] = 0;
+	v[size] = 0;
 	// now check whether this one already exists
 	int    hash_ = hash_string(v, size);
 	String check = {GcObject::DefaultGcObject, v, size, hash_};

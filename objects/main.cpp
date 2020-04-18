@@ -5,9 +5,6 @@
 
 using namespace std;
 int main() {
-#ifdef DEBUG_GC
-	GcObject::print_stat();
-#endif
 	cout << "Bootstrapping..\n";
 	GcObject::init();
 	// GcObject::print_stat();

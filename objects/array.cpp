@@ -1,7 +1,6 @@
 #include "array.h"
 #include "../value.h"
 #include "class.h"
-#include <cmath>
 
 using namespace std;
 
@@ -10,26 +9,22 @@ Value next_array_insert(const Value *args) {
 }
 
 Value next_array_get(const Value *args) {
+	EXPECT(get, 1, Integer);
 	Array *a = args[0].toArray();
-	if(!args[1].isInteger()) {
-		RERR("Array index must be an integer!");
-	}
-	long i = args[1].toInteger();
+	long   i = args[1].toInteger();
 	if(-i > a->size || i >= a->size) {
 		RERR("Invalid array index!");
 	}
 	if(i < 0) {
 		i += a->size;
 	}
-	return a->values[(int)i];
+	return a->values[i];
 }
 
 Value next_array_set(const Value *args) {
+	EXPECT(set, 1, Integer);
 	Array *a = args[0].toArray();
-	if(!args[1].isInteger()) {
-		RERR("Array index must be an integer!");
-	}
-	long i = args[1].toInteger();
+	long   i = args[1].toInteger();
 	if(-i > a->size || i > a->size) {
 		RERR("Invalid array index!");
 	}
@@ -38,7 +33,7 @@ Value next_array_set(const Value *args) {
 	} else if(i == a->size) {
 		return a->insert(args[2]);
 	}
-	return a->values[(int)i] = args[2];
+	return a->values[i] = args[2];
 }
 
 Value next_array_size(const Value *args) {

@@ -1,5 +1,4 @@
 #include "symtab.h"
-#include "../gc.h"
 #include "../value.h"
 
 int    SymbolTable2::counter = 0;
@@ -15,8 +14,8 @@ int SymbolTable2::insert(const char *str) {
 		if(symbols[0][i] == s)
 			return i;
 	}
-	symbols[0][counter++] = s;
-	return counter - 1;
+	symbols->insert(s);
+	return counter++;
 }
 
 int SymbolTable2::insert(const String *str) {
@@ -25,6 +24,6 @@ int SymbolTable2::insert(const String *str) {
 		if(symbols[0][i] == s)
 			return i;
 	}
-	symbols[0][counter++] = s;
-	return counter - 1;
+	symbols->insert(s);
+	return counter++;
 }

@@ -23,6 +23,6 @@ struct Class {
 	void add_builtin_fn(const char *str, next_builtin_fn fn, Visibility v);
 
 	// gc functions
-	void release();
+	void release() {}
 	void mark();
 };

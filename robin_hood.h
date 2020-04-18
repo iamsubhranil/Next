@@ -39,12 +39,11 @@
 	6 // for adding functionality in a backwards-compatible manner
 #define ROBIN_HOOD_VERSION_PATCH 0 // for backwards-compatible bug fixes
 
+#include "gc.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
-//#include <iostream>
-#include "gc.h"
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -416,11 +415,29 @@ namespace robin_hood {
 
 			// Deallocates all allocated memory.
 			void reset() noexcept {
+				size_t numAllocatedElements = calcNumElementsToAlloc() / 2;
 				while(mListForFree) {
-					T *tmp = *mListForFree;
-					GcObject_free(mListForFree, sizeof(*mListForFree));
+					T *      tmp = *mListForFree;
+					uint8_t *m   = (uint8_t *)mListForFree - 1;
+					// check the tag
+					switch(*m) {
+						case 0:
+							// it is automatically allocated. so use
+							// the calculated size + 1 (for the flag).
+							GcObject_free(
+							    m, (numAllocatedElements * ALIGNED_SIZE) +
+							           ALIGNMENT + 1);
+							break;
+						case 1:
+							// it is manually allocated. so retrieve the
+							// size from the pointer.
+							size_t *s = (size_t *)m - 1;
+							GcObject_free(s, *s);
+							break;
+					}
 					mListForFree =
 					    reinterpret_cast_no_cast_align_warning<T **>(tmp);
+					numAllocatedElements /= 2;
 				}
 				mHead = nullptr;
 			}
@@ -453,14 +470,31 @@ namespace robin_hood {
 			// free()). If the provided data is not large enough to make use of,
 			// it is immediately freed. Otherwise it is reused and freed in the
 			// destructor.
+			//
+			// We pad it with a byte of value 1 in the beginning, to denote it
+			// has been added manually. We also store the size of the block,
+			// to later make use of it in free.
 			void addOrFree(void *ptr, const size_t numBytes) noexcept {
 				// calculate number of available elements in ptr
-				if(numBytes < ALIGNMENT + ALIGNED_SIZE) {
+				if(numBytes < ALIGNMENT + ALIGNED_SIZE + sizeof(uint8_t) +
+				                  sizeof(size_t)) {
 					// not enough data for at least one element. Free and
 					// return.
 					GcObject_free(ptr, numBytes);
 				} else {
-					add(ptr, numBytes);
+					// manually allocated or not, each block stores
+					// at least one uint8_t to denote the type. so, it
+					// will be safe to decrement the pointer to one
+					// uint8_t in either case. But size will only be stored
+					// if it is manually allocated. So we store the size
+					// first, then the tag bit, so that we can always
+					// safely decrement any pointer to atleast 1 uint8_t.
+					size_t *s  = (size_t *)ptr;
+					*s         = numBytes;
+					uint8_t *p = (uint8_t *)(s + 1);
+					*p         = 1; // mark as manually allocated
+					// now add the rest of the block
+					add(p + 1, numBytes - sizeof(uint8_t) - sizeof(size_t));
 				}
 			}
 
@@ -526,6 +560,13 @@ namespace robin_hood {
 
 			// Called when no memory is available (mHead == 0).
 			// Don't inline this slow path.
+			//
+			// We need to distinguish between memory allocated
+			// by the allocator, and memory added to the list
+			// manually. To do so, we put an uint8_t before each
+			// chunk of memory, which when 0, denotes the block
+			// has been allocated by the allocator. When 1,
+			// denotes the block has been added manually.
 			ROBIN_HOOD(NOINLINE) T *performAllocation() {
 				size_t const numElementsToAlloc = calcNumElementsToAlloc();
 
@@ -534,8 +575,12 @@ namespace robin_hood {
 				// << " bytes" << std::endl;
 				size_t const bytes =
 				    ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
-				add(assertNotNull<std::bad_alloc>(GcObject_malloc(bytes)),
-				    bytes);
+				uint8_t *m = (uint8_t *)assertNotNull<std::bad_alloc>(
+				    GcObject_malloc(bytes + sizeof(uint8_t)));
+				// set the first uint8_t to zero.
+				*m = 0;
+				// now add the block after skipping the first byte
+				add(m + 1, bytes);
 				return mHead;
 			}
 

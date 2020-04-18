@@ -32,42 +32,79 @@ static size_t counterCounter = 0;
 #define OBJTYPE(n, r) size_t n##Counter = counterCounter++;
 #include "objecttype.h"
 #endif
-
 #define OBJTYPE(n, r) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
 
+// when enabled, the garbage collector allocates
+// extra memory to store a size_t before each
+// pointer, so that the size can be verified
+// at free().
+#ifdef GC_STORE_SIZE
+#define STORE_SIZE(x, y)           \
+	{                              \
+		size_t *mem = (size_t *)x; \
+		*mem        = y;           \
+		return (size_t *)x + 1;    \
+	}
+#define MALLOC(x) ::malloc(x + sizeof(size_t))
+#define REALLOC(x, y) ::realloc((size_t *)x - 1, y)
+#define FREE(x, y)                                                           \
+	{                                                                        \
+		size_t *s = (size_t *)x - 1;                                         \
+		if(*s != y) {                                                        \
+			err("Invalid pointer size! Expected '%zu', received '%zu'!", *s, \
+			    y);                                                          \
+		}                                                                    \
+		::free(s);                                                           \
+	}
+#else
+#define STORE_SIZE(x, y)
+#define MALLOC(x) ::malloc(x)
+#define REALLOC(x, y) ::realloc(x, y)
+#define FREE(x, y) ::free(x)
+#endif
+
 void *GcObject::malloc(size_t bytes) {
-	void *m = ::malloc(bytes);
+	void *m = MALLOC(bytes);
 	if(m == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
 	totalAllocated += bytes;
+	STORE_SIZE(m, bytes);
 	return m;
 }
 
 void *GcObject::calloc(size_t num, size_t bytes) {
 	void *m = ::calloc(num, bytes);
+#ifdef GC_STORE_SIZE
+	// realloc to store the size
+	m = ::realloc(m, (num * bytes) + sizeof(size_t));
+	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
+#endif
 	if(m == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
 	totalAllocated += (num * bytes);
+	STORE_SIZE(m, bytes);
 	return m;
 }
 
 void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
-	void *n = ::realloc(mem, newb);
+	void *n = REALLOC(mem, newb);
 	if(n == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
-	totalAllocated += (newb - oldb);
+	totalAllocated += newb;
+	totalAllocated -= oldb;
+	STORE_SIZE(n, newb);
 	return n;
 }
 
 void GcObject::free(void *mem, size_t bytes) {
-	::free(mem);
+	FREE(mem, bytes);
 	totalAllocated -= bytes;
 }
 
@@ -84,7 +121,9 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 }
 
 Object *GcObject::allocObject(const Class *klass) {
-	return (Object *)alloc(sizeof(Object), OBJ_Object, klass);
+	Object *o = (Object *)alloc(sizeof(Object), OBJ_Object, klass);
+	o->slots  = (Value *)GcObject::malloc(sizeof(Value) * klass->numSlots);
+	return o;
 }
 
 void GcObject::release(GcObject *obj) {
@@ -197,6 +236,7 @@ void GcObject::sweep() {
 }
 
 void GcObject::init() {
+	// AllocatedPointerSet = new std::unordered_set<void *>();
 	// allocate the core classes
 	ClassClass    = GcObject::allocClass();
 	ArrayClass    = GcObject::allocClass();

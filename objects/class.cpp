@@ -40,5 +40,3 @@ void Class::mark() {
 	if(klassType == NORMAL)
 		GcObject::mark((GcObject *)members);
 }
-
-void Class::release() {}

@@ -64,18 +64,18 @@ struct GcObject {
 	gc_msg_a("free") << y << "\n"; \
 	GcObject::free((x), (y));
 	// macros to warn against direct malloc/free calls
-//#define malloc(x)                                                           \
+/*#define malloc(x)                                                           \
 	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
 	 ::malloc((x)))
-//#define calloc(x, y)                                                        \
+#define calloc(x, y)                                                        \
 	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct calloc!\n", \
 	 ::calloc((x), (y)))
-//#define realloc(x, y)                                                        \
+#define realloc(x, y)                                                        \
 	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct realloc!\n", \
 	 ::realloc((x), (y)))
-//#define free(x)                                                          \
+#define free(x)                                                          \
 	std::cout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
-	::free((x));
+	::free((x));*/
 #else
 #define GcObject_malloc(x) GcObject::malloc(x)
 #define GcObject_calloc(x, y) GcObject::calloc(x, y)
