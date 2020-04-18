@@ -15,6 +15,10 @@ struct Array {
 	Value &       insert(Value v);
 	void          resize(size_t newsize);
 
+	// rounds up n to the nearest power of 2
+	// greater than or equal to n
+	static size_t powerOf2Ceil(size_t n);
+
 	// class loader
 	static void init();
 

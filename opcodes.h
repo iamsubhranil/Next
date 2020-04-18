@@ -3,6 +3,9 @@
 
 // X in OPCODEX signifies X bytecode arguments
 
+// All object arguments should be wrapped in a
+// Value
+// Symbol table reference are int
 #ifndef OPCODE0
 #define OPCODE0(name, stackEffect)
 #endif
@@ -21,14 +24,14 @@ OPCODE0(mul, -1)
 OPCODE0(div, -1)
 OPCODE0(power, -1)
 
-OPCODE1(incr_slot, 1, int)         // <slot>
-OPCODE1(incr_module_slot, 1, int)  // <slot>
-OPCODE1(incr_object_slot, 1, int)  // <slot>
-OPCODE1(incr_field, 1, NextString) // <field>
-OPCODE1(decr_slot, 1, int)         // <slot>
-OPCODE1(decr_module_slot, 1, int)  // <slot>
-OPCODE1(decr_object_slot, 1, int)  // <slot>
-OPCODE1(decr_field, 1, NextString) // <field>
+OPCODE1(incr_slot, 1, int)        // <slot>
+OPCODE1(incr_module_slot, 1, int) // <slot>
+OPCODE1(incr_object_slot, 1, int) // <slot>
+OPCODE1(incr_field, 1, Value)     // <field>
+OPCODE1(decr_slot, 1, int)        // <slot>
+OPCODE1(decr_module_slot, 1, int) // <slot>
+OPCODE1(decr_object_slot, 1, int) // <slot>
+OPCODE1(decr_field, 1, Value)     // <field>
 
 OPCODE0(neg, 0)
 
@@ -55,8 +58,6 @@ OPCODE0(print, -1)
 
 // Pushes a Value to the stack
 OPCODE1(push, 1, Value)
-OPCODE1(pushd, 1, double)     // <double>
-OPCODE1(pushs, 1, NextString) // <NextString>
 OPCODE0(pushn, 1)
 OPCODE0(pop, -1)
 
@@ -96,7 +97,7 @@ OPCODE2(call, 0, int, int) // <frame_pointer_index> <arity>
 // OPCODE2(call_imported, 0, int, int) // <frame_pointer_index> <arity>
 OPCODE0(ret, 0)
 
-OPCODE2(construct, 0, NextString, NextString) // <module_name> <class_name>
+OPCODE2(construct, 0, Value, Value) // <module_name> <class_name>
 OPCODE0(construct_ret, 0)
 
 // Load <slot> from slot 0
@@ -105,7 +106,7 @@ OPCODE1(load_object_slot, 1, int)
 OPCODE1(store_object_slot, 0, int)
 // Pop the object from TOS and push
 // the required field
-OPCODE1(load_field, 0, NextString)
+OPCODE1(load_field, 0, Value)
 // incr/decr_field always expects the object
 // on TOS, which certainly is not the
 // case for postfix operations, where,
@@ -114,12 +115,12 @@ OPCODE1(load_field, 0, NextString)
 // Hence this special opcode is introduced
 // which will load the specified field,
 // but also push the object back to the TOS
-OPCODE1(load_field_pushback, 1, NextString)
+OPCODE1(load_field_pushback, 1, Value)
 // Pop the object from TOS and assign
 // the value at present TOS to the field
-OPCODE1(store_field, -1, NextString)
+OPCODE1(store_field, -1, Value)
 
-OPCODE2(call_method, 0, uint64_t, int) // <symbol> <args>
+OPCODE2(call_method, 0, int, int) // <symbol> <args>
 // Optimized 'call' for intraclass
 // calls (i.e. call between two methods
 // of the same class)
@@ -143,8 +144,8 @@ OPCODE0(subscript_get, -1)
 OPCODE1(array_build, 0, int)
 
 // The engine needs to know number of args for cleanup
-OPCODE2(call_builtin, 0, NextString, int) // <signature> <args>
-OPCODE1(load_constant, 1, NextString)     // <name>
+OPCODE2(call_builtin, 0, Value, int) // <signature> <args>
+OPCODE1(load_constant, 1, Value)     // <name>
 
 // Initializes the iterator
 OPCODE1(iterate_init, 1, int) // <slot>

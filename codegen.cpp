@@ -285,7 +285,7 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	if(!onRefer && info.type != CallInfo::UNDEFINED &&
 	   info.type != CallInfo::BUILTIN && info.fn->isConstructor) {
 		// bytecode->stackEffect(-1);
-		bytecode->pushd(0);
+		bytecode->push(Value(0.0));
 	}
 	if(!onRefer && info.type == CallInfo::INTRA_CLASS) {
 		// load the object first, so no manual stack manipulation
@@ -509,15 +509,15 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	if(module->name != StringConstants::core) {
 		// core is declared as the 0th slot in the module
 		bytecode->load_module_slot(0);
-		bytecode->pushd((double)al->exprs.size());
+		bytecode->push(Value((double)al->exprs.size()));
 		bytecode->call_method(
 		    SymbolTable::insertSymbol(StringConstants::sig_array_1), 1);
 		bytecode->stackEffect(0);
 	} else {
 		// we are in the core module
 		CallInfo info = resolveCall(StringConstants::sig_array_1, false, NULL);
-		bytecode->pushd(0);
-		bytecode->pushd((double)al->exprs.size());
+		bytecode->push(Value(0.0));
+		bytecode->push(Value((double)al->exprs.size()));
 		bytecode->call(info.frameIdx, 2);
 		bytecode->stackEffect(0);
 	}
@@ -553,7 +553,7 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 		// we are in the core module
 		CallInfo info =
 		    resolveCall(StringConstants::sig_hashmap_0, false, NULL);
-		bytecode->pushd(0);
+		bytecode->push(Value(0.0));
 		bytecode->call(info.frameIdx, 1);
 		// bytecode->stackEffect(1);
 	}

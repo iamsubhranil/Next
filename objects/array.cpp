@@ -40,7 +40,7 @@ Value next_array_size(const Value *args) {
 	return Value((double)args[0].toArray()->size);
 }
 
-size_t powerOf2Ceil(size_t n) {
+size_t Array::powerOf2Ceil(size_t n) {
 
 	n--;
 	n |= n >> 1;
