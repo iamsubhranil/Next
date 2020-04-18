@@ -161,3 +161,12 @@ res = obj.func@1("hi")          // allowed
 ```
 If we can parse method references as primary expressions, this should not be 
 a problem.
+
+What about passing bound methods as arguments? Obviously, a method can have an 
+identifier argument which can later be called with a CALL_BOUND :
+```
+fn reduce(a, b) {
+    a(b)
+}
+reduce(someFunc@1, 8)
+```

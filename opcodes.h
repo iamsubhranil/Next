@@ -15,10 +15,6 @@
 #define OPCODE2(name, stackEffect, type1, type2)
 #endif
 
-#ifndef OPCODE3
-#define OPCODE3(name, stackEffect, type1, type2, type3)
-#endif
-
 OPCODE0(add, -1) // 1 pop + inplace add
 OPCODE0(sub, -1) // 1 pop + inplace sub
 OPCODE0(mul, -1)

@@ -2,6 +2,7 @@
 #include "display.h"
 #include "objects/array.h"
 #include "objects/boundmethod.h"
+#include "objects/bytecode.h"
 #include "objects/class.h"
 #include "objects/function.h"
 #include "objects/map.h"
@@ -237,24 +238,16 @@ void GcObject::sweep() {
 
 void GcObject::init() {
 	// allocate the core classes
-	ClassClass    = GcObject::allocClass();
-	ArrayClass    = GcObject::allocClass();
-	StringClass   = GcObject::allocClass();
-	ValueMapClass = GcObject::allocClass();
-	ValueSetClass = GcObject::allocClass();
-	FunctionClass = GcObject::allocClass();
+#define OBJTYPE(n, r) n##Class = GcObject::allocClass();
+#include "objecttype.h"
 
 	// initialize the string set and symbol table
 	String::init0();
 	SymbolTable2::init();
 
 	// initialize the core classes
-	Class::init();
-	Array::init();
-	String::init();
-	ValueMap::init();
-	ValueSet::init();
-	Function::init();
+#define OBJTYPE(n, r) n::init();
+#include "objecttype.h"
 }
 
 #ifdef DEBUG_GC

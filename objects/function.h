@@ -12,6 +12,9 @@ struct Function {
 		Bytecode2 *     code;
 		next_builtin_fn func;
 	};
+	// the debug information related
+	// to the function
+	void *dbg;
 	// even though the function contains
 	// the signature, we might have to
 	// check arity at runtime due to

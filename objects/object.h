@@ -12,6 +12,8 @@ struct Object {
 	GcObject obj;
 	Value *  slots;
 
+	static void init() {}
+
 	// gc functions
 	void release();
 	void mark();

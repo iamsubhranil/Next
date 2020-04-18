@@ -4,15 +4,17 @@
 #ifndef OBJTYPE
 #define OBJTYPE(name, raw)
 #endif
-
+// the sequence of declaration is
+// important. Class must be allocated
+// first, followed by the rest of the
+// objects.
+OBJTYPE(Class, Class)
 OBJTYPE(Array, Array)
 OBJTYPE(BoundMethod, BoundMethod)
-OBJTYPE(Class, Class)
+OBJTYPE(Bytecode, Bytecode)
 OBJTYPE(Function, Function)
 OBJTYPE(Object, Object)
-// OBJTYPE(Module2, Module2)
 OBJTYPE(String, String)
-// OBJTYPE(StringSet, StringSet)
 OBJTYPE(ValueMap, ValueMap)
 OBJTYPE(ValueSet, ValueSet)
 #undef OBJTYPE
