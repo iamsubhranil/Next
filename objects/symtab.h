@@ -1,0 +1,16 @@
+#pragma once
+#include "array.h"
+#include "string.h"
+
+struct SymbolTable2 {
+	static Array *symbols;
+	static int    counter;
+
+	static void init();
+	static int  insert(const char *str);
+	static int  insert(const std::string &str);
+	static int  insert(const String *str);
+
+	static const char *get(int id);
+	static String *    getString(int id);
+};

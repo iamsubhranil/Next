@@ -1,16 +1,13 @@
 #pragma once
 
+#include "gc.h"
 #include "hashmap.h"
 #include "qnan.h"
 #include "stringlibrary.h"
 #include <cmath>
 #include <cstdint>
 
-class NextObject;
-class Module;
-class ValueHashMap;
-
-class Value {
+struct Value {
   private:
 	uint64_t value;
 
@@ -56,6 +53,9 @@ class Value {
 	Value(r s) { encode##n(s); }
 #endif
 #include "valuetypes.h"
+#define OBJTYPE(r, n) \
+	Value(r *s) { encodeGcObject((GcObject *)s); }
+#include "objecttype.h"
 
 	Type getType() const {
 		return isNumber() ? VAL_Number : (Type)VAL_TYPE(value);
@@ -68,6 +68,9 @@ class Value {
 #define TYPE(r, n) \
 	inline bool is##n() const { return VAL_TAG(value) == QNAN_##n; }
 #include "valuetypes.h"
+#define OBJTYPE(r, n) \
+	inline bool is##n() const { return isGcObject() && toGcObject()->is##n(); }
+#include "objecttype.h"
 	inline bool isNil() const { return value == QNAN_NIL; }
 	inline bool isNumber() const { return (value & VAL_QNAN) != VAL_QNAN; }
 	inline bool isInteger() const {
@@ -76,8 +79,12 @@ class Value {
 #define TYPE(r, n) \
 	inline r to##n() const { return (r)(VAL_MASK & value); }
 #include "valuetypes.h"
-	inline double toNumber() const { return *(double *)&value; }
-	inline long   toInteger() const { return (long)toNumber(); }
+#define OBJTYPE(r, n) \
+	inline r *to##n() const { return (r *)toGcObject(); }
+#include "objecttype.h"
+	inline double   toNumber() const { return *(double *)&value; }
+	inline long     toInteger() const { return (long)toNumber(); }
+	inline uint64_t toBits() const { return value; }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"
@@ -119,21 +126,19 @@ class Value {
 	static NextString ValueTypeStrings[];
 };
 
-template <> struct std::hash<Value> {
-	std::size_t operator()(const Value &v) const {
-		switch(v.getType()) {
-			case Value::VAL_Number: return std::hash<double>{}(v.toNumber());
-			case Value::VAL_String: return NextStringHash{}(v.toString());
-			case Value::VAL_Boolean: return std::hash<bool>{}(v.toBoolean());
-			case Value::VAL_Module: return std::hash<void *>{}(v.toModule());
-			default: return 0;
-		}
-	}
-};
-
-class ValueHashMap : public HashMap<Value, Value> {};
-
 constexpr Value ValueNil   = Value(QNAN_NIL);
 constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);
 constexpr Value ValueFalse = Value(QNAN_Boolean);
 constexpr Value ValueZero  = Value((uint64_t)0);
+
+namespace std {
+	template <> struct std::hash<Value> {
+		std::size_t operator()(const Value &v) const { return v.toBits(); }
+	};
+
+	template <> struct std::equal_to<Value> {
+		bool operator()(const Value &v1, const Value &v2) const {
+			return v1.toBits() == v2.toBits();
+		}
+	};
+} // namespace std
