@@ -41,8 +41,11 @@ struct String {
 	static void transform_lower(char *dest, const char *source, size_t size);
 	static void transform_upper(char *dest, const char *source, size_t size);
 
+	// release all
+	static void release_all();
+
   private:
-	static String *insert(char *val);
+	static String *insert(char *val, size_t size, int hash_);
 };
 
 namespace std {

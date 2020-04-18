@@ -51,6 +51,8 @@ Value next_map_set(const Value *args) {
 void ValueMap::init() {
 	Class *ValueMapClass = GcObject::ValueMapClass;
 
+	// Initialize map class
+	ValueMapClass->init("map", Class::BUILTIN);
 	ValueMapClass->add_builtin_fn("clear()", next_map_clear, PUBLIC);
 	ValueMapClass->add_builtin_fn("has(_)", next_map_has, PUBLIC);
 	ValueMapClass->add_builtin_fn("keys()", next_map_keys, PUBLIC);
@@ -83,9 +85,5 @@ void ValueMap::mark() {
 }
 
 void ValueMap::release() {
-	for(auto kv : vv) {
-		GcObject::release(kv.first);
-		GcObject::release(kv.second);
-	}
-	vv.clear();
+	vv.~HashMap<Value, Value>();
 }

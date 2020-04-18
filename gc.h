@@ -1,6 +1,13 @@
 #pragma once
 #include <cstdint>
 
+//#define DEBUG_GC
+
+#ifdef DEBUG_GC
+#include "display.h"
+#include <iostream>
+#endif
+
 using size_t = std::size_t;
 
 struct Value;
@@ -40,20 +47,59 @@ struct GcObject {
 	static void  free(void *mem, size_t bytes);
 	static void *realloc(void *mem, size_t oldb, size_t newb);
 
+	// macros for getting the call site in debug mode
+#ifdef DEBUG_GC
+#define gc_msg_a(m)                                                            \
+	std::cout << "[GC] TA: " << GcObject::totalAllocated << " "                \
+	          << ANSI_COLOR_GREEN << m << ": " << ANSI_COLOR_RESET << __FILE__ \
+	          << ":" << __LINE__ << ": "
+#define GcObject_malloc(x) \
+	(gc_msg_a("malloc") << x << "\n", GcObject::malloc(x))
+#define GcObject_calloc(x, y) \
+	(gc_msg_a("calloc") << x << ", " << y << "\n", GcObject::calloc((x), (y)))
+#define GcObject_realloc(x, y, z)                   \
+	(gc_msg_a("realloc") << y << ", " << z << "\n", \
+	 GcObject::realloc((x), (y), (z)))
+#define GcObject_free(x, y)        \
+	gc_msg_a("free") << y << "\n"; \
+	GcObject::free((x), (y));
+	// macros to warn against direct malloc/free calls
+//#define malloc(x)                                                           \
+	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
+	 ::malloc((x)))
+//#define calloc(x, y)                                                        \
+	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct calloc!\n", \
+	 ::calloc((x), (y)))
+//#define realloc(x, y)                                                        \
+	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct realloc!\n", \
+	 ::realloc((x), (y)))
+//#define free(x)                                                          \
+	std::cout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
+	::free((x));
+#else
+#define GcObject_malloc(x) GcObject::malloc(x)
+#define GcObject_calloc(x, y) GcObject::calloc(x, y)
+#define GcObject_realloc(x, y, z) GcObject::realloc(x, y, z)
+#define GcObject_free(x, y) GcObject::free(x, y)
+#endif
 	// marking and unmarking functions
+	static void mark();
 	static void mark(Value v);
 	static void mark(GcObject *p);
 	static bool isMarked(GcObject *p);
 	static void unmark(Value v);
 	static void unmark(GcObject *p);
+	// this methods should be called by an
+	// object when it holds reference to an
+	// object which it does explicitly
+	// own
+	static void release(GcObject *obj);
+	static void release(Value v);
+	// clear
+	static void sweep();
 
 	// memory management functions
 	static void *alloc(size_t s, GcObjectType type, const Class *klass);
-	static void  increaseAllocation(size_t allocated);
-	static void  decreaseAllocation(size_t deallocated);
-	static void  release(GcObject *obj);
-	static void  release(Value v);
-	static void  mark();
 #define OBJTYPE(n, r)       \
 	static Class *n##Class; \
 	static r *    alloc##n();
@@ -62,4 +108,10 @@ struct GcObject {
 
 	// returns a place holder gcobject
 	static GcObject DefaultGcObject;
+
+	// debug information
+#ifdef DEBUG_GC
+	static size_t GcCounters[];
+	static void   print_stat();
+#endif
 };

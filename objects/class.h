@@ -14,7 +14,7 @@ struct Class {
 	Module2 * module;
 	int       numSlots;
 	// Token    token;
-	enum ClassType { NORMAL, BUILTIN } klassType;
+	enum ClassType : uint8_t { NORMAL, BUILTIN } klassType;
 
 	static void init();
 	void        init(const char *name, ClassType typ);

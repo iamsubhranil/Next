@@ -41,10 +41,4 @@ void Class::mark() {
 		GcObject::mark((GcObject *)members);
 }
 
-void Class::release() {
-	GcObject::release((GcObject *)name);
-	GcObject::release((GcObject *)function_map);
-	GcObject::release((GcObject *)functions);
-	if(klassType == NORMAL)
-		GcObject::release((GcObject *)members);
-}
+void Class::release() {}

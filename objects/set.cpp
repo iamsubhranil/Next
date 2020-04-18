@@ -23,8 +23,10 @@ Value next_set_remove(const Value *args) {
 }
 
 void ValueSet::init() {
-	Class *ValueSetClass = GcObject::ValueMapClass;
+	Class *ValueSetClass = GcObject::ValueSetClass;
 
+	// Initialize set class
+	ValueSetClass->init("set", Class::BUILTIN);
 	ValueSetClass->add_builtin_fn("clear()", next_set_clear, PUBLIC);
 	ValueSetClass->add_builtin_fn("insert(_)", next_set_insert, PUBLIC);
 	ValueSetClass->add_builtin_fn("has(_)", next_set_has, PUBLIC);
@@ -39,8 +41,5 @@ void ValueSet::mark() {
 }
 
 void ValueSet::release() {
-	for(auto v : hset) {
-		GcObject::release(v);
-	}
-	hset.clear();
+	hset.~HashSet<Value>();
 }

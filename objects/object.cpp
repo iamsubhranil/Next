@@ -8,7 +8,5 @@ void Object::mark() {
 }
 
 void Object::release() {
-	for(int i = 0; i < obj.klass->numSlots; i++) {
-		GcObject::release(slots[i]);
-	}
+	GcObject_free(slots, sizeof(Value) * obj.klass->numSlots);
 }

@@ -418,7 +418,7 @@ namespace robin_hood {
 			void reset() noexcept {
 				while(mListForFree) {
 					T *tmp = *mListForFree;
-					free(mListForFree);
+					GcObject_free(mListForFree, sizeof(*mListForFree));
 					mListForFree =
 					    reinterpret_cast_no_cast_align_warning<T **>(tmp);
 				}
@@ -458,7 +458,7 @@ namespace robin_hood {
 				if(numBytes < ALIGNMENT + ALIGNED_SIZE) {
 					// not enough data for at least one element. Free and
 					// return.
-					free(ptr);
+					GcObject_free(ptr, numBytes);
 				} else {
 					add(ptr, numBytes);
 				}
@@ -534,7 +534,8 @@ namespace robin_hood {
 				// << " bytes" << std::endl;
 				size_t const bytes =
 				    ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
-				add(assertNotNull<std::bad_alloc>(malloc(bytes)), bytes);
+				add(assertNotNull<std::bad_alloc>(GcObject_malloc(bytes)),
+				    bytes);
 				return mHead;
 			}
 
@@ -577,7 +578,7 @@ namespace robin_hood {
 				// std::cout << ": " << __FILE__ << ":" << __LINE__ << " freeing
 				// "
 				//          << numBytes << "\n";
-				GcObject::free(ptr, numBytes);
+				GcObject_free(ptr, numBytes);
 			}
 		};
 
@@ -1615,8 +1616,8 @@ namespace robin_hood {
 					auto const numElementsWithBuffer =
 					    calcNumElementsWithBuffer(o.mMask + 1);
 					mKeyVals = static_cast<Node *>(
-					    detail::assertNotNull<std::bad_alloc>(
-					        malloc(calcNumBytesTotal(numElementsWithBuffer))));
+					    detail::assertNotNull<std::bad_alloc>(GcObject_malloc(
+					        calcNumBytesTotal(numElementsWithBuffer))));
 					// no need for calloc because clonData does memcpy
 					mInfo        = reinterpret_cast<uint8_t *>(mKeyVals +
                                                         numElementsWithBuffer);
@@ -1672,14 +1673,16 @@ namespace robin_hood {
 					// we need to realloc.
 					if(0 != mMask) {
 						// only deallocate if we actually have data!
-						free(mKeyVals);
+						GcObject_free(mKeyVals, calcNumBytesTotal(
+						                            calcNumElementsWithBuffer(
+						                                mMask + 1)));
 					}
 
 					auto const numElementsWithBuffer =
 					    calcNumElementsWithBuffer(o.mMask + 1);
 					mKeyVals = static_cast<Node *>(
-					    detail::assertNotNull<std::bad_alloc>(
-					        malloc(calcNumBytesTotal(numElementsWithBuffer))));
+					    detail::assertNotNull<std::bad_alloc>(GcObject_malloc(
+					        calcNumBytesTotal(numElementsWithBuffer))));
 
 					// no need for calloc here because cloneData performs a
 					// memcpy.
@@ -2149,7 +2152,7 @@ namespace robin_hood {
 				//          << " bytes" << std::endl;
 				// calloc also zeroes everything
 				mKeyVals = reinterpret_cast<Node *>(
-				    detail::assertNotNull<std::bad_alloc>(GcObject::calloc(
+				    detail::assertNotNull<std::bad_alloc>(GcObject_calloc(
 				        1, calcNumBytesTotal(numElementsWithBuffer))));
 				mInfo = reinterpret_cast<uint8_t *>(mKeyVals +
 				                                    numElementsWithBuffer);
@@ -2371,9 +2374,9 @@ namespace robin_hood {
 					//          << " freeing "
 					//          << calcNumBytesTotal(
 					//                 calcNumElementsWithBuffer(mMask + 1));
-					GcObject::free(mKeyVals,
-					               calcNumBytesTotal(
-					                   calcNumElementsWithBuffer(mMask + 1)));
+					GcObject_free(mKeyVals,
+					              calcNumBytesTotal(
+					                  calcNumElementsWithBuffer(mMask + 1)));
 				}
 			}
 

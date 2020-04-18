@@ -5,13 +5,14 @@
 #define OBJTYPE(name, raw)
 #endif
 
+OBJTYPE(Array, Array)
+OBJTYPE(BoundMethod, BoundMethod)
 OBJTYPE(Class, Class)
-OBJTYPE(Object, Object)
 OBJTYPE(Function, Function)
+OBJTYPE(Object, Object)
 // OBJTYPE(Module2, Module2)
 OBJTYPE(String, String)
-OBJTYPE(Array, Array)
-OBJTYPE(StringSet, StringSet)
+// OBJTYPE(StringSet, StringSet)
 OBJTYPE(ValueMap, ValueMap)
 OBJTYPE(ValueSet, ValueSet)
 #undef OBJTYPE

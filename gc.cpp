@@ -1,6 +1,7 @@
 #include "gc.h"
 #include "display.h"
 #include "objects/array.h"
+#include "objects/boundmethod.h"
 #include "objects/class.h"
 #include "objects/function.h"
 #include "objects/map.h"
@@ -11,10 +12,26 @@
 #include "objects/symtab.h"
 #include "value.h"
 
+#ifdef DEBUG_GC
+#include <iomanip>
+#include <iostream>
+using namespace std;
+#endif
+
 size_t    GcObject::totalAllocated  = 0;
-GcObject *GcObject::last            = nullptr;
-GcObject *GcObject::root            = nullptr;
 GcObject  GcObject::DefaultGcObject = {GcObject::OBJ_NONE, nullptr, nullptr};
+GcObject *GcObject::last            = &DefaultGcObject;
+GcObject *GcObject::root            = &DefaultGcObject;
+
+#ifdef DEBUG_GC
+size_t GcObject::GcCounters[] = {
+#define OBJTYPE(n, r) 0,
+#include "objecttype.h"
+};
+static size_t counterCounter = 0;
+#define OBJTYPE(n, r) size_t n##Counter = counterCounter++;
+#include "objecttype.h"
+#endif
 
 #define OBJTYPE(n, r) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
@@ -41,12 +58,11 @@ void *GcObject::calloc(size_t num, size_t bytes) {
 
 void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
 	void *n = ::realloc(mem, newb);
-	totalAllocated -= oldb;
-	totalAllocated += newb;
 	if(n == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
+	totalAllocated += (newb - oldb);
 	return n;
 }
 
@@ -61,12 +77,9 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	obj->objType  = type;
 	obj->klass    = klass;
 	obj->next     = nullptr;
-	if(root == nullptr) {
-		root = last = obj;
-	} else {
-		last->next = obj;
-		last       = obj;
-	}
+	last->next    = obj;
+	last          = obj;
+
 	return obj;
 }
 
@@ -74,24 +87,27 @@ Object *GcObject::allocObject(const Class *klass) {
 	return (Object *)alloc(sizeof(Object), OBJ_Object, klass);
 }
 
-void GcObject::increaseAllocation(size_t allocated) {
-	totalAllocated += allocated;
-}
-
-void GcObject::decreaseAllocation(size_t deallocated) {
-	totalAllocated -= deallocated;
-}
-
 void GcObject::release(GcObject *obj) {
 	switch(obj->objType) {
 		case OBJ_NONE:
 			err("Object type NONE should not be present in the list!");
 			break;
+#ifdef DEBUG_GC
+#define OBJTYPE(name, type)                                                 \
+	case OBJ_##name:                                                        \
+		((type *)obj)->release();                                           \
+		GcObject::free(obj, sizeof(type));                                  \
+		GcCounters[name##Counter]--;                                        \
+		std::cout << "[GC] TA: " << totalAllocated << " release: " << #name \
+		          << " (" << sizeof(type) << ")\n";                         \
+		break;
+#else
 #define OBJTYPE(name, type)                \
 	case OBJ_##name:                       \
 		((type *)obj)->release();          \
 		GcObject::free(obj, sizeof(type)); \
 		break;
+#endif
 #include "objecttype.h"
 	}
 }
@@ -101,8 +117,18 @@ void GcObject::release(Value v) {
 		release(v.toGcObject());
 }
 
+#ifdef DEBUG_GC
+#define OBJTYPE(n, r)                                                          \
+	r *GcObject::alloc##n() {                                                  \
+		return (std::cout << "[GC] TA: " << totalAllocated << " alloc: " << #n \
+		                  << " (" << sizeof(r) << ")\n",                       \
+		        GcCounters[n##Counter]++,                                      \
+		        (r *)alloc(sizeof(r), OBJ_##n, n##Class));                     \
+	}
+#else
 #define OBJTYPE(n, r) \
 	r *GcObject::alloc##n() { return (r *)alloc(sizeof(r), OBJ_##n, n##Class); }
+#endif
 #include "objecttype.h"
 
 void GcObject::mark(Value v) {
@@ -110,7 +136,22 @@ void GcObject::mark(Value v) {
 		mark(v.toGcObject());
 }
 
+constexpr uintptr_t marker = ((uintptr_t)1) << ((sizeof(void *) * 8) - 1);
+
 void GcObject::mark(GcObject *p) {
+	// if the object is already marked,
+	// leave it
+	if(isMarked(p))
+		return;
+	// first set the first bit of its class pointer
+	// to mark the object. because in case of the
+	// root class, its klass pointer points to the
+	// object itself.
+	const Class *k = p->klass;
+	p->klass       = (Class *)((uintptr_t)(p->klass) | marker);
+	// then, mark its class
+	mark((GcObject *)k);
+	// finally, let it mark its members
 	switch(p->objType) {
 		case OBJ_NONE:
 			err("Object type NONE should not be present in the list!");
@@ -121,14 +162,11 @@ void GcObject::mark(GcObject *p) {
 		break;
 #include "objecttype.h"
 	}
-	// set the first bit of its class pointer
-	p->klass = (Class *)((uintptr_t)(p->klass) |
-	                     ((uintptr_t)1 << (sizeof(void *) * 8 - 1)));
 }
 
 bool GcObject::isMarked(GcObject *p) {
 	// check the first bit of its class pointer
-	return ((uintptr_t)(p->klass) & ((uintptr_t)1 << (sizeof(void *) * 8 - 1)));
+	return ((uintptr_t)(p->klass) & marker);
 }
 
 void GcObject::unmark(Value v) {
@@ -138,28 +176,64 @@ void GcObject::unmark(Value v) {
 
 void GcObject::unmark(GcObject *p) {
 	// clear the first bit of its class pointer
-	p->klass = (Class *)((uintptr_t)(p->klass) ^
-	                     ((uintptr_t)1 << (sizeof(void *) * 8 - 1)));
+	p->klass = (Class *)((uintptr_t)(p->klass) ^ marker);
+}
+
+void GcObject::sweep() {
+	GcObject **head = &(root->next);
+	while(*head) {
+		if(!isMarked(*head)) {
+			GcObject *bak = *head;
+			*head         = (*head)->next;
+			release(bak);
+		} else
+			head = &((*head)->next);
+	}
+	head = &(root->next);
+	while(*head) {
+		unmark(*head);
+		head = &((*head)->next);
+	}
 }
 
 void GcObject::init() {
+	// allocate the core classes
+	ClassClass    = GcObject::allocClass();
+	ArrayClass    = GcObject::allocClass();
+	StringClass   = GcObject::allocClass();
+	ValueMapClass = GcObject::allocClass();
+	ValueSetClass = GcObject::allocClass();
+	// StringSetClass = GcObject::allocClass();
+	FunctionClass = GcObject::allocClass();
+	// Module2Class   = GcObject::allocClass();
+
+	// initialize the string set and symbol table
 	String::init0();
-	// Initialize Root class
-	ClassClass            = GcObject::allocClass();
+	SymbolTable2::init();
+
+	// Initialize root class
 	ClassClass->obj.klass = ClassClass;
 	ClassClass->init("class", Class::BUILTIN);
 
-	// initialize the core classes
-	ArrayClass     = GcObject::allocClass();
-	StringClass    = GcObject::allocClass();
-	ValueMapClass  = GcObject::allocClass();
-	ValueSetClass  = GcObject::allocClass();
-	StringSetClass = GcObject::allocClass();
-	FunctionClass  = GcObject::allocClass();
-	// Module2Class   = GcObject::allocClass();
-
-	SymbolTable2::init();
+	// initialize other core classes
 	Array::init();
 	String::init();
 	ValueMap::init();
+	ValueSet::init();
+	Function::init();
 }
+
+#ifdef DEBUG_GC
+void GcObject::print_stat() {
+	cout << "[GC] Object allocation counters\n";
+	size_t i = 0;
+#define OBJTYPE(n, r)                                                   \
+	cout << setw(11) << #n << setw(0) << "\t" << GcCounters[i] << "\t"  \
+	     << setw(5) << sizeof(r) * GcCounters[i] << setw(0) << " bytes" \
+	     << endl;                                                       \
+	i++;
+#include "objecttype.h"
+	cout << "[GC] Total memory allocated : " << totalAllocated << " bytes"
+	     << endl;
+}
+#endif

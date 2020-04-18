@@ -1,4 +1,5 @@
 #include "function.h"
+#include "class.h"
 
 Function *Function::from(String *str, next_builtin_fn fn, Visibility v) {
 	Function *f = GcObject::allocFunction();
@@ -17,6 +18,10 @@ void Function::mark() {
 	GcObject::mark((GcObject *)name);
 }
 
-void Function::release() {
-	GcObject::release((GcObject *)name);
+void Function::release() {}
+
+void Function::init() {
+	Class *FunctionClass = GcObject::FunctionClass;
+
+	FunctionClass->init("function", Class::BUILTIN);
 }

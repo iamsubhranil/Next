@@ -148,9 +148,11 @@ int String::hash_string(const char *s, size_t size) {
 }
 
 // val MUST be mallocated elsewhere
-String *String::insert(char *val) {
+String *String::insert(char *val, size_t size, int hash_) {
 	String *s = GcObject::allocString();
 	s->str    = val;
+	s->size   = size;
+	s->hash_  = hash_;
 	string_set->hset.insert(s);
 	return s;
 }
@@ -158,7 +160,7 @@ String *String::insert(char *val) {
 String *String::from(const char *v, size_t size, string_transform transform) {
 	// before allocating, first check whether the
 	// string already exists
-	char *val = (char *)GcObject::malloc(size + 1);
+	char *val = (char *)GcObject_malloc(size + 1);
 	transform(val, v, size);
 	val[size]    = 0;
 	int    hash_ = hash_string(val, size);
@@ -167,12 +169,12 @@ String *String::from(const char *v, size_t size, string_transform transform) {
 	if(res != string_set->hset.end()) {
 		// it does, so free the
 		// transformed string
-		GcObject::free(val, size + 1);
+		GcObject_free(val, size + 1);
 		// return the original back
 		return (*res);
 	}
 	// it doesn't, so insert
-	return insert(val);
+	return insert(val, size, hash_);
 }
 
 String *String::from(const char *val, size_t size) {
@@ -186,10 +188,10 @@ String *String::from(const char *val, size_t size) {
 		return (*res);
 	}
 	// it doesn't, so allocate
-	char *n = (char *)GcObject::malloc(size + 1);
+	char *n = (char *)GcObject_malloc(size + 1);
 	memcpy(n, val, size);
 	n[size] = 0;
-	return insert(n);
+	return insert(n, size, hash_);
 }
 
 String *String::from(const char *val) {
@@ -207,7 +209,7 @@ String *String::append(const char *val1, size_t size1, const char *val2,
                        size_t size2) {
 	// first create the new string
 	size_t size = size1 + size2;
-	char * v    = (char *)GcObject::malloc(size + 1);
+	char * v    = (char *)GcObject_malloc(size + 1);
 	memcpy(v, val1, size1);
 	memcpy(&v[size1], val2, size2);
 	v[size + 1] = 0;
@@ -218,12 +220,12 @@ String *String::append(const char *val1, size_t size1, const char *val2,
 	if(res != string_set->hset.end()) {
 		// already one exists
 		// so free the newly allocated string
-		GcObject::free(v, size + 1);
+		GcObject_free(v, size + 1);
 		// return the old one back
 		return (*res);
 	}
 	// insert the new one
-	return insert(v);
+	return insert(v, size, hash_);
 }
 
 String *String::append(const char *val1, const char *val2) {
@@ -237,11 +239,12 @@ String *String::append(const String *s1, const String *s2) {
 void String::mark() {}
 
 void String::release() {
-	GcObject::free(str, size + 1);
+	string_set->hset.erase(this);
+	GcObject_free(str, size + 1);
 }
 
 StringSet *StringSet::create() {
-	StringSet *s = GcObject::allocStringSet();
+	StringSet *s = (StringSet *)GcObject_malloc(sizeof(StringSet));
 	::new(&s->hset) HashSet<String *>();
 	return s;
 }
@@ -249,3 +252,11 @@ StringSet *StringSet::create() {
 void StringSet::mark() {}
 
 void StringSet::release() {}
+
+void String::release_all() {
+	for(auto a : string_set->hset) {
+		a->release();
+	}
+	string_set->hset.~HashSet<String *>();
+	GcObject_free(string_set, sizeof(StringSet));
+}

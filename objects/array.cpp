@@ -63,7 +63,7 @@ Array *Array::create(size_t size) {
 	Array *arr    = GcObject::allocArray();
 	arr->capacity = powerOf2Ceil(size);
 	arr->size     = 0;
-	arr->values   = (Value *)GcObject::malloc(sizeof(Value) * arr->capacity);
+	arr->values   = (Value *)GcObject_malloc(sizeof(Value) * arr->capacity);
 	return arr;
 }
 
@@ -84,8 +84,8 @@ Value &Array::insert(Value v) {
 
 void Array::resize(size_t newsize) {
 	size_t newcapacity = powerOf2Ceil(newsize + 1);
-	values = (Value *)GcObject::realloc(values, sizeof(Value) * capacity,
-	                                    sizeof(Value) * newcapacity);
+	values = (Value *)GcObject_realloc(values, sizeof(Value) * capacity,
+	                                   sizeof(Value) * newcapacity);
 	if(newcapacity > capacity) {
 		std::fill_n(&values[capacity], newcapacity - capacity, ValueNil);
 	}
@@ -98,8 +98,7 @@ void Array::mark() {
 }
 
 void Array::release() {
-	for(size_t i = 0; i < size; i++) GcObject::release(values[i]);
-	GcObject::free(values, capacity);
+	GcObject_free(values, sizeof(Value) * capacity);
 }
 
 void Array::init() {

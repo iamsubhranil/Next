@@ -8,11 +8,11 @@ struct Bytecode2;
 struct Function {
 	GcObject obj;
 	String * name;
-	enum FunctionType { METHOD, STATIC, BUILTIN } funcType;
 	union {
 		Bytecode2 *     code;
 		next_builtin_fn func;
 	};
+	enum FunctionType { METHOD, STATIC, BUILTIN } funcType;
 	Visibility v;
 
 	static void      init();
