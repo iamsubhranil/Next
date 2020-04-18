@@ -1,4 +1,5 @@
 #include "function.h"
+#include "bytecode.h"
 #include "class.h"
 
 Function *Function::from(String *str, int arity, next_builtin_fn fn,
@@ -26,6 +27,24 @@ Visibility Function::getVisibility() {
 
 void Function::mark() {
 	GcObject::mark((GcObject *)name);
+}
+
+Function *Function::create_getter(String *name, int slot) {
+	Function *f = GcObject::allocFunction();
+	f->arity    = 0;
+	f->name     = name;
+	f->mode     = (PUBLIC << 4) | METHOD;
+	f->code     = Bytecode::create_getter(slot);
+	return f;
+}
+
+Function *Function::create_setter(String *name, int slot) {
+	Function *f = GcObject::allocFunction();
+	f->arity    = 1;
+	f->name     = name;
+	f->mode     = (PUBLIC << 4) | METHOD;
+	f->code     = Bytecode::create_setter(slot);
+	return f;
 }
 
 Value next_function_arity(const Value *args) {

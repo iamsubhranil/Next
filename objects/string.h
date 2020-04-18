@@ -34,6 +34,8 @@ struct String {
 	static String *   append(const char *val1, size_t size1, const char *val2,
 	                         size_t size2);
 	static String *   append(const char *val1, const char *val2);
+	static String *   append(const char *val1, const String *val2);
+	static String *   append(const String *val1, const char *val2);
 	static String *   append(const String *val1, const String *val2);
 	static int        hash_string(const char *val, size_t size);
 

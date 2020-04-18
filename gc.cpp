@@ -20,7 +20,7 @@ using namespace std;
 #endif
 
 size_t    GcObject::totalAllocated  = 0;
-GcObject  GcObject::DefaultGcObject = {GcObject::OBJ_NONE, nullptr, nullptr};
+GcObject  GcObject::DefaultGcObject = {nullptr, nullptr, GcObject::OBJ_NONE};
 GcObject *GcObject::last            = &DefaultGcObject;
 GcObject *GcObject::root            = &DefaultGcObject;
 

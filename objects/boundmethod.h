@@ -1,10 +1,12 @@
 #pragma once
+#include "../gc.h"
 
 struct Function;
 struct Class;
 struct Object;
 
 struct BoundMethod {
+	GcObject  ob;
 	Function *func;
 	union {
 		Class * cls;

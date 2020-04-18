@@ -16,13 +16,13 @@ struct Value;
 #include "objecttype.h"
 
 struct GcObject {
+	GcObject *   next;
+	const Class *klass;
 	enum GcObjectType {
 		OBJ_NONE,
 #define OBJTYPE(n, r) OBJ_##n,
 #include "objecttype.h"
 	} objType;
-	GcObject *   next;
-	const Class *klass;
 
 	// basic type check
 #define OBJTYPE(n, r) \

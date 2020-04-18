@@ -106,7 +106,7 @@ OPCODE1(load_object_slot, 1, int)
 OPCODE1(store_object_slot, 0, int)
 // Pop the object from TOS and push
 // the required field
-OPCODE1(load_field, 0, Value)
+OPCODE1(load_field, 0, int) // <symbol>
 // incr/decr_field always expects the object
 // on TOS, which certainly is not the
 // case for postfix operations, where,
@@ -115,10 +115,10 @@ OPCODE1(load_field, 0, Value)
 // Hence this special opcode is introduced
 // which will load the specified field,
 // but also push the object back to the TOS
-OPCODE1(load_field_pushback, 1, Value)
+OPCODE1(load_field_pushback, 1, int) // <symbol>
 // Pop the object from TOS and assign
 // the value at present TOS to the field
-OPCODE1(store_field, -1, Value)
+OPCODE1(store_field, -1, int) // <symbol>
 
 OPCODE2(call_method, 0, int, int) // <symbol> <args>
 // Optimized 'call' for intraclass

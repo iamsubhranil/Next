@@ -22,7 +22,7 @@ struct Bytecode {
 	Opcode *bytecodes;
 	size_t  size;
 	size_t  capacity;
-	int     slots;
+	int     stackSize;
 
 #define OPCODE0(x, y)              \
 	int x() {                      \
@@ -94,7 +94,11 @@ struct Bytecode {
 	void load_slot_n(int n);
 	void load_slot_n(int pos, int n);
 
-	static void init() {}
-	void        mark() {}
-	void        release() {}
+	static void      init();
+	static Bytecode *create();
+	static Bytecode *create_getter(int slot);
+	static Bytecode *create_setter(int slot);
+
+	void mark() {}
+	void release();
 };

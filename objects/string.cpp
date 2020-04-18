@@ -233,6 +233,14 @@ String *String::append(const char *val1, const char *val2) {
 	return append(val1, strlen(val1), val2, strlen(val2));
 }
 
+String *String::append(const char *val1, const String *val2) {
+	return append(val1, strlen(val1), val2->str, val2->size);
+}
+
+String *String::append(const String *val1, const char *val2) {
+	return append(val1->str, val1->size, val2, strlen(val2));
+}
+
 String *String::append(const String *s1, const String *s2) {
 	return append(s1->str, s1->size, s2->str, s2->size);
 }

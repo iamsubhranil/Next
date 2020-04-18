@@ -1,5 +1,6 @@
 #include "bytecode.h"
 #include "array.h"
+#include "class.h"
 
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
@@ -51,4 +52,33 @@ void Bytecode::load_slot_n(int pos, int n) {
 	} else {
 		load_slot(pos, n);
 	}
+}
+
+void Bytecode::init() {
+	Class *BytecodeClass = GcObject::BytecodeClass;
+
+	BytecodeClass->init("bytecode", Class::ClassType::BUILTIN);
+}
+
+Bytecode *Bytecode::create() {
+	Bytecode *code  = GcObject::allocBytecode();
+	code->bytecodes = (Opcode *)GcObject::malloc(1);
+	code->size      = 0;
+	code->capacity  = 1;
+	code->stackSize = 0;
+	return code;
+}
+
+Bytecode *Bytecode::create_getter(int slot) {
+	Bytecode *code = Bytecode::create();
+	code->load_object_slot(slot);
+	code->ret();
+	return code;
+}
+
+Bytecode *Bytecode::create_setter(int slot) {
+	Bytecode *code = Bytecode::create();
+	code->store_object_slot(slot);
+	code->ret();
+	return code;
 }

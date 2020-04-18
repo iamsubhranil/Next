@@ -3,18 +3,15 @@
 #include "function.h"
 #include "symtab.h"
 
+void Class::init(String *s, ClassType typ) {
+	name      = s;
+	type      = typ;
+	functions = Array::create(1);
+	numSlots  = 0;
+}
+
 void Class::init(const char *n, ClassType typ) {
-	name         = String::from(n);
-	klassType    = typ;
-	function_map = ValueMap::create();
-	functions    = Array::create(1);
-	// we only need to initialize other
-	// members if the class is not a builtin
-	// class
-	if(typ == NORMAL) {
-		members  = ValueMap::create();
-		numSlots = 0;
-	}
+	init(String::from(n), typ);
 }
 
 void Class::add_fn(const char *str, Function *f) {
@@ -22,8 +19,7 @@ void Class::add_fn(const char *str, Function *f) {
 }
 
 void Class::add_fn(String *s, Function *f) {
-	function_map[0][Value(s)] = Value(f);
-	int idx                   = SymbolTable2::insert(s);
+	int idx = SymbolTable2::insert(s);
 	if(functions->capacity <= idx) {
 		functions->resize(idx + 1);
 	}
@@ -37,23 +33,42 @@ void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
 
 void Class::mark() {
 	GcObject::mark((GcObject *)name);
-	GcObject::mark((GcObject *)function_map);
 	GcObject::mark((GcObject *)functions);
-	if(klassType == NORMAL)
-		GcObject::mark((GcObject *)members);
 }
 
-bool Class::has_public_fn(const char *sig) {
-	return function_map->vv.find(String::from(sig)) != function_map->vv.end();
+bool Class::has_fn(int sym) {
+	return functions->size > sym && functions->values[sym] != ValueNil;
 }
 
-bool Class::has_public_fn(String *sig) {
-	return function_map->vv.find(sig) != function_map->vv.end();
+bool Class::has_fn(const char *sig) {
+	return has_fn(SymbolTable2::insert(sig));
+}
+
+bool Class::has_fn(String *sig) {
+	return has_fn(SymbolTable2::insert(sig));
+}
+
+Value Class::get_fn(int sym) {
+	return functions->values[sym];
+}
+
+Value Class::get_fn(const char *sig) {
+	return get_fn(SymbolTable2::insert(sig));
+}
+
+Value Class::get_fn(String *s) {
+	return get_fn(SymbolTable2::insert(s));
 }
 
 Value next_class_has_fn(const Value *args) {
 	EXPECT(has_fn, 1, String);
-	return Value(args[0].toClass()->has_public_fn(args[1].toString()));
+	Class * c = args[0].toClass();
+	String *s = args[1].toString();
+	// do not allow access to getters and
+	// setters for runtime objects
+	if(c->has_fn(s) && c->get_fn(s).isFunction())
+		return ValueTrue;
+	return ValueFalse;
 }
 
 Value next_class_get_class(const Value *args) {
@@ -64,8 +79,8 @@ Value next_class_get_fn(const Value *args) {
 	EXPECT(get_fn, 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
-	if(c->has_public_fn(s)) {
-		Function *   f = c->function_map->vv[s].toFunction();
+	if(next_class_has_fn(args).toBoolean()) {
+		Function *   f = c->get_fn(s).toFunction();
 		BoundMethod *b = BoundMethod::from(f, c);
 		return Value(b);
 	}
