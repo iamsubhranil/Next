@@ -254,10 +254,11 @@ void GcObject::init() {
 void GcObject::print_stat() {
 	cout << "[GC] Object allocation counters\n";
 	size_t i = 0;
-#define OBJTYPE(n, r)                                                   \
-	cout << setw(11) << #n << setw(0) << "\t" << GcCounters[i] << "\t"  \
-	     << setw(5) << sizeof(r) * GcCounters[i] << setw(0) << " bytes" \
-	     << endl;                                                       \
+#define OBJTYPE(n, r)                                                  \
+	cout << setw(11) << #n << setw(0) << "\t" << setw(3) << sizeof(r)  \
+	     << setw(0) << "  *  " << setw(3) << GcCounters[i] << setw(0)  \
+	     << "  =  " << setw(5) << sizeof(r) * GcCounters[i] << setw(0) \
+	     << " bytes" << endl;                                          \
 	i++;
 #include "objecttype.h"
 	cout << "[GC] Total memory allocated : " << totalAllocated << " bytes"
