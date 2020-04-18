@@ -53,14 +53,14 @@ void ValueMap::init() {
 
 	// Initialize map class
 	ValueMapClass->init("map", Class::BUILTIN);
-	ValueMapClass->add_builtin_fn("clear()", next_map_clear, PUBLIC);
-	ValueMapClass->add_builtin_fn("has(_)", next_map_has, PUBLIC);
-	ValueMapClass->add_builtin_fn("keys()", next_map_keys, PUBLIC);
-	ValueMapClass->add_builtin_fn("size()", next_map_size, PUBLIC);
-	ValueMapClass->add_builtin_fn("remove(_)", next_map_remove, PUBLIC);
-	ValueMapClass->add_builtin_fn("values()", next_map_values, PUBLIC);
-	ValueMapClass->add_builtin_fn("[](_)", next_map_get, PUBLIC);
-	ValueMapClass->add_builtin_fn("[](_,_)", next_map_set, PUBLIC);
+	ValueMapClass->add_builtin_fn("clear()", 0, next_map_clear, PUBLIC);
+	ValueMapClass->add_builtin_fn("has(_)", 1, next_map_has, PUBLIC);
+	ValueMapClass->add_builtin_fn("keys()", 0, next_map_keys, PUBLIC);
+	ValueMapClass->add_builtin_fn("size()", 0, next_map_size, PUBLIC);
+	ValueMapClass->add_builtin_fn("remove(_)", 1, next_map_remove, PUBLIC);
+	ValueMapClass->add_builtin_fn("values()", 0, next_map_values, PUBLIC);
+	ValueMapClass->add_builtin_fn("[](_)", 1, next_map_get, PUBLIC);
+	ValueMapClass->add_builtin_fn("[](_,_)", 2, next_map_set, PUBLIC);
 }
 
 ValueMap *ValueMap::create() {

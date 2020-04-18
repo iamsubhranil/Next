@@ -102,8 +102,8 @@ void Array::init() {
 	// Initialize array class
 	ArrayClass->init("array", Class::BUILTIN);
 	// insert, get, set, size
-	ArrayClass->add_builtin_fn("insert(_)", &next_array_insert, PUBLIC);
-	ArrayClass->add_builtin_fn("[](_)", &next_array_get, PUBLIC);
-	ArrayClass->add_builtin_fn("[](_,_)", &next_array_set, PUBLIC);
-	ArrayClass->add_builtin_fn("size()", &next_array_size, PUBLIC);
+	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert, PUBLIC);
+	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get, PUBLIC);
+	ArrayClass->add_builtin_fn("[](_,_)", 2, &next_array_set, PUBLIC);
+	ArrayClass->add_builtin_fn("size()", 0, &next_array_size, PUBLIC);
 }

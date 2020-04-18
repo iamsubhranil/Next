@@ -27,11 +27,11 @@ void ValueSet::init() {
 
 	// Initialize set class
 	ValueSetClass->init("set", Class::BUILTIN);
-	ValueSetClass->add_builtin_fn("clear()", next_set_clear, PUBLIC);
-	ValueSetClass->add_builtin_fn("insert(_)", next_set_insert, PUBLIC);
-	ValueSetClass->add_builtin_fn("has(_)", next_set_has, PUBLIC);
-	ValueSetClass->add_builtin_fn("size()", next_set_size, PUBLIC);
-	ValueSetClass->add_builtin_fn("remove(_)", next_set_remove, PUBLIC);
+	ValueSetClass->add_builtin_fn("clear()", 0, next_set_clear, PUBLIC);
+	ValueSetClass->add_builtin_fn("insert(_)", 1, next_set_insert, PUBLIC);
+	ValueSetClass->add_builtin_fn("has(_)", 1, next_set_has, PUBLIC);
+	ValueSetClass->add_builtin_fn("size()", 0, next_set_size, PUBLIC);
+	ValueSetClass->add_builtin_fn("remove(_)", 1, next_set_remove, PUBLIC);
 }
 
 void ValueSet::mark() {

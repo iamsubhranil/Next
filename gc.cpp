@@ -236,26 +236,20 @@ void GcObject::sweep() {
 }
 
 void GcObject::init() {
-	// AllocatedPointerSet = new std::unordered_set<void *>();
 	// allocate the core classes
 	ClassClass    = GcObject::allocClass();
 	ArrayClass    = GcObject::allocClass();
 	StringClass   = GcObject::allocClass();
 	ValueMapClass = GcObject::allocClass();
 	ValueSetClass = GcObject::allocClass();
-	// StringSetClass = GcObject::allocClass();
 	FunctionClass = GcObject::allocClass();
-	// Module2Class   = GcObject::allocClass();
 
 	// initialize the string set and symbol table
 	String::init0();
 	SymbolTable2::init();
 
-	// Initialize root class
-	ClassClass->obj.klass = ClassClass;
-	ClassClass->init("class", Class::BUILTIN);
-
-	// initialize other core classes
+	// initialize the core classes
+	Class::init();
 	Array::init();
 	String::init();
 	ValueMap::init();

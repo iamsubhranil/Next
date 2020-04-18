@@ -12,8 +12,8 @@ struct BoundMethod {
 	};
 	enum Type { MODULE_BOUND, CLASS_BOUND, OBJECT_BOUND } type;
 
-	static BoundMethod *create(Function *f, Class *cls);
-	static BoundMethod *create(Function *f, Object *obj, Type t);
+	static BoundMethod *from(Function *f, Class *cls);
+	static BoundMethod *from(Function *f, Object *obj, Type t);
 
 	// class loader
 	static void init();

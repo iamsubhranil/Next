@@ -20,8 +20,10 @@ struct Class {
 	void        init(const char *name, ClassType typ);
 	void        add_fn(const char *str, Function *fn);
 	void        add_fn(String *s, Function *fn);
-	void add_builtin_fn(const char *str, next_builtin_fn fn, Visibility v);
-
+	void        add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
+	                           Visibility v);
+	bool        has_public_fn(const char *sig);
+	bool        has_public_fn(String *sig);
 	// gc functions
 	void release() {}
 	void mark();
