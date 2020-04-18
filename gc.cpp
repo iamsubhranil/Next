@@ -4,7 +4,9 @@
 #include "objects/boundmethod.h"
 #include "objects/bytecode.h"
 #include "objects/class.h"
+#include "objects/classcompilationctx.h"
 #include "objects/function.h"
+#include "objects/functioncompilationctx.h"
 #include "objects/map.h"
 #include "objects/module.h"
 #include "objects/object.h"
@@ -251,11 +253,12 @@ void GcObject::init() {
 }
 
 #ifdef DEBUG_GC
+
 void GcObject::print_stat() {
 	cout << "[GC] Object allocation counters\n";
 	size_t i = 0;
 #define OBJTYPE(n, r)                                                  \
-	cout << setw(11) << #n << setw(0) << "\t" << setw(3) << sizeof(r)  \
+	cout << setw(26) << #n << setw(0) << "\t" << setw(3) << sizeof(r)  \
 	     << setw(0) << "  *  " << setw(3) << GcCounters[i] << setw(0)  \
 	     << "  =  " << setw(5) << sizeof(r) * GcCounters[i] << setw(0) \
 	     << " bytes" << endl;                                          \

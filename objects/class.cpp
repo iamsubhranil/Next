@@ -14,16 +14,19 @@ void Class::init(const char *n, ClassType typ) {
 	init(String::from(n), typ);
 }
 
-void Class::add_fn(const char *str, Function *f) {
-	add_fn(String::from(str), f);
+void Class::add_sym(int sym, Value v) {
+	if(functions->capacity <= sym) {
+		functions->resize(sym + 1);
+	}
+	functions->values[sym] = v;
 }
 
 void Class::add_fn(String *s, Function *f) {
-	int idx = SymbolTable2::insert(s);
-	if(functions->capacity <= idx) {
-		functions->resize(idx + 1);
-	}
-	functions->values[idx] = f;
+	add_sym(SymbolTable2::insert(s), Value(f));
+}
+
+void Class::add_fn(const char *str, Function *f) {
+	add_fn(String::from(str), f);
 }
 
 void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,

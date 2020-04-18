@@ -20,13 +20,12 @@ bool ClassCompilationContext::add_public_mem(String *name) {
 		return false;
 	members->vv[Value(name)] = Value((double)slotCount++);
 	klass->numSlots++;
-	// add implicit getters and setters
-	// getter: g var()
-	// setter: s var(_)
-	String *gname = String::append(String::append("g ", name), "()");
-	String *sname = String::append(String::append("s ", name), "(_)");
-	add_public_fn(gname, Function::create_getter(gname, slotCount - 1));
-	add_public_fn(sname, Function::create_setter(sname, slotCount - 1));
+	// add the slot to the method buffer which will
+	// be directly accessed by load_field and store_field.
+	// adding directly the name of the variable as a method
+	// should not cause any problems, as all user defined
+	// methods have signatures with at least one '()'.
+	klass->add_sym(SymbolTable2::insert(name), Value((double)slotCount - 1));
 	return true;
 }
 

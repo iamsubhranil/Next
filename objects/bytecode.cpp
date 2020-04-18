@@ -20,6 +20,10 @@ void Bytecode::finalize() {
 	}
 }
 
+void Bytecode::release() {
+	GcObject::free(bytecodes, sizeof(Opcode) * capacity);
+}
+
 void Bytecode::load_slot_n(int n) {
 	if(n < 8) {
 		switch(n) {
@@ -66,19 +70,5 @@ Bytecode *Bytecode::create() {
 	code->size      = 0;
 	code->capacity  = 1;
 	code->stackSize = 0;
-	return code;
-}
-
-Bytecode *Bytecode::create_getter(int slot) {
-	Bytecode *code = Bytecode::create();
-	code->load_object_slot(slot);
-	code->ret();
-	return code;
-}
-
-Bytecode *Bytecode::create_setter(int slot) {
-	Bytecode *code = Bytecode::create();
-	code->store_object_slot(slot);
-	code->ret();
 	return code;
 }

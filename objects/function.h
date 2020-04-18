@@ -38,8 +38,6 @@ struct Function {
 	static Function *from(String *str, int arity, next_builtin_fn fn,
 	                      Visibility v);
 
-	static Function *create_getter(String *name, int slot);
-	static Function *create_setter(String *name, int slot);
 	// gc functions
 	void release() {}
 	void mark();

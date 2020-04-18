@@ -17,7 +17,11 @@ struct Class {
 	static void init();
 	void        init(const char *name, ClassType typ);
 	void        init(String *s, ClassType typ);
-	// get_fns are unchecked. must call has_fn eariler
+	// add_sym adds a symbol to the method buffer
+	// which holds a particular value, typically,
+	// the slot number.
+	// also, get_fns are unchecked. must call has_fn eariler
+	void  add_sym(int sym, Value v);
 	void  add_fn(const char *str, Function *fn);
 	void  add_fn(String *s, Function *fn);
 	void  add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
