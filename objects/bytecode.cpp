@@ -58,6 +58,10 @@ void Bytecode::load_slot_n(int pos, int n) {
 	}
 }
 
+size_t Bytecode::getip() {
+	return size;
+}
+
 void Bytecode::init() {
 	Class *BytecodeClass = GcObject::BytecodeClass;
 
@@ -70,5 +74,6 @@ Bytecode *Bytecode::create() {
 	code->size      = 0;
 	code->capacity  = 1;
 	code->stackSize = 0;
+	code->ctx       = NULL;
 	return code;
 }

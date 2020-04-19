@@ -19,32 +19,33 @@ struct Bytecode {
 #define OPCODE2(w, x, y, z) CODE_##w,
 #include "../opcodes.h"
 	};
-	Opcode *bytecodes;
-	size_t  size;
-	size_t  capacity;
-	int     stackSize;
+	Opcode *                    bytecodes;
+	size_t                      size;
+	size_t                      capacity;
+	BytecodeCompilationContext *ctx; // debug info
+	int                         stackSize;
 
 #define OPCODE0(x, y)              \
-	int x() {                      \
+	size_t x() {                   \
 		/*stackEffect(y);*/        \
 		push_back(CODE_##x);       \
 		return size - 1;           \
 	};                             \
-	int x(int pos) {               \
+	size_t x(size_t pos) {         \
 		/*stackEffect(y);*/        \
 		bytecodes[pos] = CODE_##x; \
 		return pos;                \
 	};
 
 #define OPCODE1(x, y, z)           \
-	int x(z arg) {                 \
+	size_t x(z arg) {              \
 		/*stackEffect(y);*/        \
 		size_t bak = size;         \
 		push_back(CODE_##x);       \
 		insert_##z(arg);           \
 		return bak;                \
 	};                             \
-	int x(int pos, z arg) {        \
+	size_t x(size_t pos, z arg) {  \
 		/*stackEffect(y);*/        \
 		bytecodes[pos] = CODE_##x; \
 		insert_##z(pos + 1, arg);  \
@@ -52,7 +53,7 @@ struct Bytecode {
 	};
 
 #define OPCODE2(x, y, z, w)                    \
-	int x(z arg1, w arg2) {                    \
+	size_t x(z arg1, w arg2) {                 \
 		/*stackEffect(y); */                   \
 		size_t bak = size;                     \
 		push_back(CODE_##x);                   \
@@ -60,7 +61,7 @@ struct Bytecode {
 		insert_##w(arg2);                      \
 		return bak;                            \
 	};                                         \
-	int x(int pos, z arg1, w arg2) {           \
+	size_t x(size_t pos, z arg1, w arg2) {     \
 		/*stackEffect(y);*/                    \
 		bytecodes[pos] = CODE_##x;             \
 		insert_##z(pos + 1, arg1);             \
@@ -93,6 +94,8 @@ struct Bytecode {
 	// optimized opcode instructions
 	void load_slot_n(int n);
 	void load_slot_n(int pos, int n);
+
+	size_t getip();
 
 	static void      init();
 	static Bytecode *create();

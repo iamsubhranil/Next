@@ -3,6 +3,7 @@
 #include "objects/array.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecode.h"
+#include "objects/bytecodecompilationctx.h"
 #include "objects/class.h"
 #include "objects/classcompilationctx.h"
 #include "objects/function.h"

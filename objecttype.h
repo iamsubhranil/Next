@@ -9,10 +9,11 @@
 // first, followed by the rest of the
 // objects.
 OBJTYPE(Class, Class)
-OBJTYPE(ClassCompilationContext, ClassCompilationContext)
 OBJTYPE(Array, Array)
 OBJTYPE(BoundMethod, BoundMethod)
 OBJTYPE(Bytecode, Bytecode)
+OBJTYPE(BytecodeCompilationContext, BytecodeCompilationContext)
+OBJTYPE(ClassCompilationContext, ClassCompilationContext)
 OBJTYPE(Function, Function)
 OBJTYPE(FunctionCompilationContext, FunctionCompilationContext)
 OBJTYPE(Object, Object)
