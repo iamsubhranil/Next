@@ -49,8 +49,9 @@ struct BytecodeCompilationContext {
 	}
 #include "../opcodes.h"
 
-	void insert_token(Token t);
-	void finalize();
+	void  insert_token(Token t);
+	void  finalize();
+	Token get_token(size_t ip);
 
 	static BytecodeCompilationContext *create();
 	static void                        init();

@@ -37,6 +37,13 @@ void BytecodeCompilationContext::insert_token(Token t) {
 	ranges_[size++].range_ = code->getip();
 }
 
+Token BytecodeCompilationContext::get_token(size_t ip) {
+	size_t start = 0;
+	size_t i     = 0;
+	while(start += ranges_[i].range_ < ip) i++;
+	return ranges_[i].token;
+}
+
 void BytecodeCompilationContext::finalize() {
 	if(size != capacity) {
 		ranges_ = (TokenRange *)GcObject::realloc(
