@@ -1,6 +1,7 @@
 #include "array.h"
 #include "../value.h"
 #include "class.h"
+#include "errors.h"
 
 using namespace std;
 
@@ -9,11 +10,11 @@ Value next_array_insert(const Value *args) {
 }
 
 Value next_array_get(const Value *args) {
-	EXPECT(get, 1, Integer);
+	EXPECT(array, get, 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
 	if(-i > a->size || i >= a->size) {
-		RERR("Invalid array index!");
+		IDXERR("Invalid array index", -a->size, a->size - 1, i);
 	}
 	if(i < 0) {
 		i += a->size;
@@ -22,11 +23,11 @@ Value next_array_get(const Value *args) {
 }
 
 Value next_array_set(const Value *args) {
-	EXPECT(set, 1, Integer);
+	EXPECT(array, set, 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
 	if(-i > a->size || i > a->size) {
-		RERR("Invalid array index!");
+		IDXERR("Invalid array index", -a->size, a->size - 1, i);
 	}
 	if(i < 0) {
 		i += a->size;

@@ -20,4 +20,9 @@ OBJTYPE(Object, Object)
 OBJTYPE(String, String)
 OBJTYPE(ValueMap, ValueMap)
 OBJTYPE(ValueSet, ValueSet)
+
+// Exceptions
+OBJTYPE(TypeError, TypeError)
+OBJTYPE(RuntimeError, RuntimeError)
+OBJTYPE(IndexError, IndexError)
 #undef OBJTYPE

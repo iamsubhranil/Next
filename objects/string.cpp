@@ -1,6 +1,7 @@
 #include "string.h"
 #include "../value.h"
 #include "class.h"
+#include "errors.h"
 #include "set.h"
 
 StringSet *String::string_set = nullptr;
@@ -10,16 +11,16 @@ void String::init0() {
 }
 
 Value next_string_append(const Value *args) {
-	EXPECT(append, 1, String);
+	EXPECT(string, append, 1, String);
 	return String::append(args[0].toString(), args[1].toString());
 }
 
 Value next_string_at(const Value *args) {
-	EXPECT(at, 1, Integer);
+	EXPECT(string, at, 1, Integer);
 	String *s = args[0].toString();
 	long    i = args[1].toInteger();
 	if(-i > s->size || i >= s->size) {
-		RERR("Invalid string index!");
+		IDXERR("Invalid string index", -s->size, s->size - 1, i);
 	}
 	if(i < 0) {
 		i += s->size;
@@ -28,7 +29,7 @@ Value next_string_at(const Value *args) {
 }
 
 Value next_string_contains(const Value *args) {
-	EXPECT(contains, 1, String);
+	EXPECT(string, contains, 1, String);
 	String *source = args[0].toString();
 	String *check  = args[1].toString();
 	// if the container string is a
@@ -80,21 +81,21 @@ Value next_string_lower(const Value *args) {
 }
 
 Value next_string_substr(const Value *args) {
-	EXPECT(substr, 1, Integer);
-	EXPECT(substr, 2, Integer);
+	EXPECT(string, substr, 1, Integer);
+	EXPECT(string, substr, 2, Integer);
 	// range can be [0, size - 1]
 	// arg2 must be greater than arg1
 	long    from = args[1].toInteger();
 	long    to   = args[2].toInteger();
 	String *s    = args[0].toString();
 	if(to >= s->size) {
-		RERR("'to' index is greater than the size of the string!");
+		IDXERR("Invalid 'to' index", 0, s->size - 1, to);
 	}
 	if(from < 0) {
-		RERR("'from' index is lesser than 0!");
+		IDXERR("Invalid 'from' index", 0, s->size - 1, from);
 	}
 	if(from > to) {
-		RERR("'from' index is greater than 'to' index!");
+		IDXERR("'from' index is greater than 'to' index", 0, to, from);
 	}
 
 	return String::from(&(s->str[from]), to - from + 1);

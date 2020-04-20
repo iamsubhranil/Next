@@ -6,6 +6,7 @@
 #include "objects/bytecodecompilationctx.h"
 #include "objects/class.h"
 #include "objects/classcompilationctx.h"
+#include "objects/errors.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
 #include "objects/map.h"

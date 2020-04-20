@@ -1,5 +1,6 @@
 #include "class.h"
 #include "boundmethod.h"
+#include "errors.h"
 #include "function.h"
 #include "symtab.h"
 
@@ -64,7 +65,7 @@ Value Class::get_fn(String *s) {
 }
 
 Value next_class_has_fn(const Value *args) {
-	EXPECT(has_fn, 1, String);
+	EXPECT(class, has_fn, 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
 	// do not allow access to getters and
@@ -79,7 +80,7 @@ Value next_class_get_class(const Value *args) {
 }
 
 Value next_class_get_fn(const Value *args) {
-	EXPECT(get_fn, 1, String);
+	EXPECT(class, get_fn, 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
 	if(next_class_has_fn(args).toBoolean()) {
