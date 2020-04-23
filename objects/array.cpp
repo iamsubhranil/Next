@@ -60,6 +60,7 @@ Array *Array::create(size_t size) {
 	arr->capacity = powerOf2Ceil(size);
 	arr->size     = 0;
 	arr->values   = (Value *)GcObject_malloc(sizeof(Value) * arr->capacity);
+	std::fill_n(arr->values, arr->capacity, ValueNil);
 	return arr;
 }
 

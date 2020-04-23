@@ -16,6 +16,7 @@ Fiber *Fiber::create() {
 	Fiber *f = GcObject::allocFiber();
 	f->stack_ =
 	    (Value *)GcObject::malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
+	std::fill_n(f->stack_, FIBER_DEFAULT_STACK_ALLOC, ValueNil);
 	f->stackTop     = f->stack_;
 	f->stackPointer = 0;
 	f->stackSize    = FIBER_DEFAULT_STACK_ALLOC;
