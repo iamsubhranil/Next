@@ -20,10 +20,11 @@ struct Bytecode {
 #include "../opcodes.h"
 	};
 	Opcode *                    bytecodes;
+	BytecodeCompilationContext *ctx; // debug info
 	size_t                      size;
 	size_t                      capacity;
-	BytecodeCompilationContext *ctx; // debug info
-	int                         stackSize;
+	size_t                      stackSize;
+	size_t                      numSlots;
 
 #define OPCODE0(x, y)              \
 	size_t x() {                   \

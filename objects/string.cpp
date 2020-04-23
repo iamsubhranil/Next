@@ -109,16 +109,15 @@ void String::init() {
 	Class *StringClass = GcObject::StringClass;
 
 	StringClass->init("string", Class::BUILTIN);
-	StringClass->add_builtin_fn("append(_)", 1, &next_string_append, PUBLIC);
-	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains,
-	                            PUBLIC);
-	StringClass->add_builtin_fn("hash()", 0, &next_string_hash, PUBLIC);
-	StringClass->add_builtin_fn("len()", 0, &next_string_len, PUBLIC);
-	StringClass->add_builtin_fn("lower()", 0, &next_string_lower, PUBLIC);
-	StringClass->add_builtin_fn("substr(_,_)", 2, &next_string_substr, PUBLIC);
-	StringClass->add_builtin_fn("upper()", 0, &next_string_upper, PUBLIC);
-	StringClass->add_builtin_fn("+(_)", 1, &next_string_append, PUBLIC);
-	StringClass->add_builtin_fn("[](_)", 1, &next_string_at, PUBLIC);
+	StringClass->add_builtin_fn("append(_)", 1, &next_string_append);
+	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
+	StringClass->add_builtin_fn("hash()", 0, &next_string_hash);
+	StringClass->add_builtin_fn("len()", 0, &next_string_len);
+	StringClass->add_builtin_fn("lower()", 0, &next_string_lower);
+	StringClass->add_builtin_fn("substr(_,_)", 2, &next_string_substr);
+	StringClass->add_builtin_fn("upper()", 0, &next_string_upper);
+	StringClass->add_builtin_fn("+(_)", 1, &next_string_append);
+	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
 }
 
 void String::transform_lower(char *dest, const char *source, size_t size) {

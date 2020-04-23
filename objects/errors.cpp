@@ -52,15 +52,15 @@ void TypeError::init() {
 	TypeErrorClass->init("type_error", Class::ClassType::BUILTIN);
 
 	TypeErrorClass->add_builtin_fn("object_type()", 0,
-	                               next_typeerror_object_type, PUBLIC);
+	                               next_typeerror_object_type);
 	TypeErrorClass->add_builtin_fn("method_name()", 0,
-	                               next_typeerror_method_name, PUBLIC);
+	                               next_typeerror_method_name);
 	TypeErrorClass->add_builtin_fn("expected_type()", 0,
-	                               next_typeerror_expected_type, PUBLIC);
+	                               next_typeerror_expected_type);
 	TypeErrorClass->add_builtin_fn("received_value()", 0,
-	                               next_typeerror_received_value, PUBLIC);
+	                               next_typeerror_received_value);
 	TypeErrorClass->add_builtin_fn("argument_number()", 0,
-	                               next_typeerror_argument_number, PUBLIC);
+	                               next_typeerror_argument_number);
 }
 
 void TypeError::mark() {
@@ -94,7 +94,7 @@ void RuntimeError::init() {
 
 	RuntimeErrorClass->init("runtime_error", Class::ClassType::BUILTIN);
 
-	RuntimeErrorClass->add_builtin_fn("str()", 0, next_runtimerror_str, PUBLIC);
+	RuntimeErrorClass->add_builtin_fn("str()", 0, next_runtimerror_str);
 }
 
 void RuntimeError::mark() {
@@ -136,10 +136,9 @@ void IndexError::init() {
 
 	IndexErrorClass->init("index_error", Class::ClassType::BUILTIN);
 
-	IndexErrorClass->add_builtin_fn("from()", 0, next_indexerror_from, PUBLIC);
-	IndexErrorClass->add_builtin_fn("to()", 0, next_indexerror_to, PUBLIC);
-	IndexErrorClass->add_builtin_fn("received()", 0, next_indexerror_received,
-	                                PUBLIC);
+	IndexErrorClass->add_builtin_fn("from()", 0, next_indexerror_from);
+	IndexErrorClass->add_builtin_fn("to()", 0, next_indexerror_to);
+	IndexErrorClass->add_builtin_fn("received()", 0, next_indexerror_received);
 }
 
 void IndexError::mark() {

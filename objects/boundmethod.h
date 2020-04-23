@@ -14,6 +14,10 @@ struct BoundMethod {
 	};
 	enum Type { MODULE_BOUND, CLASS_BOUND, OBJECT_BOUND } type;
 
+	enum Status { OK, MISMATCHED_ARITY, INVALID_CLASS_INSTANCE };
+	// verifies the given arguments for this bound method
+	Status verify(const Value *args, int arity);
+
 	static BoundMethod *from(Function *f, Class *cls);
 	static BoundMethod *from(Function *f, Object *obj, Type t);
 

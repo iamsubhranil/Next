@@ -86,6 +86,7 @@ struct GcObject {
 	static void mark();
 	static void mark(Value v);
 	static void mark(GcObject *p);
+	static void mark(Value *v, size_t num);
 	static bool isMarked(GcObject *p);
 	static void unmark(Value v);
 	static void unmark(GcObject *p);

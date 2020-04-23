@@ -11,7 +11,6 @@ struct Class {
 	String * name;
 	Module2 *module;
 	int      numSlots;
-	// Token    token;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 
 	static void init();
@@ -24,8 +23,7 @@ struct Class {
 	void  add_sym(int sym, Value v);
 	void  add_fn(const char *str, Function *fn);
 	void  add_fn(String *s, Function *fn);
-	void  add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
-	                     Visibility v);
+	void  add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
 	bool  has_fn(int sym);
 	bool  has_fn(const char *sig);
 	bool  has_fn(String *sig);

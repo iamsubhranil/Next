@@ -3,26 +3,35 @@
 #include "class.h"
 
 Function *Function::from(String *str, int arity, next_builtin_fn fn,
-                         Visibility v) {
+                         bool isStatic) {
 	Function *f = GcObject::allocFunction();
 	f->name     = str;
 	f->func     = fn;
-	f->mode     = (v << 4) | BUILTIN;
+	f->mode     = ((int)isStatic << 4) | BUILTIN;
 	f->arity    = arity;
 	return f;
 }
 
 Function *Function::from(const char *str, int arity, next_builtin_fn fn,
-                         Visibility v) {
-	return from(String::from(str), arity, fn, v);
+                         bool isStatic) {
+	return from(String::from(str), arity, fn, isStatic);
+}
+
+Function *Function::create(String *str, int arity, bool isStatic) {
+	Function *f = GcObject::allocFunction();
+	f->name     = str;
+	f->code     = NULL;
+	f->mode     = ((int)isStatic << 4) | BUILTIN;
+	f->arity    = arity;
+	return f;
 }
 
 Function::Type Function::getType() {
 	return (Type)(mode & 0x0f);
 }
 
-Visibility Function::getVisibility() {
-	return (Visibility)(mode >> 4);
+bool Function::isStatic() {
+	return (bool)(mode & 0xf0);
 }
 
 void Function::mark() {
@@ -46,7 +55,7 @@ void Function::init() {
 
 	FunctionClass->init("function", Class::BUILTIN);
 
-	FunctionClass->add_builtin_fn("arity()", 0, next_function_arity, PUBLIC);
-	FunctionClass->add_builtin_fn("name()", 0, next_function_name, PUBLIC);
-	FunctionClass->add_builtin_fn("type()", 0, next_function_type, PUBLIC);
+	FunctionClass->add_builtin_fn("arity()", 0, next_function_arity);
+	FunctionClass->add_builtin_fn("name()", 0, next_function_name);
+	FunctionClass->add_builtin_fn("type()", 0, next_function_type);
 }

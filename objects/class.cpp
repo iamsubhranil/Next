@@ -30,9 +30,8 @@ void Class::add_fn(const char *str, Function *f) {
 	add_fn(String::from(str), f);
 }
 
-void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
-                           Visibility v) {
-	add_fn(str, Function::from(str, arity, fn, v));
+void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn) {
+	add_fn(str, Function::from(str, arity, fn));
 }
 
 void Class::mark() {
@@ -104,10 +103,10 @@ void Class::init() {
 	ClassClass->init("class", BUILTIN);
 
 	// only returns true if sig is available and public
-	ClassClass->add_builtin_fn("has_fn(_)", 1, next_class_has_fn, PUBLIC);
-	ClassClass->add_builtin_fn("get_class()", 0, next_class_get_class, PUBLIC);
+	ClassClass->add_builtin_fn("has_fn(_)", 1, next_class_has_fn);
+	ClassClass->add_builtin_fn("get_class()", 0, next_class_get_class);
 	// returns a class bound function if sig is available and public.
 	// returns nil otherwise.
-	ClassClass->add_builtin_fn("get_fn(_)", 1, next_class_get_fn, PUBLIC);
-	ClassClass->add_builtin_fn("name()", 0, next_class_name, PUBLIC);
+	ClassClass->add_builtin_fn("get_fn(_)", 1, next_class_get_fn);
+	ClassClass->add_builtin_fn("name()", 0, next_class_name);
 }

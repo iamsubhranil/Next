@@ -11,9 +11,6 @@ struct Function {
 		Bytecode *      code;
 		next_builtin_fn func;
 	};
-	// the debug information related
-	// to the function
-	void *dbg;
 	// even though the function contains
 	// the signature, we might have to
 	// check arity at runtime due to
@@ -22,21 +19,21 @@ struct Function {
 	// takes 48 bytes, so it doesn't add
 	// any extra overhead to the size anyway.
 	int     arity;
-	uint8_t mode; // first 4 bits store visibility
-	              // next 4 bits store type
+	uint8_t mode; // if the method is static, then the first nibble is set to 1
+	              // next nibble stores type :
 	              // METHOD -> 0
-	              // STATIC -> 1
-	              // BUILTIN -> 2
+	              // BUILTIN -> 1
 
-	enum Type : uint8_t { METHOD = 0, STATIC = 1, BUILTIN = 2 };
-	Type       getType();
-	Visibility getVisibility();
+	enum Type : uint8_t { METHOD = 0, BUILTIN = 1 };
+	Type getType();
+	bool isStatic();
 
 	static void      init();
+	static Function *create(String *name, int arity, bool isStatic = false);
 	static Function *from(const char *str, int arity, next_builtin_fn fn,
-	                      Visibility v);
+	                      bool isStatic = false);
 	static Function *from(String *str, int arity, next_builtin_fn fn,
-	                      Visibility v);
+	                      bool isStatic = false);
 
 	// gc functions
 	void release() {}

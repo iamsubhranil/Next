@@ -7,6 +7,7 @@
 #include "objects/class.h"
 #include "objects/classcompilationctx.h"
 #include "objects/errors.h"
+#include "objects/fiber.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
 #include "objects/map.h"
@@ -178,6 +179,13 @@ void GcObject::release(Value v) {
 void GcObject::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
+}
+
+void GcObject::mark(Value *v, size_t num) {
+	for(size_t i = 0; i < num; i++) {
+		if(v[i].isGcObject())
+			mark(v[i].toGcObject());
+	}
 }
 
 constexpr uintptr_t marker = ((uintptr_t)1) << ((sizeof(void *) * 8) - 1);
