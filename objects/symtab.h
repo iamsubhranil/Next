@@ -13,4 +13,7 @@ struct SymbolTable2 {
 
 	static const char *get(int id);
 	static String *    getString(int id);
+
+#define SYMCONSTANT(n) static int const_##n;
+#include "../stringvalues.h"
 };

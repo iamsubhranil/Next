@@ -21,7 +21,7 @@ struct String {
 
 	// gc functions
 	void release();
-	void mark();
+	void mark() {}
 
 	static StringSet *string_set;
 	static void       init0();
@@ -45,6 +45,9 @@ struct String {
 
 	// release all
 	static void release_all();
+
+#define SCONSTANT(n, s) static String *const_##n;
+#include "../stringvalues.h"
 
   private:
 	static String *insert(char *val, size_t size, int hash_);

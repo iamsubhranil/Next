@@ -5,9 +5,13 @@
 #include "set.h"
 
 StringSet *String::string_set = nullptr;
+#define SCONSTANT(n, s) String *String::const_##n = nullptr;
+#include "../stringvalues.h"
 
 void String::init0() {
 	string_set = StringSet::create();
+#define SCONSTANT(n, s) String::const_##n = String::from(s);
+#include "../stringvalues.h"
 }
 
 Value next_string_append(const Value *args) {
@@ -244,8 +248,6 @@ String *String::append(const String *val1, const char *val2) {
 String *String::append(const String *s1, const String *s2) {
 	return append(s1->str, s1->size, s2->str, s2->size);
 }
-
-void String::mark() {}
 
 void String::release() {
 	string_set->hset.erase(this);

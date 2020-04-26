@@ -3,9 +3,13 @@
 
 int    SymbolTable2::counter = 0;
 Array *SymbolTable2::symbols = nullptr;
+#define SYMCONSTANT(n) int SymbolTable2::const_##n = 0;
+#include "../stringvalues.h"
 
 void SymbolTable2::init() {
 	symbols = Array::create(10);
+#define SYMCONSTANT(n) SymbolTable2::const_##n = insert(String::const_##n);
+#include "../stringvalues.h"
 }
 
 int SymbolTable2::insert(const char *str) {
