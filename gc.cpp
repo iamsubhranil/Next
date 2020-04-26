@@ -1,6 +1,7 @@
 #include "gc.h"
 #include "display.h"
 #include "objects/array.h"
+#include "objects/boolean.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecode.h"
 #include "objects/bytecodecompilationctx.h"
@@ -12,6 +13,7 @@
 #include "objects/functioncompilationctx.h"
 #include "objects/map.h"
 #include "objects/module.h"
+#include "objects/number.h"
 #include "objects/object.h"
 #include "objects/set.h"
 #include "objects/string.h"
@@ -40,7 +42,8 @@ static size_t counterCounter = 0;
 #endif
 #define OBJTYPE(n, r) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
-
+Class *GcObject::NumberClass  = nullptr;
+Class *GcObject::BooleanClass = nullptr;
 // when enabled, the garbage collector allocates
 // extra memory to store a size_t before each
 // pointer, so that the size can be verified
@@ -252,10 +255,16 @@ void GcObject::init() {
 	// allocate the core classes
 #define OBJTYPE(n, r) n##Class = GcObject::allocClass();
 #include "objecttype.h"
+	NumberClass  = GcObject::allocClass();
+	BooleanClass = GcObject::allocClass();
 
 	// initialize the string set and symbol table
 	String::init0();
 	SymbolTable2::init();
+
+	// initialize the primitive classes
+	Number::init();
+	Boolean::init();
 
 	// initialize the core classes
 #define OBJTYPE(n, r) n::init();

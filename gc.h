@@ -105,6 +105,10 @@ struct GcObject {
 	static Class *n##Class; \
 	static r *    alloc##n();
 #include "objecttype.h"
+	// primitive classes
+	static Class *NumberClass;
+	static Class *BooleanClass;
+	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
 
 	// returns a place holder gcobject

@@ -15,6 +15,8 @@ SCONSTANT(hashmap, "hashmap")
 SCONSTANT(range, "range")
 SCONSTANT(Nil, "Nil")
 SCONSTANT(repl, "repl")
+SCONSTANT(true_, "true")
+SCONSTANT(false_, "false")
 
 #define TYPE(r, n) SCONSTANT(type_##n, #n)
 #include "valuetypes.h"
