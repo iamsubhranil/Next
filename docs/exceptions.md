@@ -24,7 +24,7 @@ typedef struct ExceptionHandler {
 Each catch block should begin with a `store_slot`, which will assign the thrown 
 object to the caught slot.
 
-If a function wants to catch any exception that is thrown, it should emit the 
+If a function wants to catch any exception that is thrown, it should omit the 
 type in catch block, i.e. 
 ```
 ...

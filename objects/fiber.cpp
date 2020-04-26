@@ -160,20 +160,18 @@ void Fiber::init() {
 
 	/*
 	 *  So the fiber api should look like the following
-	 *  f = fiber()
-	 *
-	 *  f.run(someMethod@2, [1, 2])
+	 *  f = fiber(someMethod@2, [1, 2])
+	 *  or
+	 *  f = fiber(someMethod@0)
 	 *
 	 *  the fiber will know the arity of the method is 2.
 	 *  to pass arguments to the method, pack them in an array, and pass
-	 *  array to run(x, y). run will unpack the arguments, and pass
+	 *  array to fiber(x, y). the fiber will unpack the arguments, and pass
 	 *  them as arguments to someMethod. if the counts do not
 	 *  match, it will be reported as an error.
 	 *
-	 *  fiber also provides a no argument run(x) method to run
+	 *  fiber also provides a no argument fiber(x) constructor to run
 	 *  methods with zero arguments.
-	 *
-	 *  f.run(anotherMethod@0)
 	 *
 	 *  the fiber provides methods to check whether the fiber is
 	 *  started, is on yield, is finished.
@@ -182,7 +180,8 @@ void Fiber::init() {
 	 *  f.is_yielded()
 	 *  f.is_finished()
 	 *
-	 *  the fiber can be resumed after an yield, of course.
+	 *  the fiber can be started, and resumed after an yield,
+	 *  using fiber.resume()
 	 *
 	 *  f.resume()
 	 *
@@ -207,8 +206,8 @@ void Fiber::init() {
 	FiberClass->add_builtin_fn("is_yielded()", 0, next_fiber_is_yielded);
 	FiberClass->add_builtin_fn("is_finished()", 0, next_fiber_is_finished);
 	FiberClass->add_builtin_fn("resume()", 1, next_fiber_resume);
-	FiberClass->add_builtin_fn("run(_)", 1, next_fiber_run);
-	FiberClass->add_builtin_fn("run(_,_)", 1, next_fiber_runx);
+	// FiberClass->add_builtin_fn("run(_)", 1, next_fiber_run);
+	// FiberClass->add_builtin_fn("run(_,_)", 1, next_fiber_runx);
 }
 
 void Fiber::mark() {
