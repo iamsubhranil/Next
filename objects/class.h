@@ -7,10 +7,14 @@
 
 struct Class {
 	GcObject obj;
-	Array *  functions;
-	String * name;
-	Module2 *module;
-	int      numSlots;
+	// if it's a module, it must have a default noarg constructor,
+	// which will be executed when it is first imported.
+	// that will initialize all it's classes, and contain the
+	// top level code.
+	Array * functions;
+	String *name;
+	Class * module; // a module is eventually a class
+	int     numSlots;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 
 	static void init();

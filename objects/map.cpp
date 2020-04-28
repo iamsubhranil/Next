@@ -48,11 +48,16 @@ Value next_map_set(const Value *args) {
 	return args[0].toValueMap()->vv[args[1]] = args[2];
 }
 
+Value next_map_construct(const Value *args) {
+	return Value(ValueMap::create());
+}
+
 void ValueMap::init() {
 	Class *ValueMapClass = GcObject::ValueMapClass;
 
 	// Initialize map class
 	ValueMapClass->init("map", Class::BUILTIN);
+	ValueMapClass->add_builtin_fn("()", 0, next_map_construct);
 	ValueMapClass->add_builtin_fn("clear()", 0, next_map_clear);
 	ValueMapClass->add_builtin_fn("has(_)", 1, next_map_has);
 	ValueMapClass->add_builtin_fn("keys()", 0, next_map_keys);

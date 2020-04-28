@@ -12,7 +12,7 @@
 // same reasons
 #define FIBER_DEFAULT_FRAME_ALLOC 32
 
-Fiber *Fiber::create() {
+Fiber *Fiber::create(Fiber *parent) {
 	Fiber *f = GcObject::allocFiber();
 	f->stack_ =
 	    (Value *)GcObject::malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
@@ -25,27 +25,10 @@ Fiber *Fiber::create() {
                                                   FIBER_DEFAULT_FRAME_ALLOC);
 	f->callFramePointer = 0;
 	f->callFrameSize    = FIBER_DEFAULT_FRAME_ALLOC;
+	f->parent           = parent;
 
 	f->state = BUILT;
 	return f;
-}
-
-Fiber::CallFrame *Fiber::appendCallFrame(Function *f, Value **top) {
-	ensureStack(f->code->stackSize, top);
-
-	if(callFramePointer == callFrameSize) {
-		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)GcObject::realloc(
-            callFrames, sizeof(CallFrame) * callFrameSize,
-            sizeof(CallFrame) * newsize);
-		callFrameSize = newsize;
-	}
-
-	callFrames[callFramePointer].f      = f;
-	callFrames[callFramePointer].stack_ = *top;
-	stackTop = *top = *top + f->code->numSlots;
-
-	return &callFrames[callFramePointer++];
 }
 
 void Fiber::ensureStack(size_t e, Value **top) {
@@ -67,6 +50,52 @@ void Fiber::ensureStack(size_t e, Value **top) {
 			callFrames[i].stack_ = stack_ + (callFrames[i].stack_ - oldstack);
 		}
 	}
+}
+
+Fiber::CallFrame *Fiber::appendMethod(Function *f, Value **top) {
+	ensureStack(f->code->stackSize, top);
+
+	if(callFramePointer == callFrameSize) {
+		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
+		callFrames     = (CallFrame *)GcObject::realloc(
+            callFrames, sizeof(CallFrame) * callFrameSize,
+            sizeof(CallFrame) * newsize);
+		callFrameSize = newsize;
+	}
+
+	callFrames[callFramePointer].f      = f;
+	callFrames[callFramePointer].stack_ = *top;
+	callFrames[callFramePointer].code   = f->code->bytecodes;
+	stackTop = *top = *top + f->code->numSlots;
+
+	return &callFrames[callFramePointer++];
+}
+
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, Value **top) {
+	// noarg
+	Fiber::CallFrame *f = appendMethod(bm->func, top);
+	switch(bm->type) {
+		case BoundMethod::CLASS_BOUND:
+			// class bound no arg, so a static method.
+			// slot 0 will contain the class
+			f->stack_[0] = bm->cls;
+		case BoundMethod::MODULE_BOUND:
+		case BoundMethod::OBJECT_BOUND:
+			// object bound, so slot 0 will contain
+			// the object
+			f->stack_[0] = bm->obj;
+	}
+	return f;
+}
+
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, Value **top,
+                                           const Value *args) {
+	// first, append the bound method
+	Fiber::CallFrame *f = appendBoundMethod(bm, top);
+	// now lay down the rest of the arguments
+	// on the stack
+	memcpy(f->stack_ + 1, args, sizeof(Value) * bm->func->arity);
+	return f;
 }
 
 Value next_fiber_cancel(const Value *args) {
@@ -104,8 +133,10 @@ Value next_fiber_is_finished(const Value *args) {
 Value next_fiber_resume(const Value *args) {
 	// only a fiber which is on yield can be resumed
 	Fiber *f = args[0].toFiber();
+	// f->parent = Engine::getCurrentFiber()
 	switch(f->state) {
 		case Fiber::YIELDED:
+		case Fiber::BUILT:
 			// THIS is the important point.
 			// how do we resume? do we change
 			// ExecutionEngine::execute to take
@@ -125,32 +156,30 @@ Value next_fiber_resume(const Value *args) {
 	return ValueNil;
 }
 
-Value next_fiber_run(const Value *args) {
+Value next_fiber_construct_0(const Value *args) {
 	EXPECT(fiber, run, 1, BoundMethod);
-	Fiber *      f = args[0].toFiber();
 	BoundMethod *b = args[1].toBoundMethod();
 	// verify the function with given arguments
 	BoundMethod::Status s = b->verify(NULL, 0);
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
-	// everything's fine. run the function
-	// return ExecutionEngine::execute(f, b);
-	return ValueNil;
+	Fiber *f = Fiber::create();
+	f->appendBoundMethod(b, &f->stackTop);
+	return Value(f);
 }
 
-Value next_fiber_runx(const Value *args) {
+Value next_fiber_construct_x(const Value *args) {
 	EXPECT(fiber, run, 1, BoundMethod);
 	EXPECT(fiber, run, 2, Array);
-	Fiber *      f = args[0].toFiber();
 	BoundMethod *b = args[1].toBoundMethod();
 	Array *      a = args[2].toArray();
 	// verify the function with the given arguments
 	BoundMethod::Status s = b->verify(a->values, a->size);
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
-	// everything's fine, run the function
-	// return ExecutionEngine::execute(f, b);
-	return ValueNil;
+	Fiber *f = Fiber::create();
+	f->appendBoundMethod(b, &f->stackTop, a->values);
+	return Value(f);
 }
 
 void Fiber::init() {
@@ -201,13 +230,13 @@ void Fiber::init() {
 	 *
 	 */
 
+	FiberClass->add_builtin_fn("(_)", 1, next_fiber_construct_0);
+	FiberClass->add_builtin_fn("(_,_)", 2, next_fiber_construct_x);
 	FiberClass->add_builtin_fn("cancel()", 1, next_fiber_cancel);
 	FiberClass->add_builtin_fn("is_started()", 0, next_fiber_is_started);
 	FiberClass->add_builtin_fn("is_yielded()", 0, next_fiber_is_yielded);
 	FiberClass->add_builtin_fn("is_finished()", 0, next_fiber_is_finished);
 	FiberClass->add_builtin_fn("resume()", 1, next_fiber_resume);
-	// FiberClass->add_builtin_fn("run(_)", 1, next_fiber_run);
-	// FiberClass->add_builtin_fn("run(_,_)", 1, next_fiber_runx);
 }
 
 void Fiber::mark() {

@@ -44,6 +44,7 @@ static size_t counterCounter = 0;
 #include "objecttype.h"
 Class *GcObject::NumberClass  = nullptr;
 Class *GcObject::BooleanClass = nullptr;
+Class *GcObject::CoreModule   = nullptr;
 // when enabled, the garbage collector allocates
 // extra memory to store a size_t before each
 // pointer, so that the size can be verified
@@ -257,7 +258,6 @@ void GcObject::init() {
 #include "objecttype.h"
 	NumberClass  = GcObject::allocClass();
 	BooleanClass = GcObject::allocClass();
-
 	// initialize the string set and symbol table
 	String::init0();
 	SymbolTable2::init();
@@ -269,6 +269,16 @@ void GcObject::init() {
 	// initialize the core classes
 #define OBJTYPE(n, r) n::init();
 #include "objecttype.h"
+
+	ClassCompilationContext *corectx =
+	    ClassCompilationContext::create(NULL, String::const_core);
+	// register all the classes to core
+#define OBJTYPE(n, r) corectx->add_public_class(n##Class);
+#include "objecttype.h"
+	corectx->add_public_class(NumberClass);
+	corectx->add_public_class(BooleanClass);
+
+	CoreModule = corectx->get_class();
 }
 
 #ifdef DEBUG_GC

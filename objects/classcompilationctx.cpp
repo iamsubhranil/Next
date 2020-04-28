@@ -1,6 +1,7 @@
 #include "classcompilationctx.h"
+#include "bytecodecompilationctx.h"
 #include "class.h"
-#include "function.h"
+#include "functioncompilationctx.h"
 #include "symtab.h"
 
 ClassCompilationContext *
@@ -12,6 +13,17 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->public_signatures  = ValueMap::create();
 	ctx->private_signatures = ValueMap::create();
 	ctx->slotCount          = 0;
+	ctx->moduleContext      = s;
+	ctx->defaultConstructor = nullptr;
+	if(s == NULL) {
+		// it's a module.
+		// so add a default constructor to initialize
+		// the class variables
+		ctx->defaultConstructor = FunctionCompilationContext::create(
+		    String::const_sig_constructor_0, 0);
+		ctx->add_public_fn(String::const_sig_constructor_0,
+		                   ctx->defaultConstructor->get_fn());
+	}
 	return ctx;
 }
 
@@ -84,8 +96,26 @@ int ClassCompilationContext::get_fn_sym(String *sig) {
 	return SymbolTable2::insert(finalSig);
 }
 
+void ClassCompilationContext::add_public_class(Class *c) {
+	add_public_mem(c->name);
+	int modSlot = get_mem_slot(c->name);
+	defaultConstructor->bcc->push(Value(c));
+	defaultConstructor->bcc->store_object_slot(modSlot);
+}
+
+void ClassCompilationContext::add_private_class(Class *c) {
+	add_private_mem(c->name);
+	int modSlot = get_mem_slot(c->name);
+	defaultConstructor->bcc->push(Value(c));
+	defaultConstructor->bcc->store_object_slot(modSlot);
+}
+
 Class *ClassCompilationContext::get_class() {
 	return klass;
+}
+
+FunctionCompilationContext *ClassCompilationContext::get_default_constructor() {
+	return defaultConstructor;
 }
 
 void ClassCompilationContext::init() {
@@ -102,4 +132,6 @@ void ClassCompilationContext::mark() {
 	GcObject::mark((GcObject *)private_signatures);
 	GcObject::mark((GcObject *)klass);
 	GcObject::mark((GcObject *)moduleContext);
+	if(defaultConstructor != NULL)
+		GcObject::mark((GcObject *)defaultConstructor);
 }

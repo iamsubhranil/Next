@@ -20,10 +20,14 @@ struct ClassCompilationContext {
 	int       slotCount;
 	// super context
 	struct ClassCompilationContext *moduleContext;
+	// for module
+	FunctionCompilationContext *defaultConstructor;
 
 	static ClassCompilationContext *
 	create(struct ClassCompilationContext *superContext, String *name);
 
+	void add_public_class(Class *c);
+	void add_private_class(Class *c);
 	bool add_public_mem(String *name);
 	bool add_private_mem(String *name);
 	bool has_mem(String *name);
@@ -35,6 +39,9 @@ struct ClassCompilationContext {
 	bool has_fn(String *sig);
 	// unchecked. use has_fn before
 	int get_fn_sym(String *sig);
+
+	// called for modules
+	FunctionCompilationContext *get_default_constructor();
 
 	Class *get_class();
 

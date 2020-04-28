@@ -1,10 +1,11 @@
 #include "number.h"
 #include "../value.h"
 #include "class.h"
+#include "errors.h"
 #include "gc.h"
 #include "string.h"
 
-Value next_number_str(const Value *args) {
+Value next_number_to_str(const Value *args) {
 	// from
 	// https://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
 	static char val[1079];
@@ -20,12 +21,25 @@ Value next_number_toint(const Value *args) {
 	return Value((double)args[0].toInteger());
 }
 
+Value next_number_from_str(const Value *args) {
+	EXPECT(number, new(_), 1, String);
+	String *s      = args[1].toString();
+	char *  endptr = NULL;
+	double  d      = strtod(s->str, &endptr);
+	if(*endptr != 0) {
+		return RuntimeError::sete("String does not contain a valid number!");
+	}
+	return Value(d);
+}
+
 void Number::init() {
 	Class *NumberClass = GcObject::NumberClass;
 
 	NumberClass->init("number", Class::ClassType::BUILTIN);
 
-	NumberClass->add_builtin_fn("str()", 0, next_number_str);
+	// construct a number from the given string
+	NumberClass->add_builtin_fn("(_)", 1, next_number_from_str);
+	NumberClass->add_builtin_fn("str()", 0, next_number_to_str);
 	NumberClass->add_builtin_fn("is_int()", 0, next_number_isint);
 	NumberClass->add_builtin_fn("to_int()", 0, next_number_toint);
 }

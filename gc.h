@@ -108,6 +108,8 @@ struct GcObject {
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;
+	// core module
+	static Class *CoreModule;
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
 

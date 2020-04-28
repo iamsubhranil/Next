@@ -89,10 +89,16 @@ OPCODE1(jump, 0, int) // <relative_jump_offset>
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 
-// Since 'call' creates a separate stack for the callee,
-// the number of parameters is needed to copy the old arguments
-// from the caller stack to callee stack
-OPCODE2(call, 0, int, int) // <frame_pointer_index> <arity>
+// performs a intraclass call on the method with <argument>
+// symbol stored in the same class.
+OPCODE1(call, 0, int) // <symbol>
+// performs a call on the TOS
+// we will provide both the signature and the
+// arity. if the TOS is a class, we will use
+// the signature to resolve the constructor.
+// otherwise, we will use the arity to validate
+// the boundmethod.
+OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
 // Call a function from another module
 // OPCODE2(call_imported, 0, int, int) // <frame_pointer_index> <arity>
 OPCODE0(ret, 0)

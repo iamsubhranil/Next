@@ -41,6 +41,22 @@ Value next_array_size(const Value *args) {
 	return Value((double)args[0].toArray()->size);
 }
 
+// constructors will be called on the class,
+// so we must return an instance
+
+Value next_array_construct_empty(const Value *args) {
+	return Value(Array::create(1));
+}
+
+Value next_array_construct_size(const Value *args) {
+	EXPECT(array, new(_), 1, Integer);
+	int i = args[0].toInteger();
+	if(i < 1) {
+		return RuntimeError::sete("Size of array must be > 0!");
+	}
+	return Value(Array::create(i));
+}
+
 size_t Array::powerOf2Ceil(size_t n) {
 
 	n--;
@@ -103,6 +119,9 @@ void Array::init() {
 
 	// Initialize array class
 	ArrayClass->init("array", Class::BUILTIN);
+	// constructors : empty, and predefined size
+	ArrayClass->add_builtin_fn("()", 0, next_array_construct_empty);
+	ArrayClass->add_builtin_fn("(_)", 1, next_array_construct_size);
 	// insert, get, set, size
 	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert);
 	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get);
