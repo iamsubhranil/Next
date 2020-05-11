@@ -121,9 +121,6 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void             popFrame();
 	CompilationState getState();
 	int              createTempSlot();
-#ifdef DEBUG
-	void disassembleFrame(Frame *f, String *name);
-#endif
 
 	int  pushScope();
 	void popScope(); // discard all variables in present frame with

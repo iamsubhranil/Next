@@ -4,7 +4,9 @@ RM=rm -f
 LDFLAGS=
 
 # $(wildcard *.cpp /xxx/xxx/*.cpp): get all .cpp files from the current directory and dir "/xxx/xxx/"
-SRCS := $(wildcard *.cpp)
+SRCS := $(wildcard objects/*.cpp value.cpp gc.cpp display.cpp loader.cpp \
+	codegen.cpp import.cpp scanner.cpp parser.cpp builtins.cpp main.cpp \
+	stmt.cpp expr.cpp)
 # $(patsubst %.cpp,%.o,$(SRCS)): substitute all ".cpp" file name strings to ".o" file name strings
 OBJS := $(patsubst %.cpp,%.o,$(SRCS))
 
@@ -62,4 +64,4 @@ distclean: clean
 include .depend
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $<
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@

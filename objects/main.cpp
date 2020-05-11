@@ -4,7 +4,7 @@
 #include <iostream>
 
 using namespace std;
-int main() {
+int main2() {
 	cout << "Bootstrapping..\n";
 	GcObject::init();
 	// GcObject::print_stat();

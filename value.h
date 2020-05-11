@@ -101,11 +101,6 @@ struct Value {
 		return *this;
 	}
 
-	inline Value &operator=(const Value &v) {
-		value = v.value;
-		return *this;
-	}
-
 	constexpr inline bool operator==(const Value &v) const {
 		return v.value == value;
 	}

@@ -70,7 +70,8 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	btx->halt();
 	popFrame();
 #ifdef DEBUG
-	cout << "Code generated for mtx " << compileIn->name->str << endl;
+	cout << "Code generated for mtx " << compileIn->get_class()->name->str
+	     << endl;
 	cout << *mtx;
 #endif
 	if(errorsOccurred)
