@@ -54,3 +54,7 @@ void ValueSet::mark() {
 void ValueSet::release() {
 	hset.~HashSet<Value>();
 }
+
+std::ostream &operator<<(std::ostream &o, const ValueSet &a) {
+	return o << "<set of size " << a.hset.size() << ">";
+}

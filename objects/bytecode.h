@@ -24,30 +24,29 @@ struct Bytecode {
 	size_t                      size;
 	size_t                      capacity;
 	size_t                      stackSize;
+	size_t                      stackMaxSize;
 	size_t                      numSlots;
 
 #define OPCODE0(x, y)              \
 	size_t x() {                   \
-		/*stackEffect(y);*/        \
+		stackEffect(y);            \
 		push_back(CODE_##x);       \
 		return size - 1;           \
 	};                             \
 	size_t x(size_t pos) {         \
-		/*stackEffect(y);*/        \
 		bytecodes[pos] = CODE_##x; \
 		return pos;                \
 	};
 
 #define OPCODE1(x, y, z)           \
 	size_t x(z arg) {              \
-		/*stackEffect(y);*/        \
+		stackEffect(y);            \
 		size_t bak = size;         \
 		push_back(CODE_##x);       \
 		insert_##z(arg);           \
 		return bak;                \
 	};                             \
 	size_t x(size_t pos, z arg) {  \
-		/*stackEffect(y);*/        \
 		bytecodes[pos] = CODE_##x; \
 		insert_##z(pos + 1, arg);  \
 		return pos;                \
@@ -55,7 +54,7 @@ struct Bytecode {
 
 #define OPCODE2(x, y, z, w)                    \
 	size_t x(z arg1, w arg2) {                 \
-		/*stackEffect(y); */                   \
+		stackEffect(y);                        \
 		size_t bak = size;                     \
 		push_back(CODE_##x);                   \
 		insert_##z(arg1);                      \
@@ -63,7 +62,6 @@ struct Bytecode {
 		return bak;                            \
 	};                                         \
 	size_t x(size_t pos, z arg1, w arg2) {     \
-		/*stackEffect(y);*/                    \
 		bytecodes[pos] = CODE_##x;             \
 		insert_##z(pos + 1, arg1);             \
 		insert_##w(pos + 1 + sizeof(z), arg2); \
@@ -87,6 +85,8 @@ struct Bytecode {
 	insert_type(Value);
 	insert_type(int);
 
+	void stackEffect(int x);
+	void insertSlot();
 	void push_back(Opcode code);
 	// shrinks the opcode array to
 	// remove excess allocation
@@ -105,4 +105,6 @@ struct Bytecode {
 
 	void mark() {}
 	void release();
+
+	friend std::ostream &operator<<(std::ostream &o, const Bytecode &v);
 };

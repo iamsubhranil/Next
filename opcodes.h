@@ -25,13 +25,13 @@ OPCODE0(div, -1)
 OPCODE0(power, -1)
 
 OPCODE1(incr_slot, 1, int)        // <slot>
-OPCODE1(incr_module_slot, 1, int) // <slot>
+OPCODE1(incr_tos_slot, 1, int)    // <slot>
 OPCODE1(incr_object_slot, 1, int) // <slot>
-OPCODE1(incr_field, 1, Value)     // <field>
+OPCODE1(incr_field, 1, int)       // <field>
 OPCODE1(decr_slot, 1, int)        // <slot>
-OPCODE1(decr_module_slot, 1, int) // <slot>
+OPCODE1(decr_tos_slot, 1, int)    // <slot>
 OPCODE1(decr_object_slot, 1, int) // <slot>
-OPCODE1(decr_field, 1, Value)     // <field>
+OPCODE1(decr_field, 1, int)       // <field>
 
 OPCODE0(neg, 0)
 
@@ -80,8 +80,8 @@ OPCODE1(store_slot_pop, -1, int) // <slot_number>
 // OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
 
 // FrameInstance carries module stack
-OPCODE1(load_module_slot, 1, int)  // <slot>
-OPCODE1(store_module_slot, 0, int) // <slot>
+// OPCODE1(load_module_slot, 1, int)  // <slot>
+// OPCODE1(store_module_slot, 0, int) // <slot>
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
@@ -99,15 +99,25 @@ OPCODE1(call, 0, int) // <symbol>
 // otherwise, we will use the arity to validate
 // the boundmethod.
 OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
-// Call a function from another module
-// OPCODE2(call_imported, 0, int, int) // <frame_pointer_index> <arity>
+// performs obj.method(...), also checks for boundcalls
+// on member 'method' in obj.
+OPCODE2(call_method, 0, int, int) // <symbol> <args>
+// calls the symbol in the TOS
+// for module/core calls
+OPCODE1(call_tos, 0, int) // <symbol>
+// return
 OPCODE0(ret, 0)
 
-OPCODE2(construct, 0, Value, Value) // <module_name> <class_name>
-OPCODE0(construct_ret, 0)
+OPCODE1(construct, 0, Value) // <class>
+// OPCODE0(construct_ret, 0)
 
+// Load <slot> from TOS
+// replaces TOS
+OPCODE1(load_tos_slot, 0, int)
 // Load <slot> from slot 0
 OPCODE1(load_object_slot, 1, int)
+// Store to TOS <slot>
+OPCODE1(store_tos_slot, -1, int)
 // Store TOS to <slot> of slot 0
 OPCODE1(store_object_slot, 0, int)
 // Pop the object from TOS and push
@@ -126,7 +136,6 @@ OPCODE1(load_field_pushback, 1, int) // <symbol>
 // the value at present TOS to the field
 OPCODE1(store_field, -1, int) // <symbol>
 
-OPCODE2(call_method, 0, int, int) // <symbol> <args>
 // Optimized 'call' for intraclass
 // calls (i.e. call between two methods
 // of the same class)

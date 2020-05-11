@@ -6,7 +6,7 @@
 
 struct CatchBlock {
 	int slot, jump;
-	enum SlotType { LOCAL, CLASS, MODULE } type;
+	enum SlotType { LOCAL, CLASS, MODULE, CORE, BUILTIN } type;
 };
 
 struct Exception {
@@ -60,4 +60,6 @@ struct Function {
 	// gc functions
 	void release();
 	void mark();
+
+	friend std::ostream &operator<<(std::ostream &o, const Function &v);
 };

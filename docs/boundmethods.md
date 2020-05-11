@@ -170,3 +170,21 @@ fn reduce(a, b) {
 }
 reduce(someFunc@1, 8)
 ```
+
+How do we distinguish between method call and member referred bound calls? i.e. 
+```
+x = obj.mem(2, 3)
+// there might be a method named mem(_,_) in obj.class,
+// or, obj.mem might be a variable containing a 
+// bound method. i.e.
+obj.mem = func@2
+obj.mem(2, 3)
+```
+Can we distinguish between the two? Or, do we first try for method call, then 
+boundmethod reference in `call_method`? If we want to allow both, call_method 
+must store all three arguments, i.e.
+```
+call_method mem(_,_) mem
+```
+First one will be used to check for method calls, last one for bound methods.
+We can calculate the arity as `((str1->length - str2->length - 2) / 2) + 1`.

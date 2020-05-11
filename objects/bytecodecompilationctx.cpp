@@ -59,3 +59,7 @@ void BytecodeCompilationContext::mark() {
 void BytecodeCompilationContext::release() {
 	GcObject::free(ranges_, sizeof(TokenRange) * capacity);
 }
+
+std::ostream &operator<<(std::ostream &o, const BytecodeCompilationContext &a) {
+	return o << "<bytecodecompilationcontext object>";
+}

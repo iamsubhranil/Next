@@ -45,6 +45,8 @@ static size_t counterCounter = 0;
 Class *GcObject::NumberClass  = nullptr;
 Class *GcObject::BooleanClass = nullptr;
 Class *GcObject::CoreModule   = nullptr;
+
+ClassCompilationContext *GcObject::CoreContext = nullptr;
 // when enabled, the garbage collector allocates
 // extra memory to store a size_t before each
 // pointer, so that the size can be verified
@@ -267,18 +269,33 @@ void GcObject::init() {
 	Boolean::init();
 
 	// initialize the core classes
+#ifdef DEBUG_GC
+#define OBJTYPE(n, r)                                  \
+	std::cout << "[GC] Initializing " << #n << "..\n"; \
+	n::init();                                         \
+	std::cout << "[GC] Initialized " << #n << "..\n";
+#else
 #define OBJTYPE(n, r) n::init();
+#endif
 #include "objecttype.h"
 
-	ClassCompilationContext *corectx =
-	    ClassCompilationContext::create(NULL, String::const_core);
+	CoreContext = ClassCompilationContext::create(NULL, String::const_core);
 	// register all the classes to core
-#define OBJTYPE(n, r) corectx->add_public_class(n##Class);
+#define OBJTYPE(n, r) CoreContext->add_public_class(n##Class);
 #include "objecttype.h"
-	corectx->add_public_class(NumberClass);
-	corectx->add_public_class(BooleanClass);
+	CoreContext->add_public_class(NumberClass);
+	CoreContext->add_public_class(BooleanClass);
 
-	CoreModule = corectx->get_class();
+	CoreModule = CoreContext->get_class();
+}
+
+const Class *GcObject::getClass(Value v) {
+	switch(v.getType()) {
+		case Value::VAL_Number: return NumberClass;
+		case Value::VAL_Boolean: return BooleanClass;
+		case Value::VAL_GcObject: return v.toGcObject()->klass;
+		default: return ObjectClass;
+	}
 }
 
 #ifdef DEBUG_GC
@@ -297,3 +314,15 @@ void GcObject::print_stat() {
 	     << endl;
 }
 #endif
+
+std::ostream &operator<<(std::ostream &o, const GcObject &g) {
+	switch(g.objType) {
+// clang-format off
+// It somehow automatically making the include line a part of the macro
+#define OBJTYPE(n, r)                               \
+	case GcObject::OBJ_##n: return o << ((const r *)&g)[0]; 
+#include "objecttype.h"
+			// clang-format on
+		default: panic("Invalid GcObject!"); break;
+	}
+}

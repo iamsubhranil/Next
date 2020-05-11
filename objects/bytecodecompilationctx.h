@@ -49,12 +49,51 @@ struct BytecodeCompilationContext {
 	}
 #include "../opcodes.h"
 
-	void  insert_token(Token t);
-	void  finalize();
-	Token get_token(size_t ip);
+	size_t getip() { return code->getip(); }
+	void   insert_token(Token t);
+	void   finalize();
+	Token  get_token(size_t ip);
+	void   stackEffect(int effect) { code->stackEffect(effect); }
+
+	void load_slot_n(int n) {
+		if(n < 8) {
+			switch(n) {
+				case 0: load_slot_0(); break;
+				case 1: load_slot_1(); break;
+				case 2: load_slot_2(); break;
+				case 3: load_slot_3(); break;
+				case 4: load_slot_4(); break;
+				case 5: load_slot_5(); break;
+				case 6: load_slot_6(); break;
+				case 7: load_slot_7(); break;
+			};
+		} else {
+			load_slot(n);
+		}
+	}
+
+	void load_slot_n(int pos, int n) {
+		if(n < 8) {
+			switch(n) {
+				case 0: load_slot_0(pos); break;
+				case 1: load_slot_1(pos); break;
+				case 2: load_slot_2(pos); break;
+				case 3: load_slot_3(pos); break;
+				case 4: load_slot_4(pos); break;
+				case 5: load_slot_5(pos); break;
+				case 6: load_slot_6(pos); break;
+				case 7: load_slot_7(pos); break;
+			};
+		} else {
+			load_slot(pos, n);
+		}
+	}
 
 	static BytecodeCompilationContext *create();
 	static void                        init();
 	void                               mark();
 	void                               release();
+
+	friend std::ostream &operator<<(std::ostream &                    o,
+	                                const BytecodeCompilationContext &v);
 };

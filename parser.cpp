@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "objects/string.h"
 
 Parser::Parser(Scanner &s) : scanner(s) {
 	if(s.hasScanErrors()) {
@@ -452,10 +453,10 @@ std::string Parser::buildNextString(Token &t) {
 ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 	(void)parser;
 	switch(t.type) {
-		case TOKEN_STRING:
-			return unq(LiteralExpression,
-			           Value(StringLibrary::insert(parser->buildNextString(t))),
-			           t);
+		case TOKEN_STRING: {
+			std::string s = parser->buildNextString(t);
+			return unq(LiteralExpression, Value(String::from(s.c_str())), t);
+		}
 		case TOKEN_NUMBER: {
 			char * end = NULL;
 			double val = strtod(t.start, &end);

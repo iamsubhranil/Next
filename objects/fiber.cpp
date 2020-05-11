@@ -252,3 +252,7 @@ void Fiber::release() {
 	GcObject::free(stack_, sizeof(Value) * stackSize);
 	GcObject::free(callFrames, sizeof(CallFrame) * callFrameSize);
 }
+
+std::ostream &operator<<(std::ostream &o, const Fiber &a) {
+	return o << "<fiber object>";
+}

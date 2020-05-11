@@ -20,11 +20,13 @@ Function *Function::from(const char *str, int arity, next_builtin_fn fn,
 }
 
 Function *Function::create(String *str, int arity, bool isStatic) {
-	Function *f = GcObject::allocFunction();
-	f->name     = str;
-	f->code     = NULL;
-	f->mode     = ((int)isStatic << 4) | BUILTIN;
-	f->arity    = arity;
+	Function *f      = GcObject::allocFunction();
+	f->name          = str;
+	f->code          = NULL;
+	f->mode          = ((int)isStatic << 4) | BUILTIN;
+	f->arity         = arity;
+	f->numExceptions = 0;
+	f->exceptions    = NULL;
 	return f;
 }
 
@@ -74,7 +76,8 @@ void Function::release() {
 		Exception e = exceptions[i];
 		GcObject::free(e.catches, sizeof(CatchBlock) * e.numCatches);
 	}
-	GcObject::free(exceptions, sizeof(Exception) * numExceptions);
+	if(numExceptions > 0)
+		GcObject::free(exceptions, sizeof(Exception) * numExceptions);
 }
 
 Value next_function_arity(const Value *args) {
@@ -97,4 +100,8 @@ void Function::init() {
 	FunctionClass->add_builtin_fn("arity()", 0, next_function_arity);
 	FunctionClass->add_builtin_fn("name()", 0, next_function_name);
 	FunctionClass->add_builtin_fn("type()", 0, next_function_type);
+}
+
+std::ostream &operator<<(std::ostream &o, const Function &a) {
+	return o << "<function '" << a.name->str << "'>";
 }

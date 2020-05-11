@@ -62,6 +62,17 @@ size_t Bytecode::getip() {
 	return size;
 }
 
+void Bytecode::stackEffect(int x) {
+	stackSize += x;
+	if(stackSize > stackMaxSize)
+		stackMaxSize = stackSize;
+}
+
+void Bytecode::insertSlot() {
+	stackSize++;
+	stackMaxSize++;
+}
+
 void Bytecode::init() {
 	Class *BytecodeClass = GcObject::BytecodeClass;
 
@@ -69,11 +80,16 @@ void Bytecode::init() {
 }
 
 Bytecode *Bytecode::create() {
-	Bytecode *code  = GcObject::allocBytecode();
-	code->bytecodes = (Opcode *)GcObject::malloc(1);
-	code->size      = 0;
-	code->capacity  = 1;
-	code->stackSize = 0;
-	code->ctx       = NULL;
+	Bytecode *code     = GcObject::allocBytecode();
+	code->bytecodes    = (Opcode *)GcObject::malloc(1);
+	code->size         = 0;
+	code->capacity     = 1;
+	code->stackSize    = 0;
+	code->stackMaxSize = 0;
+	code->ctx          = NULL;
 	return code;
+}
+
+std::ostream &operator<<(std::ostream &o, const Bytecode &a) {
+	return o << "<bytecode object>";
 }

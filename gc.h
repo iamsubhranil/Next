@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-
+#include <ostream>
 //#define DEBUG_GC
 
 #ifdef DEBUG_GC
@@ -108,17 +108,23 @@ struct GcObject {
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;
-	// core module
-	static Class *CoreModule;
+	// core module and its context
+	static Class *                  CoreModule;
+	static ClassCompilationContext *CoreContext;
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
 
 	// returns a place holder gcobject
 	static GcObject DefaultGcObject;
 
+	// returns class for the value
+	static const Class *getClass(Value v);
+
 	// debug information
 #ifdef DEBUG_GC
 	static size_t GcCounters[];
 	static void   print_stat();
 #endif
+
+	friend std::ostream &operator<<(std::ostream &o, const GcObject &v);
 };

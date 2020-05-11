@@ -37,4 +37,6 @@ struct Class {
 	// gc functions
 	void release() {}
 	void mark();
+
+	friend std::ostream &operator<<(std::ostream &o, const Class &v);
 };

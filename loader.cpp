@@ -1,8 +1,9 @@
 #include "loader.h"
 #include "codegen.h"
 #include "display.h"
-#include "engine.h"
+//#include "engine.h"
 #include "parser.h"
+#include <iostream>
 
 using namespace std;
 
@@ -92,17 +93,17 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_class, new ClassDeclaration());
 }
 
-Module *compile_and_load(string fileName, bool execute) {
-	return compile_and_load(fileName.c_str(), execute);
+Class *Loader::compile_and_load(String *fileName, bool execute) {
+	return compile_and_load(fileName->str, execute);
 }
 
-NextString generateModuleName(const char *inp) {
+String *generateModuleName(const char *inp) {
 	size_t len  = strlen(inp);
 	int    last = len - 1;
 	// find the '.'
 	while(inp[last] != '.' && inp[last] != '\0') last--;
 	if(inp[last] == '\0')
-		return StringLibrary::insert(inp);
+		return String::from(inp);
 	// escape the '.'
 	--last;
 	int first = last;
@@ -110,25 +111,26 @@ NextString generateModuleName(const char *inp) {
 		--first;
 	if(inp[first] != '\0')
 		first++;
-	return StringLibrary::insert(&inp[first], (last - first) + 1);
+	return String::from(&inp[first], (last - first) + 1);
 }
 
-Module *compile_and_load(const char *fileName, bool execute) {
-	NextString modName = generateModuleName(fileName);
+Class *Loader::compile_and_load(const char *fileName, bool execute) {
+	String *modName = generateModuleName(fileName);
 	return compile_and_load_with_name(fileName, modName, execute);
 }
 
-Module *compile_and_load_with_name(const char *fileName, NextString modName,
-                                   bool execute) {
+Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
+                                          bool execute) {
 	CodeGenerator c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
+	/*
 	if(ExecutionEngine::isModuleRegistered(modName))
-		return ExecutionEngine::getRegisteredModule(modName);
+	    return ExecutionEngine::getRegisteredModule(modName);
 	ExecutionEngine ex;
-	Scanner         s(fileName);
-	Module *        module = NULL;
+	*/
+	Scanner s(fileName);
 	try {
 		Parser p(s);
 		registerParselets(&p);
@@ -140,30 +142,34 @@ Module *compile_and_load_with_name(const char *fileName, NextString modName,
 		}
 		cout << "Parsed successfully!" << endl;
 #endif
-		module = new Module(modName);
-		c.compile(module, decls);
-		if(execute)
-			ex.execute(module, module->frame.get());
+		ClassCompilationContext *ctx =
+		    ClassCompilationContext::create(NULL, modName);
+		c.compile(ctx, decls);
+		if(execute) {
+			// ex.execute(module, module->frame.get());
+		}
+		return ctx->get_class();
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
+		return NULL;
 	} catch(runtime_error &r) {
-		cout << r.what() << "\n";
+		std::cout << r.what() << "\n";
 		return NULL;
 	}
-	return module;
 }
 
-Module *compile_and_load_from_source(const char *source, Module *module,
-                                     bool execute) {
+Class *Loader::compile_and_load_from_source(const char *             source,
+                                            ClassCompilationContext *modulectx,
+                                            bool                     execute) {
 	CodeGenerator c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	ExecutionEngine ex;
-	Scanner         s(source, StringLibrary::get_raw(module->name));
+	// ExecutionEngine ex;
+	Scanner s(source, modulectx->get_class()->name->str);
 	try {
 		Parser p(s);
 		registerParselets(&p);
@@ -174,17 +180,20 @@ Module *compile_and_load_from_source(const char *source, Module *module,
 			cout << "\n";
 		}
 #endif
-		c.compile(module, decls);
-		if(execute)
-			ex.execute(module, module->frame.get());
+		c.compile(modulectx, decls);
+
+		if(execute) {
+			// ex.execute(module, module->frame.get());
+		}
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
+		return NULL;
 	} catch(runtime_error &r) {
 		cout << r.what() << "\n";
 		return NULL;
 	}
-	return module;
+	return modulectx->get_class();
 }

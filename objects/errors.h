@@ -24,6 +24,8 @@ struct TypeError {
 	static void init();
 	void        mark();
 	void        release() {}
+
+	friend std::ostream &operator<<(std::ostream &o, const TypeError &v);
 };
 
 struct RuntimeError {
@@ -38,6 +40,8 @@ struct RuntimeError {
 	static void init();
 	void        mark();
 	void        release() {}
+
+	friend std::ostream &operator<<(std::ostream &o, const RuntimeError &v);
 };
 
 struct IndexError {
@@ -53,6 +57,8 @@ struct IndexError {
 	static void init();
 	void        mark();
 	void        release() {}
+
+	friend std::ostream &operator<<(std::ostream &o, const IndexError &v);
 };
 
 #define RERR(x) return RuntimeError::sete(x);

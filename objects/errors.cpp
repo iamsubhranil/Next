@@ -70,6 +70,10 @@ void TypeError::mark() {
 	GcObject::mark(received);
 }
 
+std::ostream &operator<<(std::ostream &o, const TypeError &a) {
+	return o << "<type_error object>";
+}
+
 RuntimeError *RuntimeError::create(String *m) {
 	RuntimeError *re = GcObject::allocRuntimeError();
 	re->message      = m;
@@ -99,6 +103,10 @@ void RuntimeError::init() {
 
 void RuntimeError::mark() {
 	GcObject::mark((GcObject *)message);
+}
+
+std::ostream &operator<<(std::ostream &o, const RuntimeError &a) {
+	return o << "<runtime_error object>";
 }
 
 IndexError *IndexError::create(String *m, long l, long h, long r) {
@@ -143,4 +151,8 @@ void IndexError::init() {
 
 void IndexError::mark() {
 	GcObject::mark((GcObject *)message);
+}
+
+std::ostream &operator<<(std::ostream &o, const IndexError &a) {
+	return o << "<index_error object>";
 }

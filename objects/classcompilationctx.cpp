@@ -15,6 +15,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->slotCount          = 0;
 	ctx->moduleContext      = s;
 	ctx->defaultConstructor = nullptr;
+	ctx->cctxMap            = nullptr;
+	ctx->fctxMap            = ValueMap::create();
 	if(s == NULL) {
 		// it's a module.
 		// so add a default constructor to initialize
@@ -23,6 +25,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		    String::const_sig_constructor_0, 0);
 		ctx->add_public_fn(String::const_sig_constructor_0,
 		                   ctx->defaultConstructor->get_fn());
+		// add the class map
+		ctx->cctxMap = ValueMap::create();
 	}
 	return ctx;
 }
@@ -50,25 +54,26 @@ bool ClassCompilationContext::add_private_mem(String *name) {
 }
 
 bool ClassCompilationContext::has_mem(String *name) {
-	if(members->vv.find(name) != members->vv.end())
-		return true;
-	return false;
+	return members->vv.contains(Value(name));
 }
 
 int ClassCompilationContext::get_mem_slot(String *name) {
 	return members->vv[Value(name)].toInteger();
 }
 
-bool ClassCompilationContext::add_public_fn(String *sig, Function *f) {
+bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
+                                            FunctionCompilationContext *fctx) {
 	if(has_fn(sig))
 		return false;
 	// TODO: insert token here
 	public_signatures->vv[Value(sig)] = Value(f);
 	klass->add_fn(sig, f);
+	fctxMap->vv[Value(sig)] = Value(fctx);
 	return true;
 }
 
-bool ClassCompilationContext::add_private_fn(String *sig, Function *f) {
+bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
+                                             FunctionCompilationContext *fctx) {
 	if(has_fn(sig))
 		return false;
 	// TODO: insert token here
@@ -77,37 +82,55 @@ bool ClassCompilationContext::add_private_fn(String *sig, Function *f) {
 	// be invoked as a method outside of the class
 	String *priv_signature = String::append("p ", sig);
 	klass->add_fn(priv_signature, f);
+	fctxMap->vv[Value(sig)] = Value(fctx);
 	return true;
 }
 
 bool ClassCompilationContext::has_fn(String *sig) {
-	if(public_signatures->vv.find(sig) != public_signatures->vv.end())
+	if(public_signatures->vv.find(Value(sig)) != public_signatures->vv.end())
 		return true;
-	if(private_signatures->vv.find(sig) != private_signatures->vv.end())
+	if(private_signatures->vv.find(Value(sig)) != private_signatures->vv.end())
 		return true;
 	return false;
 }
 
 int ClassCompilationContext::get_fn_sym(String *sig) {
 	String *finalSig = sig;
-	if(private_signatures->vv.find(sig) != private_signatures->vv.end()) {
+	if(private_signatures->vv.find(Value(sig)) !=
+	   private_signatures->vv.end()) {
 		finalSig = String::append("p ", sig);
 	}
 	return SymbolTable2::insert(finalSig);
 }
 
-void ClassCompilationContext::add_public_class(Class *c) {
+FunctionCompilationContext *ClassCompilationContext::get_func_ctx(String *sig) {
+	return fctxMap->vv[Value(sig)].toFunctionCompilationContext();
+}
+
+void ClassCompilationContext::add_public_class(Class *                  c,
+                                               ClassCompilationContext *ctx) {
 	add_public_mem(c->name);
 	int modSlot = get_mem_slot(c->name);
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
+	cctxMap->vv[Value(c->name)] = Value(ctx);
 }
 
-void ClassCompilationContext::add_private_class(Class *c) {
+void ClassCompilationContext::add_private_class(Class *                  c,
+                                                ClassCompilationContext *ctx) {
 	add_private_mem(c->name);
 	int modSlot = get_mem_slot(c->name);
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
+	cctxMap->vv[Value(c->name)] = Value(ctx);
+}
+
+bool ClassCompilationContext::has_class(String *name) {
+	return has_mem(name) && cctxMap->vv[Value(name)] != ValueNil;
+}
+
+ClassCompilationContext *ClassCompilationContext::get_class_ctx(String *name) {
+	return cctxMap->vv[Value(name)].toClassCompilationContext();
 }
 
 Class *ClassCompilationContext::get_class() {
@@ -132,6 +155,15 @@ void ClassCompilationContext::mark() {
 	GcObject::mark((GcObject *)private_signatures);
 	GcObject::mark((GcObject *)klass);
 	GcObject::mark((GcObject *)moduleContext);
-	if(defaultConstructor != NULL)
+	GcObject::mark((GcObject *)fctxMap);
+	if(defaultConstructor != NULL) {
 		GcObject::mark((GcObject *)defaultConstructor);
+	}
+	if(cctxMap != NULL) {
+		GcObject::mark((GcObject *)cctxMap);
+	}
+}
+
+std::ostream &operator<<(std::ostream &o, const ClassCompilationContext &a) {
+	return o << "<classcompilationcontext object>";
 }

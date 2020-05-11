@@ -254,6 +254,10 @@ void String::release() {
 	GcObject_free(str, size + 1);
 }
 
+std::ostream &operator<<(std::ostream &o, const String &a) {
+	return o << a.str;
+}
+
 StringSet *StringSet::create() {
 	StringSet *s = (StringSet *)GcObject_malloc(sizeof(StringSet));
 	::new(&s->hset) HashSet<String *>();

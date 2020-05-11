@@ -17,29 +17,40 @@ struct ClassCompilationContext {
 	ValueMap *public_signatures;  // string:token to report overload errors
 	ValueMap *private_signatures; // string:token
 	Class *   klass;              // generated runtime representation of a class
-	int       slotCount;
+	ValueMap *fctxMap; // a classctx also keeps track of all the function ctxes
+	ValueMap *cctxMap; // a modulectx keeps track of classctxes declared inside
 	// super context
 	struct ClassCompilationContext *moduleContext;
 	// for module
 	FunctionCompilationContext *defaultConstructor;
+	// slots
+	int  slotCount;
+	bool isCompiled;
 
 	static ClassCompilationContext *
 	create(struct ClassCompilationContext *superContext, String *name);
 
-	void add_public_class(Class *c);
-	void add_private_class(Class *c);
+	void add_public_class(Class *c, ClassCompilationContext *ctx = NULL);
+	void add_private_class(Class *c, ClassCompilationContext *ctx = NULL);
 	bool add_public_mem(String *name);
 	bool add_private_mem(String *name);
 	bool has_mem(String *name);
 	// unchecked. use has_mem before
 	int get_mem_slot(String *name);
 
-	bool add_public_fn(String *sig, Function *f);
-	bool add_private_fn(String *sig, Function *f);
+	bool add_public_fn(String *sig, Function *f,
+	                   FunctionCompilationContext *fctx = NULL);
+	bool add_private_fn(String *sig, Function *f,
+	                    FunctionCompilationContext *fctx = NULL);
 	bool has_fn(String *sig);
+	// retrieve the ctx for a function
+	FunctionCompilationContext *get_func_ctx(String *sig);
 	// unchecked. use has_fn before
 	int get_fn_sym(String *sig);
 
+	// check if a class exists
+	bool                     has_class(String *name);
+	ClassCompilationContext *get_class_ctx(String *name);
 	// called for modules
 	FunctionCompilationContext *get_default_constructor();
 
@@ -50,4 +61,7 @@ struct ClassCompilationContext {
 	void mark();
 	void mark2();
 	void release() {}
+
+	friend std::ostream &operator<<(std::ostream &                 o,
+	                                const ClassCompilationContext &v);
 };

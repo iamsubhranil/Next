@@ -1,13 +1,13 @@
 #include "codegen.h"
 #include "builtins.h"
-#include "bytecode.h"
-#include "core.h"
 #include "display.h"
-#include "engine.h"
 #include "import.h"
 #include "loader.h"
-#include "stringconstants.h"
-#include "symboltable.h"
+
+#include "objects/bytecodecompilationctx.h"
+#include "objects/function.h"
+#include "objects/functioncompilationctx.h"
+#include "objects/symtab.h"
 
 using namespace std;
 
@@ -19,41 +19,59 @@ using namespace std;
 	}
 
 CodeGenerator::CodeGenerator() {
-	frame                = nullptr;
 	state                = COMPILE_DECLARATION;
 	onLHS                = false;
 	scopeID              = 0;
 	inClass              = false;
-	currentClass         = NULL;
-	currentVisibility    = AccessModifiableEntity::PUB;
+	currentVisibility    = Visibility::VIS_PRIV;
 	onRefer              = false;
 	tryBlockStart        = 0;
 	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
 	errorsOccurred       = 0;
+
+	mtx     = NULL;
+	ctx     = NULL;
+	ftx     = NULL;
+	btx     = NULL;
+	corectx = GcObject::CoreContext;
 }
 
-void CodeGenerator::compile(Module *compileIn, const vector<StmtPtr> &stmts) {
-	frame  = nullptr;
-	module = compileIn;
-	ExecutionEngine::registerModule(compileIn);
-	initFrame(module->frame.get(),
-	          stmts.size() > 0 ? stmts[0]->token : Token::PlaceholderToken);
-	NextString lastName = StringConstants::core;
+Class *CodeGenerator::compile(String *name, const vector<StmtPtr> &stmts) {
+	ClassCompilationContext *ctx = ClassCompilationContext::create(NULL, name);
+	compile(ctx, stmts);
+	return ctx->get_class();
+}
+
+void CodeGenerator::compile(ClassCompilationContext *compileIn,
+                            const vector<StmtPtr> &  stmts) {
+	// ExecutionEngine::registermtx(compileIn);
+	ctx = compileIn;
+	mtx = compileIn;
+	initFtx(compileIn->get_default_constructor(),
+	        stmts.size() > 0 ? stmts[0]->token : Token::PlaceholderToken);
+	// core mtx is not compiled any more
+	// but it is still stored at slot 0
+	// of each compiled mtx
+	VarInfo v = lookForVariable(String::from("core "), true);
+	btx->store_slot(v.slot);
+	btx->pop();
+	/*
+	String* lastName = StringConstants::core;
 	if(compileIn->name != lastName) {
-		module->importedModules[lastName] = CoreModule::core;
-		VarInfo v                         = lookForVariable(lastName, true);
-		bytecode->push(Value(module->importedModules[lastName]));
-		bytecode->store_slot(v.slot);
-		bytecode->pop2();
+	    mtx->importedmtxs[lastName] = Coremtx::core;
+	    VarInfo v                         = lookForVariable(lastName, true);
+	    btx->push(Value(mtx->importedmtxs[lastName]));
+	    btx->store_slot(v.slot);
+	    btx->pop2();
 	}
+	*/
 	compileAll(stmts);
-	bytecode->halt();
+	btx->halt();
 	popFrame();
 #ifdef DEBUG
-	cout << "Code generated for module " << StringLibrary::get(module->name)
-	     << endl;
-	cout << *module;
+	cout << "Code generated for mtx " << compileIn->name->str << endl;
+	cout << *mtx;
 #endif
 	if(errorsOccurred)
 		throw CodeGeneratorException(errorsOccurred);
@@ -64,13 +82,10 @@ int CodeGenerator::pushScope() {
 }
 
 void CodeGenerator::popScope() {
-	if(frame == nullptr)
+	if(ctx == nullptr)
 		return;
-	for(auto &i : frame->slots) {
-		if(i.second.scopeID >= scopeID) {
-			i.second.isValid = false;
-		}
-	}
+	// just decrement the scopeID
+	// ftx manages everything else
 	--scopeID;
 }
 
@@ -84,9 +99,10 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 		if((*i)->isDeclaration())
 			(*i)->accept(this);
 	}
-	// Mark this module as already compiled, so that even if a
-	// cyclic import occures, this module is not recompiled
-	module->isCompiled = true;
+	// Mark this mtx as already compiled, so that even if a
+	// cyclic import occures, this mtx is not recompiled
+	ctx->isCompiled = true;
+	// mtx->isCompiled = true;
 	// Then compile all imports
 	state = COMPILE_IMPORTS;
 	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
@@ -101,11 +117,10 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 	state = bak;
 }
 
-void CodeGenerator::initFrame(Frame *f, Token t) {
-	f->parent = frame;
-	f->insertdebug(t);
-	frame    = f;
-	bytecode = &f->code;
+void CodeGenerator::initFtx(FunctionCompilationContext *f, Token t) {
+	ftx = f;
+	btx = f->get_codectx();
+	btx->insert_token(t);
 }
 
 CodeGenerator::CompilationState CodeGenerator::getState() {
@@ -113,26 +128,44 @@ CodeGenerator::CompilationState CodeGenerator::getState() {
 }
 
 void CodeGenerator::popFrame() {
-	if(!frame)
+	if(!ftx)
 		return;
-	frame->finalizeDebug();
-	frame = frame->parent;
-	if(frame)
-		bytecode = &frame->code;
+	btx->finalize();
+	ftx = ctx->get_default_constructor();
+	btx = ftx->get_codectx();
 }
 
-Module *CodeGenerator::compile(NextString name, const vector<StmtPtr> &stmts) {
-	module = new Module(name);
-	frame  = module->frame.get();
-	compileAll(stmts);
-	return module;
+/*
+mtx *CodeGenerator::compile(String *name, const vector<StmtPtr> &stmts) {
+    mtx = new mtx(name);
+    frame  = mtx->frame.get();
+    compileAll(stmts);
+    return mtx;
 }
-
+*/
 int CodeGenerator::createTempSlot() {
 	char tempname[20] = {0};
-	int  len          = snprintf(&tempname[0], 20, "temp %d", frame->slotSize);
-	int  slot         = frame->declareVariable(tempname, len, scopeID);
+	int  len          = snprintf(&tempname[0], 20, "temp %d", ftx->slotCount);
+	int  slot         = ftx->create_slot(String::from(tempname), scopeID);
 	return slot;
+}
+
+void CodeGenerator::loadPresentModule() {
+	// check if we're in a class
+	if(ctx != mtx) {
+		// module is in the 0th slot of the class
+		btx->load_object_slot(0);
+	} else {
+		// if we're not inside of any class, then
+		// the 0th slot is the present module
+		btx->load_slot(0);
+	}
+}
+
+void CodeGenerator::loadCoreModule() {
+	loadPresentModule();
+	// core is in the 0th slot of the module
+	btx->load_tos_slot(0);
 }
 
 void CodeGenerator::visit(BinaryExpression *bin) {
@@ -143,30 +176,28 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 	bin->left->accept(this);
 	int jumpto = -1;
 	switch(bin->token.type) {
-		case TOKEN_and: jumpto = bytecode->land(0); break;
-		case TOKEN_or: jumpto = bytecode->lor(0); break;
+		case TOKEN_and: jumpto = btx->land(0); break;
+		case TOKEN_or: jumpto = btx->lor(0); break;
 		default: break;
 	}
 	bin->right->accept(this);
-	frame->insertdebug(bin->token);
+	btx->insert_token(bin->token);
 	switch(bin->token.type) {
-		case TOKEN_PLUS: bytecode->add(); break;
-		case TOKEN_MINUS: bytecode->sub(); break;
-		case TOKEN_STAR: bytecode->mul(); break;
-		case TOKEN_SLASH: bytecode->div(); break;
-		case TOKEN_CARET: bytecode->power(); break;
-		case TOKEN_BANG: bytecode->lnot(); break;
-		case TOKEN_EQUAL_EQUAL: bytecode->eq(); break;
-		case TOKEN_BANG_EQUAL: bytecode->neq(); break;
-		case TOKEN_LESS: bytecode->less(); break;
-		case TOKEN_LESS_EQUAL: bytecode->lesseq(); break;
-		case TOKEN_GREATER: bytecode->greater(); break;
-		case TOKEN_GREATER_EQUAL: bytecode->greatereq(); break;
-		case TOKEN_and:
-			bytecode->land(jumpto, bytecode->getip() - jumpto);
-			break;
-		case TOKEN_or: bytecode->lor(jumpto, bytecode->getip() - jumpto); break;
-		case TOKEN_in: bytecode->in_(); break;
+		case TOKEN_PLUS: btx->add(); break;
+		case TOKEN_MINUS: btx->sub(); break;
+		case TOKEN_STAR: btx->mul(); break;
+		case TOKEN_SLASH: btx->div(); break;
+		case TOKEN_CARET: btx->power(); break;
+		case TOKEN_BANG: btx->lnot(); break;
+		case TOKEN_EQUAL_EQUAL: btx->eq(); break;
+		case TOKEN_BANG_EQUAL: btx->neq(); break;
+		case TOKEN_LESS: btx->less(); break;
+		case TOKEN_LESS_EQUAL: btx->lesseq(); break;
+		case TOKEN_GREATER: btx->greater(); break;
+		case TOKEN_GREATER_EQUAL: btx->greatereq(); break;
+		case TOKEN_and: btx->land(jumpto, btx->getip() - jumpto); break;
+		case TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
+		case TOKEN_in: btx->in_(); break;
 
 		default:
 			panic("Invalid binary operator '%s'!",
@@ -182,116 +213,115 @@ void CodeGenerator::visit(GroupingExpression *g) {
 	g->exp->accept(this);
 }
 
+/*
 int CodeGenerator::getFrameIndex(vector<Frame *> &frames, Frame *searching) {
-	int k = 0;
-	for(auto i = frames.begin(), j = frames.end(); i != j; i++, k++) {
-		if(*i == searching) {
-			return k;
-		}
-	}
-	return -1;
+    int k = 0;
+    for(auto i = frames.begin(), j = frames.end(); i != j; i++, k++) {
+        if(*i == searching) {
+            return k;
+        }
+    }
+    return -1;
 }
+*/
+CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
+                                                   String *signature) {
+	CallInfo info = {CallInfo::UNDEFINED, 0, true};
 
-CodeGenerator::CallInfo
-CodeGenerator::resolveCall(NextString signature, bool isImported, Module *mod) {
-	CallInfo info = {CallInfo::UNDEFINED, NULL, 0};
+	// the order of preference is as following
+	// local > class > module > core > builtin
+	// softcalls are always preferred
 
-	// If its marked as imported, then we know there's already
-	// a valid module
-	if(isImported) {
-		info.type     = CallInfo::IMPORTED;
-		info.fn       = mod->functions[signature].get();
-		info.frameIdx = module->getIndexOfImportedFrame(
-		    mod->functions[signature]->frame.get());
+	if(ftx->has_slot(name, scopeID)) {
+		info.type     = CallInfo::LOCAL;
+		info.frameIdx = ftx->get_slot(name);
 		return info;
 	}
-	// If we are inside a class, first search for methods inside
+
+	// if we're not inside a user defined class,
+	// mtx and ctx will point to the same
+	// CompilationContext
+
+	// Since we are always inside of a class,
+	// first search for methods inside
 	// of it
-	uint64_t sym;
-	if(inClass)
-		sym = SymbolTable::insertSymbol(signature);
-	if(inClass && currentClass->hasMethod(sym)) {
-		info.type = CallInfo::INTRA_CLASS;
-		// Search for the frame in the class
-		Frame *searching = currentClass->functions[sym]->frame.get();
-		info.frameIdx    = frame->getCallFrameIndex(searching);
-		info.fn          = currentClass->functions[sym].get();
+	if(ctx->has_mem(name)) {
+		info.type     = CallInfo::CLASS;
+		info.frameIdx = ctx->get_mem_slot(name);
 		return info;
-
 	}
+	if(ctx->has_fn(signature)) {
+		info.type     = CallInfo::CLASS;
+		info.frameIdx = ctx->get_fn_sym(signature);
+		info.soft     = false;
+		// Search for the frame in the class
+		return info;
+	}
+
 	// Search for methods with generated signature in the present
 	// module
-	else if(module->functions.find(signature) != module->functions.end()) {
-		info.type = CallInfo::INTRA_MODULE;
-		// Search for the frame in the module
-		Frame *searching = module->functions[signature]->frame.get();
-		info.frameIdx    = frame->getCallFrameIndex(searching);
-		info.fn          = module->functions[signature].get();
+	if(mtx->has_mem(name)) {
+		info.type     = CallInfo::MODULE;
+		info.frameIdx = ctx->get_mem_slot(name);
+		return info;
+	} else if(mtx->has_fn(signature)) {
+		info.type     = CallInfo::MODULE;
+		info.frameIdx = mtx->get_fn_sym(signature);
+		info.soft     = false;
+		return info;
+	}
+	// try searching in core
+	else if(corectx->has_mem(name)) {
+		info.type     = CallInfo::CORE;
+		info.frameIdx = corectx->get_mem_slot(name);
+		return info;
+	} else if(corectx->has_fn(signature)) {
+		info.type     = CallInfo::CORE;
+		info.frameIdx = corectx->get_fn_sym(signature);
+		info.soft     = false;
 		return info;
 	} else { // try searching for builtin functions
 		if(Builtin::has_builtin(signature)) {
 			info.type = CallInfo::BUILTIN;
+			info.soft = false;
 			return info;
 		}
 	}
-	// Do not automatically link indirect function imports
-	/*else {
-	    // Search in the imported modules
-	    Frame *searching     = NULL;
-	    for(auto i = module->importedModules.begin(),
-	             j = module->importedModules.end();
-	        i != j; i++) {
-	        if((*i).second->functions.find(signature) !=
-	           (*i).second->functions.end()) {
-	            if((*i).second->symbolTable[signature]->vis ==
-	               AccessModifiableEntity::PUB) {
-	                searching = (*i).second->functions[signature]->frame.get();
-	                info.type = CallInfo::IMPORTED;
-	                info.fn   = (*i).second->functions[signature].get();
-	                info.frameIdx = module->getIndexOfImportedFrame(searching);
-	                return info;
-	            }
-	        }
-	    }
-	}*/
 
 	return info;
 }
 
 void CodeGenerator::emitCall(CallExpression *call, bool isImported,
-                             Module *mod) {
+                             Class *mod) {
 #ifdef DEBUG_CODEGEN
 	dinfo("Generating call for");
 	call->callee->token.highlight();
 #endif
 	int argSize = call->arguments.size();
-	// bytecode->stackEffect(-argSize + 1);
+	// btx->stackEffect(-argSize + 1);
 	// Since CALL has higher precedence than REFERENCE,
 	// a CallExpression will necessarily contain an identifier
 	// as its callee.
 	// Hence 'call->callee->accept(this)' is not required. We
 	// can directly use the token to generate the signature.
-	NextString signature = generateSignature(call->callee->token, argSize);
+	String *signature = generateSignature(call->callee->token, argSize);
+	String *name =
+	    String::from(call->callee->token.start, call->callee->token.length);
 
-	CallInfo info = {CallInfo::UNDEFINED, NULL, 0};
+	CallInfo info = {CallInfo::UNDEFINED, 0, true};
 
 	if(!onRefer) {
-		info = resolveCall(signature, isImported, mod);
+		info = resolveCall(name, signature);
 	}
 
-	// If this is a constructor call, we pass in
-	// a dummy value to slot 0, which will later
-	// be replaced by the instance itself
-	if(!onRefer && info.type != CallInfo::UNDEFINED &&
-	   info.type != CallInfo::BUILTIN && info.fn->isConstructor) {
-		// bytecode->stackEffect(-1);
-		bytecode->push(Value(0.0));
-	}
+	/*
+	 * all normal calls are intraclass now, and slot 0 is automatically
+	 * copied
 	if(!onRefer && info.type == CallInfo::INTRA_CLASS) {
-		// load the object first, so no manual stack manipulation
-		// is needed
-		bytecode->load_slot_0();
-	}
+	    // load the object first, so no manual stack manipulation
+	    // is needed
+	    btx->load_slot_0();
+	}*/
 	// Reset the referral status for arguments
 	bool bak = onRefer;
 	onRefer  = false;
@@ -299,64 +329,78 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 		i->accept(this);
 	}
 	onRefer = bak;
-	frame->insertdebug(call->callee->token);
+	btx->insert_token(call->callee->token);
 	// If this a reference expression, dynamic dispatch will be used
 	if(onRefer) {
-		bytecode->call_method(SymbolTable::insertSymbol(signature), argSize);
-		bytecode->stackEffect(-argSize);
+		btx->call_method(SymbolTable2::insert(signature), argSize);
+		btx->stackEffect(-argSize);
 		return;
 	} else {
-		switch(info.type) {
-			case CallInfo::INTRA_CLASS:
-				if(frame->isStatic && !info.fn->frame->isStatic) {
-					lnerr_("Non-static method '%.*s' cannot be called inside a "
-					       "static method!",
-					       call->callee->token, call->callee->token.length,
-					       call->callee->token.start);
-				}
-				// +1 for the object
-				bytecode->call(info.frameIdx, argSize + 1);
-				// argSize + 1 values sent, 1 value returned
-				bytecode->stackEffect(-argSize + 2);
-				break;
-			case CallInfo::INTRA_MODULE:
-				bytecode->call(info.frameIdx,
-				               argSize
-				                   // if this is a constructor call, reserve
-				                   // slot 0 for the dummy value which will be
-				                   // replaced by the instance itself
-				                   + info.fn->isConstructor);
-				bytecode->stackEffect(-argSize + 1);
-				break;
-			/*case CallInfo::IMPORTED:
-				bytecode->call_imported(info.frameIdx,
-				                        call->arguments.size() +
-				                            info.fn->isConstructor);
-				break;*/
-			case CallInfo::BUILTIN:
-				bytecode->call_builtin(signature, argSize);
-				bytecode->stackEffect(-argSize + 1);
-				break;
-			default: {
-
-				// Function is not found
-				lnerr_("No function with the specified signature found in "
-				       "module '%s'!",
-				       call->callee->token,
-				       StringLibrary::get_raw(module->name));
-				NextString s = StringLibrary::insert(
-				    call->callee->token.start, call->callee->token.length);
-				for(auto const &i : module->functions) {
-					if(s == i.second->name) {
-						lninfo("Found similar function (takes %zu arguments, "
-						       "provided "
-						       "%zu)",
-						       i.second->token, i.second->arity, argSize);
-						i.second->token.highlight();
-					}
-				}
-				break;
+		if(info.type == CallInfo::UNDEFINED) {
+			// Function is not found
+			lnerr_("No function with the specified signature found "
+			       " '%s'!",
+			       call->callee->token, mtx->get_class()->name->str);
+			String *s = String::from(call->callee->token.start,
+			                         call->callee->token.length);
+			// TODO: Error reporting
+			/*
+			for(auto const &i : ctx->public_signatures->vv) {
+			    if(s == i.second->name) {
+			        lninfo("Found similar function (takes %zu arguments, "
+			               "provided "
+			               "%zu)",
+			               i.second->token, i.second->arity, argSize);
+			        i.second->token.highlight();
+			    }
+			}*/
+			return;
+		}
+		if(info.soft) {
+			// generate the no name signature
+			int sig = SymbolTable2::insert(generateSignature(argSize));
+			switch(info.type) {
+				case CallInfo::LOCAL: btx->load_slot(info.frameIdx); break;
+				case CallInfo::CLASS:
+					btx->load_object_slot(info.frameIdx);
+					break;
+				case CallInfo::MODULE:
+					// load module
+					loadPresentModule();
+					btx->load_tos_slot(info.frameIdx);
+					break;
+				case CallInfo::CORE:
+					loadCoreModule();
+					// load the specified slot
+					btx->load_tos_slot(info.frameIdx);
+					break;
+				case CallInfo::BUILTIN:
+					btx->call_builtin(signature, argSize);
+					break;
+				default: break; // error is already handled
 			}
+			btx->call_soft(sig, argSize);
+			return;
+		}
+		// function call
+		switch(info.type) {
+			case CallInfo::CLASS:
+				// intra class call
+				btx->call(info.frameIdx);
+				break;
+			case CallInfo::MODULE:
+				// load module
+				loadPresentModule();
+				btx->call_tos(info.frameIdx);
+				break;
+			case CallInfo::CORE:
+				loadCoreModule();
+				btx->call_tos(info.frameIdx);
+				break;
+			case CallInfo::BUILTIN:
+				btx->call_builtin(signature, argSize);
+				break;
+			default: break; // error is already handled
 		}
 	}
 }
@@ -365,58 +409,40 @@ void CodeGenerator::visit(CallExpression *call) {
 	emitCall(call);
 }
 
-CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
-                                                      bool       declare) {
+CodeGenerator::VarInfo CodeGenerator::lookForVariable(String *name,
+                                                      bool    declare) {
 	int slot = 0, isLocal = 1;
-	// first check the present frame
-	if(frame->hasVariable(name)) {
-		slot = frame->slots[name].slot;
+	// first check the present context
+	if(ftx->has_slot(name, scopeID)) {
+		slot = ftx->get_slot(name);
 		return (VarInfo){slot, LOCAL};
-	} else { // It's in an enclosing class, or parent frame or another module
-		// Check if we are inside a class
-		if(inClass) {
-			// Check if it is in present class
-			if(currentClass->hasVariable(name)) {
-				return (VarInfo){currentClass->members[name].slot, CLASS};
-			}
+	} else { // It's in an enclosing class, or parent frame or another mtx
+		// Check if it is in present class
+		if(ctx->has_mem(name)) {
+			return (VarInfo){ctx->get_mem_slot(name), CLASS};
 		}
-		// Check if it is in a parent frame
-		Frame *f = frame->parent;
-		if(f != nullptr) {
-			while(f != nullptr && !f->hasVariable(name)) f = f->parent;
-			if(f != nullptr) {
-				isLocal = 0;
-				return (VarInfo){f->slots.find(name)->second.slot, MODULE};
-			}
+
+		// Check if it is in the parent module
+		if(mtx->has_mem(name)) {
+			return (VarInfo){mtx->get_mem_slot(name), MODULE};
+		}
+		// Check if it is in core
+		if(corectx->has_mem(name)) {
+			return (VarInfo){corectx->get_mem_slot(name), CORE};
 		}
 
 		// Check if it is a built-in constant
 		// Since built-in constants cannot be overridden, it will only
 		// be a built-in constant if it is on the right side of an
 		// expression. If it is on the left side of an expression,
-		// an error will be raised by the respective code generator module.
+		// an error will be raised by the respective code generator ctx.
 		if(Builtin::has_constant(name)) {
 			return (VarInfo){0, BUILTIN};
 		}
 
-		/* Later
-
-		// Check if it is in an imported module
-		for(auto i = module->importedModules.begin(),
-		         j = module->importedModules.end();
-		    i != j; i++) {
-		    Module *m = (*i).second;
-		    if(m->variables.find(name) != m->variables.end() &&
-		       get<1>(m->variables.find(name)->second) == PUBLIC) {
-		        bytecode->load_module_slot((*i).first, name);
-		        return;
-		    }
-		}
-
-		*/
 		if(declare) {
 			// Finally, declare the variable in the present frame
-			slot = frame->declareVariable(name, scopeID);
+			slot = ftx->create_slot(name, scopeID);
 			return (VarInfo){slot, LOCAL};
 		}
 	}
@@ -426,25 +452,30 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(NextString name,
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
                                                       bool       showError,
                                                       Visibility vis) {
-	NextString name = StringLibrary::insert(t.start, t.length);
-	VarInfo    var  = lookForVariable(name, declare);
-	if(var.position == UNDEFINED && showError) {
-		lnerr_("No such variable found : '%s'", t,
-		       StringLibrary::get_raw(name));
-	} else if(var.position == CLASS && !currentClass->members[name].isStatic &&
-	          frame->isStatic) {
-		lnerr_(
-		    "Non-static member '%.*s' cannot be used inside a static method!",
-		    t, t.length, t.start);
-	} else if(declare && var.position == LOCAL && frame->parent == NULL &&
-	          module->variables.find(name) == module->variables.end()) {
-		module->variables[name] =
-		    Variable(vis == VIS_PUB ? AccessModifiableEntity::PUB
-		                            : AccessModifiableEntity::PRIV,
-		             t);
-		module->variables[name].isStatic = false;
-		module->variables[name].slot     = var.slot;
-	}
+	String *name = String::from(t.start, t.length);
+	VarInfo var  = lookForVariable(name, declare);
+	if(var.position == UNDEFINED) {
+		if(declare) {
+			var.position = LOCAL;
+			var.slot     = ftx->create_slot(name, scopeID);
+		} else if(showError) {
+			lnerr_("No such variable found : '%s'", t, name->str);
+		}
+	} /*else if(var.position == CLASS && !ctx->get_mem_slot.isStatic &&
+	           frame->isStatic) {
+	     lnerr_(
+	         "Non-static member '%.*s' cannot be used inside a static method!",
+	         t, t.length, t.start);
+	 }
+	 else if(declare && var.position == LOCAL && frame->parent == NULL &&
+	         mtx->variables.find(name) == mtx->variables.end()) {
+	     mtx->variables[name] =
+	         Variable(vis == VIS_PUB ? AccessModifiableEntity::PUB
+	                                 : AccessModifiableEntity::PRIV,
+	                  t);
+	     mtx->variables[name].isStatic = false;
+	     mtx->variables[name].slot     = var.slot;
+	 }*/
 	return var;
 }
 
@@ -468,7 +499,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 			as->target->accept(this);
 			onLHS = b;
 			as->val->accept(this);
-			bytecode->subscript_set();
+			btx->subscript_set();
 		}
 	} else {
 
@@ -481,15 +512,20 @@ void CodeGenerator::visit(AssignExpression *as) {
 		VarInfo var = lookForVariable(as->target->token, true);
 
 		if(state == COMPILE_BODY) {
-			frame->insertdebug(as->token);
+			btx->insert_token(as->token);
 			// target of an assignment expression cannot be a
 			// builtin constant
 			switch(var.position) {
-				case LOCAL: bytecode->store_slot(var.slot); break;
-				case CLASS: bytecode->store_object_slot(var.slot); break;
-				case MODULE: bytecode->store_module_slot(var.slot); break;
+				case LOCAL: btx->store_slot(var.slot); break;
+				case CLASS: btx->store_object_slot(var.slot); break;
+				case MODULE:
+					loadPresentModule();
+					btx->store_tos_slot(var.slot);
+					break;
+				case CORE: loadCoreModule(); btx->store_tos_slot(var.slot);
 				case BUILTIN: {
-					lnerr_("Built-in constant '%.*s' cannot be reassigned!",
+					lnerr_("Built-in variable '%.*s' cannot be "
+					       "reassigned!",
 					       as->target->token, as->target->token.length,
 					       as->target->token.start);
 					break;
@@ -505,36 +541,18 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	dinfo("");
 	al->token.highlight();
 #endif
-	// load the core module if we're not already in it
-	if(module->name != StringConstants::core) {
-		// core is declared as the 0th slot in the module
-		bytecode->load_module_slot(0);
-		bytecode->push(Value((double)al->exprs.size()));
-		bytecode->call_method(
-		    SymbolTable::insertSymbol(StringConstants::sig_array_1), 1);
-		bytecode->stackEffect(0);
-	} else {
-		// we are in the core module
-		CallInfo info = resolveCall(StringConstants::sig_array_1, false, NULL);
-		bytecode->push(Value(0.0));
-		bytecode->push(Value((double)al->exprs.size()));
-		bytecode->call(info.frameIdx, 2);
-		bytecode->stackEffect(0);
-	}
 	if(al->exprs.size() > 0) {
-		// now evalute all the expressions
+		// evalute all the expressions
 		for(auto &i : al->exprs) {
-			// bytecode->pushd((double)j);
 			i->accept(this);
-			// bytecode->subscript_set();
-			// bytecode->pop2();
 		}
-		// finally emit opcode to assign those
-		// expressions to the array, and leave
-		// the array at the top of the stack
-		bytecode->array_build(al->exprs.size());
-		bytecode->stackEffect(-(int)al->exprs.size());
 	}
+	// finally emit opcode to create an
+	// array, assign those
+	// expressions to the array, and leave
+	// the array at the top of the stack
+	btx->array_build(al->exprs.size());
+	btx->stackEffect(-(int)al->exprs.size());
 }
 
 void CodeGenerator::visit(HashmapLiteralExpression *al) {
@@ -542,36 +560,26 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 	dinfo("");
 	al->token.highlight();
 #endif
-	// load the core module if we're not already in it
-	if(module->name != StringConstants::core) {
-		// core is declared as the 0th slot in the module
-		bytecode->load_module_slot(0);
-		bytecode->call_method(
-		    SymbolTable::insertSymbol(StringConstants::sig_hashmap_0), 0);
-		// bytecode->stackEffect(1);
-	} else {
-		// we are in the core module
-		CallInfo info =
-		    resolveCall(StringConstants::sig_hashmap_0, false, NULL);
-		bytecode->push(Value(0.0));
-		bytecode->call(info.frameIdx, 1);
-		// bytecode->stackEffect(1);
-	}
+	// temp_slot = core.hashmap()
+	loadCoreModule();
+	btx->load_field(SymbolTable2::insert("map"));
+	btx->call_soft(SymbolTable2::const_sig_constructor_0, 0);
+
 	int slot = createTempSlot();
-	bytecode->store_slot_pop(slot);
+	btx->store_slot_pop(slot);
 	if(al->keys.size() > 0) {
 		// now evalute all the key:value pairs
 		int p = 0;
 		for(auto &i : al->keys) {
-			bytecode->load_slot(slot);
+			btx->load_slot(slot);
 			i->accept(this);
 			al->values[p]->accept(this);
-			bytecode->subscript_set();
-			bytecode->pop();
+			btx->subscript_set();
+			btx->pop();
 			p++;
 		}
 	}
-	bytecode->load_slot(slot);
+	btx->load_slot(slot);
 }
 
 void CodeGenerator::visit(LiteralExpression *lit) {
@@ -579,13 +587,13 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 	dinfo("");
 	lit->token.highlight();
 #endif
-	frame->insertdebug(lit->token);
-	bytecode->push(lit->value);
+	btx->insert_token(lit->token);
+	btx->push(lit->value);
 	/*
 	switch(lit->value.t) {
-	    case Value::VAL_Number: bytecode->pushd(lit->value.toNumber()); break;
-	    case Value::VAL_String: bytecode->pushs(lit->value.toString()); break;
-	    case Value::VAL_NIL: bytecode->pushn(); break;
+	    case Value::VAL_Number: btx->pushd(lit->value.toNumber()); break;
+	    case Value::VAL_String: btx->pushs(lit->value.toString()); break;
+	    case Value::VAL_NIL: btx->pushn(); break;
 	    default: panic("Handling other values not implemented!");
 	}*/
 }
@@ -600,7 +608,7 @@ void CodeGenerator::visit(SetExpression *sete) {
 		bool b = onLHS;
 		onLHS  = true;
 		sete->object->accept(this);
-		bytecode->store_field(lastMemberReferenced);
+		btx->store_field(lastMemberReferenced);
 		onLHS = b;
 	}
 }
@@ -615,34 +623,34 @@ void CodeGenerator::visit(GetExpression *get) {
 	// will only happen for the start of a reference
 	// expression), or VariableExpression.CallExpression
 	// the expression can actually be a
-	// module reference.
+	// mtx reference.
 	/*
 	if(get->object->isVariable()) {
 	    // Find out the name
-	    NextString name = StringLibrary::insert(get->object->token.start,
+	    String* name = String::from(get->object->token.start,
 	                                            get->object->token.length);
-	    // If a variable shadows the module name, the variable name will be
+	    // If a variable shadows the mtx name, the variable name will be
 	    // prioritized
 	    VarInfo var = lookForVariable(name, false);
-	    // Check if there is a module of the same name
-	    if(var.position == UNDEFINED && module->importedModules.find(name) !=
-	                                        module->importedModules.end()) {
+	    // Check if there is a mtx of the same name
+	    if(var.position == UNDEFINED && mtx->importedmtxs.find(name) !=
+	                                        mtx->importedmtxs.end()) {
 	        // voila
 	        // Now resolve the reference.
 	        // Only valid function calls and variable
 	        // accesses will be optimized. Everything else
 	        // will be delegated into the runtime as a
-	        // method call to the module primitive.
-	        Module *m = module->importedModules[name];
+	        // method call to the mtx primitive.
+	        mtx *m = mtx->importedmtxs[name];
 	        if(get->refer->getType() == Expr::Type::CALL) {
 	            CallExpression *ce = (CallExpression *)get->refer.get();
-	            NextString      sig =
+	            String*      sig =
 	                generateSignature(ce->callee->token, ce->arguments.size());
 	            if(m->hasSignature(sig)) {
 	                emitCall(ce, true, m);
 	                return;
 	            } else {
-	                // Load the module* at runtime and delegate the call
+	                // Load the mtx* at runtime and delegate the call
 	                lookForVariable(name);
 	                bool b  = onRefer;
 	                onRefer = true;
@@ -675,7 +683,7 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 	sube->idx->accept(this);
 	onLHS = b;
 	if(!onLHS)
-		bytecode->subscript_get();
+		btx->subscript_get();
 }
 
 void CodeGenerator::visit(PrefixExpression *pe) {
@@ -687,12 +695,12 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 		case TOKEN_PLUS: pe->right->accept(this); break;
 		case TOKEN_BANG:
 			pe->right->accept(this);
-			bytecode->lnot();
+			btx->lnot();
 			break;
 		case TOKEN_MINUS:
 			pe->right->accept(this);
-			frame->insertdebug(pe->token);
-			bytecode->neg();
+			btx->insert_token(pe->token);
+			btx->neg();
 			break;
 		case TOKEN_PLUS_PLUS:
 			if(!pe->right->isAssignable()) {
@@ -703,22 +711,24 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				pe->right->accept(this);
 				onLHS = false;
 				if(pe->right->isMemberAccess()) {
-					bytecode->incr_field(lastMemberReferenced);
-					bytecode->load_field(lastMemberReferenced);
+					int sym = lastMemberReferenced;
+					btx->incr_field(sym);
+					btx->load_field(sym);
 					return;
 				}
 				switch(variableInfo.position) {
 					case LOCAL:
-						bytecode->incr_slot(variableInfo.slot);
-						bytecode->load_slot_n(variableInfo.slot);
+						btx->incr_slot(variableInfo.slot);
+						btx->load_slot_n(variableInfo.slot);
 						break;
 					case MODULE:
-						bytecode->incr_module_slot(variableInfo.slot);
-						bytecode->load_module_slot(variableInfo.slot);
+						loadPresentModule();
+						btx->incr_tos_slot(variableInfo.slot);
+						btx->load_tos_slot(variableInfo.slot);
 						break;
 					case CLASS:
-						bytecode->incr_object_slot(variableInfo.slot);
-						bytecode->load_object_slot(variableInfo.slot);
+						btx->incr_object_slot(variableInfo.slot);
+						btx->load_object_slot(variableInfo.slot);
 						break;
 					case BUILTIN: {
 						lnerr_(
@@ -736,27 +746,28 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				lnerr_("Cannot apply '--' on a non-assignable expression!",
 				       pe->token);
 			} else {
-				frame->insertdebug(pe->token);
+				btx->insert_token(pe->token);
 				onLHS = true;
 				pe->right->accept(this);
 				onLHS = false;
 				if(pe->right->isMemberAccess()) {
-					bytecode->decr_field(lastMemberReferenced);
-					bytecode->load_field(lastMemberReferenced);
+					btx->decr_field(lastMemberReferenced);
+					btx->load_field(lastMemberReferenced);
 					return;
 				}
 				switch(variableInfo.position) {
 					case LOCAL:
-						bytecode->decr_slot(variableInfo.slot);
-						bytecode->load_slot_n(variableInfo.slot);
+						btx->decr_slot(variableInfo.slot);
+						btx->load_slot_n(variableInfo.slot);
 						break;
 					case MODULE:
-						bytecode->decr_module_slot(variableInfo.slot);
-						bytecode->load_module_slot(variableInfo.slot);
+						loadPresentModule();
+						btx->decr_tos_slot(variableInfo.slot);
+						btx->load_tos_slot(variableInfo.slot);
 						break;
 					case CLASS:
-						bytecode->decr_object_slot(variableInfo.slot);
-						bytecode->load_object_slot(variableInfo.slot);
+						btx->decr_object_slot(variableInfo.slot);
+						btx->load_object_slot(variableInfo.slot);
 						break;
 					case BUILTIN: {
 						lnerr_(
@@ -788,24 +799,25 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 	switch(pe->token.type) {
 		case TOKEN_PLUS_PLUS:
 			if(pe->left->isMemberAccess()) {
-				bytecode->load_field_pushback(lastMemberReferenced);
-				bytecode->incr_field(lastMemberReferenced);
+				btx->load_field_pushback(lastMemberReferenced);
+				btx->incr_field(lastMemberReferenced);
 				// pop off the object load_field_pushback pushed back
-				bytecode->pop2();
+				btx->pop();
 				return;
 			}
 			switch(variableInfo.position) {
 				case LOCAL:
-					bytecode->load_slot_n(variableInfo.slot);
-					bytecode->incr_slot(variableInfo.slot);
+					btx->load_slot_n(variableInfo.slot);
+					btx->incr_slot(variableInfo.slot);
 					break;
 				case MODULE:
-					bytecode->load_module_slot(variableInfo.slot);
-					bytecode->incr_module_slot(variableInfo.slot);
+					loadPresentModule();
+					btx->load_tos_slot(variableInfo.slot);
+					btx->incr_tos_slot(variableInfo.slot);
 					break;
 				case CLASS:
-					bytecode->load_object_slot(variableInfo.slot);
-					bytecode->incr_object_slot(variableInfo.slot);
+					btx->load_object_slot(variableInfo.slot);
+					btx->incr_object_slot(variableInfo.slot);
 					break;
 				case BUILTIN: {
 					lnerr_("Built-in constant '%.*s' cannot be incremented!",
@@ -818,24 +830,25 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 			break;
 		case TOKEN_MINUS_MINUS:
 			if(pe->left->isMemberAccess()) {
-				bytecode->load_field_pushback(lastMemberReferenced);
-				bytecode->decr_field(lastMemberReferenced);
+				btx->load_field_pushback(lastMemberReferenced);
+				btx->decr_field(lastMemberReferenced);
 				// pop off the object load_field_pushback pushed back
-				bytecode->pop2();
+				btx->pop();
 				return;
 			}
 			switch(variableInfo.position) {
 				case LOCAL:
-					bytecode->load_slot_n(variableInfo.slot);
-					bytecode->decr_slot(variableInfo.slot);
+					btx->load_slot_n(variableInfo.slot);
+					btx->decr_slot(variableInfo.slot);
 					break;
 				case MODULE:
-					bytecode->load_module_slot(variableInfo.slot);
-					bytecode->decr_module_slot(variableInfo.slot);
+					loadPresentModule();
+					btx->load_tos_slot(variableInfo.slot);
+					btx->decr_tos_slot(variableInfo.slot);
 					break;
 				case CLASS:
-					bytecode->load_object_slot(variableInfo.slot);
-					bytecode->decr_object_slot(variableInfo.slot);
+					btx->load_object_slot(variableInfo.slot);
+					btx->decr_object_slot(variableInfo.slot);
 					break;
 				case BUILTIN: {
 					lnerr_("Built-in constant '%.*s' cannot be decremented!",
@@ -857,28 +870,34 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	dinfo("");
 	vis->token.highlight();
 #endif
-	NextString name =
-	    StringLibrary::insert(string(vis->token.start, vis->token.length));
+	String *name = String::from(vis->token.start, vis->token.length);
 	if(!onRefer) {
 		VarInfo var = lookForVariable(vis->token);
-		frame->insertdebug(vis->token);
+		btx->insert_token(vis->token);
 		if(onLHS) { // in case of LHS, just pass on the information
 			variableInfo = var;
 			onLHS        = false;
 		} else {
 			switch(var.position) {
-				case LOCAL: bytecode->load_slot_n(var.slot); break;
-				case MODULE: bytecode->load_module_slot(var.slot); break;
-				case CLASS: bytecode->load_object_slot(var.slot); break;
-				case BUILTIN: bytecode->load_constant(name); break;
+				case LOCAL: btx->load_slot_n(var.slot); break;
+				case MODULE:
+					loadPresentModule();
+					btx->load_tos_slot(var.slot);
+					break;
+				case CORE:
+					loadCoreModule();
+					btx->load_tos_slot(var.slot);
+					break;
+				case CLASS: btx->load_object_slot(var.slot); break;
+				case BUILTIN: btx->load_constant(name); break;
 				default: break;
 			}
 		}
 	} else {
 		if(onLHS)
-			lastMemberReferenced = name;
+			lastMemberReferenced = SymbolTable2::insert(name);
 		else
-			bytecode->load_field(name);
+			btx->load_field(SymbolTable2::insert(name));
 	}
 }
 
@@ -888,21 +907,21 @@ void CodeGenerator::visit(IfStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	ifs->condition->accept(this);
-	frame->insertdebug(ifs->token);
-	int jif = bytecode->jumpiffalse(0), jumpto = 0, exitif = -1;
+	btx->insert_token(ifs->token);
+	int jif = btx->jumpiffalse(0), jumpto = 0, exitif = -1;
 	ifs->thenBlock->accept(this);
 	if(ifs->elseBlock != nullptr) {
-		exitif = bytecode->jump(0);
-		jumpto = bytecode->getip();
+		exitif = btx->jump(0);
+		jumpto = btx->getip();
 		ifs->elseBlock->accept(this);
 	} else
-		jumpto = bytecode->getip();
+		jumpto = btx->getip();
 	// patch the conditional jump
-	bytecode->jumpiffalse(jif, jumpto - jif);
+	btx->jumpiffalse(jif, jumpto - jif);
 	// if there is an else block, patch the
 	// exit jump
 	if(exitif != -1)
-		bytecode->jump(exitif, bytecode->getip() - exitif);
+		btx->jump(exitif, btx->getip() - exitif);
 }
 
 void CodeGenerator::visit(WhileStatement *ifs) {
@@ -911,19 +930,19 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(!ifs->isDo) {
-		int pos = bytecode->getip();
+		int pos = btx->getip();
 		ifs->condition->accept(this);
-		frame->insertdebug(ifs->token);
-		int loopexit = bytecode->jumpiffalse(0);
+		btx->insert_token(ifs->token);
+		int loopexit = btx->jumpiffalse(0);
 		ifs->thenBlock->accept(this);
-		bytecode->jump(pos - bytecode->getip());
-		bytecode->jumpiffalse(loopexit, bytecode->getip() - loopexit);
+		btx->jump(pos - btx->getip());
+		btx->jumpiffalse(loopexit, btx->getip() - loopexit);
 	} else {
-		int pos = bytecode->getip();
+		int pos = btx->getip();
 		ifs->thenBlock->accept(this);
 		ifs->condition->accept(this);
-		frame->insertdebug(ifs->token);
-		bytecode->jumpiftrue(pos - bytecode->getip());
+		btx->insert_token(ifs->token);
+		btx->jumpiftrue(pos - btx->getip());
 	}
 }
 
@@ -933,8 +952,8 @@ void CodeGenerator::visit(ReturnStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	ifs->expr->accept(this);
-	frame->insertdebug(ifs->token);
-	bytecode->ret();
+	btx->insert_token(ifs->token);
+	btx->ret();
 }
 
 void CodeGenerator::visit(ForStatement *ifs) {
@@ -958,30 +977,31 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// then, evalute the RHS
 			it->right->accept(this);
 			// initialize the iterator
-			bytecode->iterate_init(slot);
+			btx->iterate_init(slot);
 			// iterate
-			int pos = bytecode->iterate_next(slot, 0);
+			int pos = btx->iterate_next(slot, 0);
 			// store the iterated value in the given variable
 			switch(var.position) {
-				case LOCAL: bytecode->store_slot_pop(var.slot); break;
+				case LOCAL: btx->store_slot_pop(var.slot); break;
 				case MODULE:
-					bytecode->store_module_slot(var.slot);
-					bytecode->pop();
+					loadPresentModule();
+					btx->store_tos_slot(var.slot);
+					btx->pop();
 					break;
 				case CLASS:
-					bytecode->store_object_slot(var.slot);
-					bytecode->pop();
+					btx->store_object_slot(var.slot);
+					btx->pop();
 					break;
 				default: break;
 			}
 			// execute the body
 			ifs->body->accept(this);
 			// jump back to iterate
-			bytecode->jump(pos - bytecode->getip());
+			btx->jump(pos - btx->getip());
 			// patch the exit
-			bytecode->iterate_next(pos, slot, bytecode->getip() - pos);
+			btx->iterate_next(pos, slot, btx->getip() - pos);
 			// finally, pop the RHS
-			bytecode->pop();
+			btx->pop();
 			// pop the scope
 			popScope();
 		}
@@ -996,16 +1016,16 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			for(auto &a : ifs->init) {
 				a->accept(this);
 				// pop the result
-				bytecode->pop();
+				btx->pop();
 			}
 		}
 		// evalute the condition
-		int cond_at    = bytecode->getip();
+		int cond_at    = btx->getip();
 		int patch_exit = -1;
 		if(ifs->cond.get() != NULL) {
 			ifs->cond->accept(this);
 			// exit if the condition is violated
-			patch_exit = bytecode->jumpiffalse(0);
+			patch_exit = btx->jumpiffalse(0);
 		}
 		// evalute the body
 		ifs->body->accept(this);
@@ -1014,39 +1034,43 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			for(auto &a : ifs->incr) {
 				a->accept(this);
 				// pop the result
-				bytecode->pop();
+				btx->pop();
 			}
 		}
 		// come out to the parent scope
 		popScope();
 		// finally, jump back to the beginning
-		bytecode->jump(cond_at - bytecode->getip());
+		btx->jump(cond_at - btx->getip());
 		// and patch the exit
 		if(patch_exit != -1) {
-			bytecode->jumpiffalse(patch_exit, bytecode->getip() - patch_exit);
+			btx->jumpiffalse(patch_exit, btx->getip() - patch_exit);
 		}
 	}
 }
 
-NextString CodeGenerator::generateSignature(const string &name, int arity) {
-	string sig = name + "(";
+String *CodeGenerator::generateSignature(int arity) {
+	String *sig = String::from("(", 1);
 	if(arity > 0) {
-		sig += "_";
-		size_t bak = arity - 1;
-		while(bak != 0) {
-			sig += ",_";
-			bak--;
+		sig = String::append(sig, "_");
+		while(--arity) {
+			sig = String::append(sig, ",_");
 		}
 	}
-	sig += ")";
-#ifdef DEBUG_CODEGEN
-	cout << "Signature generated : " << sig << "\n";
-#endif
-	return StringLibrary::insert(sig);
+	sig = String::append(sig, ")");
+	return sig;
 }
 
-NextString CodeGenerator::generateSignature(const Token &name, int arity) {
-	return generateSignature(string(name.start, name.length), arity);
+String *CodeGenerator::generateSignature(const String *name, int arity) {
+	String *sig = generateSignature(arity);
+	sig         = String::append(name, sig);
+#ifdef DEBUG_CODEGEN
+	cout << "Signature generated : " << sig->str_ << "\n";
+#endif
+	return sig;
+}
+
+String *CodeGenerator::generateSignature(const Token &name, int arity) {
+	return generateSignature(String::from(name.start, name.length), arity);
 }
 
 void CodeGenerator::visit(FnStatement *ifs) {
@@ -1054,107 +1078,86 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	NextString signature;
-	uint64_t   sym;
-	// Constructors are registered as module functions,
-	// and are called in the same way as normal functions.
-	// For example, a class named LinkedList which has a
-	// constructor like 'new(x, y, z)' will generate a
-	// signature 'LinkedList(_,_,_)' which will be registered
-	// to the module as a function. This means you can't
-	// have another function named 'LinkedList(x, y, z)' in
-	// the same module, which otherwise would've been also
-	// syntatically ambiguous, since functions and constructors
-	// are called with the exact same syntax.
+	String *signature;
+	int     sym;
+
 	bool inConstructor = inClass && ifs->isConstructor;
 	if(inConstructor) {
-		signature = generateSignature(StringLibrary::get(currentClass->name),
-		                              ifs->arity);
+		// if it is a constructor, it's signature will be
+		// only its arity, and it will be registered to
+		// the class
+		signature = generateSignature(ifs->arity);
 	} else {
 		signature = generateSignature(ifs->name, ifs->arity);
 	}
 	if(inClass) {
-		sym = SymbolTable::insertSymbol(signature);
+		sym = SymbolTable2::insert(signature);
 	}
 	if(getState() == COMPILE_DECLARATION) {
-		if((!inClass || inConstructor) && module->hasSignature(signature)) {
+		if(ctx->has_fn(signature)) {
 			if(inConstructor) {
 				lnerr_("Ambiguous constructor declaration for class '%s'!",
-				       ifs->name, StringLibrary::get_raw(currentClass->name));
+				       ifs->name, ctx->klass->name);
 
 			} else {
 				lnerr_("Redefinition of function with same signature!",
 				       ifs->name);
 			}
+			/* TODO: Fix this
 			lnerr("Previously declared at : ",
-			      module->functions.find(signature)->second->token);
-			module->functions.find(signature)->second->token.highlight();
-		} else if(inClass && currentClass->hasMethod(sym)) {
-			lnerr_("Redefinition of method with same signature!", ifs->name);
-			lnerr("Previously declared at : ",
-			      currentClass->functions[sym]->token);
-			currentClass->functions[sym]->token.highlight();
-
+			      mtx->.find(signature)->second->token);
+			mtx->functions.find(signature)->second->token.highlight();
+		*/
 		} else {
-			FnPtr f = unq(Fn,
-			              !inClass ? (AccessModifiableEntity::Visibility)(
-			                             VIS_PUB + ifs->visibility)
-			                       : currentVisibility,
-			              frame, module);
-			f->name = StringLibrary::insert(
-			    string(ifs->name.start, ifs->name.length));
-			f->token = ifs->name;
-			f->arity = ifs->arity;
-			// f->frame                       = unq(Frame, frame, module);
-			f->isConstructor   = inConstructor;
-			f->frame->isStatic = ifs->isStatic;
-			if(!inClass || inConstructor) {
-				module->frames.push_back(f->frame.get());
-				module->symbolTable[signature] = f.get();
-				module->functions[signature]   = FnPtr(f.release());
-			} else {
-				currentClass->insertMethod(sym, f.release());
+			FunctionCompilationContext *fctx =
+			    FunctionCompilationContext::create(
+			        String::from(ifs->name.start, ifs->name.length),
+			        ifs->arity);
+			switch(ifs->visibility) {
+				case VIS_PUB:
+					ctx->add_public_fn(signature, fctx->get_fn());
+					break;
+				default: ctx->add_private_fn(signature, fctx->get_fn());
 			}
 		}
 	} else {
-		if(!inClass || inConstructor)
-			initFrame(module->functions[signature]->frame.get(), ifs->name);
-		else
-			initFrame(currentClass->functions[sym]->frame.get(), ifs->name);
+		initFtx(ctx->get_func_ctx(signature), ifs->token);
 
-		if(inClass || inConstructor) {
+		if(inClass) {
 			// Object will be stored in 0
-			frame->declareVariable("this", 4, scopeID + 1);
+			ftx->create_slot(String::from("this"), scopeID + 1);
 		}
 
+		/* TODO: Handle native functions
 		if(ifs->isNative) {
-			if(!inClass)
-				module->functions[signature]->isNative = true;
-			else
-				currentClass->functions[sym]->isNative = true;
-			popFrame();
+		    if(!inClass)
+		        mtx->functions[signature]->isNative = true;
+		    else
+		        ctx->functions[sym]->isNative = true;
+		    popFrame();
 		} else {
-			if(inConstructor) {
-				bytecode->construct(module->name, currentClass->name);
-			}
-			ifs->body->accept(this);
-
-			// Each function returns nil by default
-			// Only module root emits 'halt'
-			// Only constructor emits construct_ret
-
-			if(inConstructor) {
-				bytecode->construct_ret();
-			} else {
-				// Even if the last bytecode was ret, we can't be sure
-				// that's the last statement of the function because of
-				// branching and looping. So we add a 'ret' anyway.
-				bytecode->pushn();
-				bytecode->ret();
-			}
-
-			popFrame();
+		*/
+		if(inConstructor) {
+			btx->construct(Value(ctx->get_class()));
 		}
+		ifs->body->accept(this);
+
+		// Each function returns nil by default
+		// Only module root emits 'halt'
+		// Only constructor emits construct_ret
+
+		if(inConstructor) {
+			btx->load_slot_0();
+			btx->ret();
+		} else {
+			// Even if the last bytecode was ret, we can't be sure
+			// that's the last statement of the function because of
+			// branching and looping. So we add a 'ret' anyway.
+			btx->pushn();
+			btx->ret();
+		}
+
+		popFrame();
 	}
 
 	// panic("Not yet implemented!");
@@ -1169,7 +1172,7 @@ void CodeGenerator::visit(FnBodyStatement *ifs) {
 		// body will automatically contain a block statement,
 		// which will obviously push a new scope.
 		// So we speculatively do that here.
-		frame->declareVariable((*i).start, (*i).length, scopeID + 1);
+		ftx->create_slot(String::from((*i).start, (*i).length), scopeID + 1);
 	}
 	ifs->body->accept(this);
 }
@@ -1181,11 +1184,11 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 #endif
 	pushScope();
 	// Back up the previous stack specifications
-	int present = bytecode->stackSize();
+	int present = btx->code->stackSize;
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++)
 		(*i)->accept(this);
-	bytecode->restoreStackSize(present);
+	btx->code->stackSize = present;
 	popScope();
 }
 
@@ -1198,7 +1201,7 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 		i->get()->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
-		bytecode->pop2();
+		btx->pop();
 	}
 }
 
@@ -1209,8 +1212,8 @@ void CodeGenerator::visit(PrintStatement *ifs) {
 #endif
 	for(auto i = ifs->exprs.begin(), j = ifs->exprs.end(); i != j; i++) {
 		(*i)->accept(this);
-		frame->insertdebug(ifs->token);
-		bytecode->print();
+		btx->insert_token(ifs->token);
+		btx->print();
 	}
 }
 
@@ -1219,41 +1222,42 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	NextString className =
-	    StringLibrary::insert(ifs->name.start, ifs->name.length);
+	String *className = String::from(ifs->name.start, ifs->name.length);
 	if(getState() == COMPILE_DECLARATION) {
-		if(module->classes.find(className) != module->classes.end()) {
-			lnerr_("Class '%s' is already declared in module '%s'!", ifs->name,
-			       StringLibrary::get_raw(className),
-			       StringLibrary::get_raw(module->name));
-			lnerr("Previously declared at : ",
-			      module->classes[className]->token);
-			module->classes[className]->token.highlight();
+		if(mtx->has_class(className)) {
+			lnerr_("Class '%s' is already declared in mtx '%s'!", ifs->name,
+			       className->str, mtx->get_class()->name->str);
+			// TODO: Error reporting
+			// lnerr("Previously declared at : ",
+			// mtx->classes[className]->token);
+			// mtx->classes[className]->token.highlight();
 		}
-		ClassPtr c = unq(
-		    NextClass, (AccessModifiableEntity::Visibility)(VIS_PUB + ifs->vis),
-		    module, className);
-		c->token                   = ifs->name;
-		module->classes[className] = ClassPtr(c.release());
-		inClass                    = true;
-		currentClass               = module->classes[className].get();
+		ClassCompilationContext *c = ClassCompilationContext::create(
+		    mtx, String::from(ifs->name.start, ifs->name.length));
+		switch(ifs->vis) {
+			case VIS_PUB: mtx->add_public_class(c->get_class(), c); break;
+			default: mtx->add_private_class(c->get_class(), c);
+		}
+		inClass = true;
+		ctx     = c;
 		pushScope();
 		for(auto i = ifs->declarations.begin(), j = ifs->declarations.end();
 		    i != j; i++) {
 			(*i)->accept(this);
 		}
 		popScope();
-		inClass      = false;
-		currentClass = NULL;
+		inClass = false;
+		ctx     = NULL;
 	} else {
-		inClass      = true;
-		currentClass = module->classes[className].get();
+		inClass = true;
+		ctx =
+		    mtx->get_class_ctx(String::from(ifs->name.start, ifs->name.length));
 		for(auto i = ifs->declarations.begin(), j = ifs->declarations.end();
 		    i != j; i++) {
 			(*i)->accept(this);
 		}
-		inClass      = false;
-		currentClass = NULL;
+		inClass = false;
+		ctx     = NULL;
 	}
 }
 
@@ -1263,18 +1267,9 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_IMPORTS) {
-		Token      last     = *(ifs->import.end() - 1);
-		NextString lastName = StringLibrary::insert(last.start, last.length);
-		// Check for collisions first
-		if(module->importedModules.find(lastName) !=
-		   module->importedModules.end()) {
-			// lnerr_("Import collision between two modules of the same name!",
-			//       ifs->token);
-			// the module is already imported
-			// skip
-			return;
-		}
-		ImportStatus is = import(ifs->import);
+		Token        last     = *(ifs->import.end() - 1);
+		String *     lastName = String::from(last.start, last.length);
+		ImportStatus is       = Importer::import(ifs->import);
 		Token        t =
 		    ifs->import[is.toHighlight ? is.toHighlight - 1 : is.toHighlight];
 		switch(is.res) {
@@ -1287,34 +1282,28 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				break;
 			}
 			case ImportStatus::FILE_NOT_FOUND: {
-				lnerr_("No such module found in the given folder!", t);
+				lnerr_("No such mtx found in the given folder!", t);
 				break;
 			}
 			case ImportStatus::IMPORT_SUCCESS: {
-				Module *m = compile_and_load(is.fileName);
+				Class *m = Loader::compile_and_load(is.fileName);
 				if(m == NULL) {
-					// compilation of the module failed
-					lnerr_("Compilation of imported module failed!", t);
+					// compilation of the mtx failed
+					lnerr_("Compilation of imported mtx failed!", t);
 					break;
 				}
-				// The name of the imported module for the
-				// importee module would be the last part
+				// The name of the imported mtx for the
+				// importee mtx would be the last part
 				// of the import statement
 				// i.e.:    import sys.io
-				// Registered module name : io
-				module->importedModules[lastName] = m;
+				// Registered mtx name : io
 				// Warn if a variable name shadows the imported
-				// module
-				if(module->frame->slots.find(lastName) !=
-				   module->frame->slots.end()) {
-					lnwarn("Variable '%s' shadows imported module!",
-					       ifs->token);
-				} else {
-					VarInfo v = lookForVariable(lastName, true);
-					bytecode->push(Value(m));
-					bytecode->store_slot(v.slot);
-					bytecode->pop2();
-				}
+				// mtx
+				VarInfo v = lookForVariable(lastName, true);
+				btx->push(Value(m));
+				btx->store_slot(v.slot);
+				btx->pop();
+
 				break;
 			}
 		}
@@ -1333,8 +1322,8 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 			       ifs->token.length, ifs->token.start);
 		}
 		ifs->expr->accept(this);
-		bytecode->store_slot(v.slot);
-		bytecode->pop2();
+		btx->store_slot(v.slot);
+		btx->pop();
 	}
 }
 
@@ -1346,18 +1335,20 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 	if(getState() == COMPILE_DECLARATION) {
 		for(auto i = ifs->members.begin(), j = ifs->members.end(); i != j;
 		    i++) {
-			NextString name = StringLibrary::insert((*i).start, (*i).length);
-			if(currentClass->members.find(name) !=
-			   currentClass->members.end()) {
+			String *name = String::from((*i).start, (*i).length);
+			if(ctx->has_mem(name)) {
 				lnerr_("Member '%s' variable already declared!", (*i),
-				       StringLibrary::get_raw(name));
-				lnerr("Previously declared at : ",
-				      currentClass->members[name].token);
-				currentClass->members[name].token.highlight();
+				       name->str);
+				/* TODO: Fix this
+				lnerr("Previously declared at : ", ctx->members[name].token);
+				ctx->members[name].token.highlight();
 				lnerr("Redefined at : ", (*i));
+				*/
 			} else {
-				currentClass->declareVariable(name, currentVisibility,
-				                              ifs->isStatic, (*i));
+				switch(currentVisibility) {
+					case VIS_PUB: ctx->add_public_mem(name); break;
+					default: ctx->add_private_mem(name); break;
+				}
 			}
 		}
 	}
@@ -1368,9 +1359,7 @@ void CodeGenerator::visit(VisibilityStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	currentVisibility = ifs->token.type == TOKEN_pub
-	                        ? AccessModifiableEntity::PUB
-	                        : AccessModifiableEntity::PRIV;
+	currentVisibility = ifs->token.type == TOKEN_pub ? VIS_PUB : VIS_PRIV;
 }
 
 void CodeGenerator::visit(TryStatement *ifs) {
@@ -1378,18 +1367,18 @@ void CodeGenerator::visit(TryStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	int from = bytecode->getip();
+	int from = btx->getip();
 	ifs->tryBlock->accept(this);
 	// if the try block succeeds, we should get out
 	// of all the remaining catch blocks
-	int skipAll = bytecode->jump(0);
-	int to      = bytecode->getip() - 1;
+	int skipAll = btx->jump(0);
+	int to      = btx->getip() - 1;
 	int bf = tryBlockStart, bt = tryBlockEnd;
 	tryBlockStart = from;
 	tryBlockEnd   = to;
 	// there will be a value pushed on to the stack
 	// if an exception occurs, so count for it
-	bytecode->insertSlot();
+	btx->code->insertSlot();
 	// after one catch block is executed, the control
 	// should get out of remaining catch blocks
 	vector<int> jumpAddresses;
@@ -1397,14 +1386,14 @@ void CodeGenerator::visit(TryStatement *ifs) {
 	    i++) {
 		(*i)->accept(this);
 		// keep a backup of the jump opcode address
-		jumpAddresses.push_back(bytecode->jump(0));
+		jumpAddresses.push_back(btx->jump(0));
 	}
 	for(auto i = jumpAddresses.begin(), j = jumpAddresses.end(); i != j; i++) {
 		// patch the jump addresses
-		bytecode->jump((*i), bytecode->getip() - (*i));
+		btx->jump((*i), btx->getip() - (*i));
 	}
 	// patch the try jump
-	bytecode->jump(skipAll, bytecode->getip() - skipAll);
+	btx->jump(skipAll, btx->getip() - skipAll);
 	tryBlockStart = bf;
 	tryBlockEnd   = bt;
 }
@@ -1414,24 +1403,30 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	NextString tname =
-	    StringLibrary::insert(ifs->typeName.start, ifs->typeName.length);
-	NextType t;
-	if(NextType::isPrimitive(tname)) {
-		t = NextType::getPrimitiveType(tname);
+	String *tname = String::from(ifs->typeName.start, ifs->typeName.length);
+
+	Exception *e = ftx->f->create_exception_block(tryBlockStart, tryBlockEnd);
+	VarInfo    v = lookForVariable(tname);
+	if(v.position == UNDEFINED) {
+		lnerr_("No such variable found in present scope '%s'!", ifs->token,
+		       tname->str);
 	} else {
-		t = module->resolveType(tname);
-		if(t == NextType::Error) {
-			lnerr_("No such type found in present module!", ifs->typeName);
+		CatchBlock::SlotType st;
+		switch(v.position) {
+			case LOCAL: st = CatchBlock::SlotType::LOCAL; break;
+			case CLASS: st = CatchBlock::SlotType::CLASS; break;
+			case MODULE: st = CatchBlock::SlotType::MODULE; break;
+			case CORE: st = CatchBlock::SlotType::CORE; break;
+			case BUILTIN: st = CatchBlock::SlotType::BUILTIN; break;
+			default: break;
 		}
+		int receiver = ftx->create_slot(
+		    String::from(ifs->varName.start, ifs->varName.length), scopeID + 1);
+		e->add_catch(v.slot, st, btx->getip());
+		// store the thrown object
+		btx->store_slot(receiver);
+		btx->pop();
 	}
-	// catch block will push a new scope
-	int slot = frame->declareVariable(ifs->varName.start, ifs->varName.length,
-	                                  scopeID + 1);
-	frame->handlers->push_back(
-	    (ExHandler){tryBlockStart, tryBlockEnd, bytecode->getip(), t});
-	bytecode->store_slot(slot); // store the thrown object
-	bytecode->pop2();           // pop it manually since store_slot doesn't
 	ifs->block->accept(this);
 }
 
@@ -1441,5 +1436,5 @@ void CodeGenerator::visit(ThrowStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	ifs->expr->accept(this);
-	bytecode->throw_();
+	btx->throw_();
 }

@@ -14,8 +14,10 @@ FunctionCompilationContext *FunctionCompilationContext::create(String *name,
                                                                int     arity) {
 	FunctionCompilationContext *fcc =
 	    GcObject::allocFunctionCompilationContext();
-	fcc->f         = Function::create(name, arity);
-	fcc->slotmap   = ValueMap::create();
+	fcc->f       = Function::create(name, arity);
+	fcc->slotmap = (HashMap<Value, VarState> *)GcObject::malloc(
+	    sizeof(HashMap<Value, VarState>));
+	::new(fcc->slotmap) HashMap<Value, VarState>();
 	fcc->bcc       = BytecodeCompilationContext::create();
 	fcc->f->code   = fcc->bcc->code;
 	fcc->slotCount = 0;
@@ -32,21 +34,29 @@ Function *FunctionCompilationContext::get_fn() {
 
 void FunctionCompilationContext::mark() {
 	GcObject::mark((GcObject *)f);
-	GcObject::mark((GcObject *)slotmap);
 	GcObject::mark((GcObject *)bcc);
 }
 
-int FunctionCompilationContext::create_slot(String *s) {
-	if(slotmap->vv.contains(Value(s)))
-		return slotmap->vv[Value(s)].toInteger();
-	slotmap->vv[Value(s)] = Value((double)slotCount++);
+void FunctionCompilationContext::release() {
+	slotmap->~HashMap<Value, VarState>();
+	GcObject::free(slotmap, sizeof(HashMap<Value, VarState>));
+}
+
+int FunctionCompilationContext::create_slot(String *s, int scopeID) {
+	if(slotmap->contains(s))
+		return (*slotmap)[s].slot;
+	slotmap[0][s] = (VarState){slotCount++, scopeID};
 	return slotCount - 1;
 }
 
-bool FunctionCompilationContext::has_slot(String *s) {
-	return slotmap->vv.contains(Value(s));
+bool FunctionCompilationContext::has_slot(String *s, int scopeID) {
+	return slotmap->contains(s) && slotmap[0][s].scopeID <= scopeID;
 }
 
 int FunctionCompilationContext::get_slot(String *s) {
-	return slotmap->vv[Value(s)].toInteger();
+	return slotmap[0][s].slot;
+}
+
+std::ostream &operator<<(std::ostream &o, const FunctionCompilationContext &a) {
+	return o << "<functioncompilationcontext object>";
 }
