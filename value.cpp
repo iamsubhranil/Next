@@ -1,10 +1,9 @@
 #include "value.h"
 #include "display.h"
-#include "fn.h"
-#include "stringconstants.h"
+#include "objects/string.h"
 #include <iomanip>
 
-NextString Value::ValueTypeStrings[] = {
+String *Value::ValueTypeStrings[] = {
     0,
     0,
 #define TYPE(r, n) 0,
@@ -31,8 +30,8 @@ std::ostream &operator<<(std::ostream &o, const Value &v) {
 void Value::init() {
 	int i = 0;
 
-	ValueTypeStrings[i++] = StringConstants::Number;
-	ValueTypeStrings[i++] = StringConstants::Nil;
-#define TYPE(r, n) ValueTypeStrings[i++] = StringConstants::type_##n;
+	ValueTypeStrings[i++] = String::const_Number;
+	ValueTypeStrings[i++] = String::const_Nil;
+#define TYPE(r, n) ValueTypeStrings[i++] = String::const_##n;
 #include "valuetypes.h"
 }

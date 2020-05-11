@@ -1,5 +1,5 @@
 #include "builtins.h"
-#include "engine.h"
+//#include "engine.h"
 #include "gc.h"
 #include "loader.h"
 #include <iostream>
@@ -15,11 +15,11 @@ int main(int argc, char *argv[]) {
 	GcObject::init();
 	Value::init();
 	Builtin::init();
-	ExecutionEngine::init();
+	// ExecutionEngine::init();
 	// bind all the core classes
-	NextType::bindCoreClasses();
+	// NextType::bindCoreClasses();
 	if(argc > 1) {
-		compile_and_load(argv[1], true);
+		Class *c = Loader::compile_and_load(argv[1], true);
 		// cout << s.scanAllTokens();
 	} else {
 		cout << "Repl is not implemented yet!";
@@ -34,6 +34,6 @@ int main(int argc, char *argv[]) {
 		cout << endl;
 		*/
 	}
-	ExecutionEngine::gc();
+	// ExecutionEngine::gc();
 	return 0;
 }

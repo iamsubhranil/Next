@@ -17,7 +17,8 @@ SCONSTANT(Nil, "Nil")
 SCONSTANT(repl, "repl")
 SCONSTANT(true_, "true")
 SCONSTANT(false_, "false")
-
+SCONSTANT(GcObject, "GcObject")
+SCONSTANT(Boolean, "Boolean")
 #define TYPE(r, n) SCONSTANT(type_##n, #n)
 #include "valuetypes.h"
 

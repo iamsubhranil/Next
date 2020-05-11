@@ -1,9 +1,7 @@
 #pragma once
 
 #include "gc.h"
-#include "hashmap.h"
 #include "qnan.h"
-#include "stringlibrary.h"
 #include <cmath>
 #include <cstdint>
 
@@ -60,7 +58,7 @@ struct Value {
 	Type getType() const {
 		return isNumber() ? VAL_Number : (Type)VAL_TYPE(value);
 	}
-	NextString getTypeString() const { return ValueTypeStrings[getType()]; }
+	String *getTypeString() const { return ValueTypeStrings[getType()]; }
 
 	inline bool is(Type ty) const {
 		return isNumber() ? ty == VAL_Number : VAL_TYPE(value) == (Type)ty;
@@ -123,7 +121,7 @@ struct Value {
 	    static const Value valueFalse;
 	    static const Value valueZero;
 	*/
-	static NextString ValueTypeStrings[];
+	static String *ValueTypeStrings[];
 };
 
 constexpr Value ValueNil   = Value(QNAN_NIL);
