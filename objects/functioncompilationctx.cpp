@@ -45,20 +45,16 @@ void FunctionCompilationContext::release() {
 }
 
 int FunctionCompilationContext::create_slot(String *s, int scopeID) {
-	if(slotmap->contains(s))
+	if(slotmap->contains(s)) {
+		// reassignt the variable to the new scope
+		slotmap[0][s].scopeID = scopeID;
 		return (*slotmap)[s].slot;
-	/*for(auto &s : slotmap[0]) {
-	    dbg("%s : %d : %d : %p", s.first->str, s.second.slot, s.second.scopeID,
-	        s.first);
 	}
-	dbg("Creating slot for '%s' : %d", s->str, slotCount);
-	*/
 	slotmap[0][s] = (VarState){slotCount++, scopeID};
 	return slotCount - 1;
 }
 
 bool FunctionCompilationContext::has_slot(String *s, int scopeID) {
-	// dbg("Slotmap.contains('%s') : %d", s->str, slotmap->contains(s));
 	return slotmap->contains(s) && slotmap[0][s].scopeID <= scopeID;
 }
 
