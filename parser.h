@@ -287,6 +287,9 @@ class Parser {
 	StmtPtr              parseStatement();
 	StmtPtr              parseBlock(bool isStatic = false);
 	std::string          buildNextString(Token &t);
+
+	// release the parselets
+	void releaseAll();
 };
 
 class ParseException : public std::runtime_error {

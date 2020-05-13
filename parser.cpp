@@ -165,6 +165,21 @@ int Parser::getPrecedence() {
 	return 0;
 }
 
+void Parser::releaseAll() {
+	for(auto &e : prefixParselets) {
+		delete e.second.release();
+	}
+	for(auto &e : infixParselets) {
+		delete e.second.release();
+	}
+	for(auto &e : declarationParselets) {
+		delete e.second.release();
+	}
+	for(auto &e : statementParselets) {
+		delete e.second.release();
+	}
+}
+
 // Top level declarations
 
 StmtPtr ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {

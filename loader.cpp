@@ -135,6 +135,7 @@ Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
 		Parser p(s);
 		registerParselets(&p);
 		vector<StmtPtr> decls = p.parseAllDeclarations();
+		p.releaseAll();
 #ifdef DEBUG
 		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
 			sp.print(i->get());
@@ -174,6 +175,7 @@ Class *Loader::compile_and_load_from_source(const char *             source,
 		Parser p(s);
 		registerParselets(&p);
 		vector<StmtPtr> decls = p.parseAllDeclarations();
+		p.releaseAll();
 #ifdef DEBUG
 		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
 			sp.print(i->get());
