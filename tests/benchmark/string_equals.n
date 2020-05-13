@@ -1,7 +1,7 @@
 start = clock()
 
 count = 0
-for(i in core.range(1000000)) {
+for(i in range(1000000)) {
   if ("abc" == "abc") { count = count + 1 }
   if ("a slightly longer string" ==
       "a slightly longer string") { count = count + 1 }

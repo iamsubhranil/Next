@@ -12,7 +12,7 @@ fn expect_err(arr, idx) {
         x = arr[idx]
         print("[ERROR] ", arr, " should not be accessible with idx ", idx, "!\n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 }
 
 pub fn test() {

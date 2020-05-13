@@ -36,34 +36,34 @@ fn expect_err(map, idx) {
         v = map[idx]
         print("[Error] Exception expected while accessing invalid index '", idx, "'!\n")
         res = false
-    } catch(RuntimeException ce) {}
+    } catch(runtime_error ce) {}
 }
 
 pub fn test() {
-    map = {"Hello" : "World!",
+    map_ = {"Hello" : "World!",
             29932.3290012 : 2909023,
             ObjectWrapper(Object(10)) : "Stored!",
             true : "False!"}
 
-    expect(map, "Hello", "World!")
-    expect(map, 29932.3290012, 2909023)
-    expect(map, 1, nil)
-    expect(map, 0, "Stored!")
-    expect(map, true, "False!")
-    expect_err(map, ObjectWrapper([]))
+    expect(map_, "Hello", "World!")
+    expect(map_, 29932.3290012, 2909023)
+    expect(map_, 1, nil)
+    expect(map_, 0, "Stored!")
+    expect(map_, true, "False!")
+    expect_err(map_, ObjectWrapper([]))
 
-    if(map.size() != 4) {
+    if(map_.size() != 4) {
         print("[Error] Map size expected to be 4!\n")
         res = false
     }
 
-    k = map.keys()
-    v = map.values()
+    k = map_.keys()
+    v = map_.values()
 
     i = 0
     while(i < k.size()) {
-        if(map[k[i]] != v[i]) {
-            print("[Error] '", map[k[i]], "' expected to be '", v[i], "'!")
+        if(map_[k[i]] != v[i]) {
+            print("[Error] '", map_[k[i]], "' expected to be '", v[i], "'!")
             res = false
         }
         i++

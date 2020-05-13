@@ -17,7 +17,7 @@ pub fn test() {
     try {
         good()
         print("[Error] good() should've thrown an exception by now!\n")
-    } catch(RuntimeException e) {
+    } catch(runtime_error e) {
         res = true
     }
 

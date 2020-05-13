@@ -6,31 +6,31 @@ class testing {
 pub fn test() {
     res = true
     a = 2
-    if(type_of(a) != "core.Number") {
+    if(type_of(a).name() != "number") {
         print("type_of not working!\n")
         res = false
     }
 
-    if(type_of(a) == "something") {
+    if(type_of(a).name() == "something") {
         print("type_of(a) == \"something\") should've returned false!\n")
         res = false
     }
 
-    if(type_of(a) != "core.Number") {
+    if(type_of(a).name() != "number") {
         print("type_of(a) != \"core.Number\") should've returned true!\n")
         res = false
     }
 
     a = testing()
 
-    if(type_of(a) != "typetest.testing") {
+    if(type_of(a).name() != "testing") {
         print("type_of(a) == \"typetest.test\") should've returned true!\n")
         res = false
     }
 
-    a = core.array()
+    a = array()
 
-    if(type_of(a) != "core.array") {
+    if(type_of(a).name() != "array") {
         print("type_of(a) == \"core.array\") should've returned true!\n")
         res = false
     }

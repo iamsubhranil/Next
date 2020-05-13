@@ -1,20 +1,20 @@
 start = clock()
 
-map = core.hashmap()
+map_ = map()
 
-for(i in core.range(1, 2000001)) {
-    map[i] = i
+for(i in range(1, 2000001)) {
+    map_[i] = i
 }
 
 sum = 0
-for(i in map.keys()) {
-    sum = sum + map[i]
+for(i in map_.keys()) {
+    sum = sum + map_[i]
 }
 
 print(sum, "\n")
 
-for(i in map.keys()) {
-    map.remove(i)
+for(i in map_.keys()) {
+    map_.remove(i)
 }
 
 print("elapsed: ", (clock() - start)/clocks_per_sec)

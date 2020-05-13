@@ -33,10 +33,10 @@ pub fn test() {
         badfn(4)
         print("[Error] badfn should've really thrown an exception now!\n")
         res = false
-    } catch(Number n) {
+    } catch(number n) {
         print("[Error] Expected exception of class 'Exception', caught 'Number'! \n")
         res = false
-    } catch(String s) {
+    } catch(string s) {
         print("[Error] Expected exception of class 'Exception', caught 'String'! \n")
         res = false
     } catch(Exception e) {
