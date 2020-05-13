@@ -66,6 +66,15 @@ int FunctionCompilationContext::get_slot(String *s) {
 	return slotmap[0][s].slot;
 }
 
+void FunctionCompilationContext::disassemble(std::ostream &o) {
+	o << "Slots: ";
+	for(auto &a : slotmap[0]) {
+		o << a.first[0] << "(" << a.second.slot << "), ";
+	}
+	o << "\n";
+	f->disassemble(o);
+}
+
 std::ostream &operator<<(std::ostream &o, const FunctionCompilationContext &a) {
 	return o << "<functioncompilationcontext object>";
 }

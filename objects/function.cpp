@@ -23,7 +23,7 @@ Function *Function::create(String *str, int arity, bool isStatic) {
 	Function *f      = GcObject::allocFunction();
 	f->name          = str;
 	f->code          = NULL;
-	f->mode          = ((int)isStatic << 4) | BUILTIN;
+	f->mode          = ((int)isStatic << 4) | METHOD;
 	f->arity         = arity;
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
@@ -101,6 +101,44 @@ void Function::init() {
 	FunctionClass->add_builtin_fn("name()", 0, next_function_name);
 	FunctionClass->add_builtin_fn("type()", 0, next_function_type);
 }
+
+void Function::disassemble(std::ostream &o) {
+	o << "Name: " << name[0] << "\n";
+	o << "Arity: " << arity << "\n";
+	Type t = getType();
+	o << "Type: ";
+	switch(t) {
+		case Type::METHOD: o << "Method\n"; break;
+		case Type::BUILTIN: o << "Builtin\n"; break;
+	}
+	o << "Exceptions: " << numExceptions << "\n";
+	for(size_t i = 0; i < numExceptions; i++) {
+		o << "Exception #" << i << ": From -> " << exceptions[i].from
+		  << " To -> " << exceptions[i].to << " Catches -> "
+		  << exceptions[i].numCatches << "\n";
+		for(size_t j = 0; j < exceptions[i].numCatches; j++) {
+			CatchBlock c = exceptions[i].catches[j];
+			o << "Catch #" << i << "." << j << ": Slot -> " << c.slot
+			  << " Type -> ";
+			switch(c.type) {
+				case CatchBlock::CORE: o << "Core"; break;
+				case CatchBlock::LOCAL: o << "Local"; break;
+				case CatchBlock::CLASS: o << "Class"; break;
+				case CatchBlock::MODULE: o << "Module"; break;
+				case CatchBlock::BUILTIN: o << "Builtin"; break;
+			}
+			o << " Jump -> " << c.jump << "\n";
+		}
+	}
+	o << "Code: ";
+	switch(t) {
+		case Type::BUILTIN: o << func << "\n"; break;
+		case Type::METHOD:
+			o << "\n";
+			code->disassemble(o);
+			break;
+	}
+};
 
 std::ostream &operator<<(std::ostream &o, const Function &a) {
 	return o << "<function '" << a.name->str << "'>";

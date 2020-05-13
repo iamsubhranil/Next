@@ -9,6 +9,10 @@
 #include "objects/functioncompilationctx.h"
 #include "objects/symtab.h"
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 using namespace std;
 
 #define lnerr_(str, t, ...)                   \
@@ -72,7 +76,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 #ifdef DEBUG
 	cout << "Code generated for mtx " << compileIn->get_class()->name->str
 	     << endl;
-	cout << *mtx;
+	compileIn->disassemble(cout);
 #endif
 	if(errorsOccurred)
 		throw CodeGeneratorException(errorsOccurred);

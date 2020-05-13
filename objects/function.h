@@ -61,5 +61,7 @@ struct Function {
 	void release();
 	void mark();
 
+	void disassemble(std::ostream &o);
+
 	friend std::ostream &operator<<(std::ostream &o, const Function &v);
 };

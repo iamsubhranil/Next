@@ -2,6 +2,15 @@
 #include "array.h"
 #include "class.h"
 
+#include <iomanip>
+
+const char *Bytecode::OpcodeNames[] = {
+#define OPCODE0(x, y) #x,
+#define OPCODE1(x, y, z) #x,
+#define OPCODE2(w, x, y, z) #w,
+#include "../opcodes.h"
+};
+
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
 		size_t newcap = Array::powerOf2Ceil(size + 1);
@@ -81,13 +90,60 @@ void Bytecode::init() {
 
 Bytecode *Bytecode::create() {
 	Bytecode *code     = GcObject::allocBytecode();
-	code->bytecodes    = (Opcode *)GcObject::malloc(1);
+	code->bytecodes    = (Opcode *)GcObject::malloc(sizeof(Opcode) * 1);
 	code->size         = 0;
 	code->capacity     = 1;
 	code->stackSize    = 0;
 	code->stackMaxSize = 0;
 	code->ctx          = NULL;
 	return code;
+}
+
+void Bytecode::disassemble_int(std::ostream &os, const Opcode *o) {
+	os << " " << *(int *)o;
+}
+
+void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
+	os << " " << *(Value *)o;
+}
+
+void Bytecode::disassemble(std::ostream &o) {
+	for(size_t i = 0; i < size;) {
+		disassemble(o, bytecodes, &i);
+	}
+}
+
+void Bytecode::disassemble(std::ostream &o, const Opcode *data, size_t *p) {
+	size_t i = 0;
+	if(p != NULL)
+		i = *p;
+	o << std::setw(3);
+	if(p != NULL)
+		o << i << ": ";
+	else
+		o << " -> ";
+	o << std::setw(20) << OpcodeNames[data[i]];
+	switch(data[i]) {
+#define OPCODE1(x, y, z)                 \
+	case CODE_##x:                       \
+		i++;                             \
+		disassemble_##z(o, &data[i]);    \
+		i += sizeof(z) / sizeof(Opcode); \
+		break;
+#define OPCODE2(w, x, y, z)              \
+	case CODE_##w:                       \
+		i++;                             \
+		disassemble_##y(o, &data[i]);    \
+		i += sizeof(y) / sizeof(Opcode); \
+		disassemble_##z(o, &data[i]);    \
+		i += sizeof(z) / sizeof(Opcode); \
+		break;
+#include "../opcodes.h"
+		default: i++; break;
+	}
+	o << "\n";
+	if(p != NULL)
+		*p = i;
 }
 
 std::ostream &operator<<(std::ostream &o, const Bytecode &a) {

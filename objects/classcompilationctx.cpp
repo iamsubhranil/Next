@@ -24,7 +24,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		ctx->defaultConstructor = FunctionCompilationContext::create(
 		    String::const_sig_constructor_0, 0);
 		ctx->add_public_fn(String::const_sig_constructor_0,
-		                   ctx->defaultConstructor->get_fn());
+		                   ctx->defaultConstructor->get_fn(),
+		                   ctx->defaultConstructor);
 		// add the class map
 		ctx->cctxMap = ValueMap::create();
 	}
@@ -161,6 +162,23 @@ void ClassCompilationContext::mark() {
 	}
 	if(cctxMap != NULL) {
 		GcObject::mark((GcObject *)cctxMap);
+	}
+}
+
+void ClassCompilationContext::disassemble(std::ostream &o) {
+	if(moduleContext == NULL) {
+		o << "Module: " << klass->name[0] << "\n";
+	} else {
+		o << "Class: " << klass->name[0] << "\n";
+	}
+	o << "Members: ";
+	for(auto &a : members->vv) {
+		o << a.first.toString()[0] << "(" << a.second.toNumber() << "), ";
+	}
+	o << "\n";
+	for(auto &a : fctxMap->vv) {
+		o << "Function: " << a.first.toString()[0] << "\n";
+		a.second.toFunctionCompilationContext()->disassemble(o);
 	}
 }
 

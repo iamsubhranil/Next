@@ -19,6 +19,7 @@ struct Bytecode {
 #define OPCODE2(w, x, y, z) CODE_##w,
 #include "../opcodes.h"
 	};
+
 	Opcode *                    bytecodes;
 	BytecodeCompilationContext *ctx; // debug info
 	size_t                      size;
@@ -106,5 +107,12 @@ struct Bytecode {
 	void mark() {}
 	void release();
 
+	void disassemble(std::ostream &o);
+
+	static void          disassemble_int(std::ostream &os, const Opcode *o);
+	static void          disassemble_Value(std::ostream &os, const Opcode *o);
+	static void          disassemble(std::ostream &os, const Opcode *o,
+	                                 size_t *ip = NULL);
+	static const char *  OpcodeNames[];
 	friend std::ostream &operator<<(std::ostream &o, const Bytecode &v);
 };
