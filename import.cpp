@@ -36,9 +36,9 @@ ImportStatus Importer::import(vector<Token> &loc) {
 	ret.res         = ImportStatus::BAD_IMPORT;
 	ret.toHighlight = 0;
 
-	Array strs;
+	Array *strs = Array::create(1);
 	for(auto i = loc.begin(), j = loc.end(); i != j; i++) {
-		strs.insert(String::from((*i).start, (*i).length));
+		strs->insert(String::from((*i).start, (*i).length));
 	}
 
 	bool    lastIsFolder = true;
@@ -61,9 +61,9 @@ ImportStatus Importer::import(vector<Token> &loc) {
 
 	const char *path_ = paths->str;
 
-	while(lastIsFolder && it != strs.size) {
+	while(lastIsFolder && it != strs->size) {
 		paths = String::append(
-		    paths, String::append(kPathSeparator, strs.values[it].toString()));
+		    paths, String::append(kPathSeparator, strs->values[it].toString()));
 		path_ = paths->str;
 		if(!dirExists(path_)) {
 			lastIsFolder = false;
@@ -73,14 +73,14 @@ ImportStatus Importer::import(vector<Token> &loc) {
 #ifdef DEBUG
 	cout << "Path generated : " << path_ << endl;
 #endif
-	if(!lastIsFolder && it != strs.size) {
+	if(!lastIsFolder && it != strs->size) {
 		// cout << "Not a valid import : " << path_ << endl;
 		ret.toHighlight = it;
 		return ret;
-	} else if(lastIsFolder && it == strs.size) {
+	} else if(lastIsFolder && it == strs->size) {
 		// cout << "Unable to import whole folder '" << paths << "'!" << endl;
 		ret.res         = ImportStatus::FOLDER_IMPORT;
-		ret.toHighlight = strs.size - 1;
+		ret.toHighlight = strs->size - 1;
 		return ret;
 	}
 	paths   = String::append(path_, ".n");
