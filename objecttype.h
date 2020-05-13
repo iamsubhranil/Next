@@ -20,6 +20,7 @@ OBJTYPE(Object, Object)
 OBJTYPE(String, String)
 OBJTYPE(ValueMap, ValueMap)
 OBJTYPE(ValueSet, ValueSet)
+OBJTYPE(Range, Range)
 
 // Exceptions
 OBJTYPE(TypeError, TypeError)

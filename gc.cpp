@@ -15,6 +15,7 @@
 #include "objects/module.h"
 #include "objects/number.h"
 #include "objects/object.h"
+#include "objects/range.h"
 #include "objects/set.h"
 #include "objects/string.h"
 #include "objects/symtab.h"
