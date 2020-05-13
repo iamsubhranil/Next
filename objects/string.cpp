@@ -260,7 +260,7 @@ std::ostream &operator<<(std::ostream &o, const String &a) {
 
 StringSet *StringSet::create() {
 	StringSet *s = (StringSet *)GcObject_malloc(sizeof(StringSet));
-	::new(&s->hset) HashSet<String *>();
+	::new(&s->hset) HashSet<String *, StringHash, StringEquals>();
 	return s;
 }
 
@@ -272,6 +272,6 @@ void String::release_all() {
 	for(auto a : string_set->hset) {
 		a->release();
 	}
-	string_set->hset.~HashSet<String *>();
+	string_set->hset.~HashSet<String *, StringHash, StringEquals>();
 	GcObject_free(string_set, sizeof(StringSet));
 }

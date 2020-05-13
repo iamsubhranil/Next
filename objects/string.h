@@ -55,18 +55,16 @@ struct String {
 	static String *insert(char *val, size_t size, int hash_);
 };
 
-namespace std {
-	template <> struct std::hash<String *> {
-		std::size_t operator()(const String *&s) const { return s->hash_; }
-	};
+struct StringHash {
+	std::size_t operator()(const String *s) const { return s->hash_; }
+};
 
-	template <> struct std::equal_to<String *> {
-		bool operator()(const String *a, const String *b) const {
-			return a->hash_ == b->hash_ && a->size == b->size &&
-			       strncmp(a->str, b->str, a->size) == 0;
-		}
-	};
-} // namespace std
+struct StringEquals {
+	bool operator()(const String *a, const String *b) const {
+		return a->hash_ == b->hash_ && a->size == b->size &&
+		       strncmp(a->str, b->str, a->size) == 0;
+	}
+};
 
 // Since we intern all the strings
 // inside Next, we need a special
@@ -78,9 +76,9 @@ namespace std {
 // by comparing their pointer
 // values
 struct StringSet {
-	GcObject          obj;
-	HashSet<String *> hset;
-	static StringSet *create();
-	void              release();
-	void              mark();
+	GcObject                                    obj;
+	HashSet<String *, StringHash, StringEquals> hset;
+	static StringSet *                          create();
+	void                                        release();
+	void                                        mark();
 };
