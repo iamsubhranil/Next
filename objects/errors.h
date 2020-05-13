@@ -65,6 +65,6 @@ struct IndexError {
 #define IDXERR(m, l, h, r) return IndexError::sete(m, l, h, r);
 
 #define EXPECT(obj, name, idx, type)                                \
-	if(!args[1].is##type()) {                                       \
+	if(!args[idx].is##type()) {                                     \
 		return TypeError::sete(#obj, #name, #type, args[idx], idx); \
 	}
