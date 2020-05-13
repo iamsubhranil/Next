@@ -2,6 +2,8 @@
 #include "bytecodecompilationctx.h"
 #include "class.h"
 
+#include "../display.h"
+
 void FunctionCompilationContext::init() {
 	Class *FunctionCompilationContextClass =
 	    GcObject::FunctionCompilationContextClass;
@@ -15,9 +17,9 @@ FunctionCompilationContext *FunctionCompilationContext::create(String *name,
 	FunctionCompilationContext *fcc =
 	    GcObject::allocFunctionCompilationContext();
 	fcc->f       = Function::create(name, arity);
-	fcc->slotmap = (HashMap<Value, VarState> *)GcObject::malloc(
-	    sizeof(HashMap<Value, VarState>));
-	::new(fcc->slotmap) HashMap<Value, VarState>();
+	fcc->slotmap = (HashMap<String *, VarState> *)GcObject::malloc(
+	    sizeof(HashMap<String *, VarState>));
+	::new(fcc->slotmap) HashMap<String *, VarState>();
 	fcc->bcc       = BytecodeCompilationContext::create();
 	fcc->f->code   = fcc->bcc->code;
 	fcc->slotCount = 0;
@@ -38,18 +40,25 @@ void FunctionCompilationContext::mark() {
 }
 
 void FunctionCompilationContext::release() {
-	slotmap->~HashMap<Value, VarState>();
-	GcObject::free(slotmap, sizeof(HashMap<Value, VarState>));
+	slotmap->~HashMap<String *, VarState>();
+	GcObject::free(slotmap, sizeof(HashMap<String *, VarState>));
 }
 
 int FunctionCompilationContext::create_slot(String *s, int scopeID) {
 	if(slotmap->contains(s))
 		return (*slotmap)[s].slot;
+	/*for(auto &s : slotmap[0]) {
+	    dbg("%s : %d : %d : %p", s.first->str, s.second.slot, s.second.scopeID,
+	        s.first);
+	}
+	dbg("Creating slot for '%s' : %d", s->str, slotCount);
+	*/
 	slotmap[0][s] = (VarState){slotCount++, scopeID};
 	return slotCount - 1;
 }
 
 bool FunctionCompilationContext::has_slot(String *s, int scopeID) {
+	// dbg("Slotmap.contains('%s') : %d", s->str, slotmap->contains(s));
 	return slotmap->contains(s) && slotmap[0][s].scopeID <= scopeID;
 }
 

@@ -2,7 +2,6 @@
 
 #include "../gc.h"
 #include "function.h"
-#include "map.h"
 
 struct Bytecode;
 
@@ -14,10 +13,10 @@ struct FunctionCompilationContext {
 		int scopeID;
 	};
 
-	HashMap<Value, VarState> *  slotmap;
-	Function *                  f;
-	BytecodeCompilationContext *bcc;
-	int                         slotCount;
+	HashMap<String *, VarState> *slotmap;
+	Function *                   f;
+	BytecodeCompilationContext * bcc;
+	int                          slotCount;
 
 	int                         create_slot(String *s, int scopeID);
 	bool                        has_slot(String *s, int scopeID);
