@@ -1129,9 +1129,9 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			        ifs->arity);
 			switch(ifs->visibility) {
 				case VIS_PUB:
-					ctx->add_public_fn(signature, fctx->get_fn());
+					ctx->add_public_fn(signature, fctx->get_fn(), fctx);
 					break;
-				default: ctx->add_private_fn(signature, fctx->get_fn());
+				default: ctx->add_private_fn(signature, fctx->get_fn(), fctx);
 			}
 		}
 	} else {
