@@ -440,12 +440,12 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(String *name,
 		if(Builtin::has_constant(name)) {
 			return (VarInfo){0, BUILTIN};
 		}
+	}
 
-		if(declare) {
-			// Finally, declare the variable in the present frame
-			slot = ftx->create_slot(name, scopeID);
-			return (VarInfo){slot, LOCAL};
-		}
+	if(declare) {
+		// Finally, declare the variable in the present frame
+		slot = ftx->create_slot(name, scopeID);
+		return (VarInfo){slot, LOCAL};
 	}
 	return (VarInfo){-1, UNDEFINED};
 }
@@ -455,13 +455,9 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
                                                       Visibility vis) {
 	String *name = String::from(t.start, t.length);
 	VarInfo var  = lookForVariable(name, declare);
-	if(var.position == UNDEFINED) {
-		if(declare) {
-			var.position = LOCAL;
-			var.slot     = ftx->create_slot(name, scopeID);
-		} else if(showError) {
-			lnerr_("No such variable found : '%s'", t, name->str);
-		}
+	if(var.position == UNDEFINED && showError) {
+		lnerr_("No such variable found : '%s'", t, name->str);
+
 	} /*else if(var.position == CLASS && !ctx->get_mem_slot.isStatic &&
 	           frame->isStatic) {
 	     lnerr_(
