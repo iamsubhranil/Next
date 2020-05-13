@@ -133,11 +133,13 @@ CodeGenerator::CompilationState CodeGenerator::getState() {
 }
 
 void CodeGenerator::popFrame() {
-	if(!ftx)
-		return;
-	btx->finalize();
+	if(btx != NULL)
+		btx->finalize();
 	ftx = ctx->get_default_constructor();
-	btx = ftx->get_codectx();
+	if(ftx != NULL)
+		btx = ftx->get_codectx();
+	else
+		btx = NULL;
 }
 
 /*
@@ -1246,11 +1248,11 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 			// mtx->classes[className]->token);
 			// mtx->classes[className]->token.highlight();
 		}
-		ClassCompilationContext *c = ClassCompilationContext::create(
-		    mtx, String::from(ifs->name.start, ifs->name.length));
+		ClassCompilationContext *c =
+		    ClassCompilationContext::create(mtx, className);
 		switch(ifs->vis) {
 			case VIS_PUB: mtx->add_public_class(c->get_class(), c); break;
-			default: mtx->add_private_class(c->get_class(), c);
+			default: mtx->add_private_class(c->get_class(), c); break;
 		}
 		inClass = true;
 		ctx     = c;
@@ -1261,17 +1263,20 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		}
 		popScope();
 		inClass = false;
-		ctx     = NULL;
+		ctx     = mtx;
+		ftx     = mtx->get_default_constructor();
+		btx     = ftx->get_codectx();
 	} else {
 		inClass = true;
-		ctx =
-		    mtx->get_class_ctx(String::from(ifs->name.start, ifs->name.length));
+		ctx     = mtx->get_class_ctx(className);
 		for(auto i = ifs->declarations.begin(), j = ifs->declarations.end();
 		    i != j; i++) {
 			(*i)->accept(this);
 		}
 		inClass = false;
-		ctx     = NULL;
+		ctx     = mtx;
+		ftx     = mtx->get_default_constructor();
+		btx     = ftx->get_codectx();
 	}
 }
 
