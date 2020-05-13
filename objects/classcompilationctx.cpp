@@ -176,9 +176,19 @@ void ClassCompilationContext::disassemble(std::ostream &o) {
 		o << a.first.toString()[0] << "(" << a.second.toNumber() << "), ";
 	}
 	o << "\n";
+	o << "Functions: " << fctxMap->vv.size() << "\n";
+	size_t i = 0;
 	for(auto &a : fctxMap->vv) {
-		o << "Function: " << a.first.toString()[0] << "\n";
+		o << "\nFunction #" << i++ << ": " << a.first.toString()[0] << "\n";
 		a.second.toFunctionCompilationContext()->disassemble(o);
+	}
+	if(cctxMap != NULL) {
+		o << "\nClasses: " << cctxMap->vv.size() << "\n";
+		i = 0;
+		for(auto &a : cctxMap->vv) {
+			o << "\nClass #" << i++ << ": " << a.first.toString()[0] << "\n";
+			a.second.toClassCompilationContext()->disassemble(o);
+		}
 	}
 }
 
