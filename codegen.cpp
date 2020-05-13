@@ -448,8 +448,21 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(String *name,
 
 	if(declare) {
 		// Finally, declare the variable in the present frame
-		slot = ftx->create_slot(name, scopeID);
-		return (VarInfo){slot, LOCAL};
+		// If we're in the default constructor of a module,
+		// make the variable a class member
+		if(ctx->moduleContext == NULL &&
+		   ftx == ctx->get_default_constructor()) {
+			switch(currentVisibility) {
+				case VIS_PUB: ctx->add_public_mem(name); break;
+				default: ctx->add_private_mem(name); break;
+			}
+			slot = ctx->get_mem_slot(name);
+			return (VarInfo){slot, CLASS};
+		} else {
+			// otherwise, declare it in the present scope
+			slot = ftx->create_slot(name, scopeID);
+			return (VarInfo){slot, LOCAL};
+		}
 	}
 	return (VarInfo){-1, UNDEFINED};
 }
