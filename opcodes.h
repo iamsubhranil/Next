@@ -162,13 +162,6 @@ OPCODE1(array_build, 0, int)
 OPCODE2(call_builtin, 0, Value, int) // <signature> <args>
 OPCODE1(load_constant, 1, Value)     // <name>
 
-// Initializes the iterator
-OPCODE1(iterate_init, 1, int) // <slot>
-// Pushes the next value in the array present in
-// TOS as the new TOS. Jumps <slot> distance forward
-// if the array is exhausted.
-OPCODE2(iterate_next, 1, int, int) // <slot> <jump_distance>
-
 OPCODE0(halt, 0)
 
 #undef OPCODE0

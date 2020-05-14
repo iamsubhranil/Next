@@ -986,17 +986,25 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		} else {
 			// create a new scope
 			pushScope();
-			// create a temporary slot to store the iterator pointer
+			// create a temporary slot to store the iterator
 			int slot = createTempSlot();
 			// get info about the assignment variable
 			VarInfo var = lookForVariable(it->left->token, true);
 			// then, evalute the RHS
 			it->right->accept(this);
-			// initialize the iterator
-			btx->iterate_init(slot);
-			// iterate
-			int pos = btx->iterate_next(slot, 0);
-			// store the iterated value in the given variable
+			// initialize the iterator by calling iterate() on RHS
+			btx->call_method(SymbolTable2::insert("iterate()"), 0);
+			// store the returned object in the temporary slot
+			btx->store_slot_pop(slot);
+			// check slot.has_next
+			int pos = btx->load_slot(slot);
+			btx->load_field(SymbolTable2::insert("has_next"));
+			// if has_next returns false, exit
+			int exit_ = btx->jumpiffalse(0);
+			// otherwise, call next() on the iterator
+			btx->load_slot(slot);
+			btx->call_method(SymbolTable2::insert("next()"), 0);
+			// store the next value in the given variable
 			switch(var.position) {
 				case LOCAL: btx->store_slot_pop(var.slot); break;
 				case MODULE:
@@ -1015,9 +1023,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// jump back to iterate
 			btx->jump(pos - btx->getip());
 			// patch the exit
-			btx->iterate_next(pos, slot, btx->getip() - pos);
-			// finally, pop the RHS
-			btx->pop();
+			btx->jumpiffalse(exit_, btx->getip() - exit_);
 			// pop the scope
 			popScope();
 		}
