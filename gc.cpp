@@ -1,6 +1,7 @@
 #include "gc.h"
 #include "display.h"
 #include "objects/array.h"
+#include "objects/array_iterator.h"
 #include "objects/boolean.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecode.h"

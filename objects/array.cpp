@@ -1,5 +1,6 @@
 #include "array.h"
 #include "../value.h"
+#include "array_iterator.h"
 #include "class.h"
 #include "errors.h"
 
@@ -7,6 +8,10 @@ using namespace std;
 
 Value next_array_insert(const Value *args) {
 	return args[0].toArray()->insert(args[1]);
+}
+
+Value next_array_iterate(const Value *args) {
+	return Value(ArrayIterator::from(args[0].toArray()));
 }
 
 Value next_array_get(const Value *args) {
@@ -122,8 +127,9 @@ void Array::init() {
 	// constructors : empty, and predefined size
 	ArrayClass->add_builtin_fn("()", 0, next_array_construct_empty);
 	ArrayClass->add_builtin_fn("(_)", 1, next_array_construct_size);
-	// insert, get, set, size
+	// insert, iterate, get, set, size
 	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert);
+	ArrayClass->add_builtin_fn("iterate()", 0, &next_array_iterate);
 	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get);
 	ArrayClass->add_builtin_fn("[](_,_)", 2, &next_array_set);
 	ArrayClass->add_builtin_fn("size()", 0, &next_array_size);
