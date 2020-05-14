@@ -1139,10 +1139,10 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	} else {
 		initFtx(ctx->get_func_ctx(signature), ifs->token);
 
-		if(inClass) {
-			// Object will be stored in 0
-			ftx->create_slot(String::from("this"), scopeID + 1);
-		}
+		// 0th slot of all functions will contain the bound
+		// object. which will either be a module, or a class
+		// instance
+		ftx->create_slot(String::from("this "), scopeID + 1);
 
 		/* TODO: Handle native functions
 		if(ifs->isNative) {
@@ -1256,6 +1256,8 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		}
 		inClass = true;
 		ctx     = c;
+		// 0th slot of the class will contain the module
+		ctx->add_private_mem(String::from("mod "));
 		pushScope();
 		for(auto i = ifs->declarations.begin(), j = ifs->declarations.end();
 		    i != j; i++) {

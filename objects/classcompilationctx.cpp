@@ -26,6 +26,12 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		ctx->add_public_fn(String::const_sig_constructor_0,
 		                   ctx->defaultConstructor->get_fn(),
 		                   ctx->defaultConstructor);
+		// add slot for the module
+		ctx->defaultConstructor->create_slot(String::from("mod "), 0);
+		// intialize the module
+		ctx->defaultConstructor->get_codectx()->construct(
+		    Value(ctx->get_class()));
+		// construct will automatically store it to slot 0
 		// add the class map
 		ctx->cctxMap = ValueMap::create();
 	}
