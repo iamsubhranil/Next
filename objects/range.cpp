@@ -1,22 +1,24 @@
 #include "range.h"
 #include "class.h"
 #include "errors.h"
+#include "symtab.h"
 
-Range *Range::create(double from, double to, double step) {
-	Range *r = GcObject::allocRange();
+Object *Range::create(double from, double to, double step) {
+	Object *r = GcObject::allocObject(GcObject::RangeClass);
 
-	r->from = from;
-	r->to   = to;
-	r->step = step;
+	r->slots[0] = from;
+	r->slots[1] = to;
+	r->slots[2] = step;
+	r->slots[3] = Value((from + step) < to);
 
 	return r;
 }
 
-Range *Range::create(double from, double to) {
+Object *Range::create(double from, double to) {
 	return create(from, to, 1);
 }
 
-Range *Range::create(double to) {
+Object *Range::create(double to) {
 	return create(0, to);
 }
 
@@ -51,27 +53,50 @@ Value next_range_construct_3(const Value *args) {
 }
 
 Value next_range_from(const Value *args) {
-	return Value(args[0].toRange()->from);
+	return Value(args[0].toObject()->slots[0]);
 }
 
 Value next_range_to(const Value *args) {
-	return Value(args[0].toRange()->to);
+	return Value(args[0].toObject()->slots[1]);
 }
 
 Value next_range_step(const Value *args) {
-	return Value(args[0].toRange()->step);
+	return Value(args[0].toObject()->slots[2]);
+}
+
+Value next_range_iterate(const Value *args) {
+	// range is the iterator of itself
+	return args[0];
+}
+
+Value next_range_next(const Value *args) {
+	Value *r    = args[0].toObject()->slots;
+	double from = r[0].toNumber();
+	double step = r[1].toNumber();
+	double to   = r[2].toNumber();
+	// next value
+	r[0] = Value(from += step);
+	// has_next flag
+	r[3] = Value(from + step < to);
+	return Value(from);
 }
 
 void Range::init() {
 	Class *RangeClass = GcObject::RangeClass;
 
 	RangeClass->init("range", Class::ClassType::BUILTIN);
+	RangeClass->numSlots = 4; // from, to, step, has_next
+	// create the has_next field
+	RangeClass->add_sym(SymbolTable2::insert("has_next"), Value((double)3));
+	// methods
 	RangeClass->add_builtin_fn("(_)", 1, next_range_construct_1);
 	RangeClass->add_builtin_fn("(_,_)", 2, next_range_construct_2);
 	RangeClass->add_builtin_fn("(_,_,_)", 3, next_range_construct_3);
 	RangeClass->add_builtin_fn("from()", 0, next_range_from);
 	RangeClass->add_builtin_fn("to()", 0, next_range_to);
 	RangeClass->add_builtin_fn("step()", 0, next_range_step);
+	RangeClass->add_builtin_fn("iterate()", 0, next_range_iterate);
+	RangeClass->add_builtin_fn("next()", 0, next_range_next);
 }
 
 std::ostream &operator<<(std::ostream &o, const Range &r) {
