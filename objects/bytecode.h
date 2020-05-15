@@ -2,6 +2,7 @@
 
 #include "../gc.h"
 #include "../value.h"
+#include "array.h"
 
 struct Bytecode {
 	GcObject obj;
@@ -27,6 +28,16 @@ struct Bytecode {
 	size_t                      stackSize;
 	size_t                      stackMaxSize;
 	size_t                      numSlots;
+
+	// a bytecode may contain references to live
+	// objects, such as classes and modules that
+	// have not yet been loaded to the stack yet.
+	// If a gc is triggered before they are on
+	// the stack, those objects may get collected.
+	// Hence, this array stores the live objects
+	// on the bytecode, and marks them in case of
+	// a gc.
+	Array *values;
 
 #define OPCODE0(x, y)              \
 	size_t x() {                   \
@@ -72,12 +83,14 @@ struct Bytecode {
 
 #define insert_type(type)                                         \
 	int insert_##type(type x) {                                   \
+		add_constant(x);                                          \
 		Opcode *num = (Opcode *)&x;                               \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
 			push_back(num[i]);                                    \
 		return size - (sizeof(type) / sizeof(Opcode));            \
 	}                                                             \
 	int insert_##type(int pos, type x) {                          \
+		add_constant(x);                                          \
 		Opcode *num = (Opcode *)&x;                               \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
 			bytecodes[pos + i] = (num[i]);                        \
@@ -85,6 +98,12 @@ struct Bytecode {
 	}
 	insert_type(Value);
 	insert_type(int);
+
+	void add_constant(int x) {}
+	void add_constant(Value v) {
+		if(v.isGcObject())
+			values->insert(v);
+	}
 
 	void stackEffect(int x);
 	void insertSlot();
@@ -104,7 +123,7 @@ struct Bytecode {
 	static Bytecode *create_getter(int slot);
 	static Bytecode *create_setter(int slot);
 
-	void mark() {}
+	void mark();
 	void release();
 
 	void disassemble(std::ostream &o);

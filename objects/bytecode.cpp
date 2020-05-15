@@ -96,7 +96,12 @@ Bytecode *Bytecode::create() {
 	code->stackSize    = 0;
 	code->stackMaxSize = 0;
 	code->ctx          = NULL;
+	code->values       = Array::create(1);
 	return code;
+}
+
+void Bytecode::mark() {
+	GcObject::mark((GcObject *)values);
 }
 
 void Bytecode::disassemble_int(std::ostream &os, const Opcode *o) {
