@@ -28,12 +28,12 @@ struct Class {
 	void  add_fn(const char *str, Function *fn);
 	void  add_fn(String *s, Function *fn);
 	void  add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
-	bool  has_fn(int sym);
-	bool  has_fn(const char *sig);
-	bool  has_fn(String *sig);
-	Value get_fn(int sym);
-	Value get_fn(const char *sig);
-	Value get_fn(String *sig);
+	bool  has_fn(int sym) const;
+	bool  has_fn(const char *sig) const;
+	bool  has_fn(String *sig) const;
+	Value get_fn(int sym) const;
+	Value get_fn(const char *sig) const;
+	Value get_fn(String *sig) const;
 	// gc functions
 	void release() {}
 	void mark();

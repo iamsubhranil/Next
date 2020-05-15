@@ -39,27 +39,27 @@ void Class::mark() {
 	GcObject::mark((GcObject *)functions);
 }
 
-bool Class::has_fn(int sym) {
+bool Class::has_fn(int sym) const {
 	return functions->size > sym && functions->values[sym] != ValueNil;
 }
 
-bool Class::has_fn(const char *sig) {
+bool Class::has_fn(const char *sig) const {
 	return has_fn(SymbolTable2::insert(sig));
 }
 
-bool Class::has_fn(String *sig) {
+bool Class::has_fn(String *sig) const {
 	return has_fn(SymbolTable2::insert(sig));
 }
 
-Value Class::get_fn(int sym) {
+Value Class::get_fn(int sym) const {
 	return functions->values[sym];
 }
 
-Value Class::get_fn(const char *sig) {
+Value Class::get_fn(const char *sig) const {
 	return get_fn(SymbolTable2::insert(sig));
 }
 
-Value Class::get_fn(String *s) {
+Value Class::get_fn(String *s) const {
 	return get_fn(SymbolTable2::insert(s));
 }
 
