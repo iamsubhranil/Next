@@ -25,6 +25,7 @@ struct TypeError {
 	void        mark();
 	void        release() {}
 
+	void                 print(std::ostream &o);
 	friend std::ostream &operator<<(std::ostream &o, const TypeError &v);
 };
 
@@ -41,6 +42,7 @@ struct RuntimeError {
 	void        mark();
 	void        release() {}
 
+	void                 print(std::ostream &o);
 	friend std::ostream &operator<<(std::ostream &o, const RuntimeError &v);
 };
 
@@ -58,7 +60,14 @@ struct IndexError {
 	void        mark();
 	void        release() {}
 
+	void print(std::ostream &o);
+
 	friend std::ostream &operator<<(std::ostream &o, const IndexError &v);
+};
+
+struct Error {
+	// calls print on specific exceptions
+	static void print_error(GcObject *g, std::ostream &o);
 };
 
 #define RERR(x) return RuntimeError::sete(x);

@@ -70,6 +70,12 @@ void TypeError::mark() {
 	GcObject::mark(received);
 }
 
+void TypeError::print(std::ostream &o) {
+	o << "Expected argument " << argumentNumber << " of method " << ontype->str
+	  << "." << method->str << "() to be '" << expected << "'! Received '"
+	  << received << "'!";
+}
+
 std::ostream &operator<<(std::ostream &o, const TypeError &a) {
 	return o << "<type_error object>";
 }
@@ -103,6 +109,10 @@ void RuntimeError::init() {
 
 void RuntimeError::mark() {
 	GcObject::mark((GcObject *)message);
+}
+
+void RuntimeError::print(std::ostream &o) {
+	o << message->str;
 }
 
 std::ostream &operator<<(std::ostream &o, const RuntimeError &a) {
@@ -153,6 +163,20 @@ void IndexError::mark() {
 	GcObject::mark((GcObject *)message);
 }
 
+void IndexError::print(std::ostream &o) {
+	o << "Index should be between " << low << " <= index <= " << hi
+	  << ". Received " << received << "!";
+}
+
 std::ostream &operator<<(std::ostream &o, const IndexError &a) {
 	return o << "<index_error object>";
+}
+
+void Error::print_error(GcObject *o, std::ostream &os) {
+	switch(o->objType) {
+		case GcObject::OBJ_RuntimeError: ((RuntimeError *)o)->print(os); break;
+		case GcObject::OBJ_IndexError: ((IndexError *)o)->print(os); break;
+		case GcObject::OBJ_TypeError: ((TypeError *)o)->print(os); break;
+		default: break;
+	}
 }
