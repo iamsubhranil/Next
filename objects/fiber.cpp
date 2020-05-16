@@ -31,8 +31,7 @@ Fiber *Fiber::create(Fiber *parent) {
 	return f;
 }
 
-void Fiber::ensureStack(size_t e, Value **top) {
-	stackTop     = *top;
+void Fiber::ensureStack(size_t e) {
 	stackPointer = stackTop - stack_;
 	if(stackPointer + e < stackSize)
 		return;
@@ -43,7 +42,7 @@ void Fiber::ensureStack(size_t e, Value **top) {
                                         sizeof(Value) * newsize);
 	stackSize = newsize;
 	if(stack_ != oldstack) {
-		*top = stackTop = &stack_[stackPointer];
+		stackTop = &stack_[stackPointer];
 		std::fill_n(stackTop, newsize - stackPointer, ValueNil);
 		// relocate the frames
 		for(size_t i = 0; i < callFramePointer; i++) {
@@ -52,8 +51,8 @@ void Fiber::ensureStack(size_t e, Value **top) {
 	}
 }
 
-Fiber::CallFrame *Fiber::appendMethod(Function *f, Value **top) {
-	ensureStack(f->code->stackSize, top);
+Fiber::CallFrame *Fiber::appendMethod(Function *f) {
+	ensureStack(f->code->stackSize);
 
 	if(callFramePointer == callFrameSize) {
 		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
@@ -64,16 +63,16 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, Value **top) {
 	}
 
 	callFrames[callFramePointer].f      = f;
-	callFrames[callFramePointer].stack_ = *top;
+	callFrames[callFramePointer].stack_ = stackTop;
 	callFrames[callFramePointer].code   = f->code->bytecodes;
-	stackTop = *top = *top + f->code->numSlots;
+	stackTop += f->code->numSlots;
 
 	return &callFrames[callFramePointer++];
 }
 
-Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, Value **top) {
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm) {
 	// noarg
-	Fiber::CallFrame *f = appendMethod(bm->func, top);
+	Fiber::CallFrame *f = appendMethod(bm->func);
 	switch(bm->type) {
 		case BoundMethod::CLASS_BOUND:
 			// class bound no arg, so a static method.
@@ -88,10 +87,9 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, Value **top) {
 	return f;
 }
 
-Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, Value **top,
-                                           const Value *args) {
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args) {
 	// first, append the bound method
-	Fiber::CallFrame *f = appendBoundMethod(bm, top);
+	Fiber::CallFrame *f = appendBoundMethod(bm);
 	// now lay down the rest of the arguments
 	// on the stack
 	memcpy(f->stack_ + 1, args, sizeof(Value) * bm->func->arity);
@@ -164,7 +162,7 @@ Value next_fiber_construct_0(const Value *args) {
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
 	Fiber *f = Fiber::create();
-	f->appendBoundMethod(b, &f->stackTop);
+	f->appendBoundMethod(b);
 	return Value(f);
 }
 
@@ -178,7 +176,7 @@ Value next_fiber_construct_x(const Value *args) {
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
 	Fiber *f = Fiber::create();
-	f->appendBoundMethod(b, &f->stackTop, a->values);
+	f->appendBoundMethod(b, a->values);
 	return Value(f);
 }
 

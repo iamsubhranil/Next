@@ -45,17 +45,16 @@ struct Fiber {
 	// prepares the fiber for execution of a bound method,
 	// validation must be performed before
 	// noarg
-	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm, Value **top);
+	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm);
 	// narg
-	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm, Value **top,
-	                                    const Value *args);
+	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm, const Value *args);
 	// executes an intra-class method, whose stack is already
 	// managed by the engine
-	Fiber::CallFrame *appendMethod(Function *f, Value **top);
+	Fiber::CallFrame *appendMethod(Function *f);
 	// returns the frame on top after popping
-	Fiber::CallFrame *popFrame(Value **top);
+	Fiber::CallFrame *popFrame();
 	Fiber::CallFrame *getCurrentFrame();
-	void ensureStack(size_t el, Value **top); // stackSize > stackPointer + el
+	void              ensureStack(size_t el); // stackSize > stackPointer + el
 
 	static void init();
 	// most of the markings will be done
