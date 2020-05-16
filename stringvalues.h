@@ -19,6 +19,7 @@ SCONSTANT(true_, "true")
 SCONSTANT(false_, "false")
 SCONSTANT(GcObject, "GcObject")
 SCONSTANT(Boolean, "Boolean")
+SCONSTANT(str, "str")
 #define TYPE(r, n) SCONSTANT(type_##n, #n)
 #include "valuetypes.h"
 
@@ -58,5 +59,6 @@ SYMCONSTANT(sig_subscript_get)
 SYMCONSTANT(sig_subscript_set)
 SYMCONSTANT(sig_pow)
 SYMCONSTANT(sig_constructor_0)
+SYMCONSTANT(str)
 #undef SCONSTANT
 #undef SYMCONSTANT
