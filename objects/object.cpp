@@ -19,5 +19,5 @@ void Object::release() {
 }
 
 std::ostream &operator<<(std::ostream &o, const Object &a) {
-	return o << "<object of '" << a.obj.klass->name->str << "'";
+	return o << "<object of '" << a.obj.klass->name->str << "'>";
 }
