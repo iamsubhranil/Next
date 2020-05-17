@@ -80,6 +80,7 @@ void Bytecode::stackEffect(int x) {
 void Bytecode::insertSlot() {
 	stackSize++;
 	stackMaxSize++;
+	numSlots++;
 }
 
 void Bytecode::init() {
@@ -97,6 +98,7 @@ Bytecode *Bytecode::create() {
 	code->stackMaxSize = 0;
 	code->ctx          = NULL;
 	code->values       = Array::create(1);
+	code->numSlots     = 0;
 	return code;
 }
 
@@ -113,6 +115,8 @@ void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
 }
 
 void Bytecode::disassemble(std::ostream &o) {
+	o << "StackSize: " << stackMaxSize << "\n";
+	o << "Bytecodes: \n";
 	for(size_t i = 0; i < size;) {
 		disassemble(o, bytecodes, &i);
 	}
