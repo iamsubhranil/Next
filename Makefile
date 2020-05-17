@@ -6,7 +6,7 @@ LDFLAGS=
 # $(wildcard *.cpp /xxx/xxx/*.cpp): get all .cpp files from the current directory and dir "/xxx/xxx/"
 SRCS := $(wildcard objects/*.cpp value.cpp gc.cpp display.cpp loader.cpp \
 	codegen.cpp import.cpp scanner.cpp parser.cpp builtins.cpp main.cpp \
-	stmt.cpp expr.cpp)
+	stmt.cpp expr.cpp engine.cpp)
 # $(patsubst %.cpp,%.o,$(SRCS)): substitute all ".cpp" file name strings to ".o" file name strings
 OBJS := $(patsubst %.cpp,%.o,$(SRCS))
 

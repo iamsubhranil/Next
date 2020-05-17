@@ -1,7 +1,9 @@
 #include "loader.h"
 #include "codegen.h"
 #include "display.h"
-//#include "engine.h"
+#include "engine.h"
+#include "objects/fiber.h"
+#include "objects/functioncompilationctx.h"
 #include "parser.h"
 #include <iostream>
 
@@ -125,12 +127,10 @@ Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	/*
 	if(ExecutionEngine::isModuleRegistered(modName))
-	    return ExecutionEngine::getRegisteredModule(modName);
+		return ExecutionEngine::getRegisteredModule(modName);
 	ExecutionEngine ex;
-	*/
-	Scanner s(fileName);
+	Scanner         s(fileName);
 	try {
 		Parser p(s);
 		registerParselets(&p);
@@ -147,7 +147,9 @@ Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
 		    ClassCompilationContext::create(NULL, modName);
 		c.compile(ctx, decls);
 		if(execute) {
-			// ex.execute(module, module->frame.get());
+			Fiber *f = Fiber::create();
+			f->appendMethod(ctx->get_default_constructor()->f);
+			ex.execute(f);
 		}
 		return ctx->get_class();
 	} catch(ParseException pe) {
@@ -169,8 +171,8 @@ Class *Loader::compile_and_load_from_source(const char *             source,
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	// ExecutionEngine ex;
-	Scanner s(source, modulectx->get_class()->name->str);
+	ExecutionEngine ex;
+	Scanner         s(source, modulectx->get_class()->name->str);
 	try {
 		Parser p(s);
 		registerParselets(&p);
@@ -185,7 +187,9 @@ Class *Loader::compile_and_load_from_source(const char *             source,
 		c.compile(modulectx, decls);
 
 		if(execute) {
-			// ex.execute(module, module->frame.get());
+			Fiber *f = Fiber::create();
+			f->appendMethod(modulectx->get_default_constructor()->f);
+			ex.execute(f);
 		}
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {

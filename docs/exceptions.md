@@ -33,3 +33,5 @@ type in catch block, i.e.
 }
 ...
 ```
+To print a custom message in case of unhandled exceptions, a class only needs 
+to have a public member named `str` available.
