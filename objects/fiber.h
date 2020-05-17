@@ -27,7 +27,6 @@ struct Fiber {
 	Value *stack_;
 	Value *stackTop;
 	size_t stackSize;
-	size_t stackPointer;
 
 	// the frame stack
 	Fiber::CallFrame *callFrames;

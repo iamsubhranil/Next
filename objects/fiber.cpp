@@ -17,9 +17,8 @@ Fiber *Fiber::create(Fiber *parent) {
 	f->stack_ =
 	    (Value *)GcObject::malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
 	std::fill_n(f->stack_, FIBER_DEFAULT_STACK_ALLOC, ValueNil);
-	f->stackTop     = f->stack_;
-	f->stackPointer = 0;
-	f->stackSize    = FIBER_DEFAULT_STACK_ALLOC;
+	f->stackTop  = f->stack_;
+	f->stackSize = FIBER_DEFAULT_STACK_ALLOC;
 
 	f->callFrames       = (CallFrame *)GcObject::malloc(sizeof(CallFrame) *
                                                   FIBER_DEFAULT_FRAME_ALLOC);
@@ -32,18 +31,18 @@ Fiber *Fiber::create(Fiber *parent) {
 }
 
 void Fiber::ensureStack(size_t e) {
-	stackPointer = stackTop - stack_;
+	int stackPointer = stackTop - stack_;
 	if(stackPointer + e < stackSize)
 		return;
 
 	Value *oldstack = stack_;
 	size_t newsize  = Array::powerOf2Ceil(stackPointer + e + 1);
-	stack_    = (Value *)GcObject::realloc(stack_, sizeof(Value) * stackSize,
+	stack_   = (Value *)GcObject::realloc(stack_, sizeof(Value) * stackSize,
                                         sizeof(Value) * newsize);
+	stackTop = &stack_[stackPointer];
+	std::fill_n(stackTop, newsize - stackPointer, ValueNil);
 	stackSize = newsize;
 	if(stack_ != oldstack) {
-		stackTop = &stack_[stackPointer];
-		std::fill_n(stackTop, newsize - stackPointer, ValueNil);
 		// relocate the frames
 		for(size_t i = 0; i < callFramePointer; i++) {
 			callFrames[i].stack_ = stack_ + (callFrames[i].stack_ - oldstack);
@@ -96,6 +95,17 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args) {
 	return f;
 }
 
+Fiber::CallFrame *Fiber::getCurrentFrame() {
+	return &callFrames[callFramePointer - 1];
+}
+
+Fiber::CallFrame *Fiber::popFrame() {
+	CallFrame *currentFrame = getCurrentFrame();
+	stackTop                = currentFrame->stack_;
+	callFramePointer--;
+	return getCurrentFrame();
+}
+
 Value next_fiber_cancel(const Value *args) {
 	Fiber *f = args[0].toFiber();
 	// only a fiber which is on yield or finished
@@ -105,8 +115,7 @@ Value next_fiber_cancel(const Value *args) {
 		case Fiber::YIELDED:
 			f->callFramePointer = 0; // reset the callFramePointer
 			// reset the stack pointer
-			f->stackPointer = 0;
-			f->stackTop     = f->stack_;
+			f->stackTop = f->stack_;
 			// the fiber is now fresh, so mark it as a newly
 			// built one.
 			f->state = Fiber::BUILT;
