@@ -58,7 +58,8 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	// but it is still stored at slot 0
 	// of each compiled mtx
 	VarInfo v = lookForVariable(String::from("core "), true);
-	btx->store_slot(v.slot);
+	btx->push(Value(GcObject::CoreModule));
+	btx->store_object_slot(v.slot);
 	btx->pop();
 	/*
 	String* lastName = StringConstants::core;
@@ -1344,12 +1345,16 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 #endif
 	VarInfo v = lookForVariable(ifs->token, true, false, ifs->vis);
 	if(getState() == COMPILE_BODY) {
-		if(v.position == BUILTIN) {
+		if(v.position == BUILTIN || v.position == CORE) {
 			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
 			       ifs->token.length, ifs->token.start);
 		}
 		ifs->expr->accept(this);
-		btx->store_slot(v.slot);
+		switch(v.position) {
+			case LOCAL: btx->store_slot(v.slot); break;
+			case CLASS: btx->store_object_slot(v.slot); break;
+			default: break;
+		}
 		btx->pop();
 	}
 }
