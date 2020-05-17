@@ -31,3 +31,11 @@ int SymbolTable2::insert(const String *str) {
 	symbols->insert(s);
 	return counter++;
 }
+
+String *SymbolTable2::getString(int id) {
+	return symbols->values[id].toString();
+}
+
+const char *SymbolTable2::get(int id) {
+	return getString(id)->str;
+}
