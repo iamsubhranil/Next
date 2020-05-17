@@ -6,12 +6,14 @@
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	BytecodeCompilationContext *bcc =
 	    GcObject::allocBytecodeCompilationContext();
-	bcc->code          = Bytecode::create();
-	bcc->code->ctx     = bcc;
-	bcc->ranges_       = (TokenRange *)GcObject::malloc(sizeof(TokenRange));
-	bcc->size          = 0;
-	bcc->capacity      = 1;
-	bcc->present_range = 0;
+	bcc->code              = Bytecode::create();
+	bcc->code->ctx         = bcc;
+	bcc->ranges_           = (TokenRange *)GcObject::malloc(sizeof(TokenRange));
+	bcc->ranges_[0].token  = Token::PlaceholderToken;
+	bcc->ranges_[0].range_ = 0;
+	bcc->size              = 0;
+	bcc->capacity          = 1;
+	bcc->present_range     = 0;
 	return bcc;
 }
 
@@ -28,6 +30,8 @@ void BytecodeCompilationContext::insert_token(Token t) {
 		size_t n = Array::powerOf2Ceil(size + 1);
 		ranges_  = (TokenRange *)GcObject::realloc(
             ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * n);
+		std::fill_n(&ranges_[capacity], n - capacity,
+		            (TokenRange){Token::PlaceholderToken, 0});
 		capacity = n;
 	}
 	if(size > 0) {
@@ -40,7 +44,7 @@ void BytecodeCompilationContext::insert_token(Token t) {
 Token BytecodeCompilationContext::get_token(size_t ip) {
 	size_t start = 0;
 	size_t i     = 0;
-	while(start += ranges_[i].range_ < ip) i++;
+	while(i < size && (start += ranges_[i].range_) < ip) i++;
 	return ranges_[i].token;
 }
 
