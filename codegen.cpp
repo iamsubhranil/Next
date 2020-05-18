@@ -57,6 +57,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	// core mtx is not compiled any more
 	// but it is still stored at slot 0
 	// of each compiled mtx
+	btx->insert_token(Token::PlaceholderToken);
 	VarInfo v = lookForVariable(String::from("core "), true);
 	btx->push(Value(GcObject::CoreModule));
 	btx->store_object_slot(v.slot);
