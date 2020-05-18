@@ -5,8 +5,8 @@
 struct Array {
 	GcObject obj;
 	Value *  values;
-	size_t   size;
 	size_t   capacity;
+	int      size;
 
 	// array functions
 	static Array *create(size_t size);
