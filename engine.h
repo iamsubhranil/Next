@@ -43,7 +43,8 @@ class ExecutionEngine {
 	// executes the boundmethod in current fiber
 	static void execute(BoundMethod *b);
 	// executes the fiber
-	static void execute(Fiber *f);
+	static Value execute(Fiber *f);
 	// executes the boundmethod in the given fiber
-	static void execute(Fiber *f, BoundMethod *b);
+	static void    execute(Fiber *f, BoundMethod *b);
+	static Object *CoreObject;
 };

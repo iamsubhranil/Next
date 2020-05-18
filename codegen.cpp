@@ -1,6 +1,7 @@
 #include "codegen.h"
 #include "builtins.h"
 #include "display.h"
+#include "engine.h"
 #include "import.h"
 #include "loader.h"
 
@@ -58,8 +59,8 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	// but it is still stored at slot 0
 	// of each compiled mtx
 	btx->insert_token(Token::PlaceholderToken);
-	VarInfo v = lookForVariable(String::from("core "), true);
-	btx->push(Value(GcObject::CoreModule));
+	VarInfo v = lookForVariable(String::from("core"), true);
+	btx->push(Value(ExecutionEngine::CoreObject));
 	btx->store_object_slot(v.slot);
 	btx->pop();
 	/*
@@ -504,11 +505,14 @@ void CodeGenerator::visit(AssignExpression *as) {
 		// stack manipulation in case we need to
 		// call op method [](_,_)
 		if(state == COMPILE_BODY) {
+			btx->insert_token(as->target->token);
 			bool b = onLHS;
 			onLHS  = true;
 			as->target->accept(this);
 			onLHS = b;
+			btx->insert_token(as->val->token);
 			as->val->accept(this);
+			btx->insert_token(as->token);
 			btx->subscript_set();
 		}
 	} else {
@@ -516,6 +520,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 		//
 		if(state == COMPILE_BODY) {
 			// Resolve the expression
+			btx->insert_token(as->val->token);
 			as->val->accept(this);
 		}
 
@@ -881,9 +886,9 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	vis->token.highlight();
 #endif
 	String *name = String::from(vis->token.start, vis->token.length);
+	btx->insert_token(vis->token);
 	if(!onRefer) {
 		VarInfo var = lookForVariable(vis->token);
-		btx->insert_token(vis->token);
 		if(onLHS) { // in case of LHS, just pass on the information
 			variableInfo = var;
 			onLHS        = false;
@@ -1153,6 +1158,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		    popFrame();
 		} else {
 		*/
+		btx->insert_token(ifs->name);
 		if(inConstructor) {
 			btx->construct(Value(ctx->get_class()));
 		}
