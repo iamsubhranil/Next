@@ -19,11 +19,11 @@ struct Value {
 	}
 
 #define TYPE(r, n)                                               \
-	inline void encode##n(r v) {                                 \
+	inline void encode##n(const r v) {                           \
 		if(sizeof(r) < 8)                                        \
 			value = (*(uint64_t *)&v) & generateMask(sizeof(r)); \
 		else                                                     \
-			value = (*(uint64_t *)&v) & VAL_MASK;                \
+			value = (uintptr_t)v & VAL_MASK;                     \
 		value = QNAN_##n | value;                                \
 	}
 #include "valuetypes.h"
@@ -40,20 +40,27 @@ struct Value {
 	Value(double d) : value(*(uint64_t *)&d) {}
 #ifdef DEBUG
 #define TYPE(r, n)                                                             \
-	Value(r s) {                                                               \
+	Value(const r s) {                                                         \
 		encode##n(s);                                                          \
 		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
 		          << " (Magic : " << QNAN_##n << ")\n"                         \
-		          << std::dec;        */                                       \
+		          << std::dec;*/                                               \
+	}
+#define OBJTYPE(r, n)                                                          \
+	Value(const r *s) {                                                        \
+		encodeGcObject((GcObject *)s);                                         \
+		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
+		          << " (Magic : " << QNAN_GcObject << ")\n"                    \
+		          << std::dec; */                                              \
 	}
 #else
 #define TYPE(r, n) \
-	Value(r s) { encode##n(s); }
-#endif
-#include "valuetypes.h"
+	Value(const r s) { encode##n(s); }
 #define OBJTYPE(r, n) \
-	Value(r *s) { encodeGcObject((GcObject *)s); }
+	Value(const r *s) { encodeGcObject((GcObject *)s); }
+#endif
 #include "objecttype.h"
+#include "valuetypes.h"
 
 	Type getType() const {
 		return isNumber() ? VAL_Number : (Type)VAL_TYPE(value);
@@ -125,11 +132,11 @@ constexpr Value ValueFalse = Value(QNAN_Boolean);
 constexpr Value ValueZero  = Value((uint64_t)0);
 
 namespace std {
-	template <> struct std::hash<Value> {
+	template <> struct hash<Value> {
 		std::size_t operator()(const Value &v) const { return v.toBits(); }
 	};
 
-	template <> struct std::equal_to<Value> {
+	template <> struct equal_to<Value> {
 		bool operator()(const Value &v1, const Value &v2) const {
 			return v1.toBits() == v2.toBits();
 		}
