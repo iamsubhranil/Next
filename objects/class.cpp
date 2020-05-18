@@ -9,6 +9,7 @@ void Class::init(String *s, ClassType typ) {
 	type      = typ;
 	functions = Array::create(1);
 	numSlots  = 0;
+	module    = NULL;
 }
 
 void Class::init(const char *n, ClassType typ) {
@@ -40,7 +41,7 @@ void Class::mark() {
 }
 
 bool Class::has_fn(int sym) const {
-	return functions->size > sym && functions->values[sym] != ValueNil;
+	return functions->capacity > sym && functions->values[sym] != ValueNil;
 }
 
 bool Class::has_fn(const char *sig) const {
