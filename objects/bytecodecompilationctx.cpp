@@ -44,7 +44,10 @@ void BytecodeCompilationContext::insert_token(Token t) {
 Token BytecodeCompilationContext::get_token(size_t ip) {
 	size_t start = 0;
 	size_t i     = 0;
-	while(i < size && (start += ranges_[i].range_) < ip) i++;
+	while(i < size && start + ranges_[i].range_ < ip) {
+		i++;
+		start += ranges_[i].range_;
+	}
 	return ranges_[i].token;
 }
 
