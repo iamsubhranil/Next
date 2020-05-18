@@ -56,6 +56,8 @@ struct ClassCompilationContext {
 
 	Class *get_class();
 
+	void finalize();
+
 	static void init();
 	// mark2 only marks runtime-necessary members
 	void mark();

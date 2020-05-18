@@ -175,6 +175,14 @@ void ClassCompilationContext::mark() {
 	}
 }
 
+void ClassCompilationContext::finalize() {
+	// add ret to the ()
+	if(defaultConstructor != NULL && moduleContext == NULL) {
+		defaultConstructor->bcc->load_slot(0);
+		defaultConstructor->bcc->ret();
+	}
+}
+
 void ClassCompilationContext::disassemble(std::ostream &o) {
 	if(moduleContext == NULL) {
 		o << "Module: " << klass->name[0] << "\n";
