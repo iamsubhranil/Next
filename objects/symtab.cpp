@@ -13,13 +13,7 @@ void SymbolTable2::init() {
 }
 
 int SymbolTable2::insert(const char *str) {
-	Value s = Value(String::from(str));
-	for(int i = 0; i < counter; i++) {
-		if(symbols[0][i] == s)
-			return i;
-	}
-	symbols->insert(s);
-	return counter++;
+	return insert(String::from(str));
 }
 
 int SymbolTable2::insert(const String *str) {
