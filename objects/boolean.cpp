@@ -1,7 +1,7 @@
 #include "boolean.h"
+#include "../gc.h"
 #include "../value.h"
 #include "class.h"
-#include "gc.h"
 #include "string.h"
 
 Value next_boolean_str(const Value *args) {

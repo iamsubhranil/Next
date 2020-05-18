@@ -1,8 +1,8 @@
 #include "number.h"
+#include "../gc.h"
 #include "../value.h"
 #include "class.h"
 #include "errors.h"
-#include "gc.h"
 #include "string.h"
 
 Value next_number_to_str(const Value *args) {
