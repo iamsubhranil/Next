@@ -102,6 +102,12 @@ struct Value {
 		encode##n(d);              \
 		return *this;              \
 	}
+#define OBJTYPE(r, n)                     \
+	inline Value &operator=(const r *d) { \
+		encodeGcObject((GcObject *)d);    \
+		return *this;                     \
+	}
+#include "objecttype.h"
 #include "valuetypes.h"
 	inline Value &operator=(double v) {
 		value = v;
