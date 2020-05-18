@@ -25,9 +25,9 @@ struct Bytecode {
 	BytecodeCompilationContext *ctx; // debug info
 	size_t                      size;
 	size_t                      capacity;
-	size_t                      stackSize;
-	size_t                      stackMaxSize;
 	size_t                      numSlots;
+	int                         stackSize;
+	int                         stackMaxSize;
 
 	// a bytecode may contain references to live
 	// objects, such as classes and modules that
