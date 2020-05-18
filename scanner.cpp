@@ -52,6 +52,10 @@ bool Token::isOperator() {
 
 void Token::highlight(bool showFileName, const char *prefix,
                       HighlightType htype) const {
+	if(source == NULL) {
+		cout << "<source not found>\n";
+		return;
+	}
 	static const char *highlights[] = {ANSI_COLOR_GREEN, ANSI_COLOR_YELLOW,
 	                                   ANSI_COLOR_RED};
 	const char *       tokenEnd = start, *tokenStart = start;
