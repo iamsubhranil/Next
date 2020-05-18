@@ -34,6 +34,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		// construct will automatically store it to slot 0
 		// add the class map
 		ctx->cctxMap = ValueMap::create();
+	} else {
+		ctx->klass->module = s->klass;
 	}
 	return ctx;
 }
@@ -121,6 +123,7 @@ void ClassCompilationContext::add_public_class(Class *                  c,
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
 	cctxMap->vv[Value(c->name)] = Value(ctx);
+	c->module                   = klass;
 }
 
 void ClassCompilationContext::add_private_class(Class *                  c,
@@ -130,6 +133,7 @@ void ClassCompilationContext::add_private_class(Class *                  c,
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
 	cctxMap->vv[Value(c->name)] = Value(ctx);
+	c->module                   = klass;
 }
 
 bool ClassCompilationContext::has_class(String *name) {
