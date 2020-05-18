@@ -71,7 +71,7 @@ void TypeError::mark() {
 
 void TypeError::print(std::ostream &o) {
 	o << "Expected argument " << argumentNumber << " of method " << ontype->str
-	  << "." << method->str << "() to be '" << expected << "'! Received '"
+	  << "." << method->str << "() to be '" << expected->str << "'! Received '"
 	  << received << "'!";
 }
 
