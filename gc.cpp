@@ -288,6 +288,8 @@ void GcObject::init() {
 	CoreContext->add_public_class(NumberClass);
 	CoreContext->add_public_class(BooleanClass);
 
+	CoreContext->finalize();
+
 	CoreModule = CoreContext->get_class();
 }
 
