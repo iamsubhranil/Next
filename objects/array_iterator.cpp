@@ -8,7 +8,7 @@ Object *ArrayIterator::from(Array *a) {
 
 	ar->slots[0] = Value(a);
 	ar->slots[1] = Value(0.0);
-	ar->slots[2] = Value(0 > a->size);
+	ar->slots[2] = Value(0 < a->size);
 
 	return ar;
 }
@@ -24,6 +24,7 @@ Value next_array_iterator_next(const Value *args) {
 	Array *a     = slots[0].toArray();
 	// this ignores the fact that array may be shrunk
 	Value ret = a->values[idx++];
+	slots[1]  = Value((double)idx);
 	slots[2]  = Value(idx < a->size);
 	return ret;
 }
