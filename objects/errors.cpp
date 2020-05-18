@@ -1,5 +1,5 @@
 #include "errors.h"
-// #include "../engine.h"
+#include "../engine.h"
 #include "class.h"
 #include "string.h"
 
@@ -16,8 +16,7 @@ TypeError *TypeError::create(String *o, String *m, String *e, Value r,
 
 Value TypeError::sete(String *o, String *m, String *e, Value r, int arg) {
 	TypeError *t = TypeError::create(o, m, e, r, arg);
-	// this one should be commented out for now
-	// ExecutionEngine::setPendingException(Value(t));
+	ExecutionEngine::setPendingException(Value(t));
 	return ValueNil;
 }
 
@@ -87,7 +86,7 @@ RuntimeError *RuntimeError::create(String *m) {
 }
 
 Value RuntimeError::sete(String *m) {
-	// ExecutionEngine::setPendingException(create(m));
+	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }
 
@@ -129,7 +128,7 @@ IndexError *IndexError::create(String *m, long l, long h, long r) {
 }
 
 Value IndexError::sete(String *m, long l, long h, long r) {
-	// ExecutionEngine::setPendingException(Value(create(m, l, h, r)));
+	ExecutionEngine::setPendingException(Value(create(m, l, h, r)));
 	return ValueNil;
 }
 
