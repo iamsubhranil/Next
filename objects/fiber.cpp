@@ -51,7 +51,8 @@ void Fiber::ensureStack(size_t e) {
 }
 
 Fiber::CallFrame *Fiber::appendMethod(Function *f) {
-	ensureStack(f->code->stackSize);
+	// arity number of elements is already on the stack
+	ensureStack(f->code->stackSize - f->arity);
 
 	if(callFramePointer == callFrameSize) {
 		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
@@ -61,10 +62,13 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f) {
 		callFrameSize = newsize;
 	}
 
-	callFrames[callFramePointer].f      = f;
-	callFrames[callFramePointer].stack_ = stackTop;
+	callFrames[callFramePointer].f = f;
+	// the 0th slot is reserved for the receiver
+	callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
 	callFrames[callFramePointer].code   = f->code->bytecodes;
-	stackTop += f->code->numSlots;
+	// we have already managed the slot for the receiver
+	// and the arguments are already in place
+	stackTop += (f->code->numSlots - 1 - f->arity);
 
 	return &callFrames[callFramePointer++];
 }

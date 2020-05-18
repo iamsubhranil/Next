@@ -33,9 +33,9 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 
 	// Holds the status of a resolved call
 	struct CallInfo {
-		enum CallType { LOCAL, CLASS, MODULE, CORE, BUILTIN, UNDEFINED } type;
-		int  frameIdx;
-		bool soft;
+		VariablePosition type;
+		int              frameIdx;
+		bool             soft;
 	};
 
 	ClassCompilationContext *   corectx;

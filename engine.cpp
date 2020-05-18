@@ -148,8 +148,12 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 
 	std::cout << "\n";
 	// no handlers matched, unwind stack
-	err("Uncaught exception occurred of type '%s.%s': ", c->module->name->str,
-	    c->name->str);
+	if(c->module != NULL) {
+		err("Uncaught exception occurred of type '%s.%s': ",
+		    c->module->name->str, c->name->str);
+	} else {
+		err("Uncaught exception occurred of type '%s': ", c->name->str);
+	}
 	if(v.isGcObject()) {
 		// if it's an exception, there is a message
 		switch(v.toGcObject()->objType) {
@@ -597,23 +601,20 @@ void ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(call) : {
-				int   frame = next_int();
-				int   arity = next_int();
-				Value v     = Stack[0];
-				// load the class of the object we're calling
-				const Class *c = GcObject::getClass(Stack[0]);
+				int          frame = next_int();
+				int          arity = next_int();
+				const Class *c =
+				    GcObject::getClass(fiber->stackTop[-arity - 1]);
 				BACKUP_FRAMEINFO();
 				fiber->appendMethod(c->functions->values[frame].toFunction());
 				RESTORE_FRAMEINFO();
-				Stack[0] = v;
-				DISPATCH();
+				DISPATCH_WINC();
 			}
 
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
 				fiber->popFrame();
-				presentFrame = fiber->getCurrentFrame();
 				RESTORE_FRAMEINFO();
 				PUSH(v);
 				DISPATCH();

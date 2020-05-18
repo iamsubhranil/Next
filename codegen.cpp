@@ -235,14 +235,14 @@ int CodeGenerator::getFrameIndex(vector<Frame *> &frames, Frame *searching) {
 */
 CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
                                                    String *signature) {
-	CallInfo info = {CallInfo::UNDEFINED, 0, true};
+	CallInfo info = {UNDEFINED, 0, true};
 
 	// the order of preference is as following
 	// local > class > module > core > builtin
 	// softcalls are always preferred
 
 	if(ftx->has_slot(name, scopeID)) {
-		info.type     = CallInfo::LOCAL;
+		info.type     = LOCAL;
 		info.frameIdx = ftx->get_slot(name);
 		return info;
 	}
@@ -255,12 +255,12 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 	// first search for methods inside
 	// of it
 	if(ctx->has_mem(name)) {
-		info.type     = CallInfo::CLASS;
+		info.type     = CLASS;
 		info.frameIdx = ctx->get_mem_slot(name);
 		return info;
 	}
 	if(ctx->has_fn(signature)) {
-		info.type     = CallInfo::CLASS;
+		info.type     = CLASS;
 		info.frameIdx = ctx->get_fn_sym(signature);
 		info.soft     = false;
 		// Search for the frame in the class
@@ -270,33 +270,35 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 	// Search for methods with generated signature in the present
 	// module
 	if(mtx->has_mem(name)) {
-		info.type     = CallInfo::MODULE;
+		info.type     = MODULE;
 		info.frameIdx = ctx->get_mem_slot(name);
 		return info;
 	} else if(mtx->has_fn(signature)) {
-		info.type     = CallInfo::MODULE;
+		info.type     = MODULE;
 		info.frameIdx = mtx->get_fn_sym(signature);
 		info.soft     = false;
 		return info;
 	}
 	// try searching in core
 	else if(corectx->has_mem(name)) {
-		info.type     = CallInfo::CORE;
+		info.type     = CORE;
 		info.frameIdx = corectx->get_mem_slot(name);
 		return info;
 	} else if(corectx->has_fn(signature)) {
-		info.type     = CallInfo::CORE;
+		info.type     = CORE;
 		info.frameIdx = corectx->get_fn_sym(signature);
 		info.soft     = false;
 		return info;
 	} else { // try searching for builtin functions
 		if(Builtin::has_builtin(signature)) {
-			info.type = CallInfo::BUILTIN;
+			info.type = BUILTIN;
 			info.soft = false;
 			return info;
 		}
 	}
 
+	// undefined
+	info.soft = false;
 	return info;
 }
 
@@ -317,20 +319,22 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	String *name =
 	    String::from(call->callee->token.start, call->callee->token.length);
 
-	CallInfo info = {CallInfo::UNDEFINED, 0, true};
+	CallInfo info = {UNDEFINED, 0, true};
 
 	if(!onRefer) {
 		info = resolveCall(name, signature);
+		if(!info.soft) {
+			// not undefined, and not a soft call
+			// so load the receiver first
+			switch(info.type) {
+				case CLASS: btx->load_slot(0); break;
+				case MODULE: loadPresentModule(); break;
+				case CORE: loadCoreModule(); break;
+				default: break;
+			}
+		}
 	}
 
-	/*
-	 * all normal calls are intraclass now, and slot 0 is automatically
-	 * copied
-	if(!onRefer && info.type == CallInfo::INTRA_CLASS) {
-	    // load the object first, so no manual stack manipulation
-	    // is needed
-	    btx->load_slot_0();
-	}*/
 	// Reset the referral status for arguments
 	bool bak = onRefer;
 	onRefer  = false;
@@ -342,10 +346,10 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 	// If this a reference expression, dynamic dispatch will be used
 	if(onRefer) {
 		btx->call_method(SymbolTable2::insert(signature), argSize);
-		btx->stackEffect(-argSize);
+		btx->stackEffect(-argSize + 1);
 		return;
 	} else {
-		if(info.type == CallInfo::UNDEFINED) {
+		if(info.type == UNDEFINED) {
 			// Function is not found
 			lnerr_("No function with the specified signature found "
 			       " '%s'!",
@@ -365,27 +369,24 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 			}*/
 			return;
 		}
+		btx->stackEffect(-argSize + 1);
 		if(info.soft) {
 			// generate the no name signature
 			int sig = SymbolTable2::insert(generateSignature(argSize));
 			switch(info.type) {
-				case CallInfo::LOCAL: btx->load_slot(info.frameIdx); break;
-				case CallInfo::CLASS:
-					btx->load_object_slot(info.frameIdx);
-					break;
-				case CallInfo::MODULE:
+				case LOCAL: btx->load_slot(info.frameIdx); break;
+				case CLASS: btx->load_object_slot(info.frameIdx); break;
+				case MODULE:
 					// load module
 					loadPresentModule();
 					btx->load_tos_slot(info.frameIdx);
 					break;
-				case CallInfo::CORE:
+				case CORE:
 					loadCoreModule();
 					// load the specified slot
 					btx->load_tos_slot(info.frameIdx);
 					break;
-				case CallInfo::BUILTIN:
-					btx->call_builtin(signature, argSize);
-					break;
+				case BUILTIN: btx->call_builtin(signature, argSize); break;
 				default: break; // error is already handled
 			}
 			btx->call_soft(sig, argSize);
@@ -393,22 +394,13 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 		}
 		// function call
 		switch(info.type) {
-			case CallInfo::CLASS:
-				// intra class call
-				btx->call(info.frameIdx);
+			case CLASS:
+			case MODULE:
+			case CORE:
+				// the receiver is already loaded
+				btx->call(info.frameIdx, argSize);
 				break;
-			case CallInfo::MODULE:
-				// load module
-				loadPresentModule();
-				btx->call_tos(info.frameIdx);
-				break;
-			case CallInfo::CORE:
-				loadCoreModule();
-				btx->call_tos(info.frameIdx);
-				break;
-			case CallInfo::BUILTIN:
-				btx->call_builtin(signature, argSize);
-				break;
+			case BUILTIN: btx->call_builtin(signature, argSize); break;
 			default: break; // error is already handled
 		}
 	}
@@ -1330,7 +1322,11 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				// mtx
 				VarInfo v = lookForVariable(lastName, true);
 				btx->push(Value(m));
-				btx->store_slot(v.slot);
+				switch(v.position) {
+					case LOCAL: btx->store_slot(v.slot); break;
+					case CLASS: btx->store_object_slot(v.slot); break;
+					default: break;
+				}
 				btx->pop();
 
 				break;

@@ -89,9 +89,9 @@ OPCODE1(jump, 0, int) // <relative_jump_offset>
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 
-// performs a intraclass call on the method with <argument>
-// symbol stored in the same class.
-OPCODE1(call, 0, int) // <symbol>
+// performs a call on the method with <argument>
+// receiver is stored at arity - 1
+OPCODE2(call, 0, int, int) // <symbol> <arity>
 // performs a call on the TOS
 // we will provide both the signature and the
 // arity. if the TOS is a class, we will use
@@ -102,9 +102,6 @@ OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
 // performs obj.method(...), also checks for boundcalls
 // on member 'method' in obj.
 OPCODE2(call_method, 0, int, int) // <symbol> <args>
-// calls the symbol in the TOS
-// for module/core calls
-OPCODE1(call_tos, 0, int) // <symbol>
 // return
 OPCODE0(ret, 0)
 

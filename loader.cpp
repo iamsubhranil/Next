@@ -148,6 +148,8 @@ Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
 		c.compile(ctx, decls);
 		if(execute) {
 			Fiber *f = Fiber::create();
+			++f->stackTop; // manually increment the stackTop to create a slot
+			               // for the receiver
 			f->appendMethod(ctx->get_default_constructor()->f);
 			ex.execute(f);
 		}
@@ -188,6 +190,8 @@ Class *Loader::compile_and_load_from_source(const char *             source,
 
 		if(execute) {
 			Fiber *f = Fiber::create();
+			++f->stackTop; // manually increment the stackTop to create a slot
+			               // for the receiver
 			f->appendMethod(modulectx->get_default_constructor()->f);
 			ex.execute(f);
 		}
