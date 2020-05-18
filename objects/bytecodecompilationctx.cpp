@@ -48,7 +48,9 @@ Token BytecodeCompilationContext::get_token(size_t ip) {
 		i++;
 		start += ranges_[i].range_;
 	}
-	return ranges_[i].token;
+	if(i == 0)
+		i = 1;
+	return ranges_[i - 1].token;
 }
 
 void BytecodeCompilationContext::finalize() {
