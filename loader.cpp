@@ -95,7 +95,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_class, new ClassDeclaration());
 }
 
-Class *Loader::compile_and_load(String *fileName, bool execute) {
+GcObject *Loader::compile_and_load(String *fileName, bool execute) {
 	return compile_and_load(fileName->str, execute);
 }
 
@@ -116,19 +116,20 @@ String *generateModuleName(const char *inp) {
 	return String::from(&inp[first], (last - first) + 1);
 }
 
-Class *Loader::compile_and_load(const char *fileName, bool execute) {
+GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
 	String *modName = generateModuleName(fileName);
 	return compile_and_load_with_name(fileName, modName, execute);
 }
 
-Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
-                                          bool execute) {
+GcObject *Loader::compile_and_load_with_name(const char *fileName,
+                                             String *modName, bool execute) {
 	CodeGenerator c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
 	if(ExecutionEngine::isModuleRegistered(modName))
-		return ExecutionEngine::getRegisteredModule(modName);
+		return (GcObject *)ExecutionEngine::getRegisteredModule(modName)
+		    ->instance;
 	ExecutionEngine ex;
 	Scanner         s(fileName);
 	try {
@@ -151,9 +152,9 @@ Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
 			++f->stackTop; // manually increment the stackTop to create a slot
 			               // for the receiver
 			f->appendMethod(ctx->get_default_constructor()->f);
-			ex.execute(f);
+			return ex.execute(f).toGcObject();
 		}
-		return ctx->get_class();
+		return (GcObject *)ctx->get_class();
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
@@ -166,9 +167,8 @@ Class *Loader::compile_and_load_with_name(const char *fileName, String *modName,
 	}
 }
 
-Class *Loader::compile_and_load_from_source(const char *             source,
-                                            ClassCompilationContext *modulectx,
-                                            bool                     execute) {
+GcObject *Loader::compile_and_load_from_source(
+    const char *source, ClassCompilationContext *modulectx, bool execute) {
 	CodeGenerator c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
@@ -193,7 +193,7 @@ Class *Loader::compile_and_load_from_source(const char *             source,
 			++f->stackTop; // manually increment the stackTop to create a slot
 			               // for the receiver
 			f->appendMethod(modulectx->get_default_constructor()->f);
-			ex.execute(f);
+			return ex.execute(f).toGcObject();
 		}
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {
@@ -205,5 +205,5 @@ Class *Loader::compile_and_load_from_source(const char *             source,
 		cout << r.what() << "\n";
 		return NULL;
 	}
-	return modulectx->get_class();
+	return (GcObject *)modulectx->get_class();
 }
