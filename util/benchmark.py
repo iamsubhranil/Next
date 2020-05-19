@@ -84,7 +84,7 @@ BENCHMARK("fib", r"""317811
 317811
 317811""")
 
-BENCHMARK("garbage_test", r"""Final object : <object of garbage_test\.MyClass> {2000000, 2000002, 2000002, 2000000}""")
+BENCHMARK("garbage_test", r"""Final object : <object of 'MyClass'> {2000000, 2000002, 2000002, 2000000}""")
 
 #BENCHMARK("fibers", r"""4999950000""")
 
