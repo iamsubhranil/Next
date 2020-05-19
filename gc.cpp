@@ -137,6 +137,7 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 Object *GcObject::allocObject(const Class *klass) {
 	Object *o = (Object *)alloc(sizeof(Object), OBJ_Object, klass);
 	o->slots  = (Value *)GcObject::malloc(sizeof(Value) * klass->numSlots);
+	std::fill_n(o->slots, klass->numSlots, ValueNil);
 	return o;
 }
 
