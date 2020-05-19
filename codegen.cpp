@@ -581,26 +581,16 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 	dinfo("");
 	al->token.highlight();
 #endif
-	// temp_slot = core.hashmap()
-	loadCoreModule();
-	btx->load_field(SymbolTable2::insert("map"));
-	btx->call_soft(SymbolTable2::const_sig_constructor_0, 0);
-
-	int slot = createTempSlot();
-	btx->store_slot_pop(slot);
 	if(al->keys.size() > 0) {
 		// now evalute all the key:value pairs
 		int p = 0;
 		for(auto &i : al->keys) {
-			btx->load_slot_n(slot);
 			i->accept(this);
 			al->values[p]->accept(this);
-			btx->subscript_set();
-			btx->pop();
 			p++;
 		}
 	}
-	btx->load_slot_n(slot);
+	btx->map_build(al->keys.size());
 }
 
 void CodeGenerator::visit(LiteralExpression *lit) {
@@ -1282,7 +1272,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				break;
 			}
 			case ImportStatus::IMPORT_SUCCESS: {
-				Class *m = Loader::compile_and_load(is.fileName);
+				GcObject *m = Loader::compile_and_load(is.fileName);
 				if(m == NULL) {
 					// compilation of the mtx failed
 					lnerr_("Compilation of imported mtx failed!", t);
@@ -1295,8 +1285,11 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				// Registered mtx name : io
 				// Warn if a variable name shadows the imported
 				// mtx
+				// Also, if the import is a success, we know
+				// the returned value is the instance of the
+				// module
 				VarInfo v = lookForVariable(lastName, true);
-				btx->push(Value(m));
+				btx->push(Value((Object *)m));
 				switch(v.position) {
 					case LOCAL: btx->store_slot(v.slot); break;
 					case CLASS: btx->store_object_slot(v.slot); break;
