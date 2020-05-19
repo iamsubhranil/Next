@@ -94,7 +94,7 @@ const Value &Array::operator[](size_t idx) const {
 }
 
 Value &Array::insert(Value v) {
-	if(size == capacity - 1) {
+	if(size == capacity) {
 		resize(capacity + 1);
 	}
 	return values[size++] = v;
