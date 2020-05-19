@@ -1116,7 +1116,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		// 0th slot of all functions will contain the bound
 		// object. which will either be a module, or a class
 		// instance
-		ftx->create_slot(String::from("this "), scopeID + 1);
+		ftx->create_slot(String::from("this"), scopeID + 1);
 
 		/* TODO: Handle native functions
 		if(ifs->isNative) {
