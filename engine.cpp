@@ -645,8 +645,10 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 						       "Constructor '@t' not found in class '@s'!", sym,
 						       c->name);
 						// Assign the module instance to the receiver slot
-						fiber->stackTop[-numberOfArguments - 1] =
-						    c->module->instance;
+						// If the receiver is a module, then that slot will
+						// store core
+						Value v = c->module ? c->module->instance : CoreObject;
+						fiber->stackTop[-numberOfArguments - 1] = v;
 						// call the constructor
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
@@ -871,7 +873,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			CASE(incr_field) : {
 				int          field = next_int();
-				Value        v     = POP();
+				Value        v     = TOP;
 				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
@@ -887,7 +889,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			CASE(decr_field) : {
 				int          field = next_int();
-				Value        v     = POP();
+				Value        v     = TOP;
 				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
@@ -970,15 +972,9 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
-			CASE(halt) : {
-				unsigned long instructionPointer = 0;
-				set_instruction_pointer(presentFrame);
-				return ValueNil;
-			}
-
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_halt) {
+				if(code > Bytecode::CODE_load_constant) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",

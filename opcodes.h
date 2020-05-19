@@ -157,8 +157,6 @@ OPCODE1(map_build, 0, int)
 OPCODE2(call_builtin, 0, Value, int) // <signature> <args>
 OPCODE1(load_constant, 1, Value)     // <name>
 
-OPCODE0(halt, 0)
-
 #undef OPCODE0
 #undef OPCODE1
 #undef OPCODE2
