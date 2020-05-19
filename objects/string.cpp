@@ -31,7 +31,7 @@ Value next_string_at(const Value *args) {
 	}
 	return String::from(&(s->str[i]));
 }
-
+#include <iostream>
 Value next_string_contains(const Value *args) {
 	EXPECT(string, contains, 1, String);
 	String *source = args[0].toString();
@@ -49,23 +49,31 @@ Value next_string_contains(const Value *args) {
 	// and the container string has
 	// enough space to contain the
 	// second one, so check
-	char *bak = source->str;
-	char *c   = check->str;
-	while(*bak && *bak != *c) bak++;
-	if(*bak == 0)
-		return ValueFalse;
-	// if the length of the remaining
-	// string is lesser than the
-	// string to check, return false
-	int rem = source->size - (bak - source->str);
-	if(rem < check->size)
-		return ValueFalse;
-	// check the remaining characters
-	while(*bak && *c) {
-		if(*bak != *c)
+	char *bak          = source->str;
+	char *c            = check->str;
+	bool  keepChecking = true;
+	while(keepChecking) {
+		keepChecking = false;
+		while(*bak && *bak != *c) bak++;
+		if(*bak == 0)
 			return ValueFalse;
-		bak++;
-		c++;
+		// if the length of the remaining
+		// string is lesser than the
+		// string to check, return false
+		int rem = source->size - (bak - source->str);
+		if(rem < check->size)
+			return ValueFalse;
+		// check the remaining characters
+		while(*bak && *c) {
+			if(*bak != *c) {
+				// it may so happen that we guessed the
+				// beginning of the match wrong, so try again
+				keepChecking = true;
+				break;
+			}
+			bak++;
+			c++;
+		}
 	}
 	return ValueTrue;
 }
