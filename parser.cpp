@@ -54,7 +54,7 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 }
 
 StmtPtr Parser::parseDeclaration() {
-	Visibility vis   = VIS_PRIV;
+	Visibility vis   = VIS_DEFAULT;
 	Token      token = lookAhead(0);
 	if(token.type == TOKEN_pub || token.type == TOKEN_priv) {
 		consume();
@@ -281,7 +281,7 @@ StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
 StmtPtr ConstructorDeclaration::parse(Parser *p, Token t) {
 	std::unique_ptr<FnBodyStatement> body = FnDeclaration::parseFnBody(p, t);
 	// isMethod = true and isConstructor = true
-	return unq(FnStatement, t, t, body, true, false, false, true, VIS_PUB);
+	return unq(FnStatement, t, t, body, true, false, false, true, VIS_DEFAULT);
 }
 
 StmtPtr VisibilityDeclaration::parse(Parser *p, Token t) {
@@ -296,14 +296,14 @@ StmtPtr StaticDeclaration::parse(Parser *p, Token t) {
 		return MemberDeclaration::parse(p, next, true);
 	} else if(next.type == TOKEN_fn) { // it's a static function
 		p->consume();
-		return FnDeclaration::parseFnStatement(p, t, true, true, VIS_PRIV);
+		return FnDeclaration::parseFnStatement(p, t, true, true, VIS_DEFAULT);
 	}
 	// it must be a block
 	return p->parseBlock(true);
 }
 
 StmtPtr MethodDeclaration::parse(Parser *p, Token t) {
-	return FnDeclaration::parseFnStatement(p, t, true, false, VIS_PRIV);
+	return FnDeclaration::parseFnStatement(p, t, true, false, VIS_DEFAULT);
 }
 
 StmtPtr OpMethodDeclaration::parse(Parser *p, Token t) {
@@ -313,7 +313,8 @@ StmtPtr OpMethodDeclaration::parse(Parser *p, Token t) {
 	}
 	std::unique_ptr<FnBodyStatement> body =
 	    FnDeclaration::parseFnBody(p, op, false, 1);
-	return unq(FnStatement, t, op, body, true, false, false, false, VIS_PRIV);
+	return unq(FnStatement, t, op, body, true, false, false, false,
+	           VIS_DEFAULT);
 }
 
 StmtPtr MemberDeclaration::parse(Parser *p, Token t) {

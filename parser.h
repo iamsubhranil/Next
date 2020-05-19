@@ -124,7 +124,7 @@ class SubscriptParselet : public InfixParselet {
 
 class DeclarationParselet {
   public:
-	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_PRIV); }
+	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_DEFAULT); }
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis) = 0;
 	virtual ~DeclarationParselet() {}
 };

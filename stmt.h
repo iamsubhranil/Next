@@ -42,7 +42,7 @@ class StatementVisitor {
 	virtual void visit(ForStatement *ifs)            = 0;
 };
 
-typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV } Visibility;
+typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV, VIS_DEFAULT } Visibility;
 
 class Statement {
   public:
