@@ -168,7 +168,7 @@ void CodeGenerator::loadPresentModule() {
 	} else {
 		// if we're not inside of any class, then
 		// the 0th slot is the present module
-		btx->load_slot(0);
+		btx->load_slot_n(0);
 	}
 }
 
@@ -328,11 +328,17 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 			// not undefined, and not a soft call
 			// so load the receiver first
 			switch(info.type) {
-				case CLASS: btx->load_slot(0); break;
+				case CLASS: btx->load_slot_n(0); break;
 				case MODULE: loadPresentModule(); break;
 				case CORE: loadCoreModule(); break;
 				default: break;
 			}
+		} else if(info.type != UNDEFINED) {
+			// resolved soft call
+			// we'll still need a slot to store the
+			// receiver
+			// so pushn
+			btx->pushn();
 		}
 	}
 
@@ -375,7 +381,7 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 			// generate the no name signature
 			int sig = SymbolTable2::insert(generateSignature(argSize));
 			switch(info.type) {
-				case LOCAL: btx->load_slot(info.frameIdx); break;
+				case LOCAL: btx->load_slot_n(info.frameIdx); break;
 				case CLASS: btx->load_object_slot(info.frameIdx); break;
 				case MODULE:
 					// load module
@@ -537,7 +543,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 					loadPresentModule();
 					btx->store_tos_slot(var.slot);
 					break;
-				case CORE: loadCoreModule(); btx->store_tos_slot(var.slot);
+				case CORE:
 				case BUILTIN: {
 					lnerr_("Built-in variable '%.*s' cannot be "
 					       "reassigned!",
@@ -586,7 +592,7 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 		// now evalute all the key:value pairs
 		int p = 0;
 		for(auto &i : al->keys) {
-			btx->load_slot(slot);
+			btx->load_slot_n(slot);
 			i->accept(this);
 			al->values[p]->accept(this);
 			btx->subscript_set();
@@ -594,7 +600,7 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 			p++;
 		}
 	}
-	btx->load_slot(slot);
+	btx->load_slot_n(slot);
 }
 
 void CodeGenerator::visit(LiteralExpression *lit) {
@@ -633,50 +639,6 @@ void CodeGenerator::visit(GetExpression *get) {
 	dinfo("");
 	get->token.highlight();
 #endif
-	// TODO: Here we have to check if both side of the
-	// get expression is 'VariableExpression's (which
-	// will only happen for the start of a reference
-	// expression), or VariableExpression.CallExpression
-	// the expression can actually be a
-	// mtx reference.
-	/*
-	if(get->object->isVariable()) {
-	    // Find out the name
-	    String* name = String::from(get->object->token.start,
-	                                            get->object->token.length);
-	    // If a variable shadows the mtx name, the variable name will be
-	    // prioritized
-	    VarInfo var = lookForVariable(name, false);
-	    // Check if there is a mtx of the same name
-	    if(var.position == UNDEFINED && mtx->importedmtxs.find(name) !=
-	                                        mtx->importedmtxs.end()) {
-	        // voila
-	        // Now resolve the reference.
-	        // Only valid function calls and variable
-	        // accesses will be optimized. Everything else
-	        // will be delegated into the runtime as a
-	        // method call to the mtx primitive.
-	        mtx *m = mtx->importedmtxs[name];
-	        if(get->refer->getType() == Expr::Type::CALL) {
-	            CallExpression *ce = (CallExpression *)get->refer.get();
-	            String*      sig =
-	                generateSignature(ce->callee->token, ce->arguments.size());
-	            if(m->hasSignature(sig)) {
-	                emitCall(ce, true, m);
-	                return;
-	            } else {
-	                // Load the mtx* at runtime and delegate the call
-	                lookForVariable(name);
-	                bool b  = onRefer;
-	                onRefer = true;
-	                emitCall(ce);
-	                onRefer = b;
-	                return;
-	            }
-	        }
-	    }
-	}
-	*/
 	bool lb = onLHS;
 	onLHS   = false;
 	get->object->accept(this);
@@ -745,6 +707,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						btx->incr_object_slot(variableInfo.slot);
 						btx->load_object_slot(variableInfo.slot);
 						break;
+					case CORE:
 					case BUILTIN: {
 						lnerr_(
 						    "Built-in constant '%.*s' cannot be incremented!",
@@ -784,6 +747,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						btx->decr_object_slot(variableInfo.slot);
 						btx->load_object_slot(variableInfo.slot);
 						break;
+					case CORE:
 					case BUILTIN: {
 						lnerr_(
 						    "Built-in constant '%.*s' cannot be decremented!",
@@ -834,6 +798,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					btx->load_object_slot(variableInfo.slot);
 					btx->incr_object_slot(variableInfo.slot);
 					break;
+				case CORE:
 				case BUILTIN: {
 					lnerr_("Built-in constant '%.*s' cannot be incremented!",
 					       pe->left->token, pe->left->token.length,
@@ -865,6 +830,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					btx->load_object_slot(variableInfo.slot);
 					btx->decr_object_slot(variableInfo.slot);
 					break;
+				case CORE:
 				case BUILTIN: {
 					lnerr_("Built-in constant '%.*s' cannot be decremented!",
 					       pe->left->token, pe->left->token.length,
@@ -996,12 +962,12 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// store the returned object in the temporary slot
 			btx->store_slot_pop(slot);
 			// check slot.has_next
-			int pos = btx->load_slot(slot);
+			int pos = btx->load_slot_n(slot);
 			btx->load_field(SymbolTable2::insert("has_next"));
 			// if has_next returns false, exit
 			int exit_ = btx->jumpiffalse(0);
 			// otherwise, call next() on the iterator
-			btx->load_slot(slot);
+			btx->load_slot_n(slot);
 			btx->call_method(SymbolTable2::insert("next()"), 0);
 			// store the next value in the given variable
 			switch(var.position) {
@@ -1134,7 +1100,10 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			    FunctionCompilationContext::create(
 			        String::from(ifs->name.start, ifs->name.length),
 			        ifs->arity);
-			switch(ifs->visibility) {
+			Visibility consider = currentVisibility;
+			if(ifs->visibility != VIS_DEFAULT)
+				consider = ifs->visibility;
+			switch(consider) {
 				case VIS_PUB:
 					ctx->add_public_fn(signature, fctx->get_fn(), fctx);
 					break;
@@ -1169,7 +1138,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		// Only constructor emits construct_ret
 
 		if(inConstructor) {
-			btx->load_slot_0();
+			btx->load_slot_n(0);
 			btx->ret();
 		} else {
 			// Even if the last bytecode was ret, we can't be sure
