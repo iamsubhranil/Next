@@ -73,15 +73,19 @@ OPCODE0(load_slot_5, 1)
 OPCODE0(load_slot_6, 1)
 OPCODE0(load_slot_7, 1)
 
-OPCODE1(load_slot, 1, int)       // <slot_number>
+OPCODE1(load_slot, 1, int) // <slot_number>
+// Load <slot> from TOS
+// replaces TOS
+OPCODE1(load_tos_slot, 0, int)
+// Load <slot> from slot 0
+OPCODE1(load_object_slot, 1, int)
+
 OPCODE1(store_slot, 0, int)      // <slot_number>
 OPCODE1(store_slot_pop, -1, int) // <slot_number>
-// OPCODE2(load_parent_slot, 1, int, int)   // <scope_depth> <slot_number>
-// OPCODE2(store_parent_slot, -1, int, int) // <scope_depth> <slot_number>
-
-// FrameInstance carries module stack
-// OPCODE1(load_module_slot, 1, int)  // <slot>
-// OPCODE1(store_module_slot, 0, int) // <slot>
+// Store to TOS <slot>
+OPCODE1(store_tos_slot, -1, int)
+// Store TOS to <slot> of slot 0
+OPCODE1(store_object_slot, 0, int)
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
@@ -108,15 +112,6 @@ OPCODE0(ret, 0)
 OPCODE1(construct, 0, Value) // <class>
 // OPCODE0(construct_ret, 0)
 
-// Load <slot> from TOS
-// replaces TOS
-OPCODE1(load_tos_slot, 0, int)
-// Load <slot> from slot 0
-OPCODE1(load_object_slot, 1, int)
-// Store to TOS <slot>
-OPCODE1(store_tos_slot, -1, int)
-// Store TOS to <slot> of slot 0
-OPCODE1(store_object_slot, 0, int)
 // Pop the object from TOS and push
 // the required field
 OPCODE1(load_field, 0, int) // <symbol>
@@ -155,6 +150,9 @@ OPCODE0(subscript_get, -1)
 // array at [TOP - N]
 OPCODE1(array_build, 0, int)
 
+// Assigns N*2 key-value pairs from the TOP
+// to the map
+OPCODE1(map_build, 0, int)
 // The engine needs to know number of args for cleanup
 OPCODE2(call_builtin, 0, Value, int) // <signature> <args>
 OPCODE1(load_constant, 1, Value)     // <name>
