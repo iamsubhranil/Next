@@ -44,16 +44,16 @@ pub fn test() {
     } catch(runtime_error e) {}
 
     try {
-        if(s.has(123)) {
-            print("[Error] string.has(123) should not return true!\n")
+        if(s.contains(123)) {
+            print("[Error] string.contains(123) should not return true!\n")
             res = false
         }
-        print("[Error] string.has() should not accept 123 as a valid argument!\n")
+        print("[Error] string.contains() should not accept 123 as a valid argument!\n")
         res = false
     } catch(runtime_error e) {}
 
-    if(!s.has("Hello") or !s.has("lo Wo") or s.has("Hola")) {
-        print("[Error] string.has() is broken!\n")
+    if(!s.contains("Hello") or !s.contains("lo Wo") or s.contains("Hola")) {
+        print("[Error] string.contains() is broken!\n")
         res = false
     }
 
