@@ -14,6 +14,10 @@ struct Class {
 	Array * functions;
 	String *name;
 	Class * module; // a module is eventually a class
+
+	// in case of a module, it will store the module instance
+	// in case of a class, it will store the static members
+	Object *instance;
 	int     numSlots;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 

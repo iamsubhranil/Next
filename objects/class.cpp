@@ -10,6 +10,7 @@ void Class::init(String *s, ClassType typ) {
 	functions = Array::create(1);
 	numSlots  = 0;
 	module    = NULL;
+	instance  = NULL;
 }
 
 void Class::init(const char *n, ClassType typ) {
@@ -38,6 +39,12 @@ void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn) {
 void Class::mark() {
 	GcObject::mark((GcObject *)name);
 	GcObject::mark((GcObject *)functions);
+	if(module != NULL) {
+		GcObject::mark((GcObject *)module);
+	}
+	if(instance != NULL) {
+		GcObject::mark((GcObject *)instance);
+	}
 }
 
 bool Class::has_fn(int sym) const {
