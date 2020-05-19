@@ -1,6 +1,27 @@
 #include "map.h"
+#include "../engine.h"
 #include "../value.h"
+#include "boundmethod.h"
 #include "class.h"
+#include "symtab.h"
+
+Value next_map_get_hash(const Value &v) {
+	if(!v.isObject())
+		return v;
+	Value h = v;
+	while(h.isObject()) { // this is an user made object,
+		// so there is a chance of a hash method to exist
+		const Class *c = h.getClass();
+		if(c->has_fn(SymbolTable2::const_sig_hash)) {
+			BoundMethod *bm = BoundMethod::from(
+			    c->get_fn(SymbolTable2::const_sig_hash).toFunction(),
+			    h.toObject(), BoundMethod::OBJECT_BOUND);
+			h = ExecutionEngine::execute(bm, true);
+		} else
+			return h;
+	}
+	return h;
+}
 
 Value next_map_clear(const Value *args) {
 	args[0].toValueMap()->vv.clear();
@@ -8,17 +29,19 @@ Value next_map_clear(const Value *args) {
 }
 
 Value next_map_has(const Value *args) {
-	return Value(args[0].toValueMap()->vv.contains(args[1]));
+	Value h = next_map_get_hash(args[1]);
+	return Value(args[0].toValueMap()->vv.contains(h));
 }
 
 Value next_map_keys(const Value *args) {
 	ValueMap *m = args[0].toValueMap();
 	Array *   a = Array::create(m->vv.size());
-	size_t    i = 0;
+	a->size     = m->vv.size();
+	size_t i    = 0;
 	for(auto kv : m->vv) {
-		a[0][i++] = kv.first;
+		a->values[i++] = kv.first;
 	}
-	return a;
+	return Value(a);
 }
 
 Value next_map_size(const Value *args) {
@@ -26,26 +49,32 @@ Value next_map_size(const Value *args) {
 }
 
 Value next_map_remove(const Value *args) {
-	args[0].toValueMap()->vv.erase(args[1]);
+	args[0].toValueMap()->vv.erase(next_map_get_hash(args[1]));
 	return ValueNil;
 }
 
 Value next_map_values(const Value *args) {
 	ValueMap *m = args[0].toValueMap();
 	Array *   a = Array::create(m->vv.size());
-	size_t    i = 0;
+	a->size     = m->vv.size();
+	size_t i    = 0;
 	for(auto kv : m->vv) {
-		a[0][i++] = kv.second;
+		a->values[i++] = kv.second;
 	}
-	return a;
+	return Value(a);
 }
 
 Value next_map_get(const Value *args) {
-	return args[0].toValueMap()->vv[args[1]];
+	Value  h     = next_map_get_hash(args[1]);
+	size_t count = args[0].toValueMap()->vv.count(h);
+	if(count > 0)
+		return args[0].toValueMap()->vv[h];
+	return ValueNil;
 }
 
 Value next_map_set(const Value *args) {
-	return args[0].toValueMap()->vv[args[1]] = args[2];
+	Value h                            = next_map_get_hash(args[1]);
+	return args[0].toValueMap()->vv[h] = args[2];
 }
 
 Value next_map_construct(const Value *args) {
@@ -72,6 +101,17 @@ ValueMap *ValueMap::create() {
 	ValueMap *vvm = GcObject::allocValueMap();
 	::new(&vvm->vv) HashMap<Value, Value>();
 	return vvm;
+}
+
+ValueMap *ValueMap::from(const Value *args, int numArg) {
+	ValueMap *vm = create();
+	for(int i = 0; i < numArg * 2; i += 2) {
+		Value key   = args[i];
+		Value value = args[i + 1];
+		key         = next_map_get_hash(key);
+		vm->vv[key] = value;
+	}
+	return vm;
 }
 
 Value &ValueMap::operator[](const Value &v) {
