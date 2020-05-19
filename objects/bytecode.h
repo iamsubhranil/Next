@@ -113,8 +113,8 @@ struct Bytecode {
 	void finalize();
 
 	// optimized opcode instructions
-	void load_slot_n(int n);
-	void load_slot_n(int pos, int n);
+	int load_slot_n(int n);
+	int load_slot_n(int pos, int n);
 
 	size_t getip();
 
