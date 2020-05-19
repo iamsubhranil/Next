@@ -294,15 +294,6 @@ void GcObject::init() {
 	CoreModule = CoreContext->get_class();
 }
 
-const Class *GcObject::getClass(Value v) {
-	switch(v.getType()) {
-		case Value::VAL_Number: return NumberClass;
-		case Value::VAL_Boolean: return BooleanClass;
-		case Value::VAL_GcObject: return v.toGcObject()->klass;
-		default: return ObjectClass;
-	}
-}
-
 #ifdef DEBUG_GC
 
 void GcObject::print_stat() {

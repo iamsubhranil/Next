@@ -125,6 +125,16 @@ struct Value {
 		return v.value != value;
 	}
 
+	// returns class for the value
+	inline const Class *getClass() const {
+		switch(getType()) {
+			case Value::VAL_Number: return GcObject::NumberClass;
+			case Value::VAL_Boolean: return GcObject::BooleanClass;
+			case Value::VAL_GcObject: return toGcObject()->klass;
+			default: return GcObject::ObjectClass;
+		}
+	}
+
 	static void init();
 	/*
 	    static const Value valueNil;

@@ -16,11 +16,11 @@ Value next_clock(const Value *args) {
 
 Value next_type_of(const Value *args) {
 	Value v = args[0];
-	return Value(GcObject::getClass(v));
+	return Value(v.getClass());
 }
 
 Value next_is_same_type(const Value *v) {
-	return Value(GcObject::getClass(v[0]) == GcObject::getClass(v[1]));
+	return Value(v[0].getClass() == v[1].getClass());
 }
 
 HashMap<String *, builtin_handler> Builtin::BuiltinHandlers =

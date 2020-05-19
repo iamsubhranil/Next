@@ -117,9 +117,6 @@ struct GcObject {
 	// returns a place holder gcobject
 	static GcObject DefaultGcObject;
 
-	// returns class for the value
-	static const Class *getClass(Value v);
-
 	// debug information
 #ifdef DEBUG_GC
 	static size_t GcCounters[];
