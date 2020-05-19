@@ -50,9 +50,9 @@ void Fiber::ensureStack(size_t e) {
 	}
 }
 
-Fiber::CallFrame *Fiber::appendMethod(Function *f) {
+Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
 	// arity number of elements is already on the stack
-	ensureStack(f->code->stackSize - f->arity);
+	ensureStack(f->code->stackMaxSize - f->arity);
 
 	if(callFramePointer == callFrameSize) {
 		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
@@ -64,8 +64,9 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f) {
 
 	callFrames[callFramePointer].f = f;
 	// the 0th slot is reserved for the receiver
-	callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-	callFrames[callFramePointer].code   = f->code->bytecodes;
+	callFrames[callFramePointer].stack_         = &stackTop[-f->arity - 1];
+	callFrames[callFramePointer].code           = f->code->bytecodes;
+	callFrames[callFramePointer].returnToCaller = returnToCaller;
 	// we have already managed the slot for the receiver
 	// and the arguments are already in place
 	stackTop += (f->code->numSlots - 1 - f->arity);
@@ -73,9 +74,10 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f) {
 	return &callFrames[callFramePointer++];
 }
 
-Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm) {
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
+                                           bool         returnToCaller) {
 	// noarg
-	Fiber::CallFrame *f = appendMethod(bm->func);
+	Fiber::CallFrame *f = appendMethod(bm->func, returnToCaller);
 	switch(bm->type) {
 		case BoundMethod::CLASS_BOUND:
 			// class bound no arg, so a static method.
@@ -90,24 +92,14 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm) {
 	return f;
 }
 
-Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args) {
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
+                                           bool returnToCaller) {
 	// first, append the bound method
-	Fiber::CallFrame *f = appendBoundMethod(bm);
+	Fiber::CallFrame *f = appendBoundMethod(bm, returnToCaller);
 	// now lay down the rest of the arguments
 	// on the stack
 	memcpy(f->stack_ + 1, args, sizeof(Value) * bm->func->arity);
 	return f;
-}
-
-Fiber::CallFrame *Fiber::getCurrentFrame() {
-	return &callFrames[callFramePointer - 1];
-}
-
-Fiber::CallFrame *Fiber::popFrame() {
-	CallFrame *currentFrame = getCurrentFrame();
-	stackTop                = currentFrame->stack_;
-	callFramePointer--;
-	return getCurrentFrame();
 }
 
 Value next_fiber_cancel(const Value *args) {
