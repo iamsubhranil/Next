@@ -73,11 +73,7 @@ ImportStatus Importer::import(vector<Token> &loc) {
 #ifdef DEBUG
 	cout << "Path generated : " << path_ << endl;
 #endif
-	if(!lastIsFolder && it != strs->size) {
-		// cout << "Not a valid import : " << path_ << endl;
-		ret.toHighlight = it;
-		return ret;
-	} else if(lastIsFolder && it == strs->size) {
+	if(lastIsFolder && it == strs->size) {
 		// cout << "Unable to import whole folder '" << paths << "'!" << endl;
 		ret.res         = ImportStatus::FOLDER_IMPORT;
 		ret.toHighlight = strs->size - 1;
@@ -93,8 +89,13 @@ ImportStatus Importer::import(vector<Token> &loc) {
 		ret.toHighlight = it;
 		return ret;
 	}
-	ret.res      = ImportStatus::IMPORT_SUCCESS;
-	ret.fileName = paths;
+	// if the whole path was resolved, it was a valid module
+	// import, else, there are some parts we need to resolve
+	// at runtime
+	ret.res = it == strs->size ? ImportStatus::IMPORT_SUCCESS
+	                           : ImportStatus::PARTIAL_IMPORT;
+	ret.fileName    = paths;
+	ret.toHighlight = it;
 #ifdef DEBUG
 	cout << path_ << " imported successfully!" << endl;
 #endif

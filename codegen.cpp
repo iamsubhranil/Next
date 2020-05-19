@@ -74,7 +74,10 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	}
 	*/
 	compileAll(stmts);
-	btx->halt();
+	// after everything is done, load the instance,
+	// and return it
+	btx->load_slot_0();
+	btx->ret();
 	popFrame();
 #ifdef DEBUG
 	cout << "Code generated for mtx " << compileIn->get_class()->name->str
@@ -1271,11 +1274,12 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				lnerr_("No such mtx found in the given folder!", t);
 				break;
 			}
+			case ImportStatus::PARTIAL_IMPORT:
 			case ImportStatus::IMPORT_SUCCESS: {
-				GcObject *m = Loader::compile_and_load(is.fileName);
+				GcObject *m = Loader::compile_and_load(is.fileName, true);
 				if(m == NULL) {
 					// compilation of the mtx failed
-					lnerr_("Compilation of imported mtx failed!", t);
+					lnerr_("Compilation of imported module failed!", t);
 					break;
 				}
 				// The name of the imported mtx for the
@@ -1289,7 +1293,21 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				// the returned value is the instance of the
 				// module
 				VarInfo v = lookForVariable(lastName, true);
-				btx->push(Value((Object *)m));
+				btx->push(Value(m));
+				// if it is a partial import, load the rest
+				// of the parts
+				if(is.res == ImportStatus::PARTIAL_IMPORT) {
+					size_t h = is.toHighlight;
+					// perform load_field on rest of the parts
+					while(h < ifs->import.size()) {
+						String *f   = String::from(ifs->import[h].start,
+                                                 ifs->import[h].length);
+						int     sym = SymbolTable2::insert(f);
+						btx->load_field(sym);
+						h++;
+					}
+				}
+				// store the result to the declared slot
 				switch(v.position) {
 					case LOCAL: btx->store_slot(v.slot); break;
 					case CLASS: btx->store_object_slot(v.slot); break;
