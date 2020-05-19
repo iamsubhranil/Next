@@ -31,14 +31,6 @@ fn expect(map, idx, val) {
     }
 }
 
-fn expect_err(map, idx) {
-    try {
-        v = map[idx]
-        print("[Error] Exception expected while accessing invalid index '", idx, "'!\n")
-        res = false
-    } catch(runtime_error ce) {}
-}
-
 pub fn test() {
     map_ = {"Hello" : "World!",
             29932.3290012 : 2909023,
@@ -50,7 +42,6 @@ pub fn test() {
     expect(map_, 1, nil)
     expect(map_, 0, "Stored!")
     expect(map_, true, "False!")
-    expect_err(map_, ObjectWrapper([]))
 
     if(map_.size() != 4) {
         print("[Error] Map size expected to be 4!\n")
