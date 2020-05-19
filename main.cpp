@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
 	// bind all the core classes
 	// NextType::bindCoreClasses();
 	if(argc > 1) {
-		Class *c = Loader::compile_and_load(argv[1], true);
+		Loader::compile_and_load(argv[1], true);
 		// cout << s.scanAllTokens();
 	} else {
 		cout << "Repl is not implemented yet!";
