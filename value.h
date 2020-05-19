@@ -7,7 +7,10 @@
 
 struct Value {
   private:
-	uint64_t value;
+	union {
+		uint64_t value;
+		double   dvalue;
+	};
 
 	constexpr uint64_t generateMask(size_t s) {
 		uint64_t mask = 0, shift = 1;
@@ -37,7 +40,7 @@ struct Value {
 	};
 	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
 	Value() : value(QNAN_NIL) {}
-	Value(double d) : value(*(uint64_t *)&d) {}
+	Value(double d) : dvalue(d) {}
 #ifdef DEBUG
 #define TYPE(r, n)                                                             \
 	Value(const r s) {                                                         \
@@ -93,14 +96,14 @@ struct Value {
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"
-	inline void setNumber(double v) { value = *(uint64_t *)&v; }
+	inline void setNumber(double v) { dvalue = v; }
 
 	friend std::ostream &operator<<(std::ostream &o, const Value &v);
 
-#define TYPE(r, n)                 \
-	inline Value &operator=(r d) { \
-		encode##n(d);              \
-		return *this;              \
+#define TYPE(r, n)                        \
+	inline Value &operator=(const r &d) { \
+		encode##n(d);                     \
+		return *this;                     \
 	}
 #define OBJTYPE(r, n)                     \
 	inline Value &operator=(const r *d) { \
@@ -109,8 +112,8 @@ struct Value {
 	}
 #include "objecttype.h"
 #include "valuetypes.h"
-	inline Value &operator=(double v) {
-		value = v;
+	inline Value &operator=(const double &v) {
+		dvalue = v;
 		return *this;
 	}
 
