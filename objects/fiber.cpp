@@ -77,6 +77,11 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
 Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
                                            bool         returnToCaller) {
 	// noarg
+	// We ensure that there is at least one slot for the receiver
+	ensureStack(1);
+	// and we increment the top to make it look like a managed one
+	// to appendMethod
+	stackTop++;
 	Fiber::CallFrame *f = appendMethod(bm->func, returnToCaller);
 	switch(bm->type) {
 		case BoundMethod::CLASS_BOUND:
