@@ -73,5 +73,6 @@ void FunctionCompilationContext::disassemble(std::ostream &o) {
 }
 
 std::ostream &operator<<(std::ostream &o, const FunctionCompilationContext &a) {
+	(void)a;
 	return o << "<functioncompilationcontext object>";
 }

@@ -262,5 +262,6 @@ void Fiber::release() {
 }
 
 std::ostream &operator<<(std::ostream &o, const Fiber &a) {
+	(void)a;
 	return o << "<fiber object>";
 }

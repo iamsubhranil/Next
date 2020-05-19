@@ -78,6 +78,7 @@ Value next_map_set(const Value *args) {
 }
 
 Value next_map_construct(const Value *args) {
+	(void)args;
 	return Value(ValueMap::create());
 }
 

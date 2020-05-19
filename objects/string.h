@@ -16,7 +16,7 @@ typedef void(string_transform)(char *dest, const char *source, size_t size);
 struct String {
 	GcObject obj;
 	char *   str;
-	size_t   size; // excluding the \0
+	int      size; // excluding the \0
 	int      hash_;
 
 	// gc functions

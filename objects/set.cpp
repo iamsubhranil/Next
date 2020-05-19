@@ -29,6 +29,7 @@ Value next_set_remove(const Value *args) {
 }
 
 Value next_set_construct(const Value *args) {
+	(void)args;
 	return Value(ValueSet::create());
 }
 

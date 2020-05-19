@@ -57,7 +57,7 @@ Value next_string_contains(const Value *args) {
 	// if the length of the remaining
 	// string is lesser than the
 	// string to check, return false
-	size_t rem = source->size - (bak - source->str);
+	int rem = source->size - (bak - source->str);
 	if(rem < check->size)
 		return ValueFalse;
 	// check the remaining characters
@@ -169,7 +169,8 @@ String *String::from(const char *v, size_t size, string_transform transform) {
 	transform(val, v, size);
 	val[size]    = 0;
 	int    hash_ = hash_string(val, size);
-	String check = {GcObject::DefaultGcObject, val, size, hash_};
+	String check = {GcObject::DefaultGcObject, val, static_cast<int>(size),
+	                hash_};
 	auto   res   = string_set->hset.find(&check);
 	if(res != string_set->hset.end()) {
 		// it does, so free the
@@ -186,7 +187,8 @@ String *String::from(const char *val, size_t size) {
 	// before allocating, first check whether the
 	// string already exists
 	int    hash_ = hash_string(val, size);
-	String check = {GcObject::DefaultGcObject, (char *)val, size, hash_};
+	String check = {GcObject::DefaultGcObject, (char *)val,
+	                static_cast<int>(size), hash_};
 	auto   res   = string_set->hset.find(&check);
 	if(res != string_set->hset.end()) {
 		// it does, so return that back
@@ -220,7 +222,8 @@ String *String::append(const char *val1, size_t size1, const char *val2,
 	v[size] = 0;
 	// now check whether this one already exists
 	int    hash_ = hash_string(v, size);
-	String check = {GcObject::DefaultGcObject, v, size, hash_};
+	String check = {GcObject::DefaultGcObject, v, static_cast<int>(size),
+	                hash_};
 	auto   res   = string_set->hset.find(&check);
 	if(res != string_set->hset.end()) {
 		// already one exists

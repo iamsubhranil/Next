@@ -100,5 +100,6 @@ void Range::init() {
 }
 
 std::ostream &operator<<(std::ostream &o, const Range &r) {
+	(void)r;
 	return o << "<range object>";
 }

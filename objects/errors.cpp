@@ -76,6 +76,7 @@ void TypeError::print(std::ostream &o) {
 }
 
 std::ostream &operator<<(std::ostream &o, const TypeError &a) {
+	(void)a;
 	return o << "<type_error object>";
 }
 
@@ -115,6 +116,7 @@ void RuntimeError::print(std::ostream &o) {
 }
 
 std::ostream &operator<<(std::ostream &o, const RuntimeError &a) {
+	(void)a;
 	return o << "<runtime_error object>";
 }
 
@@ -168,6 +170,7 @@ void IndexError::print(std::ostream &o) {
 }
 
 std::ostream &operator<<(std::ostream &o, const IndexError &a) {
+	(void)a;
 	return o << "<index_error object>";
 }
 

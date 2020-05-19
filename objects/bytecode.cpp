@@ -154,5 +154,6 @@ void Bytecode::disassemble(std::ostream &o, const Opcode *data, size_t *p) {
 }
 
 std::ostream &operator<<(std::ostream &o, const Bytecode &a) {
+	(void)a;
 	return o << "<bytecode object>";
 }

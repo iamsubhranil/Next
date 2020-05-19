@@ -72,5 +72,6 @@ void BytecodeCompilationContext::release() {
 }
 
 std::ostream &operator<<(std::ostream &o, const BytecodeCompilationContext &a) {
+	(void)a;
 	return o << "<bytecodecompilationcontext object>";
 }

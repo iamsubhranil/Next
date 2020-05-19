@@ -44,5 +44,6 @@ void ArrayIterator::init() {
 }
 
 std::ostream &operator<<(std::ostream &o, const ArrayIterator &a) {
+	(void)a;
 	return o << "<array_iterator object>";
 }

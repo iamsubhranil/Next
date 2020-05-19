@@ -106,16 +106,16 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void     loadCoreModule();
 	void     loadPresentModule();
 	CallInfo resolveCall(String *name, String *signature);
-	void     emitCall(CallExpression *call, bool isImported = false,
-	                  Class *mod = NULL);
+	void     emitCall(CallExpression *call);
 	// int              getFrameIndex(std::vector<Frame *> &col, Frame *f);
 	String *         generateSignature(const Token &name, int arity);
 	String *         generateSignature(const String *name, int arity);
 	String *         generateSignature(int arity);
 	VarInfo          lookForVariable(Token t, bool declare = false,
 	                                 bool       showError = true,
-	                                 Visibility vis = Visibility::VIS_PRIV);
-	VarInfo          lookForVariable(String *name, bool declare = false);
+	                                 Visibility vis       = VIS_DEFAULT);
+	VarInfo          lookForVariable(String *name, bool declare = false,
+	                                 Visibility vis = VIS_DEFAULT);
 	void             compileAll(const std::vector<StmtPtr> &statements);
 	void             initFtx(FunctionCompilationContext *f, Token t);
 	void             popFrame();

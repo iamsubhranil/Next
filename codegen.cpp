@@ -155,8 +155,8 @@ mtx *CodeGenerator::compile(String *name, const vector<StmtPtr> &stmts) {
 */
 int CodeGenerator::createTempSlot() {
 	char tempname[20] = {0};
-	int  len          = snprintf(&tempname[0], 20, "temp %d", ftx->slotCount);
-	int  slot         = ftx->create_slot(String::from(tempname), scopeID);
+	snprintf(&tempname[0], 20, "temp %d", ftx->slotCount);
+	int slot = ftx->create_slot(String::from(tempname), scopeID);
 	return slot;
 }
 
@@ -303,8 +303,7 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 	return info;
 }
 
-void CodeGenerator::emitCall(CallExpression *call, bool isImported,
-                             Class *mod) {
+void CodeGenerator::emitCall(CallExpression *call) {
 #ifdef DEBUG_CODEGEN
 	dinfo("Generating call for");
 	call->callee->token.highlight();
@@ -361,8 +360,8 @@ void CodeGenerator::emitCall(CallExpression *call, bool isImported,
 			lnerr_("No function with the specified signature found "
 			       " '%s'!",
 			       call->callee->token, mtx->get_class()->name->str);
-			String *s = String::from(call->callee->token.start,
-			                         call->callee->token.length);
+			// String *s = String::from(call->callee->token.start,
+			//                        call->callee->token.length);
 			// TODO: Error reporting
 			/*
 			for(auto const &i : ctx->public_signatures->vv) {
@@ -417,9 +416,9 @@ void CodeGenerator::visit(CallExpression *call) {
 	emitCall(call);
 }
 
-CodeGenerator::VarInfo CodeGenerator::lookForVariable(String *name,
-                                                      bool    declare) {
-	int slot = 0, isLocal = 1;
+CodeGenerator::VarInfo
+CodeGenerator::lookForVariable(String *name, bool declare, Visibility vis) {
+	int slot = 0;
 	// first check the present context
 	if(ftx->has_slot(name, scopeID)) {
 		slot = ftx->get_slot(name);
@@ -455,7 +454,8 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(String *name,
 		// make the variable a class member
 		if(ctx->moduleContext == NULL &&
 		   ftx == ctx->get_default_constructor()) {
-			switch(currentVisibility) {
+			Visibility v = vis != VIS_DEFAULT ? vis : currentVisibility;
+			switch(v) {
 				case VIS_PUB: ctx->add_public_mem(name); break;
 				default: ctx->add_private_mem(name); break;
 			}
@@ -474,7 +474,7 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
                                                       bool       showError,
                                                       Visibility vis) {
 	String *name = String::from(t.start, t.length);
-	VarInfo var  = lookForVariable(name, declare);
+	VarInfo var  = lookForVariable(name, declare, vis);
 	if(var.position == UNDEFINED && showError) {
 		lnerr_("No such variable found : '%s'", t, name->str);
 
@@ -1408,7 +1408,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 		lnerr_("No such variable found in present scope '%s'!", ifs->token,
 		       tname->str);
 	} else {
-		CatchBlock::SlotType st;
+		CatchBlock::SlotType st = CatchBlock::SlotType::LOCAL;
 		switch(v.position) {
 			case LOCAL: st = CatchBlock::SlotType::LOCAL; break;
 			case CLASS: st = CatchBlock::SlotType::CLASS; break;

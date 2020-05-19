@@ -58,5 +58,6 @@ BoundMethod *BoundMethod::from(Function *f, Object *o, Type t) {
 }
 
 std::ostream &operator<<(std::ostream &o, const BoundMethod &a) {
+	(void)a;
 	return o << "<boundmethod object>";
 }

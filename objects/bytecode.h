@@ -99,7 +99,7 @@ struct Bytecode {
 	insert_type(Value);
 	insert_type(int);
 
-	void add_constant(int x) {}
+	void add_constant(int x) { (void)x; }
 	void add_constant(Value v) {
 		if(v.isGcObject())
 			values->insert(v);

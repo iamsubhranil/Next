@@ -211,5 +211,6 @@ void ClassCompilationContext::disassemble(std::ostream &o) {
 }
 
 std::ostream &operator<<(std::ostream &o, const ClassCompilationContext &a) {
+	(void)a;
 	return o << "<classcompilationcontext object>";
 }

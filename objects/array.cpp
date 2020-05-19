@@ -50,6 +50,7 @@ Value next_array_size(const Value *args) {
 // so we must return an instance
 
 Value next_array_construct_empty(const Value *args) {
+	(void)args;
 	return Value(Array::create(1));
 }
 
@@ -76,7 +77,7 @@ size_t Array::powerOf2Ceil(size_t n) {
 	return n;
 }
 
-Array *Array::create(size_t size) {
+Array *Array::create(int size) {
 	Array *arr    = GcObject::allocArray();
 	arr->capacity = powerOf2Ceil(size);
 	arr->size     = 0;
@@ -100,8 +101,8 @@ Value &Array::insert(Value v) {
 	return values[size++] = v;
 }
 
-void Array::resize(size_t newsize) {
-	size_t newcapacity = powerOf2Ceil(newsize + 1);
+void Array::resize(int newsize) {
+	int newcapacity = powerOf2Ceil(newsize + 1);
 	values = (Value *)GcObject_realloc(values, sizeof(Value) * capacity,
 	                                   sizeof(Value) * newcapacity);
 	if(newcapacity > capacity) {

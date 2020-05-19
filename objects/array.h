@@ -5,15 +5,15 @@
 struct Array {
 	GcObject obj;
 	Value *  values;
-	size_t   capacity;
+	int      capacity;
 	int      size;
 
 	// array functions
-	static Array *create(size_t size);
+	static Array *create(int size);
 	const Value & operator[](size_t idx) const;
 	Value &       operator[](size_t idx);
 	Value &       insert(Value v);
-	void          resize(size_t newsize);
+	void          resize(int newsize);
 
 	// rounds up n to the nearest power of 2
 	// greater than or equal to n
