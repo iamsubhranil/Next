@@ -272,7 +272,7 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 	// module
 	if(mtx->has_mem(name)) {
 		info.type     = MODULE;
-		info.frameIdx = ctx->get_mem_slot(name);
+		info.frameIdx = mtx->get_mem_slot(name);
 		return info;
 	} else if(mtx->has_fn(signature)) {
 		info.type     = MODULE;
