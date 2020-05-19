@@ -41,10 +41,10 @@ class ExecutionEngine {
 	static void printException(Value v, Fiber *f);
 	static void printStackTrace(Fiber *f);
 	// executes the boundmethod in current fiber
-	static void execute(BoundMethod *b);
+	static Value execute(BoundMethod *b, bool returnToCaller = false);
 	// executes the fiber
 	static Value execute(Fiber *f);
 	// executes the boundmethod in the given fiber
-	static void    execute(Fiber *f, BoundMethod *b);
+	static Value execute(Fiber *f, BoundMethod *b, bool returnToCaller = false);
 	static Object *CoreObject;
 };

@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "builtins.h"
 #include "display.h"
+#include "objects/boundmethod.h"
 #include "objects/bytecodecompilationctx.h"
 #include "objects/class.h"
 #include "objects/errors.h"
@@ -63,10 +64,10 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 	while(i >= 0) {
 		Token t;
 
-		const Class *c = GcObject::getClass(f->stack_[0]);
+		const Class *c = f->stack_[0].getClass();
 		if(lastName != c->name) {
 			lastName = c->name;
-			if(c->module != c)
+			if(c->module != NULL)
 				std::cout << "In class '";
 			else
 				std::cout << "In module '";
@@ -74,8 +75,16 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 			          << "'\n";
 		}
 
-		f->f->code->ctx->get_token(0).highlight(true, "In function ",
-		                                        Token::WARN);
+		if(c->module == NULL &&
+		   c->functions[0][SymbolTable2::const_sig_constructor_0]
+		           .toFunction() == f->f) {
+			std::cout << "In module '";
+			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			          << "'\n";
+		} else {
+			f->f->code->ctx->get_token(0).highlight(true, "In function ",
+			                                        Token::WARN);
+		}
 		t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
 		t.highlight(true, "At ", Token::ERROR);
 		f = &fiber->callFrames[--i];
@@ -154,7 +163,7 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 }
 
 void ExecutionEngine::printException(Value v, Fiber *f) {
-	const Class *c = GcObject::getClass(v);
+	const Class *c = v.getClass();
 
 	std::cout << "\n";
 	// no handlers matched, unwind stack
@@ -200,7 +209,7 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 
 	// Get the type
-	const Class *klass = GcObject::getClass(thrown);
+	const Class *klass = thrown.getClass();
 	// Now find the frame by unwinding the stack
 	Fiber *           f                  = root;
 	int               num                = f->callFramePointer - 1;
@@ -284,14 +293,17 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	}
 }
 
-void ExecutionEngine::execute(BoundMethod *b) {
-	currentFiber->appendBoundMethod(b);
-	execute(currentFiber);
+Value ExecutionEngine::execute(BoundMethod *b, bool returnToCaller) {
+	currentFiber->appendBoundMethod(b, returnToCaller);
+	return execute(currentFiber);
 }
 
-void ExecutionEngine::execute(Fiber *f, BoundMethod *b) {
-	f->appendBoundMethod(b);
-	execute(f);
+Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
+	Fiber *bak = currentFiber;
+	f->appendBoundMethod(b, returnToCaller);
+	Value v      = execute(f);
+	currentFiber = bak;
+	return v;
 }
 
 #define RERRF(x, ...)                             \
@@ -303,9 +315,10 @@ void ExecutionEngine::execute(Fiber *f, BoundMethod *b) {
 Value ExecutionEngine::execute(Fiber *fiber) {
 	currentFiber = fiber;
 
-	int   numberOfArguments;
-	Value rightOperand;
-	int   methodToCall;
+	int       numberOfArguments;
+	Value     rightOperand;
+	int       methodToCall;
+	Function *functionToCall;
 
 	// The problem is, all of our top level module frames
 	// live in the Fiber stack too. So while throwing an
@@ -449,7 +462,11 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		          << " IP: " << std::setw(4) << instructionPointer
 		          << " SP: " << stackPointer << " " << std::flush;
 		for(int i = 0; i < presentFrame->f->code->stackMaxSize; i++) {
-			std::cout << " | " << presentFrame->stack_[i];
+			if(i == stackPointer)
+				std::cout << " |> ";
+			else
+				std::cout << " | ";
+			std::cout << presentFrame->stack_[i];
 		}
 		std::cout << " | \n";
 		Bytecode::disassemble(
@@ -483,7 +500,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					TOP.setNumber(pow(TOP.toNumber(), rightOperand.toNumber()));
 					DISPATCH();
 				} else {
-					const Class *c = GcObject::getClass(TOP);
+					const Class *c = TOP.getClass();
 					if(c->has_fn(SymbolTable2::const_sig_pow)) {
 						methodToCall      = SymbolTable2::const_sig_pow;
 						numberOfArguments = 1;
@@ -502,8 +519,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				rightOperand = POP();
 				// we don't call getClass here because we only want
 				// to call method on non primitive types
-				if(TOP.isGcObject() && TOP.toGcObject()->klass->has_fn(
-				                           SymbolTable2::const_sig_neq)) {
+				if(TOP.isGcObject() &&
+				   TOP.getClass()->has_fn(SymbolTable2::const_sig_neq)) {
 					methodToCall      = SymbolTable2::const_sig_neq;
 					numberOfArguments = 1;
 					PUSH(rightOperand);
@@ -515,8 +532,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			CASE(eq) : {
 				rightOperand = POP();
-				if(TOP.isGcObject() && TOP.toGcObject()->klass->has_fn(
-				                           SymbolTable2::const_sig_eq)) {
+				if(TOP.isGcObject() &&
+				   TOP.getClass()->has_fn(SymbolTable2::const_sig_eq)) {
 					methodToCall      = SymbolTable2::const_sig_eq;
 					numberOfArguments = 1;
 					PUSH(rightOperand);
@@ -600,19 +617,90 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(call) : {
-				int          frame = next_int();
-				int          arity = next_int();
+				int frame         = next_int();
+				numberOfArguments = next_int();
 				const Class *c =
-				    GcObject::getClass(fiber->stackTop[-arity - 1]);
-				BACKUP_FRAMEINFO();
-				fiber->appendMethod(c->functions->values[frame].toFunction());
-				RESTORE_FRAMEINFO();
-				DISPATCH_WINC();
+				    fiber->stackTop[-numberOfArguments - 1].getClass();
+				functionToCall = c->functions->values[frame].toFunction();
+				goto performcall;
 			}
+
+			CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				goto methodcall;
+			}
+
+			CASE(call_soft) : {
+				int sym           = next_int();
+				numberOfArguments = next_int();
+				Value v           = POP();
+				ASSERT(v.isGcObject(), "Not a callable object!");
+				switch(v.toGcObject()->objType) {
+					case GcObject::OBJ_Class: {
+						// check if the class has a constructor with the given
+						// signature
+						Class *c = v.toClass();
+						ASSERT(c->has_fn(sym),
+						       "Constructor '@t' not found in class '@s'!", sym,
+						       c->name);
+						// Assign the module instance to the receiver slot
+						fiber->stackTop[-numberOfArguments - 1] =
+						    c->module->instance;
+						// call the constructor
+						functionToCall = c->get_fn(sym).toFunction();
+						goto performcall;
+					}
+					case GcObject::OBJ_BoundMethod: {
+						RERRF("BoundMethod dispatch not yet implemented!");
+						BoundMethod *b = v.toBoundMethod();
+						functionToCall = b->func;
+						goto performcall;
+					}
+					default: RERRF("Not a callable object!"); break;
+				}
+			}
+
+		methodcall : {
+			const Class *c = fiber->stackTop[-numberOfArguments - 1].getClass();
+			ASSERT(c->has_fn(methodToCall),
+			       "Method '@t' not found in class '@s'!", methodToCall,
+			       c->name);
+			functionToCall = c->get_fn(methodToCall).toFunction();
+		}
+		performcall : {
+			switch(functionToCall->getType()) {
+				case Function::Type::BUILTIN: {
+					BACKUP_FRAMEINFO();
+					Value res = functionToCall->func(
+					    &fiber->stackTop[-numberOfArguments - 1]);
+					fiber->stackTop -= (numberOfArguments + 1);
+					RESTORE_FRAMEINFO();
+					if(pendingException != ValueNil) {
+						goto error;
+					}
+					PUSH(res);
+					DISPATCH();
+					break;
+				}
+				case Function::Type::METHOD:
+					BACKUP_FRAMEINFO();
+					fiber->appendMethod(functionToCall);
+					RESTORE_FRAMEINFO();
+					DISPATCH_WINC();
+					break;
+			}
+		}
 
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
+				// if the current frame is invoked by
+				// a native method, return to that
+				if(fiber->getCurrentFrame()->returnToCaller) {
+					fiber->popFrame();
+					return v;
+				}
 				// if we have somewhere to return to,
 				// return there first. this would
 				// be true maximum number of times
@@ -651,6 +739,11 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			LOAD_SLOT(6)
 			LOAD_SLOT(7)
 
+			CASE(load_tos_slot) : {
+				TOP = TOP.toObject()->slots[next_int()];
+				DISPATCH();
+			}
+
 			CASE(store_slot) : {
 				rightOperand = TOP;
 				goto do_store_slot;
@@ -665,6 +758,12 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			DISPATCH();
 		}
 
+			CASE(store_tos_slot) : {
+				Value v                         = POP();
+				v.toObject()->slots[next_int()] = TOP;
+				DISPATCH();
+			}
+
 			CASE(incr_slot) : {
 				Value &v = Stack[next_int()];
 				if(v.isNumber()) {
@@ -674,8 +773,26 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				RERRF("'++' can only be applied on a number!");
 			}
 
+			CASE(incr_tos_slot) : {
+				Value &v = POP().toObject()->slots[next_int()];
+				if(v.isNumber()) {
+					v.setNumber(v.toNumber() + 1);
+					DISPATCH();
+				}
+				RERRF("'++' can only be applied on a number!");
+			}
+
 			CASE(decr_slot) : {
 				Value &v = Stack[next_int()];
+				if(v.isNumber()) {
+					v.setNumber(v.toNumber() - 1);
+					DISPATCH();
+				}
+				RERRF("'--' can only be applied on a number!");
+			}
+
+			CASE(decr_tos_slot) : {
+				Value &v = POP().toObject()->slots[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
@@ -718,7 +835,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(load_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c     = GcObject::getClass(v);
+				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
 				       c->name);
@@ -730,7 +847,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(load_field_pushback) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c     = GcObject::getClass(v);
+				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
 				       c->name);
@@ -743,7 +860,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(store_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c     = GcObject::getClass(v);
+				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
 				       c->name);
@@ -755,7 +872,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(incr_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c     = GcObject::getClass(v);
+				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
 				       c->name);
@@ -771,7 +888,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(decr_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c     = GcObject::getClass(v);
+				const Class *c     = v.getClass();
 				ASSERT(c->has_fn(field),
 				       "No public member '@t' found in class '@s'!", field,
 				       c->name);
@@ -783,39 +900,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				}
 				RERRF("'--' can only be applied over a number!");
 			}
-
-			CASE(call_method) : {
-				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				goto methodcall;
-			}
-
-		methodcall : {
-			const Class *c =
-			    GcObject::getClass(fiber->stackTop[-numberOfArguments - 1]);
-			ASSERT(c->has_fn(methodToCall),
-			       "Method '@t' not found in class '@s'!", methodToCall,
-			       c->name);
-			Function *f = c->get_fn(methodToCall).toFunction();
-			switch(f->getType()) {
-				case Function::Type::BUILTIN: {
-					Value res =
-					    f->func(&fiber->stackTop[-numberOfArguments - 1]);
-					fiber->stackTop -= (numberOfArguments + 1);
-					if(pendingException != ValueNil) {
-						goto error;
-					}
-					PUSH(res);
-					break;
-				}
-				case Function::Type::METHOD:
-					BACKUP_FRAMEINFO();
-					fiber->appendMethod(f);
-					RESTORE_FRAMEINFO();
-					break;
-			}
-			DISPATCH();
-		}
 
 			CASE(array_build) : {
 				// get the number of arguments to add
@@ -832,14 +916,25 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
+			CASE(map_build) : {
+				int       numArg = next_int();
+				ValueMap *v =
+				    ValueMap::from(&fiber->stackTop[-(numArg * 2)], numArg);
+				fiber->stackTop -= (numArg * 2);
+				PUSH(Value(v));
+				DISPATCH();
+			}
+
 			CASE(construct) : {
-				Object *o = GcObject::allocObject(next_value().toClass());
-				// TODO: This need refining: What happens when we create an
-				// object inside a method?
+				Class * c = next_value().toClass();
+				Object *o = GcObject::allocObject(c);
 				// assign the 0th slot to the 0th slot of the object
 				o->slots[0] = Stack[0];
 				// assign the object to slot 0
 				Stack[0] = Value(o);
+				// if this is a module, store the instance to the class
+				if(c->module == NULL)
+					c->instance = o;
 				DISPATCH();
 			}
 
@@ -863,9 +958,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				if(pendingException != ValueNil) {
 					goto error;
 				} else {
-					while(args--) {
-						POP();
-					}
+					fiber->stackTop -= args;
 					PUSH(res);
 					DISPATCH();
 				}
