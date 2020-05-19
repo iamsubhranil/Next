@@ -6,10 +6,10 @@
 Object *Range::create(double from, double to, double step) {
 	Object *r = GcObject::allocObject(GcObject::RangeClass);
 
-	r->slots[0] = from;
-	r->slots[1] = to;
-	r->slots[2] = step;
-	r->slots[3] = Value((from + step) < to);
+	r->slots[0].setNumber(from - step); // to start from 'from'
+	r->slots[1].setNumber(to);
+	r->slots[2].setNumber(step);
+	r->slots[3].setBoolean((from + step) < to);
 
 	return r;
 }
@@ -72,12 +72,12 @@ Value next_range_iterate(const Value *args) {
 Value next_range_next(const Value *args) {
 	Value *r    = args[0].toObject()->slots;
 	double from = r[0].toNumber();
-	double step = r[1].toNumber();
-	double to   = r[2].toNumber();
+	double to   = r[1].toNumber();
+	double step = r[2].toNumber();
 	// next value
-	r[0] = Value(from += step);
+	r[0].setNumber(from += step);
 	// has_next flag
-	r[3] = Value(from + step < to);
+	r[3].setBoolean((from + step) < to);
 	return Value(from);
 }
 
