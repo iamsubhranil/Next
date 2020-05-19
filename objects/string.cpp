@@ -105,6 +105,10 @@ Value next_string_substr(const Value *args) {
 	return String::from(&(s->str[from]), to - from + 1);
 }
 
+Value next_string_str(const Value *args) {
+	return args[0];
+}
+
 Value next_string_upper(const Value *args) {
 	return String::from(args[0].toString(), String::transform_upper);
 }
@@ -119,6 +123,7 @@ void String::init() {
 	StringClass->add_builtin_fn("len()", 0, &next_string_len);
 	StringClass->add_builtin_fn("lower()", 0, &next_string_lower);
 	StringClass->add_builtin_fn("substr(_,_)", 2, &next_string_substr);
+	StringClass->add_builtin_fn("str()", 0, &next_string_str);
 	StringClass->add_builtin_fn("upper()", 0, &next_string_upper);
 	StringClass->add_builtin_fn("+(_)", 1, &next_string_append);
 	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
