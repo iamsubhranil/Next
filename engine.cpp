@@ -281,7 +281,24 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 }
 
 Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
-	currentFiber->appendBoundMethodDirect(v, f, returnToCaller);
+	// if this is built in function, don't bother
+	switch(f->getType()) {
+		case Function::Type::BUILTIN: {
+			Value res = f->func(&v);
+			// if we need to return, go back
+			if(returnToCaller)
+				return res;
+			else {
+				// push the value to the fiber, and continue
+				Fiber *fiber = currentFiber;
+				PUSH(v);
+				break;
+			}
+		}
+		case Function::Type::METHOD:
+			currentFiber->appendBoundMethodDirect(v, f, returnToCaller);
+			break;
+	}
 	return execute(currentFiber);
 }
 
