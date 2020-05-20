@@ -611,17 +611,30 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(print) : {
-				Value v = POP();
-				// if this is not a string and its class provides an str(),
-				// call it
-				while(!v.isString() &&
-				      v.getClass()->has_fn(SymbolTable2::const_sig_str)) {
-					v = execute(v,
-					            v.getClass()
-					                ->get_fn(SymbolTable2::const_sig_str)
-					                .toFunction(),
-					            true);
+				Value v = TOP;
+				// if this is not a number/bool/nil/string and its class
+				// provides an str(), call it
+				if(!v.isGcObject() || v.isString()) {
+					POP();
+					std::cout << v;
+					DISPATCH();
 				}
+				if(v.getClass()->has_fn(SymbolTable2::const_sig_str)) {
+					// we perform a method call here.
+					// if whatever str() returns has its
+					// own str(), this will continue,
+					// because this frame will pause
+					// on print since we decrement
+					// InstructionPointer here
+					InstructionPointer--;
+					functionToCall = v.getClass()
+					                     ->get_fn(SymbolTable2::const_sig_str)
+					                     .toFunction();
+					numberOfArguments = 0;
+					goto performcall;
+				}
+				// otherwise, just POP the value and print it already
+				POP();
 				std::cout << v;
 				DISPATCH();
 			}

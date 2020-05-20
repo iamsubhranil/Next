@@ -1,0 +1,18 @@
+class Test {
+    priv:
+        val
+    pub:
+        new(x) {
+            if(x == 0) {
+                val = "Nested print is working!"
+            } else {
+                val = Test(x - 1)
+            }
+        }
+
+        fn str() {
+            ret val
+        }
+}
+
+print(Test(18))
