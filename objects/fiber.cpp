@@ -107,6 +107,15 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
 	return f;
 }
 
+Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
+                                                 bool returnToCaller) {
+	ensureStack(1);
+	stackTop++;
+	Fiber::CallFrame *frame = appendMethod(f, returnToCaller);
+	frame->stack_[0]        = v;
+	return frame;
+}
+
 Value next_fiber_cancel(const Value *args) {
 	Fiber *f = args[0].toFiber();
 	// only a fiber which is on yield or finished

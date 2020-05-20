@@ -43,6 +43,7 @@ SCONSTANT(sig_subscript_get, "[](_)")
 SCONSTANT(sig_subscript_set, "[](_,_)")
 SCONSTANT(sig_pow, "^(_)")
 SCONSTANT(sig_hash, "hash()")
+SCONSTANT(sig_str, "str()")
 
 SYMCONSTANT(sig_add)
 SYMCONSTANT(sig_sub)
@@ -62,5 +63,6 @@ SYMCONSTANT(sig_pow)
 SYMCONSTANT(sig_constructor_0)
 SYMCONSTANT(str)
 SYMCONSTANT(sig_hash)
+SYMCONSTANT(sig_str)
 #undef SCONSTANT
 #undef SYMCONSTANT

@@ -153,9 +153,9 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		currentGenerator = c.parentGenerator;
 		if(execute) {
 			Fiber *f = Fiber::create();
-			++f->stackTop; // manually increment the stackTop to create a slot
-			               // for the receiver
-			f->appendMethod(ctx->get_default_constructor()->f);
+			// add CoreObject in slot 0
+			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
+			                           ctx->get_default_constructor()->f);
 			return ex.execute(f).toGcObject();
 		}
 		return (GcObject *)ctx->get_class();
@@ -195,9 +195,9 @@ GcObject *Loader::compile_and_load_from_source(
 		currentGenerator = c.parentGenerator;
 		if(execute) {
 			Fiber *f = Fiber::create();
-			++f->stackTop; // manually increment the stackTop to create a slot
-			               // for the receiver
-			f->appendMethod(modulectx->get_default_constructor()->f);
+			// add CoreObject in slot 0
+			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
+			                           modulectx->get_default_constructor()->f);
 			return ex.execute(f).toGcObject();
 		}
 	} catch(ParseException pe) {

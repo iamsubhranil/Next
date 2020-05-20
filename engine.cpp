@@ -280,6 +280,11 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	}
 }
 
+Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
+	currentFiber->appendBoundMethodDirect(v, f, returnToCaller);
+	return execute(currentFiber);
+}
+
 Value ExecutionEngine::execute(BoundMethod *b, bool returnToCaller) {
 	currentFiber->appendBoundMethod(b, returnToCaller);
 	return execute(currentFiber);
@@ -590,6 +595,16 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			CASE(print) : {
 				Value v = POP();
+				// if this is not a string and its class provides an str(),
+				// call it
+				while(!v.isString() &&
+				      v.getClass()->has_fn(SymbolTable2::const_sig_str)) {
+					v = execute(v,
+					            v.getClass()
+					                ->get_fn(SymbolTable2::const_sig_str)
+					                .toFunction(),
+					            true);
+				}
 				std::cout << v;
 				DISPATCH();
 			}

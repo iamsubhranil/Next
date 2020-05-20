@@ -13,10 +13,8 @@ Value next_map_get_hash(const Value &v) {
 		// so there is a chance of a hash method to exist
 		const Class *c = h.getClass();
 		if(c->has_fn(SymbolTable2::const_sig_hash)) {
-			BoundMethod *bm = BoundMethod::from(
-			    c->get_fn(SymbolTable2::const_sig_hash).toFunction(),
-			    h.toObject(), BoundMethod::OBJECT_BOUND);
-			h = ExecutionEngine::execute(bm, true);
+			h = ExecutionEngine::execute(
+			    h, c->get_fn(SymbolTable2::const_sig_hash).toFunction(), true);
 		} else
 			return h;
 	}

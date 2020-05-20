@@ -54,7 +54,13 @@ struct Fiber {
 	// narg
 	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm, const Value *args,
 	                                    bool returnToCaller = false);
-	// executes an intra-class method, whose stack is already
+	// this performs the same task as appendBoundMethod,
+	// just avoids one BoundMethod allocation when called
+	// internally
+	Fiber::CallFrame *appendBoundMethodDirect(Value v, Function *f,
+	                                          bool returnToCaller = false);
+
+	// appends an intra-class method, whose stack is already
 	// managed by the engine
 	Fiber::CallFrame *appendMethod(Function *f, bool returnToCaller = false);
 	// returns the frame on top after popping

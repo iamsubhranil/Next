@@ -35,6 +35,8 @@ class ExecutionEngine {
 	// print v, and print stack trace, and exit
 	static void printException(Value v, Fiber *f);
 	static void printStackTrace(Fiber *f);
+	// executes a bound method on v in current fiber
+	static Value execute(Value v, Function *f, bool returnToCaller = false);
 	// executes the boundmethod in current fiber
 	static Value execute(BoundMethod *b, bool returnToCaller = false);
 	// executes the fiber
