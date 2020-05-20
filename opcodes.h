@@ -49,11 +49,6 @@ OPCODE0(lesseq, -1)
 OPCODE0(greater, -1)
 OPCODE0(greatereq, -1)
 
-// Performs membership check
-// a in b returns true if b is an array
-// and a is a member of b.
-OPCODE0(in_, 0)
-
 OPCODE0(print, -1)
 
 // Pushes a Value to the stack
@@ -61,8 +56,6 @@ OPCODE1(push, 1, Value)
 OPCODE0(pushn, 1)
 OPCODE0(pop, -1)
 
-// OPCODE1(registerfn, -1, NextString)    // <function_id>
-// OPCODE1(registerclass, -1, NextString) // <class_id>
 // Specific load_slot opcodes for slots < 8
 OPCODE0(load_slot_0, 1)
 OPCODE0(load_slot_1, 1)

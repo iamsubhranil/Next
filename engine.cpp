@@ -393,22 +393,31 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	// std::std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, opname, argtype, restype, opcode)                           \
-	{                                                                          \
-		rightOperand = POP();                                                  \
-		if(rightOperand.is##argtype() && TOP.is##argtype()) {                  \
-			TOP.set##restype(TOP.to##argtype() op rightOperand.to##argtype()); \
-			DISPATCH();                                                        \
-		} else {                                                               \
-			PUSH(rightOperand);                                                \
-			methodToCall      = SymbolTable2::const_sig_##opcode;              \
-			numberOfArguments = 1;                                             \
-			goto methodcall;                                                   \
-		}                                                                      \
-		RERRF("Both of the operands of " #opname " are not " #argtype          \
-		      " (@s and @s)!",                                                 \
-		      TOP.getTypeString(), rightOperand.getTypeString());              \
+#define binary_multiway(op, opname, argtype, restype, opcode, doSomething) \
+	{                                                                      \
+		rightOperand = POP();                                              \
+		if(rightOperand.is##argtype() && TOP.is##argtype()) {              \
+			TOP.set##restype(doSomething(op, TOP.to##argtype(),            \
+			                             rightOperand.to##argtype()));     \
+			DISPATCH();                                                    \
+		} else {                                                           \
+			PUSH(rightOperand);                                            \
+			methodToCall      = SymbolTable2::const_sig_##opcode;          \
+			numberOfArguments = 1;                                         \
+			goto methodcall;                                               \
+		}                                                                  \
+		RERRF("Both of the operands of " #opname " are not " #argtype      \
+		      " (@s and @s)!",                                             \
+		      TOP.getTypeString(), rightOperand.getTypeString());          \
 	}
+
+#define binary_perform_direct(op, a, b) ((a)op(b))
+#define binary(op, opname, argtype, restype, opcode) \
+	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_direct)
+
+#define binary_perform_pow(op, a, b) (pow((a), (b)))
+#define binary_pow(op, opname, argtype, restype, opcode) \
+	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_pow)
 
 #define is_falsey(v) (v == ValueNil || v == ValueFalse || v == ValueZero)
 
@@ -481,26 +490,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(less) : binary(<, lesser than, Number, Boolean, less);
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
-			CASE(power) : {
-				rightOperand = POP();
-				if(rightOperand.isNumber() && TOP.isNumber()) {
-					TOP.setNumber(pow(TOP.toNumber(), rightOperand.toNumber()));
-					DISPATCH();
-				} else {
-					const Class *c = TOP.getClass();
-					if(c->has_fn(SymbolTable2::const_sig_pow)) {
-						methodToCall      = SymbolTable2::const_sig_pow;
-						numberOfArguments = 1;
-						PUSH(rightOperand);
-						goto methodcall;
-					}
-				}
-				RERRF("Both of the operands of 'power of' are not Number"
-				      " (@s and @s)!",
-				      TOP.getTypeString(), rightOperand.getTypeString());
-			}
 
-			CASE(in_) : { RERRF("Not yet implemented!"); }
+			CASE(power) : binary_pow(^, power of, Number, Number, pow);
 
 			CASE(neq) : {
 				rightOperand = POP();

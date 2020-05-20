@@ -211,7 +211,6 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_GREATER_EQUAL: btx->greatereq(); break;
 		case TOKEN_and: btx->land(jumpto, btx->getip() - jumpto); break;
 		case TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
-		case TOKEN_in: btx->in_(); break;
 
 		default:
 			panic("Invalid binary operator '%s'!",
