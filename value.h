@@ -39,8 +39,8 @@ struct Value {
 #include "valuetypes.h"
 	};
 	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
-	Value() : value(QNAN_NIL) {}
-	Value(double d) : dvalue(d) {}
+	constexpr Value() : value(QNAN_NIL) {}
+	constexpr Value(double d) : dvalue(d) {}
 #ifdef DEBUG
 #define TYPE(r, n)                                                             \
 	Value(const r s) {                                                         \
@@ -90,7 +90,7 @@ struct Value {
 #define OBJTYPE(r, n) \
 	inline r *to##n() const { return (r *)toGcObject(); }
 #include "objecttype.h"
-	inline double   toNumber() const { return *(double *)&value; }
+	inline double   toNumber() const { return dvalue; }
 	inline long     toInteger() const { return (long)toNumber(); }
 	inline uint64_t toBits() const { return value; }
 #define TYPE(r, n) \
@@ -148,7 +148,7 @@ struct Value {
 constexpr Value ValueNil   = Value(QNAN_NIL);
 constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);
 constexpr Value ValueFalse = Value(QNAN_Boolean);
-constexpr Value ValueZero  = Value((uint64_t)0);
+constexpr Value ValueZero  = Value((double)0.0);
 
 namespace std {
 	template <> struct hash<Value> {
