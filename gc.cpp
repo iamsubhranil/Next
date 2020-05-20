@@ -84,7 +84,7 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 
 void *GcObject::malloc(size_t bytes) {
 	void *m = MALLOC(bytes);
-	if(m == NULL) {
+	if(bytes > 0 && m == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
@@ -100,7 +100,7 @@ void *GcObject::calloc(size_t num, size_t bytes) {
 	m = ::realloc(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
 #endif
-	if(m == NULL) {
+	if(num > 0 && bytes > 0 && m == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
@@ -111,7 +111,7 @@ void *GcObject::calloc(size_t num, size_t bytes) {
 
 void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
 	void *n = REALLOC(mem, newb);
-	if(n == NULL) {
+	if(newb > 0 && n == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
 	}
