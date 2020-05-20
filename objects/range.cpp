@@ -9,7 +9,7 @@ Object *Range::create(double from, double to, double step) {
 	r->slots[0].setNumber(from - step); // to start from 'from'
 	r->slots[1].setNumber(to);
 	r->slots[2].setNumber(step);
-	r->slots[3].setBoolean((from + step) < to);
+	r->slots[3].setBoolean(from < to);
 
 	return r;
 }
