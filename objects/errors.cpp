@@ -63,9 +63,9 @@ void TypeError::init() {
 }
 
 void TypeError::mark() {
-	GcObject::mark((GcObject *)ontype);
-	GcObject::mark((GcObject *)method);
-	GcObject::mark((GcObject *)expected);
+	GcObject::mark(ontype);
+	GcObject::mark(method);
+	GcObject::mark(expected);
 	GcObject::mark(received);
 }
 
@@ -108,7 +108,7 @@ void RuntimeError::init() {
 }
 
 void RuntimeError::mark() {
-	GcObject::mark((GcObject *)message);
+	GcObject::mark(message);
 }
 
 void RuntimeError::print(std::ostream &o) {
@@ -161,7 +161,7 @@ void IndexError::init() {
 }
 
 void IndexError::mark() {
-	GcObject::mark((GcObject *)message);
+	GcObject::mark(message);
 }
 
 void IndexError::print(std::ostream &o) {

@@ -101,7 +101,8 @@ Bytecode *Bytecode::create() {
 }
 
 void Bytecode::mark() {
-	GcObject::mark((GcObject *)values);
+	GcObject::mark(values);
+	GcObject::mark(ctx);
 }
 
 void Bytecode::disassemble_int(std::ostream &os, const Opcode *o) {

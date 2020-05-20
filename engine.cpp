@@ -17,18 +17,14 @@
 #endif
 
 char                       ExecutionEngine::ExceptionMessage[1024] = {0};
-Array *                    ExecutionEngine::fibers                 = nullptr;
 HashMap<String *, Class *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
 Value   ExecutionEngine::pendingException = ValueNil;
-size_t  ExecutionEngine::total_allocated  = 0;
-size_t  ExecutionEngine::next_gc          = 1024 * 1024;
 Fiber * ExecutionEngine::currentFiber     = nullptr;
 Object *ExecutionEngine::CoreObject       = nullptr;
 
 void ExecutionEngine::init() {
 	pendingException = ValueNil;
-	fibers           = Array::create(1);
 	// create a new fiber
 	Fiber *f = Fiber::create();
 	// make slot for core
@@ -103,28 +99,19 @@ void ExecutionEngine::setPendingException(Value v) {
 	pendingException = v;
 }
 
-void ExecutionEngine::gc() {
-#ifdef DEBUG_GC
-	std::cout << "[GC] GC started. next_gc : " << next_gc
-	          << " bytes, total_allocated : " << total_allocated
-	          << " bytes..\n";
-#endif
+void ExecutionEngine::mark() {
 	// mark everything that is live on the stack
-	GcObject::mark((GcObject *)fibers);
-	// release the modules which are not marked
+	// this will recursively mark all the referenced
+	// objects
+	GcObject::mark(currentFiber);
+	// mark the core object
+	GcObject::mark(CoreObject);
+	// the modules which are not marked, remove them
 	for(auto &a : loadedModules) {
-		if(!GcObject::isMarked((GcObject *)a.second))
-			loadedModules.erase(loadedModules.find(a.first));
+		if(!GcObject::isMarked((GcObject *)a.second)) {
+			loadedModules.erase(a.first);
+		}
 	}
-	// sweeeeeeep
-	GcObject::sweep();
-	if(total_allocated >= next_gc)
-		next_gc *= 2;
-#ifdef DEBUG_GC
-	std::cout << "[GC] GC finished. next_gc : " << next_gc
-	          << " bytes, total_allocated : " << total_allocated
-	          << " bytes..\n";
-#endif
 }
 
 // @s   <-- StringLibrary hash

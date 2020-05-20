@@ -9,7 +9,9 @@ void Object::init() {
 }
 
 void Object::mark() {
-	for(int i = 0; i < obj.klass->numSlots; i++) {
+	// temporary unmark to get the klass
+	Class *c = GcObject::getMarkedClass(this);
+	for(int i = 0; i < c->numSlots; i++) {
 		GcObject::mark(slots[i]);
 	}
 }

@@ -68,7 +68,10 @@ bool Exception::add_catch(int slot, CatchBlock::SlotType type, int jump) {
 }
 
 void Function::mark() {
-	GcObject::mark((GcObject *)name);
+	GcObject::mark(name);
+	if(getType() != BUILTIN) {
+		GcObject::mark(code);
+	}
 }
 
 void Function::release() {

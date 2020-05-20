@@ -35,8 +35,8 @@ Function *FunctionCompilationContext::get_fn() {
 }
 
 void FunctionCompilationContext::mark() {
-	GcObject::mark((GcObject *)f);
-	GcObject::mark((GcObject *)bcc);
+	GcObject::mark(f);
+	GcObject::mark(bcc);
 }
 
 void FunctionCompilationContext::release() {

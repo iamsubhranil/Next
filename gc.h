@@ -37,6 +37,8 @@ struct GcObject {
 
 	// State of the garbage collector
 	static size_t    totalAllocated;
+	static size_t    next_gc;
+	static size_t    max_gc;
 	static GcObject *root;
 	static GcObject *last;
 
@@ -86,10 +88,17 @@ struct GcObject {
 	static void mark();
 	static void mark(Value v);
 	static void mark(GcObject *p);
+#define OBJTYPE(r, n) \
+	static void mark(r *val) { mark((GcObject *)val); };
+#include "objecttype.h"
 	static void mark(Value *v, size_t num);
 	static bool isMarked(GcObject *p);
 	static void unmark(Value v);
 	static void unmark(GcObject *p);
+
+	// get the class of an object which is
+	// already marked
+	static Class *getMarkedClass(Object *o);
 	// this methods should be called by an
 	// object when it holds reference to an
 	// object which it does explicitly

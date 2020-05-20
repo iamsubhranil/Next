@@ -471,7 +471,8 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 	switch(t.type) {
 		case TOKEN_STRING: {
 			std::string s = parser->buildNextString(t);
-			return unq(LiteralExpression, Value(String::from(s.c_str())), t);
+			return unq(LiteralExpression, Value(String::fromParser(s.c_str())),
+			           t);
 		}
 		case TOKEN_NUMBER: {
 			char * end = NULL;

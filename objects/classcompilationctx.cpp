@@ -122,8 +122,12 @@ void ClassCompilationContext::add_public_class(Class *                  c,
 	int modSlot = get_mem_slot(c->name);
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
-	cctxMap->vv[Value(c->name)] = Value(ctx);
-	c->module                   = klass;
+	// if the ctx is null, it is a builtin class,
+	// and it won't query for its ctx anytime.
+	// so don't populate the map
+	if(ctx != NULL)
+		cctxMap->vv[Value(c->name)] = Value(ctx);
+	c->module = klass;
 }
 
 void ClassCompilationContext::add_private_class(Class *                  c,
@@ -132,8 +136,9 @@ void ClassCompilationContext::add_private_class(Class *                  c,
 	int modSlot = get_mem_slot(c->name);
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
-	cctxMap->vv[Value(c->name)] = Value(ctx);
-	c->module                   = klass;
+	if(ctx != NULL)
+		cctxMap->vv[Value(c->name)] = Value(ctx);
+	c->module = klass;
 }
 
 bool ClassCompilationContext::has_class(String *name) {
@@ -161,17 +166,19 @@ void ClassCompilationContext::init() {
 }
 
 void ClassCompilationContext::mark() {
-	GcObject::mark((GcObject *)members);
-	GcObject::mark((GcObject *)public_signatures);
-	GcObject::mark((GcObject *)private_signatures);
-	GcObject::mark((GcObject *)klass);
-	GcObject::mark((GcObject *)moduleContext);
-	GcObject::mark((GcObject *)fctxMap);
+	GcObject::mark(members);
+	GcObject::mark(public_signatures);
+	GcObject::mark(private_signatures);
+	GcObject::mark(klass);
+	GcObject::mark(fctxMap);
 	if(defaultConstructor != NULL) {
-		GcObject::mark((GcObject *)defaultConstructor);
+		GcObject::mark(defaultConstructor);
 	}
 	if(cctxMap != NULL) {
-		GcObject::mark((GcObject *)cctxMap);
+		GcObject::mark(cctxMap);
+	}
+	if(moduleContext != NULL) {
+		GcObject::mark(moduleContext);
 	}
 }
 

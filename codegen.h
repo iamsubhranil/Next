@@ -127,10 +127,16 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	                 // scopeID >= present scope
 
   public:
-	CodeGenerator();
+	// if this code generator was invoked by another, this pointer holds
+	// the address of that, so that the objects in use by that generator
+	// can be marked
+	CodeGenerator *parentGenerator;
+
+	CodeGenerator(CodeGenerator *parent);
 	Class *compile(String *name, const std::vector<StmtPtr> &statements);
 	void   compile(ClassCompilationContext *   compileIn,
 	               const std::vector<StmtPtr> &statements);
+	void   mark();
 };
 
 class CodeGeneratorException : public std::runtime_error {

@@ -1,5 +1,7 @@
 #include "gc.h"
 #include "display.h"
+#include "engine.h"
+#include "loader.h"
 #include "objects/array.h"
 #include "objects/array_iterator.h"
 #include "objects/boolean.h"
@@ -22,13 +24,15 @@
 #include "objects/symtab.h"
 #include "value.h"
 
-#ifdef DEBUG_GC
+#ifdef DEBUG
 #include <iomanip>
 #include <iostream>
 using namespace std;
 #endif
 
 size_t    GcObject::totalAllocated  = 0;
+size_t    GcObject::next_gc         = 1024 * 1024;
+size_t    GcObject::max_gc          = 1024 * 1024 * 1024;
 GcObject  GcObject::DefaultGcObject = {nullptr, nullptr, GcObject::OBJ_NONE};
 GcObject *GcObject::last            = &DefaultGcObject;
 GcObject *GcObject::root            = &DefaultGcObject;
@@ -128,8 +132,45 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	obj->objType  = type;
 	obj->klass    = klass;
 	obj->next     = nullptr;
-	last->next    = obj;
-	last          = obj;
+
+	// check for gc
+	if(totalAllocated >= next_gc) {
+#ifdef DEBUG
+		std::cout << "[GC] Started GC..\n";
+		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
+		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
+		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
+		std::cout << "[GC] Marking core classes..\n";
+#endif
+		mark((GcObject *)CoreModule);
+#ifdef DEBUG
+		std::cout << "[GC] Marking Engine..\n";
+#endif
+		ExecutionEngine::mark();
+#ifdef DEBUG
+		std::cout << "[GC] Marking CodeGens via Loader..\n";
+#endif
+		Loader::mark();
+#ifdef DEBUG
+		std::cout << "[GC] Marking weak strings..\n";
+#endif
+		String::keep();
+#ifdef DEBUG
+		std::cout << "[GC] Sweeping..\n";
+#endif
+		sweep();
+		if(next_gc < max_gc)
+			next_gc *= 2;
+#ifdef DEBUG
+		std::cout << "[GC] Finished GC..\n";
+		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
+		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
+		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
+#endif
+	}
+
+	last->next = obj;
+	last       = obj;
 
 	return obj;
 }
@@ -240,6 +281,10 @@ void GcObject::unmark(GcObject *p) {
 	p->klass = (Class *)((uintptr_t)(p->klass) ^ marker);
 }
 
+Class *GcObject::getMarkedClass(Object *o) {
+	return (Class *)((uintptr_t)o->obj.klass ^ marker);
+}
+
 void GcObject::sweep() {
 	GcObject **head = &(root->next);
 	while(*head) {
@@ -247,14 +292,13 @@ void GcObject::sweep() {
 			GcObject *bak = *head;
 			*head         = (*head)->next;
 			release(bak);
-		} else
+		} else {
+			unmark(*head);
+			last = *head;
 			head = &((*head)->next);
+		}
 	}
-	head = &(root->next);
-	while(*head) {
-		unmark(*head);
-		head = &((*head)->next);
-	}
+	last->next = NULL;
 }
 
 void GcObject::init() {

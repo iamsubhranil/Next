@@ -252,7 +252,7 @@ void Fiber::mark() {
 	GcObject::mark(stack_, stackTop - stack_);
 	// mark the active functions
 	for(size_t i = 0; i < callFramePointer; i++) {
-		GcObject::mark((GcObject *)callFrames[i].f);
+		GcObject::mark(callFrames[i].f);
 	}
 }
 

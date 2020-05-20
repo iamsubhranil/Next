@@ -23,7 +23,7 @@ using namespace std;
 		errorsOccurred++;                     \
 	}
 
-CodeGenerator::CodeGenerator() {
+CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	state                = COMPILE_DECLARATION;
 	onLHS                = false;
 	scopeID              = 0;
@@ -34,6 +34,7 @@ CodeGenerator::CodeGenerator() {
 	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
 	errorsOccurred       = 0;
+	parentGenerator      = parent;
 
 	mtx     = NULL;
 	ctx     = NULL;
@@ -603,6 +604,10 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 #endif
 	btx->insert_token(lit->token);
 	btx->push(lit->value);
+	// if this is a string, it was previously kept
+	// to be always alive. remove it from that status.
+	if(lit->value.isString())
+		String::unkeep(lit->value.toString());
 	/*
 	switch(lit->value.t) {
 	    case Value::VAL_Number: btx->pushd(lit->value.toNumber()); break;
@@ -1452,4 +1457,15 @@ void CodeGenerator::visit(ThrowStatement *ifs) {
 #endif
 	ifs->expr->accept(this);
 	btx->throw_();
+}
+
+void CodeGenerator::mark() {
+	// this is the only state we have
+	// everything else will be recursively
+	// marked by the module that this
+	// compiler is compiling
+	GcObject::mark(mtx);
+	// mark the parent if that is not empty
+	if(parentGenerator)
+		parentGenerator->mark();
 }

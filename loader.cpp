@@ -9,6 +9,8 @@
 
 using namespace std;
 
+CodeGenerator *Loader::currentGenerator = nullptr;
+
 static void prefix(Parser *p, TokenType op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
 }
@@ -123,7 +125,8 @@ GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
 
 GcObject *Loader::compile_and_load_with_name(const char *fileName,
                                              String *modName, bool execute) {
-	CodeGenerator c;
+	CodeGenerator c(currentGenerator);
+	currentGenerator = &c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -147,6 +150,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		ClassCompilationContext *ctx =
 		    ClassCompilationContext::create(NULL, modName);
 		c.compile(ctx, decls);
+		currentGenerator = c.parentGenerator;
 		if(execute) {
 			Fiber *f = Fiber::create();
 			++f->stackTop; // manually increment the stackTop to create a slot
@@ -169,7 +173,8 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 
 GcObject *Loader::compile_and_load_from_source(
     const char *source, ClassCompilationContext *modulectx, bool execute) {
-	CodeGenerator c;
+	CodeGenerator c(currentGenerator);
+	currentGenerator = &c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -187,7 +192,7 @@ GcObject *Loader::compile_and_load_from_source(
 		}
 #endif
 		c.compile(modulectx, decls);
-
+		currentGenerator = c.parentGenerator;
 		if(execute) {
 			Fiber *f = Fiber::create();
 			++f->stackTop; // manually increment the stackTop to create a slot
@@ -206,4 +211,9 @@ GcObject *Loader::compile_and_load_from_source(
 		return NULL;
 	}
 	return (GcObject *)modulectx->get_class();
+}
+
+void Loader::mark() {
+	if(currentGenerator != NULL)
+		currentGenerator->mark();
 }

@@ -17,17 +17,12 @@ class ExecutionEngine {
 	// HashMap<NextString, NextType> registeredClasses;
 
 	static Value  pendingException;
-	static Array *fibers;
-
 	static Fiber *currentFiber;
 
 	static void formatExceptionMessage(const char *message, ...);
 
-	static size_t total_allocated;
-	static size_t next_gc;
-
   public:
-	static void   gc();
+	static void   mark();
 	static void   init();
 	static bool   isModuleRegistered(String *name);
 	static void   registerModule(Class *m);

@@ -64,7 +64,7 @@ void BytecodeCompilationContext::finalize() {
 }
 
 void BytecodeCompilationContext::mark() {
-	GcObject::mark((GcObject *)code);
+	GcObject::mark(code);
 }
 
 void BytecodeCompilationContext::release() {

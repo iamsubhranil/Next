@@ -5,11 +5,13 @@
 #include "set.h"
 
 StringSet *String::string_set = nullptr;
+StringSet *String::keep_set   = nullptr;
 #define SCONSTANT(n, s) String *String::const_##n = nullptr;
 #include "../stringvalues.h"
 
 void String::init0() {
 	string_set = StringSet::create();
+	keep_set   = StringSet::create();
 #define SCONSTANT(n, s) String::const_##n = String::from(s);
 #include "../stringvalues.h"
 }
@@ -31,7 +33,7 @@ Value next_string_at(const Value *args) {
 	}
 	return String::from(&(s->str[i]));
 }
-#include <iostream>
+
 Value next_string_contains(const Value *args) {
 	EXPECT(string, contains, 1, String);
 	String *source = args[0].toString();
@@ -218,6 +220,12 @@ String *String::from(const char *val) {
 	return from(val, strlen(val));
 }
 
+String *String::fromParser(const char *val) {
+	String *s = from(val);
+	keep_set->hset.insert(s);
+	return s;
+}
+
 String *String::from(const String *s, string_transform transform) {
 	return from(s->str, s->size, transform);
 }
@@ -280,7 +288,12 @@ StringSet *StringSet::create() {
 	return s;
 }
 
-void StringSet::mark() {}
+void StringSet::mark() {
+	// for keep set
+	for(auto &a : hset) {
+		GcObject::mark(a);
+	}
+}
 
 void StringSet::release() {}
 
@@ -289,5 +302,16 @@ void String::release_all() {
 		a->release();
 	}
 	string_set->hset.~HashSet<String *, StringHash, StringEquals>();
+	keep_set->hset.~HashSet<String *, StringHash, StringEquals>();
+
 	GcObject_free(string_set, sizeof(StringSet));
+	GcObject_free(keep_set, sizeof(StringSet));
+}
+
+void String::keep() {
+	keep_set->mark();
+}
+
+void String::unkeep(String *s) {
+	keep_set->hset.erase(s);
 }

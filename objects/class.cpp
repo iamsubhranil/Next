@@ -22,6 +22,11 @@ void Class::add_sym(int sym, Value v) {
 		functions->resize(sym + 1);
 	}
 	functions->values[sym] = v;
+	// we change the size of the array manually
+	// so that all functions can be marked in
+	// case of a gc
+	if(sym > functions->size)
+		functions->size = sym + 1;
 }
 
 void Class::add_fn(String *s, Function *f) {
@@ -37,13 +42,13 @@ void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn) {
 }
 
 void Class::mark() {
-	GcObject::mark((GcObject *)name);
-	GcObject::mark((GcObject *)functions);
+	GcObject::mark(name);
+	GcObject::mark(functions);
 	if(module != NULL) {
-		GcObject::mark((GcObject *)module);
+		GcObject::mark(module);
 	}
 	if(instance != NULL) {
-		GcObject::mark((GcObject *)instance);
+		GcObject::mark(instance);
 	}
 }
 
