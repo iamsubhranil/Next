@@ -4,7 +4,8 @@
 #include "class.h"
 #include "string.h"
 
-Value next_boolean_str(const Value *args) {
+Value next_boolean_str(const Value *args, int numargs) {
+	(void)numargs;
 	static const String *bs[] = {String::const_false_, String::const_true_};
 	return Value(bs[args[0].toBoolean()]);
 }

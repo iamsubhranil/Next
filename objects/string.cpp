@@ -18,12 +18,14 @@ void String::init0() {
 #include "../stringvalues.h"
 }
 
-Value next_string_append(const Value *args) {
+Value next_string_append(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(string, append, 1, String);
 	return String::append(args[0].toString(), args[1].toString());
 }
 
-Value next_string_at(const Value *args) {
+Value next_string_at(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(string, at, 1, Integer);
 	String *s = args[0].toString();
 	long    i = args[1].toInteger();
@@ -36,7 +38,8 @@ Value next_string_at(const Value *args) {
 	return String::from(&(s->str[i]));
 }
 
-Value next_string_contains(const Value *args) {
+Value next_string_contains(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(string, contains, 1, String);
 	String *source = args[0].toString();
 	String *check  = args[1].toString();
@@ -82,21 +85,25 @@ Value next_string_contains(const Value *args) {
 	return ValueTrue;
 }
 
-Value next_string_hash(const Value *args) {
+Value next_string_hash(const Value *args, int numargs) {
+	(void)numargs;
 	String *s = args[0].toString();
 	return Value((double)s->hash_);
 }
 
-Value next_string_len(const Value *args) {
+Value next_string_len(const Value *args, int numargs) {
+	(void)numargs;
 	String *s = args[0].toString();
 	return Value((double)s->size);
 }
 
-Value next_string_lower(const Value *args) {
+Value next_string_lower(const Value *args, int numargs) {
+	(void)numargs;
 	return String::from(args[0].toString(), String::transform_lower);
 }
 
-Value next_string_substr(const Value *args) {
+Value next_string_substr(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(string, substr, 1, Integer);
 	EXPECT(string, substr, 2, Integer);
 	// range can be [0, size - 1]
@@ -117,11 +124,13 @@ Value next_string_substr(const Value *args) {
 	return String::from(&(s->str[from]), to - from + 1);
 }
 
-Value next_string_str(const Value *args) {
+Value next_string_str(const Value *args, int numargs) {
+	(void)numargs;
 	return args[0];
 }
 
-Value next_string_upper(const Value *args) {
+Value next_string_upper(const Value *args, int numargs) {
+	(void)numargs;
 	return String::from(args[0].toString(), String::transform_upper);
 }
 

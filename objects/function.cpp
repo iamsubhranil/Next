@@ -75,15 +75,18 @@ void Function::release() {
 		GcObject::free(exceptions, sizeof(Exception) * numExceptions);
 }
 
-Value next_function_arity(const Value *args) {
+Value next_function_arity(const Value *args, int numargs) {
+	(void)numargs;
 	return Value((double)args[0].toFunction()->arity);
 }
 
-Value next_function_name(const Value *args) {
+Value next_function_name(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toFunction()->name);
 }
 
-Value next_function_type(const Value *args) {
+Value next_function_type(const Value *args, int numargs) {
+	(void)numargs;
 	return Value((double)(args[0].toFunction()->mode & 0x0f));
 }
 

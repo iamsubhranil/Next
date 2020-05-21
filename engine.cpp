@@ -270,7 +270,7 @@ Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
 			}
 			fiber->stackTop += numarg;
 			// execute
-			Value res = f->func(&fiber->stackTop[-numarg - 1]);
+			Value res = f->func(&fiber->stackTop[-numarg - 1], numarg);
 			// decrement the top back to previous position
 			fiber->stackTop -= (numarg + 1);
 			// if we need to return, go back
@@ -666,7 +666,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				case Function::Type::BUILTIN: {
 					BACKUP_FRAMEINFO();
 					Value res = functionToCall->func(
-					    &fiber->stackTop[-numberOfArguments - 1]);
+					    &fiber->stackTop[-numberOfArguments - 1],
+					    numberOfArguments);
 					fiber->stackTop -= (numberOfArguments + 1);
 					RESTORE_FRAMEINFO();
 					if(pendingException != ValueNil) {

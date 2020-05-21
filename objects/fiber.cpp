@@ -116,7 +116,8 @@ Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
 	return frame;
 }
 
-Value next_fiber_cancel(const Value *args) {
+Value next_fiber_cancel(const Value *args, int numargs) {
+	(void)numargs;
 	Fiber *f = args[0].toFiber();
 	// only a fiber which is on yield or finished
 	// can be cancelled
@@ -135,19 +136,23 @@ Value next_fiber_cancel(const Value *args) {
 	return ValueNil;
 }
 
-Value next_fiber_is_started(const Value *args) {
+Value next_fiber_is_started(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toFiber()->state != Fiber::BUILT);
 }
 
-Value next_fiber_is_yielded(const Value *args) {
+Value next_fiber_is_yielded(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toFiber()->state == Fiber::YIELDED);
 }
 
-Value next_fiber_is_finished(const Value *args) {
+Value next_fiber_is_finished(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toFiber()->state == Fiber::FINISHED);
 }
 
-Value next_fiber_resume(const Value *args) {
+Value next_fiber_resume(const Value *args, int numargs) {
+	(void)numargs;
 	// only a fiber which is on yield can be resumed
 	Fiber *f = args[0].toFiber();
 	// f->parent = Engine::getCurrentFiber()
@@ -173,7 +178,8 @@ Value next_fiber_resume(const Value *args) {
 	return ValueNil;
 }
 
-Value next_fiber_construct_0(const Value *args) {
+Value next_fiber_construct_0(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(fiber, run, 1, BoundMethod);
 	BoundMethod *b = args[1].toBoundMethod();
 	// verify the function with given arguments
@@ -185,7 +191,8 @@ Value next_fiber_construct_0(const Value *args) {
 	return Value(f);
 }
 
-Value next_fiber_construct_x(const Value *args) {
+Value next_fiber_construct_x(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(fiber, run, 1, BoundMethod);
 	EXPECT(fiber, run, 2, Array);
 	BoundMethod *b = args[1].toBoundMethod();

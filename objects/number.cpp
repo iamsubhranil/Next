@@ -5,7 +5,8 @@
 #include "errors.h"
 #include "string.h"
 
-Value next_number_to_str(const Value *args) {
+Value next_number_to_str(const Value *args, int numargs) {
+	(void)numargs;
 	// from
 	// https://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
 	static char val[1079];
@@ -13,15 +14,18 @@ Value next_number_to_str(const Value *args) {
 	return Value(String::from(val));
 }
 
-Value next_number_isint(const Value *args) {
+Value next_number_isint(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].isInteger());
 }
 
-Value next_number_toint(const Value *args) {
+Value next_number_toint(const Value *args, int numargs) {
+	(void)numargs;
 	return Value((double)args[0].toInteger());
 }
 
-Value next_number_from_str(const Value *args) {
+Value next_number_from_str(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(number, new(_), 1, String);
 	String *s      = args[1].toString();
 	char *  endptr = NULL;

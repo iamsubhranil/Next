@@ -22,7 +22,8 @@ Object *Range::create(double to) {
 	return create(0, to);
 }
 
-Value next_range_construct_1(const Value *args) {
+Value next_range_construct_1(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(range, "range(from)", 1, Integer);
 	int from = args[1].toInteger();
 	if(from < 0) {
@@ -31,7 +32,8 @@ Value next_range_construct_1(const Value *args) {
 	return Value(Range::create(from));
 }
 
-Value next_range_construct_2(const Value *args) {
+Value next_range_construct_2(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(range, "range(from, to)", 1, Integer);
 	EXPECT(range, "range(from, to)", 2, Integer);
 	int from = args[1].toInteger();
@@ -42,7 +44,8 @@ Value next_range_construct_2(const Value *args) {
 	return Value(Range::create(from, to));
 }
 
-Value next_range_construct_3(const Value *args) {
+Value next_range_construct_3(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(range, "range(from, to, step)", 1, Integer);
 	EXPECT(range, "range(from, to, step)", 2, Integer);
 	EXPECT(range, "range(from, to, step)", 3, Integer);
@@ -52,24 +55,29 @@ Value next_range_construct_3(const Value *args) {
 	return Value(Range::create(from, to, step));
 }
 
-Value next_range_from(const Value *args) {
+Value next_range_from(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toObject()->slots[0]);
 }
 
-Value next_range_to(const Value *args) {
+Value next_range_to(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toObject()->slots[1]);
 }
 
-Value next_range_step(const Value *args) {
+Value next_range_step(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toObject()->slots[2]);
 }
 
-Value next_range_iterate(const Value *args) {
+Value next_range_iterate(const Value *args, int numargs) {
+	(void)numargs;
 	// range is the iterator of itself
 	return args[0];
 }
 
-Value next_range_next(const Value *args) {
+Value next_range_next(const Value *args, int numargs) {
+	(void)numargs;
 	Value *r    = args[0].toObject()->slots;
 	double from = r[0].toNumber();
 	double to   = r[1].toNumber();

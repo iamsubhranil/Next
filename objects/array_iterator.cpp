@@ -13,12 +13,14 @@ Object *ArrayIterator::from(Array *a) {
 	return ar;
 }
 
-Value next_array_iterator_construct_1(const Value *args) {
+Value next_array_iterator_construct_1(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(array_iterator, "array_iterator(arr)", 1, Array);
 	return Value(ArrayIterator::from(args[1].toArray()));
 }
 
-Value next_array_iterator_next(const Value *args) {
+Value next_array_iterator_next(const Value *args, int numargs) {
+	(void)numargs;
 	Value *slots = args[0].toObject()->slots;
 	int    idx   = slots[1].toInteger();
 	Array *a     = slots[0].toArray();

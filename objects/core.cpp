@@ -6,7 +6,8 @@
 #include "classcompilationctx.h"
 #include "functioncompilationctx.h"
 
-Value next_core_clock(const Value *args) {
+Value next_core_clock(const Value *args, int numargs) {
+	(void)numargs;
 	(void)args;
 	// TODO: clock_t is 64bits long, casting it to 32bits will reset the time
 	// every 36 mins or so. Casting it to double will probably result losing
@@ -14,13 +15,15 @@ Value next_core_clock(const Value *args) {
 	return Value((double)clock());
 }
 
-Value next_core_type_of(const Value *args) {
+Value next_core_type_of(const Value *args, int numargs) {
+	(void)numargs;
 	Value v = args[1];
 	return Value(v.getClass());
 }
 
-Value next_core_is_same_type(const Value *v) {
-	return Value(v[1].getClass() == v[2].getClass());
+Value next_core_is_same_type(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(args[1].getClass() == args[2].getClass());
 }
 
 void Core::addCoreFunctions() {

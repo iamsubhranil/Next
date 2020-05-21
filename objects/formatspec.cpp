@@ -2,7 +2,8 @@
 #include "class.h"
 #include "string.h"
 
-Value next_format_spec_align(const Value *args) {
+Value next_format_spec_align(const Value *args, int numargs) {
+	(void)numargs;
 	// -1 for left, 0 for center, 1 for right
 	char  a = args[0].toFormatSpec()->align;
 	Value v = ValueNil;
@@ -14,7 +15,8 @@ Value next_format_spec_align(const Value *args) {
 	return v;
 }
 
-Value next_format_spec_fill(const Value *args) {
+Value next_format_spec_fill(const Value *args, int numargs) {
+	(void)numargs;
 	char  a = args[0].toFormatSpec()->fill;
 	Value v = ValueNil;
 	if(a != 0)
@@ -22,7 +24,8 @@ Value next_format_spec_fill(const Value *args) {
 	return v;
 }
 
-Value next_format_spec_sign(const Value *args) {
+Value next_format_spec_sign(const Value *args, int numargs) {
+	(void)numargs;
 	// -1 for "only negative numbers"
 	// 1 for "always"
 	// 0 for "leading space on positive, - for negative"
@@ -36,29 +39,34 @@ Value next_format_spec_sign(const Value *args) {
 	return v;
 }
 
-Value next_format_spec_alt(const Value *args) {
+Value next_format_spec_alt(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toFormatSpec()->isalt);
 }
 
-Value next_format_spec_zeropad(const Value *args) {
+Value next_format_spec_zeropad(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toFormatSpec()->signaware);
 }
 
-Value next_format_spec_width(const Value *args) {
+Value next_format_spec_width(const Value *args, int numargs) {
+	(void)numargs;
 	int width = args[0].toFormatSpec()->width;
 	if(width == -1)
 		return ValueNil;
 	return Value((double)width);
 }
 
-Value next_format_spec_precision(const Value *args) {
+Value next_format_spec_precision(const Value *args, int numargs) {
+	(void)numargs;
 	int precision = args[0].toFormatSpec()->precision;
 	if(precision == -1)
 		return ValueNil;
 	return Value((double)precision);
 }
 
-Value next_format_spec_type(const Value *args) {
+Value next_format_spec_type(const Value *args, int numargs) {
+	(void)numargs;
 	char type = args[0].toFormatSpec()->type;
 	if(type == 0)
 		return ValueNil;

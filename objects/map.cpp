@@ -21,17 +21,20 @@ Value next_map_get_hash(const Value &v) {
 	return h;
 }
 
-Value next_map_clear(const Value *args) {
+Value next_map_clear(const Value *args, int numargs) {
+	(void)numargs;
 	args[0].toValueMap()->vv.clear();
 	return ValueNil;
 }
 
-Value next_map_has(const Value *args) {
+Value next_map_has(const Value *args, int numargs) {
+	(void)numargs;
 	Value h = next_map_get_hash(args[1]);
 	return Value(args[0].toValueMap()->vv.contains(h));
 }
 
-Value next_map_keys(const Value *args) {
+Value next_map_keys(const Value *args, int numargs) {
+	(void)numargs;
 	ValueMap *m = args[0].toValueMap();
 	Array *   a = Array::create(m->vv.size());
 	a->size     = m->vv.size();
@@ -42,16 +45,19 @@ Value next_map_keys(const Value *args) {
 	return Value(a);
 }
 
-Value next_map_size(const Value *args) {
+Value next_map_size(const Value *args, int numargs) {
+	(void)numargs;
 	return Value((double)args[0].toValueMap()->vv.size());
 }
 
-Value next_map_remove(const Value *args) {
+Value next_map_remove(const Value *args, int numargs) {
+	(void)numargs;
 	args[0].toValueMap()->vv.erase(next_map_get_hash(args[1]));
 	return ValueNil;
 }
 
-Value next_map_values(const Value *args) {
+Value next_map_values(const Value *args, int numargs) {
+	(void)numargs;
 	ValueMap *m = args[0].toValueMap();
 	Array *   a = Array::create(m->vv.size());
 	a->size     = m->vv.size();
@@ -62,7 +68,8 @@ Value next_map_values(const Value *args) {
 	return Value(a);
 }
 
-Value next_map_get(const Value *args) {
+Value next_map_get(const Value *args, int numargs) {
+	(void)numargs;
 	Value  h     = next_map_get_hash(args[1]);
 	size_t count = args[0].toValueMap()->vv.count(h);
 	if(count > 0)
@@ -70,12 +77,14 @@ Value next_map_get(const Value *args) {
 	return ValueNil;
 }
 
-Value next_map_set(const Value *args) {
+Value next_map_set(const Value *args, int numargs) {
+	(void)numargs;
 	Value h                            = next_map_get_hash(args[1]);
 	return args[0].toValueMap()->vv[h] = args[2];
 }
 
-Value next_map_construct(const Value *args) {
+Value next_map_construct(const Value *args, int numargs) {
+	(void)numargs;
 	(void)args;
 	return Value(ValueMap::create());
 }

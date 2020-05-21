@@ -76,7 +76,8 @@ Value Class::get_fn(String *s) const {
 	return get_fn(SymbolTable2::insert(s));
 }
 
-Value next_class_has_fn(const Value *args) {
+Value next_class_has_fn(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(class, has_fn, 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
@@ -87,15 +88,17 @@ Value next_class_has_fn(const Value *args) {
 	return ValueFalse;
 }
 
-Value next_class_get_class(const Value *args) {
+Value next_class_get_class(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toGcObject()->klass);
 }
 
-Value next_class_get_fn(const Value *args) {
+Value next_class_get_fn(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(class, get_fn, 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
-	if(next_class_has_fn(args).toBoolean()) {
+	if(next_class_has_fn(args, 1).toBoolean()) {
 		Function *   f = c->get_fn(s).toFunction();
 		BoundMethod *b = BoundMethod::from(f, c);
 		return Value(b);
@@ -103,7 +106,8 @@ Value next_class_get_fn(const Value *args) {
 	return ValueNil;
 }
 
-Value next_class_name(const Value *args) {
+Value next_class_name(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toClass()->name);
 }
 

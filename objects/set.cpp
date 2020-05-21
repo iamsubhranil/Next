@@ -7,28 +7,34 @@ ValueSet *ValueSet::create() {
 	return v;
 }
 
-Value next_set_clear(const Value *args) {
+Value next_set_clear(const Value *args, int numargs) {
+	(void)numargs;
 	args[0].toValueSet()->hset.clear();
 	return ValueNil;
 }
 
-Value next_set_insert(const Value *args) {
+Value next_set_insert(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toValueSet()->hset.insert(args[1]).second);
 }
 
-Value next_set_has(const Value *args) {
+Value next_set_has(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toValueSet()->hset.count(args[1]));
 }
 
-Value next_set_size(const Value *args) {
+Value next_set_size(const Value *args, int numargs) {
+	(void)numargs;
 	return Value((double)args[0].toValueSet()->hset.size());
 }
 
-Value next_set_remove(const Value *args) {
+Value next_set_remove(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(args[0].toValueSet()->hset.erase(args[1]) == 1);
 }
 
-Value next_set_construct(const Value *args) {
+Value next_set_construct(const Value *args, int numargs) {
+	(void)numargs;
 	(void)args;
 	return Value(ValueSet::create());
 }

@@ -6,15 +6,18 @@
 
 using namespace std;
 
-Value next_array_insert(const Value *args) {
+Value next_array_insert(const Value *args, int numargs) {
+	(void)numargs;
 	return args[0].toArray()->insert(args[1]);
 }
 
-Value next_array_iterate(const Value *args) {
+Value next_array_iterate(const Value *args, int numargs) {
+	(void)numargs;
 	return Value(ArrayIterator::from(args[0].toArray()));
 }
 
-Value next_array_get(const Value *args) {
+Value next_array_get(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(array, get, 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
@@ -27,7 +30,8 @@ Value next_array_get(const Value *args) {
 	return a->values[i];
 }
 
-Value next_array_set(const Value *args) {
+Value next_array_set(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(array, set, 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
@@ -42,19 +46,22 @@ Value next_array_set(const Value *args) {
 	return a->values[i] = args[2];
 }
 
-Value next_array_size(const Value *args) {
+Value next_array_size(const Value *args, int numargs) {
+	(void)numargs;
 	return Value((double)args[0].toArray()->size);
 }
 
 // constructors will be called on the class,
 // so we must return an instance
 
-Value next_array_construct_empty(const Value *args) {
+Value next_array_construct_empty(const Value *args, int numargs) {
+	(void)numargs;
 	(void)args;
 	return Value(Array::create(1));
 }
 
-Value next_array_construct_size(const Value *args) {
+Value next_array_construct_size(const Value *args, int numargs) {
+	(void)numargs;
 	EXPECT(array, new(_), 1, Integer);
 	int i = args[0].toInteger();
 	if(i < 1) {
