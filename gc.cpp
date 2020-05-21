@@ -10,6 +10,7 @@
 #include "objects/bytecodecompilationctx.h"
 #include "objects/class.h"
 #include "objects/classcompilationctx.h"
+#include "objects/core.h"
 #include "objects/errors.h"
 #include "objects/fiber.h"
 #include "objects/function.h"
@@ -333,9 +334,11 @@ void GcObject::init() {
 	CoreContext->add_public_class(NumberClass);
 	CoreContext->add_public_class(BooleanClass);
 
-	CoreContext->finalize();
-
 	CoreModule = CoreContext->get_class();
+	Core::addCoreFunctions();
+	Core::addCoreVariables();
+
+	CoreContext->finalize();
 }
 
 #ifdef DEBUG_GC

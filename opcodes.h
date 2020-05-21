@@ -146,9 +146,6 @@ OPCODE1(array_build, 0, int)
 // Assigns N*2 key-value pairs from the TOP
 // to the map
 OPCODE1(map_build, 0, int)
-// The engine needs to know number of args for cleanup
-OPCODE2(call_builtin, 0, Value, int) // <signature> <args>
-OPCODE1(load_constant, 1, Value)     // <name>
 
 #undef OPCODE0
 #undef OPCODE1

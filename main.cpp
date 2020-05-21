@@ -1,4 +1,3 @@
-#include "builtins.h"
 #include "engine.h"
 #include "gc.h"
 #include "loader.h"
@@ -14,7 +13,6 @@ int main(int argc, char *argv[]) {
 #endif
 	GcObject::init();
 	Value::init();
-	Builtin::init();
 	ExecutionEngine::init();
 	// ExecutionEngine::init();
 	// bind all the core classes

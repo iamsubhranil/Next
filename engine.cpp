@@ -1,5 +1,4 @@
 #include "engine.h"
-#include "builtins.h"
 #include "display.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecodecompilationctx.h"
@@ -974,30 +973,9 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				goto error;
 			}
 
-			CASE(call_builtin) : {
-				String *sig        = next_value().toString();
-				int     args       = next_int();
-				Value * stackStart = fiber->stackTop - args;
-				Value   res        = Builtin::invoke_builtin(sig, stackStart);
-
-				if(pendingException != ValueNil) {
-					goto error;
-				} else {
-					fiber->stackTop -= args;
-					PUSH(res);
-					DISPATCH();
-				}
-			}
-
-			CASE(load_constant) : {
-				String *name = next_value().toString();
-				PUSH(Builtin::get_constant(name));
-				DISPATCH();
-			}
-
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_load_constant) {
+				if(code > Bytecode::CODE_map_build) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",

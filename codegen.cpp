@@ -1,5 +1,4 @@
 #include "codegen.h"
-#include "builtins.h"
 #include "display.h"
 #include "engine.h"
 #include "import.h"
@@ -293,12 +292,6 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 		info.frameIdx = corectx->get_fn_sym(signature);
 		info.soft     = false;
 		return info;
-	} else { // try searching for builtin functions
-		if(Builtin::has_builtin(signature)) {
-			info.type = BUILTIN;
-			info.soft = false;
-			return info;
-		}
 	}
 
 	// undefined
@@ -395,7 +388,6 @@ void CodeGenerator::emitCall(CallExpression *call) {
 					// load the specified slot
 					btx->load_tos_slot(info.frameIdx);
 					break;
-				case BUILTIN: btx->call_builtin(signature, argSize); break;
 				default: break; // error is already handled
 			}
 			btx->call_soft(sig, argSize);
@@ -409,7 +401,6 @@ void CodeGenerator::emitCall(CallExpression *call) {
 				// the receiver is already loaded
 				btx->call(info.frameIdx, argSize);
 				break;
-			case BUILTIN: btx->call_builtin(signature, argSize); break;
 			default: break; // error is already handled
 		}
 	}
@@ -439,15 +430,6 @@ CodeGenerator::lookForVariable(String *name, bool declare, Visibility vis) {
 		// Check if it is in core
 		if(corectx->has_mem(name)) {
 			return (VarInfo){corectx->get_mem_slot(name), CORE};
-		}
-
-		// Check if it is a built-in constant
-		// Since built-in constants cannot be overridden, it will only
-		// be a built-in constant if it is on the right side of an
-		// expression. If it is on the left side of an expression,
-		// an error will be raised by the respective code generator ctx.
-		if(Builtin::has_constant(name)) {
-			return (VarInfo){0, BUILTIN};
 		}
 	}
 
@@ -546,8 +528,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 					loadPresentModule();
 					btx->store_tos_slot(var.slot);
 					break;
-				case CORE:
-				case BUILTIN: {
+				case CORE: {
 					lnerr_("Built-in variable '%.*s' cannot be "
 					       "reassigned!",
 					       as->target->token, as->target->token.length,
@@ -704,8 +685,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						btx->incr_object_slot(variableInfo.slot);
 						btx->load_object_slot(variableInfo.slot);
 						break;
-					case CORE:
-					case BUILTIN: {
+					case CORE: {
 						lnerr_(
 						    "Built-in constant '%.*s' cannot be incremented!",
 						    pe->right->token, pe->right->token.length,
@@ -744,8 +724,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 						btx->decr_object_slot(variableInfo.slot);
 						btx->load_object_slot(variableInfo.slot);
 						break;
-					case CORE:
-					case BUILTIN: {
+					case CORE: {
 						lnerr_(
 						    "Built-in constant '%.*s' cannot be decremented!",
 						    pe->right->token, pe->right->token.length,
@@ -795,8 +774,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					btx->load_object_slot(variableInfo.slot);
 					btx->incr_object_slot(variableInfo.slot);
 					break;
-				case CORE:
-				case BUILTIN: {
+				case CORE: {
 					lnerr_("Built-in constant '%.*s' cannot be incremented!",
 					       pe->left->token, pe->left->token.length,
 					       pe->left->token.start);
@@ -827,8 +805,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 					btx->load_object_slot(variableInfo.slot);
 					btx->decr_object_slot(variableInfo.slot);
 					break;
-				case CORE:
-				case BUILTIN: {
+				case CORE: {
 					lnerr_("Built-in constant '%.*s' cannot be decremented!",
 					       pe->left->token, pe->left->token.length,
 					       pe->left->token.start);
@@ -867,7 +844,6 @@ void CodeGenerator::visit(VariableExpression *vis) {
 					btx->load_tos_slot(var.slot);
 					break;
 				case CLASS: btx->load_object_slot(var.slot); break;
-				case BUILTIN: btx->load_constant(name); break;
 				default: break;
 			}
 		}
@@ -1332,7 +1308,7 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 #endif
 	VarInfo v = lookForVariable(ifs->token, true, false, ifs->vis);
 	if(getState() == COMPILE_BODY) {
-		if(v.position == BUILTIN || v.position == CORE) {
+		if(v.position == CORE) {
 			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
 			       ifs->token.length, ifs->token.start);
 		}
@@ -1436,7 +1412,6 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 			case CLASS: st = CatchBlock::SlotType::CLASS; break;
 			case MODULE: st = CatchBlock::SlotType::MODULE; break;
 			case CORE: st = CatchBlock::SlotType::CORE; break;
-			case BUILTIN: st = CatchBlock::SlotType::BUILTIN; break;
 			default: break;
 		}
 		int receiver = ftx->create_slot(

@@ -77,7 +77,8 @@ bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
 	// TODO: insert token here
 	public_signatures->vv[Value(sig)] = Value(f);
 	klass->add_fn(sig, f);
-	fctxMap->vv[Value(sig)] = Value(fctx);
+	if(fctx)
+		fctxMap->vv[Value(sig)] = Value(fctx);
 	return true;
 }
 
@@ -91,7 +92,8 @@ bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
 	// be invoked as a method outside of the class
 	String *priv_signature = String::append("p ", sig);
 	klass->add_fn(priv_signature, f);
-	fctxMap->vv[Value(sig)] = Value(fctx);
+	if(fctx)
+		fctxMap->vv[Value(sig)] = Value(fctx);
 	return true;
 }
 

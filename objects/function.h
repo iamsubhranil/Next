@@ -6,7 +6,7 @@
 
 struct CatchBlock {
 	int slot, jump;
-	enum SlotType { LOCAL, CLASS, MODULE, CORE, BUILTIN } type;
+	enum SlotType { LOCAL, CLASS, MODULE, CORE } type;
 };
 
 struct Exception {

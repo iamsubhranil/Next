@@ -128,7 +128,6 @@ void Function::disassemble(std::ostream &o) {
 				case CatchBlock::LOCAL: o << "Local"; break;
 				case CatchBlock::CLASS: o << "Class"; break;
 				case CatchBlock::MODULE: o << "Module"; break;
-				case CatchBlock::BUILTIN: o << "Builtin"; break;
 			}
 			o << " Jump -> " << c.jump << "\n";
 		}

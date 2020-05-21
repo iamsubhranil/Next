@@ -23,7 +23,6 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 		CLASS,
 		MODULE,
 		CORE,
-		BUILTIN,
 		UNDEFINED /*, OBJECT*/
 	};
 	typedef struct VarInfo {
