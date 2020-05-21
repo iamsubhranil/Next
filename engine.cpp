@@ -254,17 +254,30 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	}
 }
 
-Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
+Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
+                               bool returnToCaller) {
 	// if this is built in function, don't bother
+	Fiber *fiber = currentFiber;
 	switch(f->getType()) {
 		case Function::Type::BUILTIN: {
-			Value res = f->func(&v);
+			// we need to store the args somewhere where they can
+			// be tracked. storing them in the present fiber
+			// seems like a fine idea for now
+			fiber->ensureStack(numarg + 1);
+			PUSH(v);
+			if(numarg > 0) {
+				memcpy(fiber->stackTop, args, sizeof(Value) * numarg);
+			}
+			fiber->stackTop += numarg;
+			// execute
+			Value res = f->func(&fiber->stackTop[-numarg - 1]);
+			// decrement the top back to previous position
+			fiber->stackTop -= (numarg + 1);
 			// if we need to return, go back
 			if(returnToCaller)
 				return res;
 			else {
 				// push the value to the fiber, and continue
-				Fiber *fiber = currentFiber;
 				PUSH(v);
 				break;
 			}
@@ -274,6 +287,10 @@ Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
 			break;
 	}
 	return execute(currentFiber);
+}
+
+Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
+	return execute(v, f, NULL, 0, returnToCaller);
 }
 
 Value ExecutionEngine::execute(BoundMethod *b, bool returnToCaller) {
