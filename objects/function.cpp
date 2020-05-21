@@ -2,7 +2,7 @@
 #include "bytecode.h"
 #include "class.h"
 
-Function *Function::from(String *str, int arity, next_builtin_fn fn,
+Function *Function::from(String *str, int arity, next_builtin_fn fn, bool isva,
                          bool isStatic) {
 	Function *f      = GcObject::allocFunction();
 	f->name          = str;
@@ -11,15 +11,16 @@ Function *Function::from(String *str, int arity, next_builtin_fn fn,
 	f->arity         = arity;
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
+	f->varArg        = isva;
 	return f;
 }
 
 Function *Function::from(const char *str, int arity, next_builtin_fn fn,
-                         bool isStatic) {
-	return from(String::from(str), arity, fn, isStatic);
+                         bool isva, bool isStatic) {
+	return from(String::from(str), arity, fn, isva, isStatic);
 }
 
-Function *Function::create(String *str, int arity, bool isStatic) {
+Function *Function::create(String *str, int arity, bool isva, bool isStatic) {
 	Function *f      = GcObject::allocFunction();
 	f->name          = str;
 	f->code          = NULL;
@@ -27,6 +28,7 @@ Function *Function::create(String *str, int arity, bool isStatic) {
 	f->arity         = arity;
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
+	f->varArg        = isva;
 	return f;
 }
 

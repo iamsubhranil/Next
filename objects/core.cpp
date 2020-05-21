@@ -5,6 +5,7 @@
 #include "class.h"
 #include "classcompilationctx.h"
 #include "functioncompilationctx.h"
+#include <iostream>
 
 Value next_core_clock(const Value *args, int numargs) {
 	(void)numargs;
@@ -26,6 +27,26 @@ Value next_core_is_same_type(const Value *args, int numargs) {
 	return Value(args[1].getClass() == args[2].getClass());
 }
 
+Value next_core_print(const Value *args, int numargs) {
+	for(int i = 1; i < numargs; i++) {
+		std::cout << String::toString(args[i])->str;
+	}
+	return ValueNil;
+}
+
+void addBoundMethodVa(const char *name, int arity, next_builtin_fn builtin_fn) {
+	String *                 n  = String::from(name);
+	Function *               fn = Function::from(n, arity, builtin_fn, true);
+	ClassCompilationContext *CoreCtx = GcObject::CoreContext;
+	CoreCtx->defaultConstructor->bcc->load_slot(0);
+	CoreCtx->defaultConstructor->bcc->push(Value(fn));
+	CoreCtx->defaultConstructor->bcc->bind_method();
+	CoreCtx->add_public_mem(n);
+	CoreCtx->defaultConstructor->bcc->store_object_slot(
+	    CoreCtx->get_mem_slot(n));
+	CoreCtx->defaultConstructor->bcc->pop();
+}
+
 void Core::addCoreFunctions() {
 	ClassCompilationContext *CoreCtx = GcObject::CoreContext;
 
@@ -36,6 +57,8 @@ void Core::addCoreFunctions() {
 	CoreCtx->add_public_fn(
 	    String::from("is_same_type(_,_)"),
 	    Function::from("is_same_type(_,_)", 2, next_core_is_same_type));
+
+	addBoundMethodVa("print", 0, next_core_print);
 }
 
 void addClocksPerSec() {

@@ -49,8 +49,6 @@ OPCODE0(lesseq, -1)
 OPCODE0(greater, -1)
 OPCODE0(greatereq, -1)
 
-OPCODE0(print, -1)
-
 // Pushes a Value to the stack
 OPCODE1(push, 1, Value)
 OPCODE0(pushn, 1)
@@ -147,6 +145,11 @@ OPCODE1(array_build, 0, int)
 // to the map
 OPCODE1(map_build, 0, int)
 
+// TOP - 1 contains objects/class*
+// TOP contains function*
+// Creates a new BoundMethod, and pushes
+// that back
+OPCODE0(bind_method, -1)
 #undef OPCODE0
 #undef OPCODE1
 #undef OPCODE2

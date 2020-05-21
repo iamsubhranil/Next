@@ -1169,18 +1169,6 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 	}
 }
 
-void CodeGenerator::visit(PrintStatement *ifs) {
-#ifdef DEBUG_CODEGEN
-	dinfo("");
-	ifs->token.highlight();
-#endif
-	for(auto i = ifs->exprs.begin(), j = ifs->exprs.end(); i != j; i++) {
-		(*i)->accept(this);
-		btx->insert_token(ifs->token);
-		btx->print();
-	}
-}
-
 void CodeGenerator::visit(ClassStatement *ifs) {
 #ifdef DEBUG_CODEGEN
 	dinfo("");

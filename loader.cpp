@@ -80,7 +80,6 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_while, new WhileStatementParselet());
 	p->registerParselet(TOKEN_do, new DoStatementParselet());
 	p->registerParselet(TOKEN_try, new TryStatementParselet());
-	p->registerParselet(TOKEN_print, new PrintStatementParselet());
 	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
 	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
 	p->registerParselet(TOKEN_for, new ForStatementParselet());

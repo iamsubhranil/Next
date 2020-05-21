@@ -11,11 +11,7 @@ void BoundMethod::init() {
 
 void BoundMethod::mark() {
 	GcObject::mark(func);
-	switch(type) {
-		case MODULE_BOUND:
-		case OBJECT_BOUND: GcObject::mark(obj); break;
-		case CLASS_BOUND: GcObject::mark(cls); break;
-	}
+	GcObject::mark(binder);
 }
 
 BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
@@ -26,13 +22,17 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 	// function is static
 	if(type == CLASS_BOUND)
 		arity += 1 - func->isStatic();
-	if(arity != effective_arity) {
+	// for a vararg function, at least arity number of arguments
+	// must be present.
+	if((func->isVarArg() && arity < effective_arity) ||
+	   (!func->isVarArg() && arity != effective_arity)) {
 		RuntimeError::sete("Invalid arity given to the bound function!");
 		return MISMATCHED_ARITY;
 	}
 	// if the function is class bound, verify the first
 	// argument
 	if(type == CLASS_BOUND) {
+		Class *cls = binder.toClass();
 		if(args[0].toGcObject()->klass != cls) {
 			TypeError::sete(cls->name, func->name, cls->name, args[0], 1);
 			return INVALID_CLASS_INSTANCE;
@@ -43,7 +43,7 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 
 BoundMethod *BoundMethod::from(Function *f, Class *c) {
 	BoundMethod *b = GcObject::allocBoundMethod();
-	b->cls         = c;
+	b->binder      = Value(c);
 	b->func        = f;
 	b->type        = CLASS_BOUND;
 	return b;
@@ -51,7 +51,15 @@ BoundMethod *BoundMethod::from(Function *f, Class *c) {
 
 BoundMethod *BoundMethod::from(Function *f, Object *o, Type t) {
 	BoundMethod *b = GcObject::allocBoundMethod();
-	b->obj         = o;
+	b->binder      = Value(o);
+	b->func        = f;
+	b->type        = t;
+	return b;
+}
+
+BoundMethod *BoundMethod::from(Function *f, Value v, Type t) {
+	BoundMethod *b = GcObject::allocBoundMethod();
+	b->binder      = v;
 	b->func        = f;
 	b->type        = t;
 	return b;

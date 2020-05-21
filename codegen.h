@@ -97,7 +97,6 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(VardeclStatement *ifs);
 	void visit(MemberVariableStatement *ifs);
 	void visit(VisibilityStatement *ifs);
-	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);

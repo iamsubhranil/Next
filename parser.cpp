@@ -380,17 +380,6 @@ StmtPtr TryStatementParselet::parse(Parser *p, Token t) {
 	return unq(TryStatement, t, tryBlock, catchBlocks);
 }
 
-StmtPtr PrintStatementParselet::parse(Parser *p, Token t) {
-	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after print!");
-	std::vector<ExpPtr> exprs;
-	exprs.push_back(p->parseExpression());
-	while(p->match(TOKEN_COMMA)) {
-		exprs.push_back(p->parseExpression());
-	}
-	p->consume(TOKEN_RIGHT_PAREN, "Expected ')' after print arguments!");
-	return unq(PrintStatement, t, exprs);
-}
-
 StmtPtr ThrowStatementParselet::parse(Parser *p, Token t) {
 	ExpPtr th = p->parseExpression();
 	return unq(ThrowStatement, t, th);

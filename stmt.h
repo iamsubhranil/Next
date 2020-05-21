@@ -16,7 +16,6 @@ class ExpressionStatement;
 class VardeclStatement;
 class MemberVariableStatement;
 class VisibilityStatement;
-class PrintStatement;
 class ThrowStatement;
 class ReturnStatement;
 class ForStatement;
@@ -36,7 +35,6 @@ class StatementVisitor {
 	virtual void visit(VardeclStatement *ifs)        = 0;
 	virtual void visit(MemberVariableStatement *ifs) = 0;
 	virtual void visit(VisibilityStatement *ifs)     = 0;
-	virtual void visit(PrintStatement *ifs)          = 0;
 	virtual void visit(ThrowStatement *ifs)          = 0;
 	virtual void visit(ReturnStatement *ifs)         = 0;
 	virtual void visit(ForStatement *ifs)            = 0;
@@ -229,17 +227,6 @@ class ExpressionStatement : public Statement {
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
-class PrintStatement : public Statement {
-  public:
-	std::vector<ExpPtr> exprs;
-	PrintStatement(Token t, std::vector<ExpPtr> &e) : Statement(t, PRINT) {
-		for(auto i = e.begin(), j = e.end(); i != j; i++) {
-			exprs.push_back(ExpPtr(i->release()));
-		}
-	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
 class ThrowStatement : public Statement {
   public:
 	ExpPtr expr;
@@ -302,7 +289,6 @@ class StatementPrinter : public StatementVisitor {
 	void visit(VardeclStatement *ifs);
 	void visit(MemberVariableStatement *ifs);
 	void visit(VisibilityStatement *ifs);
-	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);

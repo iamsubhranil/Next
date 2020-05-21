@@ -475,7 +475,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				std::cout << " |> ";
 			else
 				std::cout << " | ";
-			std::cout << presentFrame->stack_[i];
+			Bytecode::disassemble_Value(
+			    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
 		}
 		std::cout << " | \n";
 		Bytecode::disassemble(
@@ -601,12 +602,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
-			CASE(print) : {
-				Value v = POP();
-				std::cout << String::toString(v)->str;
-				DISPATCH();
-			}
-
 			CASE(call) : {
 				int frame         = next_int();
 				numberOfArguments = next_int();
@@ -645,8 +640,35 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 						goto performcall;
 					}
 					case GcObject::OBJ_BoundMethod: {
-						RERRF("BoundMethod dispatch not yet implemented!");
 						BoundMethod *b = v.toBoundMethod();
+						// verify the arguments
+						if(b->verify(&fiber->stackTop[-numberOfArguments],
+						             numberOfArguments) !=
+						   BoundMethod::Status::OK) {
+							goto error;
+						}
+						// we have already allocated one slot for the
+						// receiver before the arguments started.
+						// but if this is class bound call, we don't
+						// need that anymore, as the object has already
+						// been passed as the first argument. so move
+						// them back
+						switch(b->type) {
+							case BoundMethod::CLASS_BOUND: {
+								for(int i = -numberOfArguments - 1; i < 0; i++)
+									fiber->stackTop[i] = fiber->stackTop[i + 1];
+								fiber->stackTop--;
+								// we also decrement numberOfArguments to denote
+								// actual argument count minus the instance
+								numberOfArguments--;
+								break;
+							}
+							default:
+								// otherwise, we store the object at slot 0
+								fiber->stackTop[-numberOfArguments - 1] =
+								    b->binder;
+								break;
+						}
 						functionToCall = b->func;
 						goto performcall;
 					}
@@ -667,7 +689,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					BACKUP_FRAMEINFO();
 					Value res = functionToCall->func(
 					    &fiber->stackTop[-numberOfArguments - 1],
-					    numberOfArguments);
+					    numberOfArguments + 1); // include the receiver
 					fiber->stackTop -= (numberOfArguments + 1);
 					RESTORE_FRAMEINFO();
 					if(pendingException != ValueNil) {
@@ -919,6 +941,20 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
+			CASE(bind_method) : {
+				// pop the function
+				Function *f = POP().toFunction();
+				// peek the binder
+				Value             v = TOP;
+				BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
+				// if the top is a class, it is going to be class bound
+				if(v.isClass())
+					t = BoundMethod::CLASS_BOUND;
+				BoundMethod *b = BoundMethod::from(f, v, t);
+				TOP            = Value(b);
+				DISPATCH();
+			}
+
 			CASE(construct) : {
 				Class * c = next_value().toClass();
 				Object *o = GcObject::allocObject(c);
@@ -945,7 +981,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_map_build) {
+				if(code > Bytecode::CODE_bind_method) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",

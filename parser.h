@@ -196,11 +196,6 @@ class CatchStatementParselet : public StatementParselet {
 	StmtPtr parse(Parser *p, Token t);
 };
 
-class PrintStatementParselet : public StatementParselet {
-  public:
-	StmtPtr parse(Parser *p, Token t);
-};
-
 class ThrowStatementParselet : public StatementParselet {
   public:
 	StmtPtr parse(Parser *p, Token t);
