@@ -42,8 +42,3 @@ void ArrayIterator::init() {
 	                                   next_array_iterator_construct_1);
 	ArrayIteratorClass->add_builtin_fn("next()", 0, next_array_iterator_next);
 }
-
-std::ostream &operator<<(std::ostream &o, const ArrayIterator &a) {
-	(void)a;
-	return o << "<array_iterator object>";
-}

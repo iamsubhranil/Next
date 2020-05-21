@@ -98,8 +98,3 @@ void Range::init() {
 	RangeClass->add_builtin_fn("iterate()", 0, next_range_iterate);
 	RangeClass->add_builtin_fn("next()", 0, next_range_next);
 }
-
-std::ostream &operator<<(std::ostream &o, const Range &r) {
-	(void)r;
-	return o << "<range object>";
-}

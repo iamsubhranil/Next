@@ -152,38 +152,13 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	const Class *c = v.getClass();
 
 	std::cout << "\n";
-	// no handlers matched, unwind stack
 	if(c->module != NULL) {
 		err("Uncaught exception occurred of type '%s.%s': ",
 		    c->module->name->str, c->name->str);
 	} else {
 		err("Uncaught exception occurred of type '%s': ", c->name->str);
 	}
-	if(v.isGcObject()) {
-		// if it's an exception, there is a message
-		switch(v.toGcObject()->objType) {
-			case GcObject::OBJ_RuntimeError:
-			case GcObject::OBJ_TypeError:
-			case GcObject::OBJ_IndexError:
-				Error::print_error(v.toGcObject(), std::cout);
-				break;
-			default:
-				// if there is a public member named 'str',
-				// print it
-				if(c->has_fn(SymbolTable2::const_str)) {
-					int slot = c->get_fn(String::const_str).toInteger();
-					std::cout << v.toObject()->slots[slot];
-				} else {
-					// otherwise, print the object
-					std::cout << v;
-				}
-				break;
-		}
-	} else {
-		// otherwise, print the object
-		std::cout << v;
-	}
-	std::cout << "\n";
+	std::cout << String::toString(v)->str << "\n";
 	printStackTrace(f);
 }
 
@@ -254,7 +229,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			if(!v.isClass()) {
 				printException(thrown, root);
 				std::cout << "Error occurred while catching an exception!\n";
-				std::cout << "The caught type '" << v
+				std::cout << "The caught value '" << String::toString(v)->str
 				          << "' is not a valid class!\n";
 				// pop all but the matched frame
 				while(f->getCurrentFrame() != matched) {
@@ -610,31 +585,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(print) : {
-				Value v = TOP;
-				// if this is not a number/bool/nil/string and its class
-				// provides an str(), call it
-				if(!v.isGcObject() || v.isString()) {
-					POP();
-					std::cout << v;
-					DISPATCH();
-				}
-				if(v.getClass()->has_fn(SymbolTable2::const_sig_str)) {
-					// we perform a method call here.
-					// if whatever str() returns has its
-					// own str(), this will continue,
-					// because this frame will pause
-					// on print since we decrement
-					// InstructionPointer here
-					InstructionPointer--;
-					functionToCall = v.getClass()
-					                     ->get_fn(SymbolTable2::const_sig_str)
-					                     .toFunction();
-					numberOfArguments = 0;
-					goto performcall;
-				}
-				// otherwise, just POP the value and print it already
-				POP();
-				std::cout << v;
+				Value v = POP();
+				std::cout << String::toString(v)->str;
 				DISPATCH();
 			}
 

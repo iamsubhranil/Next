@@ -131,7 +131,3 @@ void ValueMap::mark() {
 void ValueMap::release() {
 	vv.~HashMap<Value, Value>();
 }
-
-std::ostream &operator<<(std::ostream &o, const ValueMap &a) {
-	return o << "<map of size " << a.vv.size() << ">";
-}

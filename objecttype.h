@@ -26,7 +26,7 @@ OBJTYPE(ArrayIterator, ArrayIterator)
 OBJTYPE(TypeError, TypeError)
 OBJTYPE(RuntimeError, RuntimeError)
 OBJTYPE(IndexError, IndexError)
-
+OBJTYPE(FormatError, FormatError)
 // A fiber is also a collectable gc object
 // When a fiber is not marked by the engine,
 // the gc is free to collect it.

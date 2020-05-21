@@ -10,6 +10,4 @@ struct ArrayIterator {
 	static void init();
 	void        mark() {}
 	void        release() {}
-
-	friend std::ostream &operator<<(std::ostream &os, const ArrayIterator &a);
 };

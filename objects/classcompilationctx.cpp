@@ -194,32 +194,27 @@ void ClassCompilationContext::finalize() {
 
 void ClassCompilationContext::disassemble(std::ostream &o) {
 	if(moduleContext == NULL) {
-		o << "Module: " << klass->name[0] << "\n";
+		o << "Module: " << klass->name->str << "\n";
 	} else {
-		o << "Class: " << klass->name[0] << "\n";
+		o << "Class: " << klass->name->str << "\n";
 	}
 	o << "Members: ";
 	for(auto &a : members->vv) {
-		o << a.first.toString()[0] << "(" << a.second.toNumber() << "), ";
+		o << a.first.toString()->str << "(" << a.second.toNumber() << "), ";
 	}
 	o << "\n";
 	o << "Functions: " << fctxMap->vv.size() << "\n";
 	size_t i = 0;
 	for(auto &a : fctxMap->vv) {
-		o << "\nFunction #" << i++ << ": " << a.first.toString()[0] << "\n";
+		o << "\nFunction #" << i++ << ": " << a.first.toString()->str << "\n";
 		a.second.toFunctionCompilationContext()->disassemble(o);
 	}
 	if(cctxMap != NULL) {
 		o << "\nClasses: " << cctxMap->vv.size() << "\n";
 		i = 0;
 		for(auto &a : cctxMap->vv) {
-			o << "\nClass #" << i++ << ": " << a.first.toString()[0] << "\n";
+			o << "\nClass #" << i++ << ": " << a.first.toString()->str << "\n";
 			a.second.toClassCompilationContext()->disassemble(o);
 		}
 	}
-}
-
-std::ostream &operator<<(std::ostream &o, const ClassCompilationContext &a) {
-	(void)a;
-	return o << "<classcompilationcontext object>";
 }

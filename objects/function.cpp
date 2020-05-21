@@ -106,7 +106,7 @@ void Function::init() {
 }
 
 void Function::disassemble(std::ostream &o) {
-	o << "Name: " << name[0] << "\n";
+	o << "Name: " << name->str << "\n";
 	o << "Arity: " << arity << "\n";
 	Type t = getType();
 	o << "Type: ";
@@ -140,8 +140,4 @@ void Function::disassemble(std::ostream &o) {
 			code->disassemble(o);
 			break;
 	}
-};
-
-std::ostream &operator<<(std::ostream &o, const Function &a) {
-	return o << "<function '" << a.name->str << "'>";
 }

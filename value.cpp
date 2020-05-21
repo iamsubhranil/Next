@@ -10,24 +10,6 @@ String *Value::ValueTypeStrings[] = {
 #include "valuetypes.h"
 };
 
-std::ostream &operator<<(std::ostream &o, const Value &v) {
-	switch(v.getType()) {
-		case Value::VAL_Number:
-			return o << std::setprecision(14) << v.toNumber()
-			         << std::setprecision(6);
-
-		case Value::VAL_Boolean: return o << (v.toBoolean() ? "true" : "false");
-		case Value::VAL_NIL: return o << "nil";
-		default: {
-			if(v.isGcObject()) {
-				return o << v.toGcObject()[0];
-			} else
-				panic("<unrecognized object %lx>", v.value);
-			break;
-		}
-	}
-}
-
 void Value::init() {
 	int i = 0;
 

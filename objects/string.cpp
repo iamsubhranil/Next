@@ -1,8 +1,10 @@
 #include "string.h"
+#include "../engine.h"
 #include "../value.h"
 #include "class.h"
 #include "errors.h"
 #include "set.h"
+#include "symtab.h"
 
 StringSet *String::string_set = nullptr;
 StringSet *String::keep_set   = nullptr;
@@ -273,13 +275,39 @@ String *String::append(const String *s1, const String *s2) {
 	return append(s1->str, s1->size, s2->str, s2->size);
 }
 
+String *String::append(const String *s1, const char *val2, size_t size2) {
+	return append(s1->str, s1->size, val2, size2);
+}
+
+String *String::toString(Value v) {
+	while(true) {
+		if(v.isString())
+			return v.toString();
+		switch(v.getType()) {
+			case Value::VAL_NIL: return const_nil;
+			case Value::VAL_Boolean:
+				if(v.toBoolean())
+					return const_true_;
+				return const_false_;
+			default: break;
+		}
+		// run str() if it does have, otherwise return default string
+		const Class *c = v.getClass();
+		if(c->has_fn(SymbolTable2::const_sig_str)) {
+			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
+			v           = ExecutionEngine::execute(v, f, true);
+		} else {
+			String *s = append("<object of '", c->name);
+			s         = append(s, "'>");
+			return s;
+		}
+	}
+	return v.toString();
+}
+
 void String::release() {
 	string_set->hset.erase(this);
 	GcObject_free(str, size + 1);
-}
-
-std::ostream &operator<<(std::ostream &o, const String &a) {
-	return o << a.str;
 }
 
 StringSet *StringSet::create() {

@@ -24,9 +24,6 @@ struct TypeError {
 	static void init();
 	void        mark();
 	void        release() {}
-
-	void                 print(std::ostream &o);
-	friend std::ostream &operator<<(std::ostream &o, const TypeError &v);
 };
 
 struct RuntimeError {
@@ -41,9 +38,6 @@ struct RuntimeError {
 	static void init();
 	void        mark();
 	void        release() {}
-
-	void                 print(std::ostream &o);
-	friend std::ostream &operator<<(std::ostream &o, const RuntimeError &v);
 };
 
 struct IndexError {
@@ -59,15 +53,20 @@ struct IndexError {
 	static void init();
 	void        mark();
 	void        release() {}
-
-	void print(std::ostream &o);
-
-	friend std::ostream &operator<<(std::ostream &o, const IndexError &v);
 };
 
-struct Error {
-	// calls print on specific exceptions
-	static void print_error(GcObject *g, std::ostream &o);
+struct FormatError {
+	GcObject obj;
+
+	String *message;
+
+	static FormatError *create(String *msg);
+	static Value        sete(String *msg);
+	static Value        sete(const char *msg);
+
+	static void init();
+	void        mark();
+	void        release() {}
 };
 
 #define RERR(x) return RuntimeError::sete(x);

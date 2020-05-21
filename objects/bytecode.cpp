@@ -1,6 +1,7 @@
 #include "bytecode.h"
 #include "array.h"
 #include "class.h"
+#include "string.h"
 
 #include <iomanip>
 
@@ -110,7 +111,35 @@ void Bytecode::disassemble_int(std::ostream &os, const Opcode *o) {
 }
 
 void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
-	os << " " << *(Value *)o;
+	Value v = *(Value *)o;
+	os << " ";
+	switch(v.getType()) {
+		case Value::VAL_NIL: os << "nil"; break;
+		case Value::VAL_Boolean:
+			if(v.toBoolean())
+				os << "true";
+			else
+				os << "false";
+			break;
+		case Value::VAL_Number:
+			os << std::setprecision(16) << v.toNumber() << std::setprecision(6);
+			break;
+		case Value::VAL_GcObject: {
+			GcObject *o = v.toGcObject();
+			if(v.isString()) {
+				os << v.toString()->str;
+				return;
+			}
+			switch(o->objType) {
+#define OBJTYPE(n, r)                       \
+	case GcObject::OBJ_##n:                 \
+		os << "<" << #n << "@" << o << ">"; \
+		break;
+#include "../objecttype.h"
+				case GcObject::OBJ_NONE: os << "NONE (THIS IS AN ERROR)"; break;
+			}
+		}
+	}
 }
 
 void Bytecode::disassemble(std::ostream &o) {

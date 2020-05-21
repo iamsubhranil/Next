@@ -131,6 +131,4 @@ struct GcObject {
 	static size_t GcCounters[];
 	static void   print_stat();
 #endif
-
-	friend std::ostream &operator<<(std::ostream &o, const GcObject &v);
 };

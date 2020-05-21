@@ -357,15 +357,3 @@ void GcObject::print_stat() {
 	     << endl;
 }
 #endif
-
-std::ostream &operator<<(std::ostream &o, const GcObject &g) {
-	switch(g.objType) {
-// clang-format off
-// It somehow automatically making the include line a part of the macro
-#define OBJTYPE(n, r)                               \
-	case GcObject::OBJ_##n: return o << ((const r *)&g)[0]; 
-#include "objecttype.h"
-			// clang-format on
-		default: panic("Invalid GcObject!"); break;
-	}
-}

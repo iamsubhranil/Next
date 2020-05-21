@@ -69,17 +69,6 @@ void TypeError::mark() {
 	GcObject::mark(received);
 }
 
-void TypeError::print(std::ostream &o) {
-	o << "Expected argument " << argumentNumber << " of method " << ontype->str
-	  << "." << method->str << "() to be '" << expected->str << "'! Received '"
-	  << received << "'!";
-}
-
-std::ostream &operator<<(std::ostream &o, const TypeError &a) {
-	(void)a;
-	return o << "<type_error object>";
-}
-
 RuntimeError *RuntimeError::create(String *m) {
 	RuntimeError *re = GcObject::allocRuntimeError();
 	re->message      = m;
@@ -109,15 +98,6 @@ void RuntimeError::init() {
 
 void RuntimeError::mark() {
 	GcObject::mark(message);
-}
-
-void RuntimeError::print(std::ostream &o) {
-	o << message->str;
-}
-
-std::ostream &operator<<(std::ostream &o, const RuntimeError &a) {
-	(void)a;
-	return o << "<runtime_error object>";
 }
 
 IndexError *IndexError::create(String *m, long l, long h, long r) {
@@ -164,21 +144,33 @@ void IndexError::mark() {
 	GcObject::mark(message);
 }
 
-void IndexError::print(std::ostream &o) {
-	o << "Index should be between " << low << " <= index <= " << hi
-	  << ". Received " << received << "!";
+FormatError *FormatError::create(String *m) {
+	FormatError *re = GcObject::allocFormatError();
+	re->message     = m;
+	return re;
 }
 
-std::ostream &operator<<(std::ostream &o, const IndexError &a) {
-	(void)a;
-	return o << "<index_error object>";
+Value FormatError::sete(String *m) {
+	ExecutionEngine::setPendingException(create(m));
+	return ValueNil;
 }
 
-void Error::print_error(GcObject *o, std::ostream &os) {
-	switch(o->objType) {
-		case GcObject::OBJ_RuntimeError: ((RuntimeError *)o)->print(os); break;
-		case GcObject::OBJ_IndexError: ((IndexError *)o)->print(os); break;
-		case GcObject::OBJ_TypeError: ((TypeError *)o)->print(os); break;
-		default: break;
-	}
+Value FormatError::sete(const char *m) {
+	return sete(String::from(m));
+}
+
+Value next_formaterror_str(const Value *args) {
+	return Value(args[0].toFormatError()->message);
+}
+
+void FormatError::init() {
+	Class *FormatErrorClass = GcObject::FormatErrorClass;
+
+	FormatErrorClass->init("format_error", Class::ClassType::BUILTIN);
+
+	FormatErrorClass->add_builtin_fn("str()", 0, next_formaterror_str);
+}
+
+void FormatError::mark() {
+	GcObject::mark(message);
 }

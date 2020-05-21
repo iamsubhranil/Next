@@ -27,6 +27,4 @@ struct BoundMethod {
 	// gc functions
 	void release() {}
 	void mark();
-
-	friend std::ostream &operator<<(std::ostream &o, const BoundMethod &v);
 };

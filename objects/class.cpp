@@ -123,7 +123,3 @@ void Class::init() {
 	ClassClass->add_builtin_fn("get_fn(_)", 1, next_class_get_fn);
 	ClassClass->add_builtin_fn("name()", 0, next_class_name);
 }
-
-std::ostream &operator<<(std::ostream &o, const Class &a) {
-	return o << "<class '" << a.name->str << "'>";
-}

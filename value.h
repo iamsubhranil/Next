@@ -98,8 +98,6 @@ struct Value {
 #include "valuetypes.h"
 	inline void setNumber(double v) { dvalue = v; }
 
-	friend std::ostream &operator<<(std::ostream &o, const Value &v);
-
 #define TYPE(r, n)                        \
 	inline Value &operator=(const r &d) { \
 		encode##n(d);                     \

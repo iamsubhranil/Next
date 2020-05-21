@@ -135,7 +135,3 @@ void Array::init() {
 	ArrayClass->add_builtin_fn("[](_,_)", 2, &next_array_set);
 	ArrayClass->add_builtin_fn("size()", 0, &next_array_size);
 }
-
-std::ostream &operator<<(std::ostream &o, const Array &a) {
-	return o << "<array of size " << a.size << ">";
-}

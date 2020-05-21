@@ -25,6 +25,4 @@ struct Array {
 	// gc functions
 	void release();
 	void mark();
-
-	friend std::ostream &operator<<(std::ostream &o, const Array &v);
 };

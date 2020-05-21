@@ -19,7 +19,3 @@ void Object::mark() {
 void Object::release() {
 	GcObject_free(slots, sizeof(Value) * obj.klass->numSlots);
 }
-
-std::ostream &operator<<(std::ostream &o, const Object &a) {
-	return o << "<object of '" << a.obj.klass->name->str << "'>";
-}

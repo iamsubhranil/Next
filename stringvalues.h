@@ -20,6 +20,7 @@ SCONSTANT(false_, "false")
 SCONSTANT(GcObject, "GcObject")
 SCONSTANT(Boolean, "Boolean")
 SCONSTANT(str, "str")
+SCONSTANT(nil, "nil")
 #define TYPE(r, n) SCONSTANT(type_##n, #n)
 #include "valuetypes.h"
 
@@ -44,6 +45,7 @@ SCONSTANT(sig_subscript_set, "[](_,_)")
 SCONSTANT(sig_pow, "^(_)")
 SCONSTANT(sig_hash, "hash()")
 SCONSTANT(sig_str, "str()")
+SCONSTANT(sig_fmt, "fmt(_)")
 
 SYMCONSTANT(sig_add)
 SYMCONSTANT(sig_sub)
@@ -64,5 +66,6 @@ SYMCONSTANT(sig_constructor_0)
 SYMCONSTANT(str)
 SYMCONSTANT(sig_hash)
 SYMCONSTANT(sig_str)
+SYMCONSTANT(sig_fmt)
 #undef SCONSTANT
 #undef SYMCONSTANT

@@ -11,6 +11,4 @@ struct Range {
 	static void init();
 	void        mark() {}
 	void        release() {}
-
-	friend std::ostream &operator<<(std::ostream &o, const Range &r);
 };

@@ -128,10 +128,9 @@ struct Bytecode {
 
 	void disassemble(std::ostream &o);
 
-	static void          disassemble_int(std::ostream &os, const Opcode *o);
-	static void          disassemble_Value(std::ostream &os, const Opcode *o);
-	static void          disassemble(std::ostream &os, const Opcode *o,
-	                                 size_t *ip = NULL);
-	static const char *  OpcodeNames[];
-	friend std::ostream &operator<<(std::ostream &o, const Bytecode &v);
+	static void        disassemble_int(std::ostream &os, const Opcode *o);
+	static void        disassemble_Value(std::ostream &os, const Opcode *o);
+	static void        disassemble(std::ostream &os, const Opcode *o,
+	                               size_t *ip = NULL);
+	static const char *OpcodeNames[];
 };

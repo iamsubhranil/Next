@@ -43,20 +43,22 @@ struct String {
 	static String *   append(const char *val1, const String *val2);
 	static String *   append(const String *val1, const char *val2);
 	static String *   append(const String *val1, const String *val2);
-	static int        hash_string(const char *val, size_t size);
+	static String *append(const String *val1, const char *val2, size_t size2);
+	static int     hash_string(const char *val, size_t size);
 	// removes a value from the keep_set
 	static void unkeep(String *s);
 	// various string transformation functions
 	static void transform_lower(char *dest, const char *source, size_t size);
 	static void transform_upper(char *dest, const char *source, size_t size);
 
+	// converts a value to a string
+	static String *toString(Value v);
+
 	// release all
 	static void release_all();
 
 #define SCONSTANT(n, s) static String *const_##n;
 #include "../stringvalues.h"
-
-	friend std::ostream &operator<<(std::ostream &o, const String &v);
 
 	// mark the keep set
 	static void keep();

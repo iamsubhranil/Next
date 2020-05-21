@@ -9,7 +9,7 @@ Value next_number_to_str(const Value *args) {
 	// from
 	// https://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
 	static char val[1079];
-	snprintf(val, 1079, "%lf", args[0].toNumber());
+	snprintf(val, 1079, "%0.14g", args[0].toNumber());
 	return Value(String::from(val));
 }
 
