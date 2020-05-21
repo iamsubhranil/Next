@@ -30,14 +30,6 @@ Function *Function::create(String *str, int arity, bool isStatic) {
 	return f;
 }
 
-Function::Type Function::getType() {
-	return (Type)(mode & 0x0f);
-}
-
-bool Function::isStatic() {
-	return (bool)(mode & 0xf0);
-}
-
 Exception *Function::create_exception_block(int from, int to) {
 	for(size_t i = 0; i < numExceptions; i++) {
 		if(exceptions[i].from == from && exceptions[i].to == to)

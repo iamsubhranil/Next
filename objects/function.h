@@ -42,8 +42,11 @@ struct Function {
 	              // BUILTIN -> 1
 
 	enum Type : uint8_t { METHOD = 0, BUILTIN = 1 };
-	Type getType();
-	bool isStatic();
+
+	Function::Type getType() { return (Type)(mode & 0x0f); }
+
+	bool isStatic() { return (bool)(mode & 0xf0); }
+
 	// will traverse the whole exceptions array, and
 	// return an existing one if and only if it matches
 	// the from and to exactly. otherwise, it will create
