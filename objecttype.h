@@ -22,6 +22,7 @@ OBJTYPE(ValueMap, ValueMap)
 OBJTYPE(ValueSet, ValueSet)
 OBJTYPE(Range, Range)
 OBJTYPE(ArrayIterator, ArrayIterator)
+OBJTYPE(FormatSpec, FormatSpec)
 // Exceptions
 OBJTYPE(TypeError, TypeError)
 OBJTYPE(RuntimeError, RuntimeError)

@@ -13,6 +13,7 @@
 #include "objects/core.h"
 #include "objects/errors.h"
 #include "objects/fiber.h"
+#include "objects/formatspec.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
 #include "objects/map.h"
