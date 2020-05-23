@@ -352,6 +352,7 @@ def print_html():
 
 
 def main():
+  global NUM_TRIALS
   parser = argparse.ArgumentParser(description="Run the benchmarks")
   parser.add_argument("benchmark", nargs='?',
       default="all",
@@ -368,8 +369,12 @@ def main():
   parser.add_argument("--output-html",
       action="store_true",
       help="Output the results chart as HTML")
+  parser.add_argument("-n", "--numtrials",
+                      type=int, nargs=1, default=10)
 
   args = parser.parse_args()
+
+  NUM_TRIALS = args.numtrials[0]
 
   if args.generate_baseline:
     generate_baseline()
