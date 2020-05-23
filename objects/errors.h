@@ -76,3 +76,5 @@ struct FormatError {
 	if(!args[idx].is##type()) {                                     \
 		return TypeError::sete(#obj, #name, #type, args[idx], idx); \
 	}
+
+#define FERR(x) return FormatError::sete(x);

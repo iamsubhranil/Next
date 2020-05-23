@@ -3,6 +3,7 @@
 #include "../value.h"
 #include "class.h"
 #include "errors.h"
+#include "formatspec.h"
 #include "set.h"
 #include "symtab.h"
 
@@ -14,7 +15,9 @@ StringSet *String::keep_set   = nullptr;
 void String::init0() {
 	string_set = StringSet::create();
 	keep_set   = StringSet::create();
-#define SCONSTANT(n, s) String::const_##n = String::from(s);
+#define SCONSTANT(n, s)                  \
+	String::const_##n = String::from(s); \
+	keep_set->hset.insert(String::const_##n);
 #include "../stringvalues.h"
 }
 
@@ -85,6 +88,14 @@ Value next_string_contains(const Value *args, int numargs) {
 	return ValueTrue;
 }
 
+Value next_string_fmt(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(string, fmt, 1, FormatSpec);
+	String *    s = args[0].toString();
+	FormatSpec *f = args[1].toFormatSpec();
+	return String::fmt(f, s);
+}
+
 Value next_string_hash(const Value *args, int numargs) {
 	(void)numargs;
 	String *s = args[0].toString();
@@ -140,6 +151,7 @@ void String::init() {
 	StringClass->init("string", Class::BUILTIN);
 	StringClass->add_builtin_fn("append(_)", 1, &next_string_append);
 	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
+	StringClass->add_builtin_fn("fmt(_)", 1, &next_string_fmt);
 	StringClass->add_builtin_fn("hash()", 0, &next_string_hash);
 	StringClass->add_builtin_fn("len()", 0, &next_string_len);
 	StringClass->add_builtin_fn("lower()", 0, &next_string_lower);
@@ -148,6 +160,92 @@ void String::init() {
 	StringClass->add_builtin_fn("upper()", 0, &next_string_upper);
 	StringClass->add_builtin_fn("+(_)", 1, &next_string_append);
 	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
+}
+
+Value String::fmt(FormatSpec *f, char *s, int size) {
+
+	if(f->type != 0 && f->type != 's') {
+		FERR("Invalid type specifier for string!");
+	}
+	if(f->sign) {
+		FERR("Sign is invalid for string!");
+	}
+	if(f->isalt) {
+		FERR("'#' is invalid for string!");
+	}
+	if(f->signaware) {
+		FERR("'0' is invalid for string!");
+	}
+	int width     = size;
+	int precision = size;
+	if(f->width != -1) {
+		width = f->width;
+	}
+	if(f->precision != -1 && f->precision < precision) {
+		precision = f->precision;
+	}
+	char fill  = ' ';
+	char align = '<';
+	if(f->fill)
+		fill = f->fill;
+	if(f->align)
+		align = f->align;
+	if(width > precision) {
+		// if numfill > 0, we have space to fill
+		int numfill = width - precision;
+		// allocate a buffer of width bytes
+		char *buf  = (char *)GcObject_malloc(width + 1);
+		buf[width] = 0;
+		// if the string is left aligned, first fill
+		// 'precision' characters from string, then fill
+		// the rest with 'fill'
+		if(align == '<') {
+			for(int i = 0; i < precision; i++) {
+				buf[i] = s[i];
+			}
+			for(int i = precision; i < width; i++) {
+				buf[i] = fill;
+			}
+		} else if(align == '>') {
+			// if the string is right aligned, first fill
+			// 'numfill' characters with fill, then fill
+			// the 'precision' characters with string
+			for(int i = 0; i < numfill; i++) {
+				buf[i] = fill;
+			}
+			for(int i = numfill; i < width; i++) {
+				buf[i] = s[i - numfill];
+			}
+		} else {
+			// centered
+			// fill numfill/2 characters from the left
+			// precision from the string
+			// the rest from the right
+			int j = 0;
+			int k = numfill / 2;
+			for(int i = 0; i < k; i++) {
+				buf[j++] = fill;
+			}
+			for(int i = 0; i < precision; i++) {
+				buf[j++] = s[i];
+			}
+			for(int i = k; i < numfill; i++) {
+				buf[j++] = fill;
+			}
+		}
+		String *ret = String::from(buf, width);
+		// free the buffer
+		GcObject_free(buf, width + 1);
+		return ret;
+	} else if(precision < size) {
+		return String::from(s, precision);
+	}
+
+	return String::from(s, size);
+}
+
+Value String::fmt(FormatSpec *f, String *s) {
+	return fmt(f, s->str, s->size);
 }
 
 void String::transform_lower(char *dest, const char *source, size_t size) {

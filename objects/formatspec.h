@@ -1,6 +1,10 @@
+#pragma once
+
 #include "../gc.h"
 
 struct FormatSpec {
+	GcObject obj;
+
 	char align, fill, sign, type;
 	bool isalt, signaware;
 	int  width, precision;

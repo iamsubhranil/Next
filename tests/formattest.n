@@ -1,0 +1,23 @@
+fn expect(res, val) {
+    if(res != val) {
+        print("[Error] Expected '", res, "', Received '",val, "'!\n")
+    } else {
+        print("[Passed] '", res, "' = '", val, "'!\n")
+    }
+}
+
+expect("42", fmt("{0}", 42))
+expect("before 42", fmt("before {0}", 42))
+expect("42 after", fmt("{0} after", 42))
+expect("before 42 after", fmt("before {0} after", 42))
+expect("answer = 42", fmt("{0} = {1}", "answer", 42))
+expect("42 is the answer", fmt("{1} is the {0}", "answer", 42))
+expect("abracadabra", fmt("{0}{1}{0}", "abra", "cad"))
+
+expect("42  ", fmt("{0:<4}", 42))
+expect("-42  ", fmt("{0:<5}", -42))
+expect("abc  ", fmt("{0:<5}", "abc"))
+
+expect("  42", fmt("{0:>4}", 42))
+expect("  -42", fmt("{0:>5}", -42))
+expect("  abc", fmt("{0:>5}", "abc"))

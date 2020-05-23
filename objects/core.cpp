@@ -1,4 +1,5 @@
 #include "core.h"
+#include "../format.h"
 #include "../gc.h"
 #include "../value.h"
 #include "bytecodecompilationctx.h"
@@ -34,6 +35,12 @@ Value next_core_print(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_core_format(const Value *args, int numargs) {
+	// format is used everywhere in Next, and it does
+	// expect the very first argument to be a string
+	return format_(&args[1], numargs - 1);
+}
+
 void addBoundMethodVa(const char *name, int arity, next_builtin_fn builtin_fn) {
 	String *                 n  = String::from(name);
 	Function *               fn = Function::from(n, arity, builtin_fn, true);
@@ -59,6 +66,7 @@ void Core::addCoreFunctions() {
 	    Function::from("is_same_type(_,_)", 2, next_core_is_same_type));
 
 	addBoundMethodVa("print", 0, next_core_print);
+	addBoundMethodVa("fmt", 1, next_core_format);
 }
 
 void addClocksPerSec() {

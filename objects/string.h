@@ -2,6 +2,7 @@
 
 #include "../gc.h"
 #include "../hashmap.h"
+#include "formatspec.h"
 #include <cstring>
 #include <string>
 
@@ -53,6 +54,9 @@ struct String {
 
 	// converts a value to a string
 	static String *toString(Value v);
+	// applies f on val
+	static Value fmt(FormatSpec *f, char *val, int size);
+	static Value fmt(FormatSpec *f, String *s);
 
 	// release all
 	static void release_all();
