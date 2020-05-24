@@ -48,29 +48,42 @@ void format_bin(FormatSpec *fs, Buffer<char> &buf, long value) {
 			break;
 	}
 	// bit count starts from 0
-	firstbit++; // 3
-	char   sign = getsign(fs->sign, isminus);
-	size_t size = firstbit + (sign != 0);
-	if(firstbit < to_unsigned(fs->width)) {
-		size = fs->width; // 12
+	firstbit++;
+	char sign = getsign(fs->sign, isminus);
+	// if this is alt format, we'll need 0b/0B in front
+	size_t signwidth = sign != 0;
+	size_t altwidth  = (fs->isalt * 2);
+	size_t size      = firstbit + signwidth + altwidth;
+	if(fs->width != -1 && firstbit < to_unsigned(fs->width)) {
+		size = fs->width;
 	}
 	buf.resize(size + 1);
 	char *data = buf.data();
-	char *end  = buf.data() + size; // start + 12
+	char *end  = buf.data() + size;
 	// if the alignment is not left and
 	// the signaware is off, pad the right
 	if(!fs->signaware && fs->align != '<') {
 		// fill the left with space
 		// leave one if sign is not empty
-		for(size_t j = size; j > (firstbit + (sign != 0)); j--) *data++ = ' ';
+		for(size_t j = size; j > (firstbit + signwidth + altwidth); j--)
+			*data++ = ' ';
 	}
 	// then place the sign
 	if(sign)
 		*data++ = sign;
+	// if this is an alternate form,
+	// place 0b/B
+	if(fs->isalt) {
+		*data++ = '0';
+		*data++ = 'b';
+		if(fs->type == 'B')
+			*(data - 1) = 'B';
+	}
 	// if this was a signaware fill, fill the rest
 	// with 0
 	if(fs->signaware) {
-		for(size_t j = size - (sign != 0); j > firstbit; j--) *data++ = '0';
+		for(size_t j = size - signwidth - altwidth; j > firstbit; j--)
+			*data++ = '0';
 	}
 	// now, fill the values
 	for(size_t j = firstbit; j > 0; j--)
