@@ -18,6 +18,7 @@ import hashmap
 import fortest
 import iterator
 import rangetest
+import formattest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -34,14 +35,28 @@ modules = {prepost: "Pre and post increment/decrements",
         hashmap: "Hashmaps",
         fortest: "For loops",
         iterator: "Iterators",
-        rangetest: "Ranges"}
+        rangetest: "Ranges",
+        formattest: "String formatting"}
+
+// find the maximum length
+len = 0
+for(v in modules.values()) {
+    if(v.len() > len) {
+        len = v.len()
+    }
+}
+
+print(fmt("{0:^{1}}\t\t{2:^12}\n", "Test", len, "Status"))
+print(fmt("{0:-^{1}}\t\t{0:-^12}\n", "-", len))
 
 for(k in modules.keys()) {
-    print("[Testing] ", modules[k], " -> ")
+    print(fmt("{0:^{1}}\t\t", modules[k], len))
     res = k.test()
+    resstr = ""
     if(res) {
-        print("PASSED\n")
+        resstr = "Passed"
     } else {
-        print("\n[FAILED] ", modules[k], "\n")
+        resstr = "Failed"
     }
+    print(fmt("{:^12}\n", resstr))
 }
