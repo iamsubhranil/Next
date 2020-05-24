@@ -258,11 +258,11 @@ Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
                                bool returnToCaller) {
 	// if this is built in function, don't bother
 	Fiber *fiber = currentFiber;
+	// we need to store the args somewhere where they can
+	// be tracked. storing them in the present fiber
+	// seems like a fine idea for now
 	switch(f->getType()) {
 		case Function::Type::BUILTIN: {
-			// we need to store the args somewhere where they can
-			// be tracked. storing them in the present fiber
-			// seems like a fine idea for now
 			fiber->ensureStack(numarg + 1);
 			PUSH(v);
 			if(numarg > 0) {
@@ -284,6 +284,12 @@ Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
 		}
 		case Function::Type::METHOD:
 			currentFiber->appendBoundMethodDirect(v, f, returnToCaller);
+			// push the arguments
+			if(numarg > 0) {
+				fiber->ensureStack(numarg);
+				memcpy(fiber->stackTop, args, sizeof(Value) * numarg);
+				fiber->stackTop += numarg;
+			}
 			break;
 	}
 	return execute(currentFiber);
