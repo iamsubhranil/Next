@@ -27,13 +27,14 @@
  *  int_type    ::=  "b" | "B" | "d" | "o" | "x" | "X"
  */
 
-String *append(String *res, String *source, char *start, char *end) {
+String *append(String *res, const char *source, const char *start,
+               const char *end) {
 	if(res == NULL) {
 		// we have not allocated a string yet
 		// if we've reached the end of source,
 		// we don't need to either
 		if(*end == 0)
-			return source;
+			return String::from(source);
 		// otherwise, we do
 		String *res = String::from(start, end - start);
 		return res;
@@ -60,9 +61,9 @@ int todigit(char c) {
 	return c - '0';
 }
 
-int next_int(char **val) {
-	int   res   = 0;
-	char *start = *val;
+int next_int(const char **val) {
+	int         res   = 0;
+	const char *start = *val;
 	while(*start && isdigit(*start)) {
 		int d = todigit(*start);
 		res *= 10;
@@ -73,17 +74,20 @@ int next_int(char **val) {
 	return res;
 }
 
-Value format_(const Value *args, int size) {
-	EXPECT(fmt, "fmt(str, ...)", 0, String);
-	String *source = args[0].toString();
-	String *res    = NULL;
+Value Formatter::fmt(const Value *args, int size) {
+	EXPECT(fmt, "fmt(_)", 0, String);
+	return fmt(args[0].toString()->str, &args[1], size - 1);
+}
+
+Value Formatter::fmt(const char *source, const Value *args, int size) {
+	String *res = NULL;
 
 	// arguments start from index 1
 	// ids start from 0
-	int   argid           = 0;
-	int   parsedArguments = 0;
-	char *start           = source->str;
-	char *end             = start;
+	int         argid           = 0;
+	int         parsedArguments = 0;
+	const char *start           = source;
+	const char *end             = start;
 	// argid, once given, cannot be omitted.
 	// so we force that using this flag
 	// -1 denotes the flag is unset
@@ -220,8 +224,7 @@ Value format_(const Value *args, int size) {
 						}
 					} else if(*end == '}') {
 						FERR("Expected width argument id since explicit "
-						     "argument ids "
-						     "are used!");
+						     "argument ids are used!");
 					} else {
 						FERR("Invalid character for width!");
 					}
@@ -246,8 +249,7 @@ Value format_(const Value *args, int size) {
 							precarg   = true;
 						} else if(isdigit(*end)) {
 							FERR("Expected '}' for precision since implicit "
-							     "argument ids are "
-							     "used!");
+							     "argument ids are used!");
 						} else {
 							FERR("Invalid character for precision!");
 						}
@@ -264,9 +266,7 @@ Value format_(const Value *args, int size) {
 							}
 						} else if(*end == '}') {
 							FERR("Expected argument id of precision since "
-							     "explicit "
-							     "argument ids "
-							     "are used!");
+							     "explicit argument ids are used!");
 						} else {
 							FERR("Invalid character for argument id of "
 							     "precision!");
@@ -306,7 +306,7 @@ Value format_(const Value *args, int size) {
 			if(width >= size) {
 				FERR("Invalid argument id for width!");
 			}
-			Value v = args[width + 1];
+			Value v = args[width];
 			if(!v.isInteger()) {
 				FERR("Width argument is not an integer!");
 			}
@@ -317,7 +317,7 @@ Value format_(const Value *args, int size) {
 			if(precision >= size) {
 				FERR("Invalid argument id for precision!");
 			}
-			Value v = args[precision + 1];
+			Value v = args[precision];
 			if(!v.isInteger()) {
 				FERR("Precision argument is not an integer!");
 			}
@@ -325,7 +325,7 @@ Value format_(const Value *args, int size) {
 		}
 
 		// extract the argument
-		Value v = args[arg + 1];
+		Value v = args[arg];
 		while(true) {
 			// if the argument provides an fmt(_) function,
 			// call it by passing the formatted arguments.

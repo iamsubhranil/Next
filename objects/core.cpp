@@ -38,7 +38,7 @@ Value next_core_print(const Value *args, int numargs) {
 Value next_core_format(const Value *args, int numargs) {
 	// format is used everywhere in Next, and it does
 	// expect the very first argument to be a string
-	return format_(&args[1], numargs - 1);
+	return Formatter::fmt(&args[1], numargs - 1);
 }
 
 void addBoundMethodVa(const char *name, int arity, next_builtin_fn builtin_fn) {

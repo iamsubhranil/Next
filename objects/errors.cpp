@@ -1,5 +1,6 @@
 #include "errors.h"
 #include "../engine.h"
+#include "../format.h"
 #include "class.h"
 #include "string.h"
 
@@ -50,6 +51,15 @@ Value next_typeerror_argument_number(const Value *args, int numargs) {
 	return Value((double)args[0].toTypeError()->argumentNumber);
 }
 
+Value next_typeerror_str(const Value *args, int numargs) {
+	(void)numargs;
+	TypeError *t = args[0].toTypeError();
+	return Formatter::fmt(
+	    "Expected argument {} of {}.{} to be {}, Received {}!",
+	    Value((double)t->argumentNumber), t->ontype, t->method, t->expected,
+	    t->received);
+}
+
 void TypeError::init() {
 	Class *TypeErrorClass = GcObject::TypeErrorClass;
 
@@ -65,6 +75,7 @@ void TypeError::init() {
 	                               next_typeerror_received_value);
 	TypeErrorClass->add_builtin_fn("argument_number()", 0,
 	                               next_typeerror_argument_number);
+	TypeErrorClass->add_builtin_fn("str()", 0, next_typeerror_str);
 }
 
 void TypeError::mark() {
@@ -139,6 +150,14 @@ Value next_indexerror_received(const Value *args, int numargs) {
 	return Value((double)args[0].toIndexError()->received);
 }
 
+Value next_indexerror_str(const Value *args, int numargs) {
+	(void)numargs;
+	IndexError *ie = args[0].toIndexError();
+	return Formatter::fmt(
+	    "Expected 'index' in the range {} <= index <= {}, received {}!",
+	    Value(ie->low), Value(ie->hi), Value(ie->received));
+}
+
 void IndexError::init() {
 	Class *IndexErrorClass = GcObject::IndexErrorClass;
 
@@ -147,6 +166,7 @@ void IndexError::init() {
 	IndexErrorClass->add_builtin_fn("from()", 0, next_indexerror_from);
 	IndexErrorClass->add_builtin_fn("to()", 0, next_indexerror_to);
 	IndexErrorClass->add_builtin_fn("received()", 0, next_indexerror_received);
+	IndexErrorClass->add_builtin_fn("str()", 0, next_indexerror_str);
 }
 
 void IndexError::mark() {
