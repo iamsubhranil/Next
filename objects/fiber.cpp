@@ -83,17 +83,7 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
 	// to appendMethod
 	stackTop++;
 	Fiber::CallFrame *f = appendMethod(bm->func, returnToCaller);
-	switch(bm->type) {
-		case BoundMethod::CLASS_BOUND:
-			// class bound no arg, so a static method.
-			// slot 0 will contain the class
-			f->stack_[0] = bm->binder;
-		case BoundMethod::MODULE_BOUND:
-		case BoundMethod::OBJECT_BOUND:
-			// object bound, so slot 0 will contain
-			// the object
-			f->stack_[0] = bm->binder;
-	}
+	f->stack_[0]        = bm->binder;
 	return f;
 }
 
