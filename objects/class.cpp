@@ -52,20 +52,12 @@ void Class::mark() {
 	}
 }
 
-bool Class::has_fn(int sym) const {
-	return functions->capacity > sym && functions->values[sym] != ValueNil;
-}
-
 bool Class::has_fn(const char *sig) const {
 	return has_fn(SymbolTable2::insert(sig));
 }
 
 bool Class::has_fn(String *sig) const {
 	return has_fn(SymbolTable2::insert(sig));
-}
-
-Value Class::get_fn(int sym) const {
-	return functions->values[sym];
 }
 
 Value Class::get_fn(const char *sig) const {

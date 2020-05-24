@@ -28,14 +28,16 @@ struct Class {
 	// which holds a particular value, typically,
 	// the slot number.
 	// also, get_fns are unchecked. must call has_fn eariler
-	void  add_sym(int sym, Value v);
-	void  add_fn(const char *str, Function *fn);
-	void  add_fn(String *s, Function *fn);
-	void  add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
-	bool  has_fn(int sym) const;
+	void add_sym(int sym, Value v);
+	void add_fn(const char *str, Function *fn);
+	void add_fn(String *s, Function *fn);
+	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
+	bool has_fn(int sym) const {
+		return functions->capacity > sym && functions->values[sym] != ValueNil;
+	}
 	bool  has_fn(const char *sig) const;
 	bool  has_fn(String *sig) const;
-	Value get_fn(int sym) const;
+	Value get_fn(int sym) const { return functions->values[sym]; }
 	Value get_fn(const char *sig) const;
 	Value get_fn(String *sig) const;
 	// gc functions
