@@ -326,13 +326,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	int       methodToCall;
 	Function *functionToCall;
 
-	// The problem is, all of our top level module frames
-	// live in the Fiber stack too. So while throwing an
-	// exception or printing a stack trace, we don't
-	// actually need to go back all the way to the first
-	// frame in the fiber, we need to go back to the
-	// frame from where this particular 'execute' method
-	// started execution.
 	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
@@ -389,20 +382,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	Stack              = presentFrame->stack_;
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
-
-#define CALL_INSTANCE(fIns, n)      \
-	{                               \
-		frameInstanceToCall = fIns; \
-		numberOfArguments   = n;    \
-		goto call_frameinstance;    \
-	}
-
-#define CALL(frame, n)             \
-	{                              \
-		frameToCall       = frame; \
-		numberOfArguments = n;     \
-		goto call_frame;           \
-	}
 
 #define relocip(x)                                 \
 	(reloc = sizeof(x) / sizeof(Bytecode::Opcode), \
