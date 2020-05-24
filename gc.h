@@ -108,6 +108,15 @@ struct GcObject {
 	// clear
 	static void sweep();
 
+	// core gc method
+	// the flag forces a gc even if
+	// total_allocated < next_gc
+	static void gc(bool force = false);
+	// sets next_gc
+	static void setNextGC(size_t v);
+	// sets max_gc
+	static void setMaxGC(size_t v);
+
 	// memory management functions
 	static void *alloc(size_t s, GcObjectType type, const Class *klass);
 #define OBJTYPE(n, r)       \

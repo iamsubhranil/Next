@@ -128,16 +128,10 @@ void GcObject::free(void *mem, size_t bytes) {
 	totalAllocated -= bytes;
 }
 
-void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
-                      const Class *klass) {
-	GcObject *obj = (GcObject *)GcObject::malloc(s);
-	obj->objType  = type;
-	obj->klass    = klass;
-	obj->next     = nullptr;
-
+void GcObject::gc(bool force) {
 	// check for gc
-	if(totalAllocated >= next_gc) {
-#ifdef DEBUG
+	if(totalAllocated >= next_gc || force) {
+#ifdef DEBUG_GC
 		std::cout << "[GC] Started GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
 		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
@@ -145,31 +139,50 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 		std::cout << "[GC] Marking core classes..\n";
 #endif
 		mark((GcObject *)CoreModule);
-#ifdef DEBUG
+#ifdef DEBUG_GC
 		std::cout << "[GC] Marking Engine..\n";
 #endif
 		ExecutionEngine::mark();
-#ifdef DEBUG
+#ifdef DEBUG_GC
 		std::cout << "[GC] Marking CodeGens via Loader..\n";
 #endif
 		Loader::mark();
-#ifdef DEBUG
+#ifdef DEBUG_GC
 		std::cout << "[GC] Marking weak strings..\n";
 #endif
 		String::keep();
-#ifdef DEBUG
+#ifdef DEBUG_GC
 		std::cout << "[GC] Sweeping..\n";
 #endif
 		sweep();
 		if(next_gc < max_gc)
 			next_gc *= 2;
-#ifdef DEBUG
+#ifdef DEBUG_GC
 		std::cout << "[GC] Finished GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
 		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
 		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
 #endif
 	}
+}
+
+void GcObject::setNextGC(size_t v) {
+	next_gc = v;
+}
+
+void GcObject::setMaxGC(size_t v) {
+	max_gc = v;
+}
+
+void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
+                      const Class *klass) {
+	GcObject *obj = (GcObject *)GcObject::malloc(s);
+	obj->objType  = type;
+	obj->klass    = klass;
+	obj->next     = nullptr;
+
+	// try for gc
+	gc();
 
 	last->next = obj;
 	last       = obj;
