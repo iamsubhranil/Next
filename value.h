@@ -41,6 +41,8 @@ struct Value {
 	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
 	constexpr Value() : value(QNAN_NIL) {}
 	constexpr Value(double d) : dvalue(d) {}
+	constexpr Value(long l) : dvalue((double)l) {}
+	constexpr Value(int i) : dvalue((double)i) {}
 #ifdef DEBUG
 #define TYPE(r, n)                                                             \
 	Value(const r s) {                                                         \
