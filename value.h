@@ -21,13 +21,13 @@ struct Value {
 		return mask;
 	}
 
-#define TYPE(r, n)                                               \
-	inline void encode##n(const r v) {                           \
-		if(sizeof(r) < 8)                                        \
-			value = (*(uint64_t *)&v) & generateMask(sizeof(r)); \
-		else                                                     \
-			value = (uintptr_t)v & VAL_MASK;                     \
-		value = QNAN_##n | value;                                \
+#define TYPE(r, n)                                           \
+	inline void encode##n(const r v) {                       \
+		if(sizeof(r) < 8)                                    \
+			value = ((uint64_t)v) & generateMask(sizeof(r)); \
+		else                                                 \
+			value = (uintptr_t)v & VAL_MASK;                 \
+		value = QNAN_##n | value;                            \
 	}
 #include "valuetypes.h"
 
@@ -73,7 +73,8 @@ struct Value {
 	String *getTypeString() const { return ValueTypeStrings[getType()]; }
 
 	inline bool is(Type ty) const {
-		return isNumber() ? ty == VAL_Number : VAL_TYPE(value) == (Type)ty;
+		return isNumber() ? ty == VAL_Number
+		                  : (Type)VAL_TYPE(value) == (Type)ty;
 	}
 #define TYPE(r, n) \
 	inline bool is##n() const { return VAL_TAG(value) == QNAN_##n; }
