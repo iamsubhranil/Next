@@ -86,7 +86,10 @@ Value format_(const Value *args, int size) {
 	char *end             = start;
 	// argid, once given, cannot be omitted.
 	// so we force that using this flag
-	bool argid_present = false;
+	// -1 denotes the flag is unset
+	// 0 denotes automatic numbering
+	// 1 denotes manual numbering
+	int argid_present = -1;
 	while(*end) {
 		start = end;
 		// proceed until the next format
@@ -132,18 +135,24 @@ Value format_(const Value *args, int size) {
 		int  precision = -1;
 		bool precarg   = false;
 		char type      = 0;
-		if(isdigit(*end)) {
-			// once we get one arg_id,
-			// we force it
-			argid_present = true;
+		if(argid_present == -1) {
+			// first time
+			// we set the state
+			if(isdigit(*end))
+				argid_present = 1;
+			else
+				argid_present = 0;
+		}
+		if(argid_present == 0 && isdigit(*end)) {
+			FERR("Cannot switch from automatic to manual argument numbering!");
 		}
 		// if the argument id is forced and it is
 		// not a digit, error
-		if(argid_present && !isdigit(*end)) {
+		else if(argid_present == 1 && !isdigit(*end)) {
 			FERR("Argument ID must be present for all arguments!");
 		}
 		// if argument id is forced, collect the id
-		if(argid_present)
+		if(argid_present > 0)
 			arg = next_int(&end);
 		else
 			arg = argid++;
