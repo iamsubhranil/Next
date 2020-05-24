@@ -297,7 +297,7 @@ Value format_(const Value *args, int size) {
 			if(width >= size) {
 				FERR("Invalid argument id for width!");
 			}
-			Value v = args[width - 1];
+			Value v = args[width + 1];
 			if(!v.isInteger()) {
 				FERR("Width argument is not an integer!");
 			}
@@ -308,7 +308,7 @@ Value format_(const Value *args, int size) {
 			if(precision >= size) {
 				FERR("Invalid argument id for precision!");
 			}
-			Value v = args[precision - 1];
+			Value v = args[precision + 1];
 			if(!v.isInteger()) {
 				FERR("Precision argument is not an integer!");
 			}
