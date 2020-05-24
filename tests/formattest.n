@@ -9,6 +9,30 @@ fn expect(res, val) {
     }
 }
 
+fn expect_err(fmtstring, err) {
+    try {
+        fmt(fmtstring)
+        print("[Error] Expected error for fmt(\"", fmtstring,"\") : ", err, "\n")
+        res = false
+    } catch(format_error fe) {}
+}
+
+fn expect_err(fmtstring, err, val) {
+    try {
+        fmt(fmtstring, val)
+        print("[Error] Expected error for fmt(\"", fmtstring,"\",", val, ") : ", err, "\n")
+        res = false
+    } catch(format_error fe) {}
+}
+
+fn expect_err(fmtstring, err, val1, val2) {
+    try {
+        fmt(fmtstring, val1, val2)
+        print("[Error] Expected error for fmt(\"", fmtstring,"\",", val1, ",", val2, ") : ", err, "\n")
+        res = false
+    } catch(format_error fe) {}
+}
+
 pub fn test() {
     expect("42", fmt("{0}", 42))
     expect("before 42", fmt("before {0}", 42))
@@ -165,6 +189,31 @@ pub fn test() {
     expect("0123456789abcdefg",
                 fmt("{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}", 0, 1, 2, 3, 4, 5,
                             6, 7, 8, 9, "a", "b", "c", "d", "e", "f", "g"))
+
+	expect_err("{:{}}", "argument not found", 2)
+	expect_err("{:.{}}", "argument not found", 2.0)
+	expect_err("{:s}", "invalid type specifier", 2)
+	// we allow booleans to be formatted as strings
+	// expect_err("{:s}", "invalid type specifier", true)
+	expect_err("{:s}", "invalid type specifier", 2.0)
+	expect_err("{:d}", "invalid type specifier", "s")
+
+	expect_err("{0x}", "invalid format string")
+	expect_err("{-}", "invalid format string")
+	expect_err("{:{0x}}", "invalid format string", 2)
+	expect_err("{:{-}}", "invalid format string", 2)
+	expect_err("{:.{0x}}", "invalid format string", 2)
+	expect_err("{:.{-}}", "invalid format string", 2)
+	expect_err("{:.x}", "missing precision specifier", 2)
+	expect_err("{}", "argument not found")
+	expect_err("{1}", "argument not found", 2)
+	expect_err("{1}{}",
+               "cannot switch from manual to automatic argument indexing", 2,
+               2)
+	expect_err("{}{1}",
+               "cannot switch from automatic to manual argument indexing", 2,
+               2)
+
 
     ret res
 }
