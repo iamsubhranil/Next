@@ -48,7 +48,7 @@ Value next_typeerror_received_value(const Value *args, int numargs) {
 
 Value next_typeerror_argument_number(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toTypeError()->argumentNumber);
+	return Value(args[0].toTypeError()->argumentNumber);
 }
 
 Value next_typeerror_str(const Value *args, int numargs) {
@@ -56,7 +56,7 @@ Value next_typeerror_str(const Value *args, int numargs) {
 	TypeError *t = args[0].toTypeError();
 	return Formatter::fmt(
 	    "Expected argument {} of {}.{} to be {}, Received {}!",
-	    Value((double)t->argumentNumber), t->ontype, t->method, t->expected,
+	    Value(t->argumentNumber), t->ontype, t->method, t->expected,
 	    t->received);
 }
 
@@ -137,17 +137,17 @@ Value IndexError::sete(const char *m, long l, long h, long r) {
 
 Value next_indexerror_from(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toIndexError()->low);
+	return Value(args[0].toIndexError()->low);
 }
 
 Value next_indexerror_to(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toIndexError()->hi);
+	return Value(args[0].toIndexError()->hi);
 }
 
 Value next_indexerror_received(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toIndexError()->received);
+	return Value(args[0].toIndexError()->received);
 }
 
 Value next_indexerror_str(const Value *args, int numargs) {

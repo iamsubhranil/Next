@@ -48,7 +48,7 @@ Value next_array_set(const Value *args, int numargs) {
 
 Value next_array_size(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toArray()->size);
+	return Value(args[0].toArray()->size);
 }
 
 // constructors will be called on the class,

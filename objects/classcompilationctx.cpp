@@ -43,21 +43,21 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 bool ClassCompilationContext::add_public_mem(String *name) {
 	if(has_mem(name))
 		return false;
-	members->vv[Value(name)] = Value((double)slotCount++);
+	members->vv[Value(name)] = Value(slotCount++);
 	klass->numSlots++;
 	// add the slot to the method buffer which will
 	// be directly accessed by load_field and store_field.
 	// adding directly the name of the variable as a method
 	// should not cause any problems, as all user defined
 	// methods have signatures with at least one '()'.
-	klass->add_sym(SymbolTable2::insert(name), Value((double)slotCount - 1));
+	klass->add_sym(SymbolTable2::insert(name), Value(slotCount - 1));
 	return true;
 }
 
 bool ClassCompilationContext::add_private_mem(String *name) {
 	if(has_mem(name))
 		return false;
-	members->vv[Value(name)] = Value((double)slotCount++);
+	members->vv[Value(name)] = Value(slotCount++);
 	klass->numSlots++;
 	return true;
 }

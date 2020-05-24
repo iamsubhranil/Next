@@ -99,13 +99,13 @@ Value next_string_fmt(const Value *args, int numargs) {
 Value next_string_hash(const Value *args, int numargs) {
 	(void)numargs;
 	String *s = args[0].toString();
-	return Value((double)s->hash_);
+	return Value(s->hash_);
 }
 
 Value next_string_len(const Value *args, int numargs) {
 	(void)numargs;
 	String *s = args[0].toString();
-	return Value((double)s->size);
+	return Value(s->size);
 }
 
 Value next_string_lower(const Value *args, int numargs) {

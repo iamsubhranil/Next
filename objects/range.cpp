@@ -95,7 +95,7 @@ void Range::init() {
 	RangeClass->init("range", Class::ClassType::BUILTIN);
 	RangeClass->numSlots = 4; // from, to, step, has_next
 	// create the has_next field
-	RangeClass->add_sym(SymbolTable2::insert("has_next"), Value((double)3));
+	RangeClass->add_sym(SymbolTable2::insert("has_next"), Value(3));
 	// methods
 	RangeClass->add_builtin_fn("(_)", 1, next_range_construct_1);
 	RangeClass->add_builtin_fn("(_,_)", 2, next_range_construct_2);

@@ -482,7 +482,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid hexadecimal literal!");
 			}
-			return unq(LiteralExpression, Value((double)val), t);
+			return unq(LiteralExpression, Value(val), t);
 		}
 		case TOKEN_BIN: {
 			char *end = NULL;
@@ -492,7 +492,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid binary literal!");
 			}
-			return unq(LiteralExpression, Value((double)val), t);
+			return unq(LiteralExpression, Value(val), t);
 		}
 		case TOKEN_OCT: {
 			char *end = NULL;
@@ -502,7 +502,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid octal literal!");
 			}
-			return unq(LiteralExpression, Value((double)val), t);
+			return unq(LiteralExpression, Value(val), t);
 		}
 		case TOKEN_nil: return unq(LiteralExpression, ValueNil, t);
 		case TOKEN_true: return unq(LiteralExpression, Value(true), t);

@@ -25,7 +25,7 @@ Value next_set_has(const Value *args, int numargs) {
 
 Value next_set_size(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toValueSet()->hset.size());
+	return Value(args[0].toValueSet()->hset.size());
 }
 
 Value next_set_remove(const Value *args, int numargs) {

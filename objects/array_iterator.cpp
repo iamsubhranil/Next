@@ -26,7 +26,7 @@ Value next_array_iterator_next(const Value *args, int numargs) {
 	Array *a     = slots[0].toArray();
 	// this ignores the fact that array may be shrunk
 	Value ret = a->values[idx++];
-	slots[1]  = Value((double)idx);
+	slots[1]  = Value(idx);
 	slots[2]  = Value(idx < a->size);
 	return ret;
 }
@@ -38,7 +38,7 @@ void ArrayIterator::init() {
 	ArrayIteratorClass->numSlots = 3; // array, pointer, has_next
 	// has_next
 	ArrayIteratorClass->add_sym(SymbolTable2::insert("has_next"),
-	                            Value((double)2));
+	                            Value(2));
 
 	ArrayIteratorClass->add_builtin_fn("(_)", 1,
 	                                   next_array_iterator_construct_1);

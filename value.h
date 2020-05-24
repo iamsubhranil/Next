@@ -148,7 +148,7 @@ struct Value {
 constexpr Value ValueNil   = Value(QNAN_NIL);
 constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);
 constexpr Value ValueFalse = Value(QNAN_Boolean);
-constexpr Value ValueZero  = Value((double)0.0);
+constexpr Value ValueZero  = Value(0.0);
 
 namespace std {
 	template <> struct hash<Value> {

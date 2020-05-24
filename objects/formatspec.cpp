@@ -8,9 +8,9 @@ Value next_format_spec_align(const Value *args, int numargs) {
 	char  a = args[0].toFormatSpec()->align;
 	Value v = ValueNil;
 	switch(a) {
-		case '<': v = Value((double)-1); break;
-		case '^': v = Value((double)0); break;
-		case '>': v = Value((double)1); break;
+		case '<': v = Value(-1); break;
+		case '^': v = Value(0); break;
+		case '>': v = Value(1); break;
 	}
 	return v;
 }
@@ -32,9 +32,9 @@ Value next_format_spec_sign(const Value *args, int numargs) {
 	char  a = args[0].toFormatSpec()->sign;
 	Value v = ValueNil;
 	switch(a) {
-		case '-': v = Value((double)-1); break;
-		case ' ': v = Value((double)0); break;
-		case '+': v = Value((double)1); break;
+		case '-': v = Value(-1); break;
+		case ' ': v = Value(0); break;
+		case '+': v = Value(1); break;
 	}
 	return v;
 }
@@ -54,7 +54,7 @@ Value next_format_spec_width(const Value *args, int numargs) {
 	int width = args[0].toFormatSpec()->width;
 	if(width == -1)
 		return ValueNil;
-	return Value((double)width);
+	return Value(width);
 }
 
 Value next_format_spec_precision(const Value *args, int numargs) {
@@ -62,7 +62,7 @@ Value next_format_spec_precision(const Value *args, int numargs) {
 	int precision = args[0].toFormatSpec()->precision;
 	if(precision == -1)
 		return ValueNil;
-	return Value((double)precision);
+	return Value(precision);
 }
 
 Value next_format_spec_type(const Value *args, int numargs) {

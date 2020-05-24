@@ -226,7 +226,7 @@ Value next_number_isint(const Value *args, int numargs) {
 
 Value next_number_toint(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toInteger());
+	return Value(args[0].toInteger());
 }
 
 Value next_number_from_str(const Value *args, int numargs) {

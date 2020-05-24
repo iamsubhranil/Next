@@ -79,7 +79,7 @@ void Function::release() {
 
 Value next_function_arity(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toFunction()->arity);
+	return Value(args[0].toFunction()->arity);
 }
 
 Value next_function_name(const Value *args, int numargs) {
@@ -89,7 +89,7 @@ Value next_function_name(const Value *args, int numargs) {
 
 Value next_function_type(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)(args[0].toFunction()->mode & 0x0f));
+	return Value((args[0].toFunction()->mode & 0x0f));
 }
 
 void Function::init() {
