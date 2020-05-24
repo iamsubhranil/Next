@@ -471,6 +471,39 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			}
 			return unq(LiteralExpression, Value(val), t);
 		}
+		// for hex bin and octs, 0 followed by specifier
+		// is invalid
+		// 0b/0B 0x/0X 0o/0O invalid
+		case TOKEN_HEX: {
+			char *end = NULL;
+			// start after 0x
+			const char *start = &t.start[2];
+			long        val   = strtol(start, &end, 16);
+			if(end == NULL || end - t.start < t.length || t.length == 2) {
+				throw ParseException(t, "Not a valid hexadecimal literal!");
+			}
+			return unq(LiteralExpression, Value((double)val), t);
+		}
+		case TOKEN_BIN: {
+			char *end = NULL;
+			// start after 0b
+			const char *start = &t.start[2];
+			long        val   = strtol(start, &end, 2);
+			if(end == NULL || end - t.start < t.length || t.length == 2) {
+				throw ParseException(t, "Not a valid binary literal!");
+			}
+			return unq(LiteralExpression, Value((double)val), t);
+		}
+		case TOKEN_OCT: {
+			char *end = NULL;
+			// start after 0x
+			const char *start = &t.start[2];
+			long        val   = strtol(start, &end, 8);
+			if(end == NULL || end - t.start < t.length || t.length == 2) {
+				throw ParseException(t, "Not a valid octal literal!");
+			}
+			return unq(LiteralExpression, Value((double)val), t);
+		}
 		case TOKEN_nil: return unq(LiteralExpression, ValueNil, t);
 		case TOKEN_true: return unq(LiteralExpression, Value(true), t);
 		case TOKEN_false: return unq(LiteralExpression, Value(false), t);

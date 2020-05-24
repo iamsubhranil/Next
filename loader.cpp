@@ -30,6 +30,9 @@ static void infixRight(Parser *p, TokenType t, int prec) {
 void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
 	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
+	p->registerParselet(TOKEN_HEX, new LiteralParselet());
+	p->registerParselet(TOKEN_OCT, new LiteralParselet());
+	p->registerParselet(TOKEN_BIN, new LiteralParselet());
 	p->registerParselet(TOKEN_STRING, new LiteralParselet());
 	p->registerParselet(TOKEN_nil, new LiteralParselet());
 	p->registerParselet(TOKEN_true, new LiteralParselet());
