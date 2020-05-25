@@ -12,24 +12,31 @@ struct Value {
 		double   dvalue;
 	};
 
+	/*
 	constexpr uint64_t generateMask(size_t s) {
-		uint64_t mask = 0, shift = 1;
-		for(size_t i = 0; i < (s * 8); i++) {
-			mask |= shift;
-			shift <<= 1;
-		}
-		return mask;
+	    uint64_t mask = 0, shift = 1;
+	    for(size_t i = 0; i < (s * 8); i++) {
+	        mask |= shift;
+	        shift <<= 1;
+	    }
+	    return mask;
 	}
-
-#define TYPE(r, n)                                           \
-	inline void encode##n(const r v) {                       \
-		if(sizeof(r) < 8)                                    \
-			value = ((uint64_t)v) & generateMask(sizeof(r)); \
-		else                                                 \
-			value = (uintptr_t)v & VAL_MASK;                 \
-		value = QNAN_##n | value;                            \
+	#define TYPE(r, n)                                           \
+	    inline void encode##n(const r v) {                       \
+	        if(sizeof(r) < 8)                                    \
+	            value = ((uint64_t)v) & generateMask(sizeof(r)); \
+	        else                                                 \
+	            value = (uintptr_t)v & VAL_MASK;                 \
+	        value = QNAN_##n | value;                            \
+	    }
+	    //#include "valuetypes.h"
+	    */
+	inline void encodeBoolean(const bool b) {
+		value = QNAN_Boolean | (uint64_t)b;
 	}
-#include "valuetypes.h"
+	inline void encodeGcObject(const GcObject *g) {
+		value = QNAN_GcObject | ((uintptr_t)g & VAL_MASK);
+	}
 
   public:
 	enum Type : int {
