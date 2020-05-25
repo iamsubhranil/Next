@@ -370,7 +370,7 @@ def main():
       action="store_true",
       help="Output the results chart as HTML")
   parser.add_argument("-n", "--numtrials",
-                      type=int, nargs=1, default=10)
+                      type=int, nargs=1, default=[10])
 
   args = parser.parse_args()
 
