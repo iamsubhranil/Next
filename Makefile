@@ -42,7 +42,7 @@ clean_pgodata: clean
 	$(V) rm -f default_*.profraw default.profdata
 
 pgobuild: CXXFLAGS+=-fprofile-generate
-pgobuild: LDFLAGS+=-fprofile-generate
+pgobuild: LDFLAGS+=-fprofile-generate -flto
 pgobuild: | clean_pgodata cgoto
 
 pgorun: NUM_TRIALS=2
@@ -53,7 +53,7 @@ merge_profraw: pgorun
 
 pgouse: merge_profraw
 	$(V) $(MAKE) clean
-	$(V) $(MAKE) cgoto CXXFLAGS=-fprofile-use LDFLAGS=-fprofile-use
+	$(V) $(MAKE) cgoto CXXFLAGS=-fprofile-use LDFLAGS+=-fprofile-use LDFLAGS+=-flto
 	$(V) $(MAKE) benchmark
 
 tests: release
