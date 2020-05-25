@@ -7,7 +7,7 @@ pub fn test() {
     }
     
     d = 2.8284382828899812898938298
-    if(d.str() != "2.828438") {
+    if(d.str() != "2.82843828289") {
         print("[Error] number.str() is broken!\n")
         res = false
     }
@@ -41,19 +41,19 @@ pub fn test() {
         s.badPrimitive(d)
         print("[Error] string.badPrimitve() should've resulted in an exception!\n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 
     try {
-        if(s.has(123)) {
-            print("[Error] string.has(123) should not return true!\n")
+        if(s.contains(123)) {
+            print("[Error] string.contains(123) should not return true!\n")
             res = false
         }
-        print("[Error] string.has() should not accept 123 as a valid argument!\n")
+        print("[Error] string.contains() should not accept 123 as a valid argument!\n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 
-    if(!s.has("Hello") or !s.has("lo Wo") or s.has("Hola")) {
-        print("[Error] string.has() is broken!\n")
+    if(!s.contains("Hello") or !s.contains("lo Wo") or s.contains("Hola")) {
+        print("[Error] string.contains() is broken!\n")
         res = false
     }
 
@@ -61,7 +61,7 @@ pub fn test() {
         t = s.append(212)
         print("[Error] string.append() should not accept 212 as a valid argument!\n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 
     if(s.append(" Subhranil!") != "Hello World! Subhranil!") {
         print("[Error] string.append() is broken!\n")

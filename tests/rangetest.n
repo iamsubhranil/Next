@@ -2,31 +2,31 @@ res = true
 
 fn expect_err_to(x) {
     try {
-        c = core.range(x)
+        c = range(x)
         print("[Error] Should've thrown exception for range to '", x, "'! \n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 }
 
 fn expect_err_from(x) {
     try {
-        c = core.range(x, 1000)
+        c = range(x, 1000)
         print("[Error] Should've thrown exception for range from '", x, "'! \n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 }
 
 fn expect_err_step(x) {
     try {
-        c = core.range(0, 1000, x)
+        c = range(0, 1000, x)
         print("[Error] Should've thrown exception for range step '", x, "'! \n")
         res = false
-    } catch(RuntimeException e) {}
+    } catch(runtime_error e) {}
 }
 
 fn expect_sum_from_to_step(f, t, s, sum) {
     total = 0
-    for(i in core.range(f, t, s)) {
+    for(i in range(f, t, s)) {
         total = total + i
     }
 

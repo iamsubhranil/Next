@@ -2,9 +2,14 @@
 #include "codegen.h"
 #include "display.h"
 #include "engine.h"
+#include "objects/fiber.h"
+#include "objects/functioncompilationctx.h"
 #include "parser.h"
+#include <iostream>
 
 using namespace std;
+
+CodeGenerator *Loader::currentGenerator = nullptr;
 
 static void prefix(Parser *p, TokenType op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
@@ -25,6 +30,9 @@ static void infixRight(Parser *p, TokenType t, int prec) {
 void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
 	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
+	p->registerParselet(TOKEN_HEX, new LiteralParselet());
+	p->registerParselet(TOKEN_OCT, new LiteralParselet());
+	p->registerParselet(TOKEN_BIN, new LiteralParselet());
 	p->registerParselet(TOKEN_STRING, new LiteralParselet());
 	p->registerParselet(TOKEN_nil, new LiteralParselet());
 	p->registerParselet(TOKEN_true, new LiteralParselet());
@@ -75,7 +83,6 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_while, new WhileStatementParselet());
 	p->registerParselet(TOKEN_do, new DoStatementParselet());
 	p->registerParselet(TOKEN_try, new TryStatementParselet());
-	p->registerParselet(TOKEN_print, new PrintStatementParselet());
 	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
 	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
 	p->registerParselet(TOKEN_for, new ForStatementParselet());
@@ -92,17 +99,17 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_class, new ClassDeclaration());
 }
 
-Module *compile_and_load(string fileName, bool execute) {
-	return compile_and_load(fileName.c_str(), execute);
+GcObject *Loader::compile_and_load(String *fileName, bool execute) {
+	return compile_and_load(fileName->str, execute);
 }
 
-NextString generateModuleName(const char *inp) {
+String *generateModuleName(const char *inp) {
 	size_t len  = strlen(inp);
 	int    last = len - 1;
 	// find the '.'
 	while(inp[last] != '.' && inp[last] != '\0') last--;
 	if(inp[last] == '\0')
-		return StringLibrary::insert(inp);
+		return String::from(inp);
 	// escape the '.'
 	--last;
 	int first = last;
@@ -110,29 +117,31 @@ NextString generateModuleName(const char *inp) {
 		--first;
 	if(inp[first] != '\0')
 		first++;
-	return StringLibrary::insert(&inp[first], (last - first) + 1);
+	return String::from(&inp[first], (last - first) + 1);
 }
 
-Module *compile_and_load(const char *fileName, bool execute) {
-	NextString modName = generateModuleName(fileName);
+GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
+	String *modName = generateModuleName(fileName);
 	return compile_and_load_with_name(fileName, modName, execute);
 }
 
-Module *compile_and_load_with_name(const char *fileName, NextString modName,
-                                   bool execute) {
-	CodeGenerator c;
+GcObject *Loader::compile_and_load_with_name(const char *fileName,
+                                             String *modName, bool execute) {
+	CodeGenerator c(currentGenerator);
+	currentGenerator = &c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
 	if(ExecutionEngine::isModuleRegistered(modName))
-		return ExecutionEngine::getRegisteredModule(modName);
+		return (GcObject *)ExecutionEngine::getRegisteredModule(modName)
+		    ->instance;
 	ExecutionEngine ex;
 	Scanner         s(fileName);
-	Module *        module = NULL;
 	try {
 		Parser p(s);
 		registerParselets(&p);
 		vector<StmtPtr> decls = p.parseAllDeclarations();
+		p.releaseAll();
 #ifdef DEBUG
 		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
 			sp.print(i->get());
@@ -140,51 +149,73 @@ Module *compile_and_load_with_name(const char *fileName, NextString modName,
 		}
 		cout << "Parsed successfully!" << endl;
 #endif
-		module = new Module(modName);
-		c.compile(module, decls);
-		if(execute)
-			ex.execute(module, module->frame.get());
+		ClassCompilationContext *ctx =
+		    ClassCompilationContext::create(NULL, modName);
+		c.compile(ctx, decls);
+		currentGenerator = c.parentGenerator;
+		if(execute) {
+			Fiber *f = Fiber::create();
+			// add CoreObject in slot 0
+			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
+			                           ctx->get_default_constructor()->f);
+			return ex.execute(f).toGcObject();
+		}
+		return (GcObject *)ctx->get_class();
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
+		return NULL;
 	} catch(runtime_error &r) {
-		cout << r.what() << "\n";
+		std::cout << r.what() << "\n";
 		return NULL;
 	}
-	return module;
 }
 
-Module *compile_and_load_from_source(const char *source, Module *module,
-                                     bool execute) {
-	CodeGenerator c;
+GcObject *Loader::compile_and_load_from_source(
+    const char *source, ClassCompilationContext *modulectx, bool execute) {
+	CodeGenerator c(currentGenerator);
+	currentGenerator = &c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
 	ExecutionEngine ex;
-	Scanner         s(source, StringLibrary::get_raw(module->name));
+	Scanner         s(source, modulectx->get_class()->name->str);
 	try {
 		Parser p(s);
 		registerParselets(&p);
 		vector<StmtPtr> decls = p.parseAllDeclarations();
+		p.releaseAll();
 #ifdef DEBUG
 		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
 			sp.print(i->get());
 			cout << "\n";
 		}
 #endif
-		c.compile(module, decls);
-		if(execute)
-			ex.execute(module, module->frame.get());
+		c.compile(modulectx, decls);
+		currentGenerator = c.parentGenerator;
+		if(execute) {
+			Fiber *f = Fiber::create();
+			// add CoreObject in slot 0
+			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
+			                           modulectx->get_default_constructor()->f);
+			return ex.execute(f).toGcObject();
+		}
 	} catch(ParseException pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
+		return NULL;
 	} catch(runtime_error &r) {
 		cout << r.what() << "\n";
 		return NULL;
 	}
-	return module;
+	return (GcObject *)modulectx->get_class();
+}
+
+void Loader::mark() {
+	if(currentGenerator != NULL)
+		currentGenerator->mark();
 }

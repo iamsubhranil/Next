@@ -18,3 +18,5 @@ bench_results
 programs/
 .idea/
 gc_map/
+*.profraw
+*.profdata

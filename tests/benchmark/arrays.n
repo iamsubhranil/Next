@@ -1,6 +1,6 @@
 arr = []
 start = clock()
-for(i in core.range(1000000)) {
+for(i in range(1000000)) {
     arr[i] = i + 1
 }
 

@@ -2,8 +2,8 @@ fn combinations(l) {
     res = []
     size = l.size()
     j = 0
-    for(i in core.range(size - 1)) {
-        for(k in core.range(i + 1, size)) {
+    for(i in range(size - 1)) {
+        for(k in range(i + 1, size)) {
             res[j++] = [l[i], l[k]]
         }
     }

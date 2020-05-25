@@ -52,6 +52,10 @@ bool Token::isOperator() {
 
 void Token::highlight(bool showFileName, const char *prefix,
                       HighlightType htype) const {
+	if(source == NULL) {
+		cout << "<source not found>\n";
+		return;
+	}
 	static const char *highlights[] = {ANSI_COLOR_GREEN, ANSI_COLOR_YELLOW,
 	                                   ANSI_COLOR_RED};
 	const char *       tokenEnd = start, *tokenStart = start;
@@ -127,6 +131,7 @@ const char *Token::TokenNames[] = {
     "TOKEN_CARET",
 
     "TOKEN_IDENTIFIER",    "TOKEN_STRING",      "TOKEN_NUMBER",
+    "TOKEN_HEX",           "TOKEN_OCT",         "TOKEN_BIN",
 
 #define KEYWORD(x, y) "TOKEN_" #x,
 #include "keywords.h"
@@ -135,16 +140,17 @@ const char *Token::TokenNames[] = {
     "TOKEN_ERROR",         "TOKEN_EOF"};
 
 const char *Token::FormalNames[] = {
-    "(",     ")",          "{", "}",  "[",          "]",      "[]",
-    "!",     "!=",         ",", ".",  ":",          "=",      "==",
-    ">",     ">=",         "<", "<=", "-",          "+",      ";",
-    "/",     "*",          "%", "^",  "identifier", "string", "number",
-
+    "(",      ")",          "{",      "}",      "[",          "]",
+    "[]",     "!",          "!=",     ",",      ".",          ":",
+    "=",      "==",         ">",      ">=",     "<",          "<=",
+    "-",      "+",          ";",      "/",      "*",          "%",
+    "^",      "identifier", "string", "number", "hexdecimal", "octal",
+    "binary",
 #define KEYWORD(x, y) #x,
 #include "keywords.h"
 #undef KEYWORD
 
-    "error", "end of file"};
+    "error",  "end of file"};
 
 using namespace std;
 
@@ -277,7 +283,52 @@ Token Scanner::identifier() {
 	return Token::from(type, this);
 }
 
+bool ishex(char c) {
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') ||
+	       (c >= 'a' && c <= 'f');
+}
+
+bool isoct(char c) {
+	return c >= '0' && c <= '7';
+}
+
+bool isbin(char c) {
+	return c >= '0' && c <= '1';
+}
+
+Token Scanner::hexadecimal() {
+	advance(); // x/X
+	while(ishex(peek())) advance();
+	return Token::from(TOKEN_HEX, this);
+}
+
+Token Scanner::octal() {
+	advance(); // o/O
+	while(isoct(peek())) advance();
+	return Token::from(TOKEN_OCT, this);
+}
+
+Token Scanner::binary() {
+	advance(); // b/B
+	while(isbin(peek())) advance();
+	return Token::from(TOKEN_BIN, this);
+}
+
 Token Scanner::number() {
+	if(*tokenStart == '0') {
+		// there are some possibilities
+		if(peek() == 'x' || peek() == 'X') {
+			// it is a hexadecimal literal
+			return hexadecimal();
+		} else if(peek() == 'o' || peek() == 'O') {
+			// it is a octal literal
+			return octal();
+		} else if(peek() == 'b' || peek() == 'B') {
+			// it is a binary literal
+			return binary();
+		}
+	}
+
 	while(isDigit(peek())) advance();
 
 	// Look for a fractional part.

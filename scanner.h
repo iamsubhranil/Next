@@ -42,6 +42,9 @@ typedef enum {
 	TOKEN_IDENTIFIER,
 	TOKEN_STRING,
 	TOKEN_NUMBER,
+	TOKEN_HEX,
+	TOKEN_OCT,
+	TOKEN_BIN,
 
 #define KEYWORD(x, y) TOKEN_##x,
 #include "keywords.h"
@@ -101,6 +104,9 @@ class Scanner {
 	bool  match(char expected);
 	Token identifier();
 	Token number();
+	Token hexadecimal();
+	Token octal();
+	Token binary();
 	Token str();
 	int   skipEmptyLine();
 

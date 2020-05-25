@@ -64,7 +64,7 @@ print(toggle.value(), "\n")
 val = true
 ntoggle = NthToggle(val, 3)
 
-for(i in core.range(n)) {
+for(i in range(n)) {
     val = ntoggle.activate().value()
     val = ntoggle.activate().value()
     val = ntoggle.activate().value()

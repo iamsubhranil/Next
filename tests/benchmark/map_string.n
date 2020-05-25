@@ -79,20 +79,20 @@ for (animal in animals) {
 }
 
 start = clock()
-map = {}
+map_ = {}
 i = 0
 
 for (key in keys) {
-    map[key] = i++
+    map_[key] = i++
 }
 
 sum = 0
 for (key in keys) {
-    sum = sum + map[key]
+    sum = sum + map_[key]
 }
 
 for (key in keys) {
-    map.remove(key)
+    map_.remove(key)
 }
 
 print(sum, "\n")

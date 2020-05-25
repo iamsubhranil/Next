@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "objects/string.h"
 
 Parser::Parser(Scanner &s) : scanner(s) {
 	if(s.hasScanErrors()) {
@@ -53,7 +54,7 @@ ExpPtr Parser::parseExpression(int precedence, Token token) {
 }
 
 StmtPtr Parser::parseDeclaration() {
-	Visibility vis   = VIS_PRIV;
+	Visibility vis   = VIS_DEFAULT;
 	Token      token = lookAhead(0);
 	if(token.type == TOKEN_pub || token.type == TOKEN_priv) {
 		consume();
@@ -164,6 +165,21 @@ int Parser::getPrecedence() {
 	return 0;
 }
 
+void Parser::releaseAll() {
+	for(auto &e : prefixParselets) {
+		delete e.second.release();
+	}
+	for(auto &e : infixParselets) {
+		delete e.second.release();
+	}
+	for(auto &e : declarationParselets) {
+		delete e.second.release();
+	}
+	for(auto &e : statementParselets) {
+		delete e.second.release();
+	}
+}
+
 // Top level declarations
 
 StmtPtr ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
@@ -265,7 +281,7 @@ StmtPtr ClassDeclaration::parseClassBody(Parser *p) {
 StmtPtr ConstructorDeclaration::parse(Parser *p, Token t) {
 	std::unique_ptr<FnBodyStatement> body = FnDeclaration::parseFnBody(p, t);
 	// isMethod = true and isConstructor = true
-	return unq(FnStatement, t, t, body, true, false, false, true, VIS_PUB);
+	return unq(FnStatement, t, t, body, true, false, false, true, VIS_DEFAULT);
 }
 
 StmtPtr VisibilityDeclaration::parse(Parser *p, Token t) {
@@ -280,14 +296,14 @@ StmtPtr StaticDeclaration::parse(Parser *p, Token t) {
 		return MemberDeclaration::parse(p, next, true);
 	} else if(next.type == TOKEN_fn) { // it's a static function
 		p->consume();
-		return FnDeclaration::parseFnStatement(p, t, true, true, VIS_PRIV);
+		return FnDeclaration::parseFnStatement(p, t, true, true, VIS_DEFAULT);
 	}
 	// it must be a block
 	return p->parseBlock(true);
 }
 
 StmtPtr MethodDeclaration::parse(Parser *p, Token t) {
-	return FnDeclaration::parseFnStatement(p, t, true, false, VIS_PRIV);
+	return FnDeclaration::parseFnStatement(p, t, true, false, VIS_DEFAULT);
 }
 
 StmtPtr OpMethodDeclaration::parse(Parser *p, Token t) {
@@ -297,7 +313,8 @@ StmtPtr OpMethodDeclaration::parse(Parser *p, Token t) {
 	}
 	std::unique_ptr<FnBodyStatement> body =
 	    FnDeclaration::parseFnBody(p, op, false, 1);
-	return unq(FnStatement, t, op, body, true, false, false, false, VIS_PRIV);
+	return unq(FnStatement, t, op, body, true, false, false, false,
+	           VIS_DEFAULT);
 }
 
 StmtPtr MemberDeclaration::parse(Parser *p, Token t) {
@@ -361,17 +378,6 @@ StmtPtr TryStatementParselet::parse(Parser *p, Token t) {
 		catchBlocks.push_back(unq(CatchStatement, c, typ, varName, catchBlock));
 	} while(p->lookAhead(0).type == TOKEN_catch);
 	return unq(TryStatement, t, tryBlock, catchBlocks);
-}
-
-StmtPtr PrintStatementParselet::parse(Parser *p, Token t) {
-	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after print!");
-	std::vector<ExpPtr> exprs;
-	exprs.push_back(p->parseExpression());
-	while(p->match(TOKEN_COMMA)) {
-		exprs.push_back(p->parseExpression());
-	}
-	p->consume(TOKEN_RIGHT_PAREN, "Expected ')' after print arguments!");
-	return unq(PrintStatement, t, exprs);
 }
 
 StmtPtr ThrowStatementParselet::parse(Parser *p, Token t) {
@@ -452,15 +458,49 @@ std::string Parser::buildNextString(Token &t) {
 ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 	(void)parser;
 	switch(t.type) {
-		case TOKEN_STRING:
-			return unq(LiteralExpression,
-			           Value(StringLibrary::insert(parser->buildNextString(t))),
+		case TOKEN_STRING: {
+			std::string s = parser->buildNextString(t);
+			return unq(LiteralExpression, Value(String::fromParser(s.c_str())),
 			           t);
+		}
 		case TOKEN_NUMBER: {
 			char * end = NULL;
 			double val = strtod(t.start, &end);
 			if(end == NULL || end - t.start < t.length) {
 				throw ParseException(t, "Not a valid number!");
+			}
+			return unq(LiteralExpression, Value(val), t);
+		}
+		// for hex bin and octs, 0 followed by specifier
+		// is invalid
+		// 0b/0B 0x/0X 0o/0O invalid
+		case TOKEN_HEX: {
+			char *end = NULL;
+			// start after 0x
+			const char *start = &t.start[2];
+			long        val   = strtol(start, &end, 16);
+			if(end == NULL || end - t.start < t.length || t.length == 2) {
+				throw ParseException(t, "Not a valid hexadecimal literal!");
+			}
+			return unq(LiteralExpression, Value(val), t);
+		}
+		case TOKEN_BIN: {
+			char *end = NULL;
+			// start after 0b
+			const char *start = &t.start[2];
+			long        val   = strtol(start, &end, 2);
+			if(end == NULL || end - t.start < t.length || t.length == 2) {
+				throw ParseException(t, "Not a valid binary literal!");
+			}
+			return unq(LiteralExpression, Value(val), t);
+		}
+		case TOKEN_OCT: {
+			char *end = NULL;
+			// start after 0x
+			const char *start = &t.start[2];
+			long        val   = strtol(start, &end, 8);
+			if(end == NULL || end - t.start < t.length || t.length == 2) {
+				throw ParseException(t, "Not a valid octal literal!");
 			}
 			return unq(LiteralExpression, Value(val), t);
 		}

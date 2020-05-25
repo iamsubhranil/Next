@@ -1,10 +1,6 @@
-#include "builtins.h"
-#include "core.h"
 #include "engine.h"
+#include "gc.h"
 #include "loader.h"
-#include "primitive.h"
-#include "qnan.h"
-#include "stringconstants.h"
 #include <iostream>
 using namespace std;
 
@@ -15,30 +11,28 @@ int main(int argc, char *argv[]) {
 	cout << #n << " : " << std::hex << QNAN_##n << std::dec << endl;
 #include "valuetypes.h"
 #endif
-	StringConstants::init();
-	SymbolConstants::init();
+	GcObject::init();
 	Value::init();
-	NextType::init();
-	Builtin::init();
-	Primitives::init();
 	ExecutionEngine::init();
-	// load the core module first
-	CoreModule::init();
+	// ExecutionEngine::init();
 	// bind all the core classes
-	NextType::bindCoreClasses();
+	// NextType::bindCoreClasses();
 	if(argc > 1) {
-		compile_and_load(argv[1], true);
+		Loader::compile_and_load(argv[1], true);
 		// cout << s.scanAllTokens();
 	} else {
+		cout << "Repl is not implemented yet!";
+		/*
 		Module *module = new Module(StringConstants::repl);
 		string  line;
 		cout << ">> ";
 		while(getline(cin, line)) {
-			compile_and_load_from_source(line.c_str(), module, true);
-			cout << endl << ">> ";
+		    compile_and_load_from_source(line.c_str(), module, true);
+		    cout << endl << ">> ";
 		}
 		cout << endl;
+		*/
 	}
-	ExecutionEngine::gc();
+	// ExecutionEngine::gc();
 	return 0;
 }

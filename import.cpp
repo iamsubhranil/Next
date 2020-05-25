@@ -1,4 +1,5 @@
 #include "import.h"
+#include "objects/array.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,20 +30,21 @@ const char *kPathSeparator =
 
 using namespace std;
 
-ImportStatus import(vector<Token> &loc) {
+ImportStatus Importer::import(vector<Token> &loc) {
 	ImportStatus ret;
-	ret.fileName    = string("<bad>");
+	ret.fileName    = String::from("<bad>");
 	ret.res         = ImportStatus::BAD_IMPORT;
 	ret.toHighlight = 0;
 
-	vector<string> strs;
+	Array *strs = Array::create(1);
 	for(auto i = loc.begin(), j = loc.end(); i != j; i++) {
-		strs.push_back(string((*i).start, (*i).length));
+		strs->insert(String::from((*i).start, (*i).length));
 	}
 
-	bool   lastIsFolder = true;
-	auto   it           = strs.begin();
-	string paths        = ".";
+	bool    lastIsFolder = true;
+	auto    it           = 0;
+	String *dot          = String::from(".");
+	String *paths        = dot;
 	// the path will be relative to the file
 	// where the import statement is written
 	const char *lastPath   = (*loc.begin()).fileName;
@@ -53,15 +55,16 @@ ImportStatus import(vector<Token> &loc) {
 	      (lastPath[lastSepLoc] != '/' && lastPath[lastSepLoc] != '\\'))
 		lastSepLoc--;
 	if(lastSepLoc == -1)
-		paths = ".";
+		paths = dot;
 	else
-		paths = string(lastPath, lastSepLoc);
+		paths = String::from(lastPath, lastSepLoc);
 
-	const char *path_ = paths.c_str();
+	const char *path_ = paths->str;
 
-	while(lastIsFolder && it != strs.end()) {
-		paths += string(kPathSeparator) + (*it);
-		path_ = paths.c_str();
+	while(lastIsFolder && it != strs->size) {
+		paths = String::append(
+		    paths, String::append(kPathSeparator, strs->values[it].toString()));
+		path_ = paths->str;
 		if(!dirExists(path_)) {
 			lastIsFolder = false;
 		}
@@ -70,28 +73,29 @@ ImportStatus import(vector<Token> &loc) {
 #ifdef DEBUG
 	cout << "Path generated : " << path_ << endl;
 #endif
-	if(!lastIsFolder && it != strs.end()) {
-		// cout << "Not a valid import : " << path_ << endl;
-		ret.toHighlight = (it - strs.begin());
-		return ret;
-	} else if(lastIsFolder && it == strs.end()) {
+	if(lastIsFolder && it == strs->size) {
 		// cout << "Unable to import whole folder '" << paths << "'!" << endl;
 		ret.res         = ImportStatus::FOLDER_IMPORT;
-		ret.toHighlight = strs.size() - 1;
+		ret.toHighlight = strs->size - 1;
 		return ret;
 	}
-	paths += string(".n");
-	path_   = paths.c_str();
+	paths   = String::append(path_, ".n");
+	path_   = paths->str;
 	FILE *f = fopen(path_, "r");
 	if(f == NULL) {
 		// cout << "Unable to open file : '" << path_ << "'!" << endl;
 		ret.res         = ImportStatus::FILE_NOT_FOUND;
 		ret.fileName    = paths;
-		ret.toHighlight = it - strs.begin();
+		ret.toHighlight = it;
 		return ret;
 	}
-	ret.res      = ImportStatus::IMPORT_SUCCESS;
-	ret.fileName = paths;
+	// if the whole path was resolved, it was a valid module
+	// import, else, there are some parts we need to resolve
+	// at runtime
+	ret.res = it == strs->size ? ImportStatus::IMPORT_SUCCESS
+	                           : ImportStatus::PARTIAL_IMPORT;
+	ret.fileName    = paths;
+	ret.toHighlight = it;
 #ifdef DEBUG
 	cout << path_ << " imported successfully!" << endl;
 #endif

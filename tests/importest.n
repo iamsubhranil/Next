@@ -1,4 +1,4 @@
-import classtest
+import classtest.LinkedList
 import it.testmodule
 
 pub fn test() {
@@ -8,13 +8,13 @@ pub fn test() {
         print("[Error] Imported function calls not working!\n")
         res = false
     }
-    obj = classtest.LinkedList(3)
+    obj = LinkedList(3)
     try {
         if(obj.mem != 3) {
             print("[Error] Imported call to classtest.LinkedList(3) failed!\n")
             res = false
         }
-    } catch(RuntimeException e) {
+    } catch(runtime_error e) {
         print("[Error] classtest.LinkedList should have a member named 'mem!'\n")
         print(e.str(), "\n")
         res = false

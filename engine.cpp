@@ -1,66 +1,96 @@
 #include "engine.h"
-#include "builtins.h"
 #include "display.h"
-#include "primitive.h"
-#include "stringconstants.h"
-#include "symboltable.h"
+#include "objects/boundmethod.h"
+#include "objects/bytecodecompilationctx.h"
+#include "objects/class.h"
+#include "objects/errors.h"
+#include "objects/fiber.h"
+#include "objects/function.h"
+#include "objects/object.h"
+#include "objects/symtab.h"
 #include <cmath>
+#include <iostream>
 
-using namespace std;
+#ifdef DEBUG_INS
+#include <iomanip>
+#endif
 
-char                          ExecutionEngine::ExceptionMessage[1024] = {0};
-vector<Fiber *>               ExecutionEngine::fibers = vector<Fiber *>();
-HashMap<NextString, Module *> ExecutionEngine::loadedModules =
+char                       ExecutionEngine::ExceptionMessage[1024] = {0};
+HashMap<String *, Class *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
-Value  ExecutionEngine::pendingException = ValueNil;
-size_t ExecutionEngine::total_allocated  = 0;
-size_t ExecutionEngine::next_gc          = 1024 * 1024;
+Value   ExecutionEngine::pendingException = ValueNil;
+Fiber * ExecutionEngine::currentFiber     = nullptr;
+Object *ExecutionEngine::CoreObject       = nullptr;
 
 void ExecutionEngine::init() {
 	pendingException = ValueNil;
+	// create a new fiber
+	Fiber *f = Fiber::create();
+	// make slot for core
+	f->stackTop++;
+	// create core instance
+	f->appendMethod(
+	    GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
+	        .toFunction());
+	CoreObject = execute(f).toObject();
 }
 
-bool ExecutionEngine::isModuleRegistered(NextString name) {
-	return loadedModules.find(name) != loadedModules.end();
+bool ExecutionEngine::isModuleRegistered(String *name) {
+	return loadedModules.contains(name);
 }
 
-Module *ExecutionEngine::getRegisteredModule(NextString name) {
+Class *ExecutionEngine::getRegisteredModule(String *name) {
 	return loadedModules[name];
 }
 
-void ExecutionEngine::registerModule(Module *m) {
-	if(loadedModules.find(m->name) != loadedModules.end()) {
-		warn("Module already loaded : '%s'!", StringLibrary::get_raw(m->name));
+void ExecutionEngine::registerModule(Class *m) {
+	if(loadedModules.contains(m->name)) {
+		warn("Module already loaded : '%s'!", m->name->str);
 	}
 	loadedModules[m->name] = m;
 }
 
-// using BytecodeHolder::Opcodes;
-void ExecutionEngine::printStackTrace(Fiber *fiber, int rootFrame) {
-	int            i          = fiber->callFramePointer - 1;
-	FrameInstance *root       = &fiber->callFrames[i];
-	FrameInstance *f          = root;
-	NextString     lastModule = 0;
-	while(i >= rootFrame) {
+// using Bytecode::Opcodes
+void ExecutionEngine::printStackTrace(Fiber *fiber) {
+	int               i        = fiber->callFramePointer - 1;
+	Fiber::CallFrame *root     = &fiber->callFrames[i];
+	Fiber::CallFrame *f        = root;
+	String *          lastName = 0;
+	while(i >= 0) {
 		Token t;
 
-		if(f->frame->module->name != lastModule) {
-			lastModule = f->frame->module->name;
-			cout << "In module '" << ANSI_COLOR_YELLOW
-			     << StringLibrary::get_raw(lastModule) << ANSI_COLOR_RESET
-			     << "'\n";
-		}
-		if(f->frame->lineInfos.size() > 0 && f->frame->parent != NULL) {
-			f->frame->lineInfos[0].t.highlight(true, "In function ",
-			                                   Token::WARN);
+		const Class *c = f->stack_[0].getClass();
+		if(lastName != c->name) {
+			lastName = c->name;
+			if(c->module != NULL)
+				std::cout << "In class '";
+			else
+				std::cout << "In module '";
+			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			          << "'\n";
 		}
 
-		if((t = f->frame->findLineInfo(f->code - (f == root ? 0 : 1))).type !=
-		   TOKEN_ERROR)
-			t.highlight(true, "At ", Token::ERROR);
-		else
-			err("<source not found>");
+		if(c->module == NULL &&
+		   c->functions[0][SymbolTable2::const_sig_constructor_0]
+		           .toFunction() == f->f) {
+			std::cout << "In module '";
+			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			          << "'\n";
+		} else {
+			f->f->code->ctx->get_token(0).highlight(true, "In function ",
+			                                        Token::WARN);
+		}
+		t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
+		t.highlight(true, "At ", Token::ERROR);
 		f = &fiber->callFrames[--i];
+		if(i < 0 && fiber->parent != NULL) {
+			std::cout << "In a parent fiber \n";
+			fiber    = fiber->parent;
+			i        = fiber->callFramePointer - 1;
+			root     = &fiber->callFrames[i];
+			f        = root;
+			lastName = 0;
+		}
 	}
 }
 
@@ -68,41 +98,19 @@ void ExecutionEngine::setPendingException(Value v) {
 	pendingException = v;
 }
 
-Value ExecutionEngine::createRuntimeException(const char *message) {
-	Value except =
-	    newObject(StringConstants::core, StringConstants::RuntimeException);
-	except.toObject()->slots[0] = Value(StringLibrary::insert(message));
-	return except;
-}
-
-void ExecutionEngine::gc() {
-#ifdef DEBUG_GC
-	cout << "[GC] GC started. next_gc : " << next_gc
-	     << " bytes, total_allocated : " << total_allocated << " bytes..\n";
-#endif
-	for(auto &f : fibers) {
-		Value *top = f->stack_ + f->maxStackSize;
-		while(--top >= f->stack_) {
-			if((*top).isObject())
-				(*top).toObject()->mark();
+void ExecutionEngine::mark() {
+	// mark everything that is live on the stack
+	// this will recursively mark all the referenced
+	// objects
+	GcObject::mark(currentFiber);
+	// mark the core object
+	GcObject::mark(CoreObject);
+	// the modules which are not marked, remove them
+	for(auto &a : loadedModules) {
+		if(!GcObject::isMarked((GcObject *)a.second)) {
+			loadedModules.erase(a.first);
 		}
 	}
-	if(total_allocated >= next_gc)
-		next_gc *= 2;
-	total_allocated -= NextObject::sweep();
-#ifdef DEBUG_GC
-	cout << "[GC] GC finished. next_gc : " << next_gc
-	     << " bytes, total_allocated : " << total_allocated << " bytes..\n";
-#endif
-}
-
-NextObject *ExecutionEngine::createObject(NextClass *c) {
-	if(total_allocated >= next_gc)
-		gc();
-	NextObject *ret = new NextObject(c);
-	total_allocated += sizeof(NextObject);
-	total_allocated += sizeof(Value) * c->slotNum;
-	return ret;
 }
 
 // @s   <-- StringLibrary hash
@@ -116,16 +124,15 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 		if(message[i] == '@') {
 			switch(message[i + 1]) {
 				case 's': {
-					NextString  h   = va_arg(args, NextString);
-					const char *str = StringLibrary::get_raw(h);
+					String *    h   = va_arg(args, String *);
+					const char *str = h->str;
 					while(*str != '\0') ExceptionMessage[j++] = *str++;
 					i += 2;
 					break;
 				}
 				case 't': {
-					uint64_t    s = va_arg(args, uint64_t);
-					const char *str =
-					    StringLibrary::get_raw(SymbolTable::getSymbol(s));
+					int         s   = va_arg(args, int);
+					const char *str = SymbolTable2::get(s);
 					while(*str != '\0') ExceptionMessage[j++] = *str++;
 					i += 2;
 					break;
@@ -141,123 +148,187 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 	va_end(args);
 }
 
-#define PUSH(x) *StackTop++ = (x);
+void ExecutionEngine::printException(Value v, Fiber *f) {
+	const Class *c = v.getClass();
+
+	std::cout << "\n";
+	if(c->module != NULL) {
+		err("Uncaught exception occurred of type '%s.%s': ",
+		    c->module->name->str, c->name->str);
+	} else {
+		err("Uncaught exception occurred of type '%s': ", c->name->str);
+	}
+	std::cout << String::toString(v)->str << "\n";
+	printStackTrace(f);
+}
+
+#define PUSH(x) *fiber->stackTop++ = (x);
 
 #define set_instruction_pointer(x) \
-	instructionPointer = x->code - x->frame->code.bytecodes.data()
+	instructionPointer = x->code - x->f->code->bytecodes;
 
-FrameInstance *ExecutionEngine::throwException(Value v, Fiber *f,
-                                               int rootFrame) {
+Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 
 	// Get the type
-	NextType t = NextType::getType(v);
+	const Class *klass = thrown.getClass();
 	// Now find the frame by unwinding the stack
-	int            num                = f->callFramePointer - 1;
-	int            instructionPointer = 0;
-	FrameInstance *matched            = NULL;
-	FrameInstance *searching          = &f->callFrames[num];
-	ExHandler      handler;
-	while(num >= rootFrame && matched == NULL) {
-		// find the current instruction pointer
-		set_instruction_pointer(searching);
-		for(auto &i : *searching->frame->handlers) {
-			if(i.from <= (instructionPointer - 1) &&
-			   i.to >= (instructionPointer - 1) && i.caughtType == t) {
+	Fiber *           f                  = root;
+	int               num                = f->callFramePointer - 1;
+	int               instructionPointer = 0;
+	Fiber::CallFrame *matched            = NULL;
+	Fiber::CallFrame *searching          = &f->callFrames[num];
+	Exception         block;
+	while(num >= 0 && matched == NULL) {
+		for(size_t i = 0; i < searching->f->numExceptions; i++) {
+			Exception e = searching->f->exceptions[i];
+			instructionPointer =
+			    searching->code - searching->f->code->bytecodes;
+			if(e.from <= (instructionPointer - 1) &&
+			   e.to >= (instructionPointer - 1)) {
 				matched = searching;
-				handler = i;
+				block   = e;
 				break;
 			}
 		}
 		searching = &f->callFrames[--num];
+		if(num < 0 && f->parent != NULL) {
+			f         = f->parent;
+			num       = f->callFramePointer - 1;
+			searching = &f->callFrames[num];
+		}
 	}
 	if(matched == NULL) {
-		cout << "\n";
-		// no handlers matched, unwind stack
-		err("Uncaught exception occurred of type '%s.%s'!",
-		    StringLibrary::get_raw(t.module), StringLibrary::get_raw(t.name));
-		// if it's a runtime exception, there is a message
-		if(NextType::getType(v) ==
-		   (NextType){StringConstants::core,
-		              StringConstants::RuntimeException}) {
-			cout << StringLibrary::get(v.toObject()->slots[0].toString())
-			     << endl;
-		}
-		printStackTrace(f, rootFrame);
+		printException(thrown, root);
 		exit(1);
 	} else {
-		// pop all but the matched frame
-		while(f->getCurrentFrame() != matched) {
-			f->popFrame(&f->stackTop);
+		// now check whether the caught type is actually a class
+		Class *caughtClass = NULL;
+		for(size_t i = 0; i < block.numCatches; i++) {
+			CatchBlock c = block.catches[i];
+			Value      v = ValueNil;
+			switch(c.type) {
+				case CatchBlock::SlotType::CLASS:
+					v = matched->stack_[0].toObject()->slots[c.slot];
+					break;
+				case CatchBlock::SlotType::LOCAL:
+					v = matched->stack_[c.slot];
+					break;
+				case CatchBlock::SlotType::MODULE:
+					// module is at 0 -> 0
+					v = matched->stack_[0]
+					        .toObject()
+					        ->slots[0]
+					        .toObject()
+					        ->slots[c.slot];
+					break;
+				case CatchBlock::SlotType::CORE:
+					v = CoreObject->slots[c.slot];
+					break;
+				default: break;
+			}
+			if(!v.isClass()) {
+				printException(thrown, root);
+				std::cout << "Error occurred while catching an exception!\n";
+				std::cout << "The caught value '" << String::toString(v)->str
+				          << "' is not a valid class!\n";
+				// pop all but the matched frame
+				while(f->getCurrentFrame() != matched) {
+					f->popFrame();
+				}
+				printStackTrace(f);
+				exit(1);
+			}
+			caughtClass = v.toClass();
+			if(caughtClass == klass) {
+				// pop all but the matched frame
+				while(f->getCurrentFrame() != matched) {
+					f->popFrame();
+				}
+				matched->code = matched->f->code->bytecodes + c.jump;
+				break;
+			}
 		}
-		FrameInstance *presentFrame = f->getCurrentFrame();
-		Value *        StackTop     = f->stackTop;
-		PUSH(v);
-		presentFrame->code =
-		    &presentFrame->frame->code.bytecodes[handler.instructionPointer];
-		f->stackTop = StackTop;
-		return presentFrame;
+		Fiber *fiber = f;
+		PUSH(thrown);
+		return f;
 	}
 }
 
-Value ExecutionEngine::newObject(NextString mod, NextString c) {
-	if(loadedModules.find(mod) != loadedModules.end()) {
-		ClassMap &cm = loadedModules[mod]->classes;
-		if(cm.find(c) != cm.end()) {
-			return Value(createObject(cm[c].get()));
-		} else {
-			panic("Class '%s' not found in module '%s'!",
-			      StringLibrary::get_raw(c), StringLibrary::get_raw(mod));
+Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
+                               bool returnToCaller) {
+	// if this is built in function, don't bother
+	Fiber *fiber = currentFiber;
+	// we need to store the args somewhere where they can
+	// be tracked. storing them in the present fiber
+	// seems like a fine idea for now
+	switch(f->getType()) {
+		case Function::Type::BUILTIN: {
+			fiber->ensureStack(numarg + 1);
+			PUSH(v);
+			if(numarg > 0) {
+				memcpy(fiber->stackTop, args, sizeof(Value) * numarg);
+			}
+			fiber->stackTop += numarg;
+			// execute
+			Value res = f->func(&fiber->stackTop[-numarg - 1], numarg);
+			// decrement the top back to previous position
+			fiber->stackTop -= (numarg + 1);
+			// if we need to return, go back
+			if(returnToCaller)
+				return res;
+			else {
+				// push the value to the fiber, and continue
+				PUSH(v);
+				break;
+			}
 		}
-	} else {
-		panic("Module '%s' is not loaded!", StringLibrary::get_raw(c));
+		case Function::Type::METHOD:
+			currentFiber->appendBoundMethodDirect(v, f, returnToCaller);
+			// push the arguments
+			if(numarg > 0) {
+				fiber->ensureStack(numarg);
+				memcpy(fiber->stackTop, args, sizeof(Value) * numarg);
+				fiber->stackTop += numarg;
+			}
+			break;
 	}
-	return ValueNil;
+	return execute(currentFiber);
 }
 
-#define RERR(x, ...)                              \
+Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
+	return execute(v, f, NULL, 0, returnToCaller);
+}
+
+Value ExecutionEngine::execute(BoundMethod *b, bool returnToCaller) {
+	currentFiber->appendBoundMethod(b, returnToCaller);
+	return execute(currentFiber);
+}
+
+Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
+	Fiber *bak = currentFiber;
+	f->appendBoundMethod(b, returnToCaller);
+	Value v      = execute(f);
+	currentFiber = bak;
+	return v;
+}
+
+#define RERRF(x, ...)                             \
 	{                                             \
 		formatExceptionMessage(x, ##__VA_ARGS__); \
 		goto error;                               \
 	}
 
-void ExecutionEngine::execute(Module *m, Frame *f) {
-	FrameInstance *presentFrame, *frameInstanceToCall;
-	Frame *        frameToCall;
-	int            numberOfArguments;
-	Value          rightOperand;
-	uint64_t       methodToCall;
-	for(auto i : m->importedModules) {
-		if(i.second->frameInstance == NULL && i.second->hasCode())
-			execute(i.second, i.second->frame.get());
-	}
-	if(fibers.empty()) {
-		fibers.push_back(new Fiber());
-	}
-	Fiber *fiber = fibers.back();
-	// Check if it is the root frame of the module,
-	// and if so, restore the instance from the
-	// module if there is one
-	if(m->frame.get() == f) {
-		if(m->frameInstance != NULL) {
-			m->reAdjust(f);
-			presentFrame = m->frameInstance;
-		} else {
-			presentFrame = m->topLevelInstance(fiber);
-		}
-	} else
-		presentFrame = fiber->appendCallFrame(f, 0, &fiber->stackTop);
+Value ExecutionEngine::execute(Fiber *fiber) {
+	currentFiber = fiber;
 
-	// The problem is, all of our top level module frames
-	// live in the Fiber stack too. So while throwing an
-	// exception or printing a stack trace, we don't
-	// actually need to go back all the way to the first
-	// frame in the fiber, we need to go back to the
-	// frame from where this particular 'execute' method
-	// started execution.
-	int                     RootFrameID        = fiber->callFramePointer - 1;
-	BytecodeHolder::Opcode *InstructionPointer = presentFrame->code;
-	Value *                 Stack              = presentFrame->stack_;
-	Value *                 StackTop           = fiber->stackTop;
+	int       numberOfArguments;
+	Value     rightOperand;
+	int       methodToCall;
+	Function *functionToCall;
+
+	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
+	Bytecode::Opcode *InstructionPointer = presentFrame->code;
+	Value *           Stack              = presentFrame->stack_;
 
 	// variable to denote the relocation of instruction
 	// pointer after extracting an argument
@@ -282,7 +353,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #else
 #define LOOP() while(1)
 #define SWITCH() switch(*InstructionPointer)
-#define CASE(x) case BytecodeHolder::CODE_##x
+#define CASE(x) case Bytecode::CODE_##x
 #define DISPATCH()            \
 	{                         \
 		InstructionPointer++; \
@@ -293,8 +364,8 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 #define DEFAULT() default
 #endif
 
-#define TOP (*(StackTop - 1))
-#define POP() (*(--StackTop))
+#define TOP (*(fiber->stackTop - 1))
+#define POP() (*(--fiber->stackTop))
 
 #define JUMPTO(x)                                      \
 	{                                                  \
@@ -303,55 +374,48 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 	}
 
 #define JUMPTO_OFFSET(x) \
-	{ JUMPTO((x) - (sizeof(int) / sizeof(BytecodeHolder::Opcode))); }
+	{ JUMPTO((x) - (sizeof(int) / sizeof(Bytecode::Opcode))); }
 
-#define RESTORE_FRAMEINFO()                    \
-	InstructionPointer = presentFrame->code;   \
-	Stack              = presentFrame->stack_; \
-	StackTop           = fiber->stackTop;
+#define RESTORE_FRAMEINFO()                        \
+	presentFrame       = fiber->getCurrentFrame(); \
+	InstructionPointer = presentFrame->code;       \
+	Stack              = presentFrame->stack_;
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
-#define CALL_INSTANCE(fIns, n)      \
-	{                               \
-		frameInstanceToCall = fIns; \
-		numberOfArguments   = n;    \
-		goto call_frameinstance;    \
-	}
-
-#define CALL(frame, n)             \
-	{                              \
-		frameToCall       = frame; \
-		numberOfArguments = n;     \
-		goto call_frame;           \
-	}
-
-#define relocip(x)                                       \
-	(reloc = sizeof(x) / sizeof(BytecodeHolder::Opcode), \
+#define relocip(x)                                 \
+	(reloc = sizeof(x) / sizeof(Bytecode::Opcode), \
 	 InstructionPointer += reloc, *(x *)((InstructionPointer - reloc + 1)))
 #define next_int() relocip(int)
-#define next_long() relocip(uint64_t)
-#define next_double() relocip(double)
-#define next_string() relocip(NextString)
-#define next_ptr() relocip(uintptr_t)
 #define next_value() relocip(Value)
-	// std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
+	// std::std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// std::endl;
 
-#define binary(op, opname, argtype, restype, opcode)                           \
-	{                                                                          \
-		rightOperand = POP();                                                  \
-		if(rightOperand.is##argtype() && TOP.is##argtype()) {                  \
-			TOP.set##restype(TOP.to##argtype() op rightOperand.to##argtype()); \
-			DISPATCH();                                                        \
-		} else if(TOP.isObject()) {                                            \
-			methodToCall = SymbolConstants::sig_##opcode;                      \
-			goto opmethodcall;                                                 \
-		}                                                                      \
-		RERR("Both of the operands of " #opname " are not " #argtype           \
-		     " (@s and @s)!",                                                  \
-		     TOP.getTypeString(), rightOperand.getTypeString());               \
+#define binary_multiway(op, opname, argtype, restype, opcode, doSomething) \
+	{                                                                      \
+		rightOperand = POP();                                              \
+		if(rightOperand.is##argtype() && TOP.is##argtype()) {              \
+			TOP.set##restype(doSomething(op, TOP.to##argtype(),            \
+			                             rightOperand.to##argtype()));     \
+			DISPATCH();                                                    \
+		} else {                                                           \
+			PUSH(rightOperand);                                            \
+			methodToCall      = SymbolTable2::const_sig_##opcode;          \
+			numberOfArguments = 1;                                         \
+			goto methodcall;                                               \
+		}                                                                  \
+		RERRF("Both of the operands of " #opname " are not " #argtype      \
+		      " (@s and @s)!",                                             \
+		      TOP.getTypeString(), rightOperand.getTypeString());          \
 	}
+
+#define binary_perform_direct(op, a, b) ((a)op(b))
+#define binary(op, opname, argtype, restype, opcode) \
+	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_direct)
+
+#define binary_perform_pow(op, a, b) (pow((a), (b)))
+#define binary_pow(op, opname, argtype, restype, opcode) \
+	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_pow)
 
 #define is_falsey(v) (v == ValueNil || v == ValueFalse || v == ValueZero)
 
@@ -373,41 +437,45 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		DISPATCH();         \
 	}
 
-#define ASSERT(x, str, ...)      \
-	if(!(x)) {                   \
-		RERR(str, ##__VA_ARGS__) \
+#define ASSERT(x, str, ...)       \
+	if(!(x)) {                    \
+		RERRF(str, ##__VA_ARGS__) \
 	}
 
 	LOOP() {
 #ifdef DEBUG_INS
 		int instructionPointer =
-		    InstructionPointer - presentFrame->frame->code.raw();
-		int   stackPointer = StackTop - presentFrame->stack_;
-		Token t = presentFrame->frame->findLineInfo(InstructionPointer);
+		    InstructionPointer - presentFrame->f->code->bytecodes;
+		int   stackPointer = fiber->stackTop - presentFrame->stack_;
+		Token t = presentFrame->f->code->ctx->get_token(instructionPointer);
 		if(t.type != TOKEN_ERROR)
 			t.highlight();
 		else
-			cout << "<source not found>\n";
-		cout << " StackMaxSize: " << presentFrame->frame->code.maxStackSize()
-		     << " IP: " << setw(4) << instructionPointer
-		     << " SP: " << stackPointer << " ";
-		fflush(stdout);
-		for(int i = 0; i < presentFrame->frame->code.maxStackSize(); i++) {
-			cout << " | " << presentFrame->stack_[i];
+			std::cout << "<source not found>\n";
+		std::cout << " StackMaxSize: " << presentFrame->f->code->stackMaxSize
+		          << " IP: " << std::setw(4) << instructionPointer
+		          << " SP: " << stackPointer << " " << std::flush;
+		for(int i = 0; i < presentFrame->f->code->stackMaxSize; i++) {
+			if(i == stackPointer)
+				std::cout << " |> ";
+			else
+				std::cout << " | ";
+			Bytecode::disassemble_Value(
+			    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
 		}
-		cout << " | \n";
-		BytecodeHolder::disassemble(InstructionPointer);
-		if(stackPointer > presentFrame->frame->code.maxStackSize()) {
-			RERR("Invalid stack access!");
+		std::cout << " | \n";
+		Bytecode::disassemble(
+		    std::cout, &presentFrame->f->code->bytecodes[instructionPointer]);
+		if(stackPointer > presentFrame->f->code->stackMaxSize) {
+			RERRF("Invalid stack access!");
 		}
-		cout << "\n\n";
+		std::cout << "\n\n";
 #ifdef DEBUG_INS
 		fflush(stdout);
 		// getchar();
 #endif
 #endif
 		SWITCH() {
-
 			CASE(add) : binary(+, addition, Number, Number, add);
 			CASE(sub) : binary(-, subtraction, Number, Number, sub);
 			CASE(mul) : binary(*, multiplication, Number, Number, mul);
@@ -421,28 +489,19 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			CASE(less) : binary(<, lesser than, Number, Boolean, less);
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
-			CASE(power) : {
-				rightOperand = POP();
-				if(rightOperand.isNumber() && TOP.isNumber()) {
-					TOP.setNumber(pow(TOP.toNumber(), rightOperand.toNumber()));
-					DISPATCH();
-				} else if(TOP.isObject()) {
-					methodToCall = SymbolConstants::sig_pow;
-					goto opmethodcall;
-				}
-				RERR("Both of the operands of 'power of' are not Number"
-				     " (@s and @s)!",
-				     TOP.getTypeString(), rightOperand.getTypeString());
-			}
 
-			CASE(in_) : { RERR("Not yet implemented!"); }
+			CASE(power) : binary_pow(^, power of, Number, Number, pow);
 
 			CASE(neq) : {
 				rightOperand = POP();
-				if(TOP.isObject() && TOP.toObject()->Class->hasPublicMethod(
-				                         SymbolConstants::sig_neq)) {
-					methodToCall = SymbolConstants::sig_neq;
-					goto opmethodcall;
+				// we don't call getClass here because we only want
+				// to call method on non primitive types
+				if(TOP.isGcObject() &&
+				   TOP.getClass()->has_fn(SymbolTable2::const_sig_neq)) {
+					methodToCall      = SymbolTable2::const_sig_neq;
+					numberOfArguments = 1;
+					PUSH(rightOperand);
+					goto methodcall;
 				}
 				TOP = TOP != rightOperand;
 				DISPATCH();
@@ -450,155 +509,30 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 			CASE(eq) : {
 				rightOperand = POP();
-				if(TOP.isObject() && TOP.toObject()->Class->hasPublicMethod(
-				                         SymbolConstants::sig_eq)) {
-					methodToCall = SymbolConstants::sig_eq;
-					goto opmethodcall;
+				if(TOP.isGcObject() &&
+				   TOP.getClass()->has_fn(SymbolTable2::const_sig_eq)) {
+					methodToCall      = SymbolTable2::const_sig_eq;
+					numberOfArguments = 1;
+					PUSH(rightOperand);
+					goto methodcall;
 				}
 				TOP = TOP == rightOperand;
 				DISPATCH();
 			}
 
 			CASE(subscript_get) : {
-				rightOperand = POP();
-				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
-
-					if(obj->Class == NextType::ArrayClass) {
-						// handle array get
-						// Check for integer index
-						long intpart;
-						if(!rightOperand.isInteger()) {
-							RERR("Array index must be an integer!");
-						}
-						intpart        = rightOperand.toInteger();
-						long idx       = intpart;
-						long totalSize = obj->slots[1].toInteger();
-						if(intpart >= totalSize || -intpart > totalSize) {
-							RERR("Invalid array index!");
-						}
-						if(intpart < 0) {
-							idx = totalSize + intpart;
-						}
-						TOP = obj->slots[0].toArray()[idx];
-						DISPATCH();
-					} else if(obj->Class == NextType::HashMapClass &&
-					          Builtin::next_is_hashable(&rightOperand)
-					              .toBoolean()) {
-						// manually extract the hashmap
-						TOP = TOP.toObject()->slots[0];
-						PUSH(rightOperand);
-						Value v = Builtin::next_hashmap_get(&StackTop[-2]);
-						POP();
-						TOP = v;
-						DISPATCH();
-					}
-
-					methodToCall = SymbolConstants::sig_subscript_get;
-					goto opmethodcall;
-				} else if(Primitives::hasPrimitive(
-				              TOP.getType(),
-				              SymbolConstants::sig_subscript_get)) {
-
-					PUSH(rightOperand);
-					methodToCall      = SymbolConstants::sig_subscript_get;
-					rightOperand      = StackTop[-2];
-					numberOfArguments = 1;
-					goto call_primitive;
-				}
-				RERR("Method [](_) not found in class '@s'!",
-				     TOP.getTypeString());
+				methodToCall      = SymbolTable2::const_sig_subscript_get;
+				numberOfArguments = 1;
+				goto methodcall;
 			}
 
 			CASE(subscript_set) : {
-				Value target = StackTop[-3];
-				if(target.isObject()) {
-					if(target.toObject()->Class == NextType::ArrayClass) {
-						Value value     = POP();
-						rightOperand    = POP();
-						NextObject *obj = TOP.toObject();
-						// handle array get
-						// Check for integer index
-						long intpart;
-						if(!rightOperand.isInteger()) {
-							RERR("Array index must be an integer!");
-						}
-						intpart        = rightOperand.toInteger();
-						long idx       = intpart;
-						long totalSize = obj->slots[1].toInteger();
-						if(intpart > totalSize || -intpart > totalSize) {
-							RERR("Invalid array index!");
-						}
-						if(intpart < 0) {
-							idx = totalSize + intpart;
-						}
-						Value *arr = obj->slots[0].toArray();
-						if(idx == totalSize) {
-							totalSize++;
-							obj->slots[1] = Value((double)(totalSize));
-
-							// reallocation and stuff
-							long oldCapacity = obj->slots[2].toInteger();
-
-							if(oldCapacity == totalSize) {
-								// assuming oldcapacity is already
-								// adjusted to a power of 2, which
-								// it is at initialisation
-								size_t newCapacity = oldCapacity << 1;
-								arr = (Value *)realloc(arr, sizeof(Value) *
-								                                newCapacity);
-								for(size_t o = oldCapacity; o < newCapacity;
-								    o++)
-									arr[o] = ValueNil;
-								obj->slots[0] = arr;
-								obj->slots[2] = Value((double)newCapacity);
-							}
-						}
-						arr[idx] = value;
-						TOP      = value;
-						DISPATCH();
-					} else if(target.toObject()->Class ==
-					              NextType::HashMapClass &&
-					          Builtin::next_is_hashable(&StackTop[-2])
-					              .toBoolean()) {
-						// manually extract the hashmap
-						StackTop[-3] = target.toObject()->slots[0];
-						Value v      = Builtin::next_hashmap_set(&StackTop[-3]);
-						POP(); // value
-						POP(); // key
-						TOP = v;
-						DISPATCH();
-					}
-					NextObject *obj = target.toObject();
-					ASSERT(obj->Class->hasPublicMethod(
-					           SymbolConstants::sig_subscript_set),
-					       "Method [](_,_) not found in class '@s'!",
-					       target.getTypeString());
-					CALL(obj->Class
-					         ->functions[SymbolConstants::sig_subscript_set]
-					         ->frame.get(),
-					     3);
-				} else if(Primitives::hasPrimitive(
-				              target.getType(),
-				              SymbolConstants::sig_subscript_set)) {
-
-					methodToCall      = SymbolConstants::sig_subscript_set;
-					rightOperand      = StackTop[-3];
-					numberOfArguments = 2;
-					goto call_primitive;
-				}
-				RERR("Method [](_,_) not found in class '@s'!",
-				     TOP.getTypeString());
+				methodToCall      = SymbolTable2::const_sig_subscript_set;
+				numberOfArguments = 2;
+				goto methodcall;
+				// CALL_METHOD(c->get_fn(SymbolTable2::const_sig_subscript_set),
+				//            3);
 			}
-
-		opmethodcall : {
-			NextObject *obj = TOP.toObject();
-			ASSERT(obj->Class->hasPublicMethod(methodToCall),
-			       "Method '@t' not found in class '@s'!", methodToCall,
-			       obj->Class->name);
-			PUSH(rightOperand);
-			CALL(obj->Class->functions[methodToCall]->frame.get(), 1 + 1);
-		}
 
 			CASE(lnot) : {
 				TOP.setBoolean(is_falsey(TOP));
@@ -610,21 +544,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					TOP.setNumber(-TOP.toNumber());
 					DISPATCH();
 				}
-				RERR("'-' must only be applied over a number!");
+				RERRF("'-' must only be applied over a number!");
 			}
 
 			CASE(push) : {
 				PUSH(next_value());
-				DISPATCH();
-			}
-
-			CASE(pushd) : {
-				PUSH(Value(next_double()));
-				DISPATCH();
-			}
-
-			CASE(pushs) : {
-				PUSH(Value(next_string()));
 				DISPATCH();
 			}
 
@@ -663,59 +587,143 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				DISPATCH();
 			}
 
-			CASE(print) : {
-				Value v = POP();
-				std::cout << v;
-				DISPATCH();
-			}
-
 			CASE(call) : {
-				int frame = next_int();
-				int arity = next_int();
-				CALL(presentFrame->callFrames[frame], arity);
-				/*
-				FrameInstance *f =
-				    fiber->appendCallFrame(presentFrame->callFrames[(
-				        InstructionPointer += sizeof(int),
-				        *(int *)((InstructionPointer - sizeof(int) + 1)))]);
-				StackTop = fiber->stackTop;
-				presentFrame = &fiber->getCurrentFrame()[-1];
-				int numArg =
-				    (InstructionPointer += sizeof(int),
-				     *(int *)((InstructionPointer - sizeof(int) + 1))) -
-				    1;
-				while(numArg >= 0) {
-				    f->stack_[numArg + 0] = (*(--StackTop));
-				    {
-				        if(f->stack_[numArg + 0].isObject()) {
-				            f->stack_[numArg + 0].toObject()->incrCount();
-				        }
-				    };
-				    numArg--;
-				}
-				presentFrame->code = InstructionPointer;
-
-				presentFrame       = f;
-				InstructionPointer = presentFrame->code;
-				Stack              = presentFrame->stack_;
-				StackTop           = fiber->stackTop;
-
-				{DISPATCH_WINC()};*/
+				int frame         = next_int();
+				numberOfArguments = next_int();
+				const Class *c =
+				    fiber->stackTop[-numberOfArguments - 1].getClass();
+				functionToCall = c->functions->values[frame].toFunction();
+				goto performcall;
 			}
-			/*
-			   CASE(call_imported) : {
-			   CALL(presentFrame->frame->module->importedFrames[next_int()],
-			   next_int() - 1);
-			   }*/
+
+			CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				goto methodcall;
+			}
+
+			CASE(call_soft) : {
+				int sym           = next_int();
+				numberOfArguments = next_int();
+				Value v           = POP();
+				ASSERT(v.isGcObject(), "Not a callable object!");
+				switch(v.toGcObject()->objType) {
+					case GcObject::OBJ_Class: {
+						// check if the class has a constructor with the given
+						// signature
+						Class *c = v.toClass();
+						ASSERT(c->has_fn(sym),
+						       "Constructor '@t' not found in class '@s'!", sym,
+						       c->name);
+						// Assign the module instance to the receiver slot
+						// If the receiver is a module, then that slot will
+						// store core
+						Value v = c->module ? c->module->instance : CoreObject;
+						fiber->stackTop[-numberOfArguments - 1] = v;
+						// call the constructor
+						functionToCall = c->get_fn(sym).toFunction();
+						goto performcall;
+					}
+					case GcObject::OBJ_BoundMethod: {
+						BoundMethod *b = v.toBoundMethod();
+						// verify the arguments
+						if(b->verify(&fiber->stackTop[-numberOfArguments],
+						             numberOfArguments) !=
+						   BoundMethod::Status::OK) {
+							goto error;
+						}
+						// we have already allocated one slot for the
+						// receiver before the arguments started.
+						// but if this is class bound call, we don't
+						// need that anymore, as the object has already
+						// been passed as the first argument. so move
+						// them back
+						switch(b->type) {
+							case BoundMethod::CLASS_BOUND: {
+								for(int i = -numberOfArguments - 1; i < 0; i++)
+									fiber->stackTop[i] = fiber->stackTop[i + 1];
+								fiber->stackTop--;
+								// we also decrement numberOfArguments to denote
+								// actual argument count minus the instance
+								numberOfArguments--;
+								break;
+							}
+							default:
+								// otherwise, we store the object at slot 0
+								fiber->stackTop[-numberOfArguments - 1] =
+								    b->binder;
+								break;
+						}
+						functionToCall = b->func;
+						goto performcall;
+					}
+					default: RERRF("Not a callable object!"); break;
+				}
+			}
+
+		methodcall : {
+			const Class *c = fiber->stackTop[-numberOfArguments - 1].getClass();
+			ASSERT(c->has_fn(methodToCall),
+			       "Method '@t' not found in class '@s'!", methodToCall,
+			       c->name);
+			functionToCall = c->get_fn(methodToCall).toFunction();
+		}
+		performcall : {
+			switch(functionToCall->getType()) {
+				case Function::Type::BUILTIN: {
+					BACKUP_FRAMEINFO();
+					Value res = functionToCall->func(
+					    &fiber->stackTop[-numberOfArguments - 1],
+					    numberOfArguments + 1); // include the receiver
+					fiber->stackTop -= (numberOfArguments + 1);
+					RESTORE_FRAMEINFO();
+					if(pendingException != ValueNil) {
+						goto error;
+					}
+					PUSH(res);
+					DISPATCH();
+					break;
+				}
+				case Function::Type::METHOD:
+					BACKUP_FRAMEINFO();
+					fiber->appendMethod(functionToCall);
+					RESTORE_FRAMEINFO();
+					DISPATCH_WINC();
+					break;
+			}
+		}
 
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
-				fiber->popFrame(&StackTop);
-				presentFrame = fiber->getCurrentFrame();
-				RESTORE_FRAMEINFO();
-				PUSH(v);
-				DISPATCH();
+				// if the current frame is invoked by
+				// a native method, return to that
+				if(fiber->getCurrentFrame()->returnToCaller) {
+					fiber->popFrame();
+					return v;
+				}
+				// if we have somewhere to return to,
+				// return there first. this would
+				// be true maximum number of times
+				if(fiber->callFramePointer > 1) {
+					fiber->popFrame();
+					RESTORE_FRAMEINFO();
+					PUSH(v);
+					DISPATCH();
+				} else if(fiber->parent != NULL) {
+					// if there is no callframe in present
+					// fiber, but there is a parent, return
+					// to the parent fiber
+					fiber = fiber->parent;
+					RESTORE_FRAMEINFO();
+					PUSH(v);
+					DISPATCH();
+				} else {
+					// neither parent fiber nor parent callframe
+					// exists. Return the value back to
+					// the caller.
+					return v;
+				}
 			}
 
 			CASE(load_slot) : {
@@ -732,6 +740,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 			LOAD_SLOT(6)
 			LOAD_SLOT(7)
 
+			CASE(load_tos_slot) : {
+				TOP = TOP.toObject()->slots[next_int()];
+				DISPATCH();
+			}
+
 			CASE(store_slot) : {
 				rightOperand = TOP;
 				goto do_store_slot;
@@ -741,58 +754,15 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 
 		do_store_slot : {
 			int slot = next_int();
-			// cout << "slot: " << slot << "\n";
+			// std::cout << "slot: " << slot << "\n";
 			Stack[slot] = rightOperand;
 			DISPATCH();
 		}
 
-			CASE(iterate_init) : {
-				Value v    = TOP;
-				int   slot = next_int();
-				if(v.isObject()) {
-					if(v.toObject()->Class == NextType::ArrayClass) {
-						Stack[slot] = Value(-1.0);
-						DISPATCH();
-					} else if(v.toObject()->Class == NextType::RangeClass) {
-						Stack[slot] = Value(v.toObject()->slots[0].toNumber() -
-						                    v.toObject()->slots[2].toNumber());
-						DISPATCH();
-					}
-				}
-				RERR("Invalid iterator object!")
-			}
-
-			CASE(iterate_next) : {
-				Value  v    = TOP;
-				int    slot = next_int();
-				int    fwd  = next_int();
-				double orig = Stack[slot].toNumber();
-				if(v.isObject()) {
-					if(v.toObject()->Class == NextType::ArrayClass) {
-						double pos = orig + 1;
-						if(pos < v.toObject()->slots[1].toNumber()) {
-							PUSH(v.toObject()->slots[0].toArray()[(int)pos]);
-							Stack[slot] = Value(pos);
-							DISPATCH();
-						} else {
-							JUMPTO(fwd - (2 * sizeof(int) /
-							              sizeof(BytecodeHolder::Opcode)));
-						}
-					} else if(v.toObject()->Class == NextType::RangeClass) {
-						double to   = v.toObject()->slots[1].toNumber();
-						double step = v.toObject()->slots[2].toNumber();
-						orig += step;
-						if(orig < to) {
-							PUSH(Value(orig));
-							Stack[slot] = Value(orig);
-							DISPATCH();
-						} else {
-							JUMPTO(fwd - (2 * sizeof(int) /
-							              sizeof(BytecodeHolder::Opcode)));
-						}
-					}
-				}
-				RERR("Object is not iterable!")
+			CASE(store_tos_slot) : {
+				Value v                         = POP();
+				v.toObject()->slots[next_int()] = TOP;
+				DISPATCH();
 			}
 
 			CASE(incr_slot) : {
@@ -801,17 +771,16 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
 				}
-				RERR("'++' can only be applied on a number!");
+				RERRF("'++' can only be applied on a number!");
 			}
 
-			CASE(incr_module_slot) : {
-				Value &v = presentFrame->frame->module->frameInstance
-				               ->stack_[next_int()];
+			CASE(incr_tos_slot) : {
+				Value &v = POP().toObject()->slots[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
 				}
-				RERR("'++' can only be applied on a number!");
+				RERRF("'++' can only be applied on a number!");
 			}
 
 			CASE(decr_slot) : {
@@ -820,31 +789,16 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
 				}
-				RERR("'--' can only be applied on a number!");
+				RERRF("'--' can only be applied on a number!");
 			}
 
-			CASE(decr_module_slot) : {
-				Value &v = presentFrame->frame->module->frameInstance
-				               ->stack_[next_int()];
+			CASE(decr_tos_slot) : {
+				Value &v = POP().toObject()->slots[next_int()];
 				if(v.isNumber()) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
 				}
-				RERR("'--' can only be applied on a number!");
-			}
-
-			CASE(load_module_slot) : {
-				int slot = next_int();
-				PUSH(presentFrame->frame->module->getModuleStack(fiber)[slot]);
-				DISPATCH();
-			}
-
-			CASE(store_module_slot) : {
-				int    slot = next_int();
-				Value &v =
-				    presentFrame->frame->module->getModuleStack(fiber)[slot];
-				v = TOP;
-				DISPATCH();
+				RERRF("'--' can only be applied on a number!");
 			}
 
 			CASE(load_object_slot) : {
@@ -866,7 +820,7 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					v.setNumber(v.toNumber() + 1);
 					DISPATCH();
 				}
-				RERR("'++' can only be applied on a number!");
+				RERRF("'++' can only be applied on a number!");
 			}
 
 			CASE(decr_object_slot) : {
@@ -876,265 +830,133 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 					v.setNumber(v.toNumber() - 1);
 					DISPATCH();
 				}
-				RERR("'--' can only be applied on a number!");
+				RERRF("'--' can only be applied on a number!");
 			}
 
 			CASE(load_field) : {
-				NextString field = next_string();
-				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
-					NextClass * c   = obj->Class;
-					ASSERT(c->hasPublicField(field),
-					       "Member '@s' not found in class '@s'!", field,
-					       c->name);
-
-					TOP = obj->slots[c->members[field].slot];
-					DISPATCH();
-				} else if(TOP.isModule()) {
-					Module *m = TOP.toModule();
-					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '@s' found in module "
-					       "'@s'!",
-					       field, m->name)
-
-					PUSH(m->getModuleStack(fiber)[m->variables[field].slot]);
-					DISPATCH();
-				}
-				RERR("'.' can only be applied over an object!");
-			}
-
-			CASE(load_field_pushback) : {
-				NextString field = next_string();
-				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
-					NextClass * c   = obj->Class;
-					ASSERT(c->hasPublicField(field),
-					       "Member '@s' not found in class '@s'!", field,
-					       c->name);
-
-					Value v = TOP;
-					TOP     = obj->slots[c->members[field].slot];
-					PUSH(v);
-					DISPATCH();
-				} else if(TOP.isModule()) {
-					Module *m = TOP.toModule();
-					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '@s' found in module "
-					       "'@s'",
-					       field, m->name);
-
-					Value v = TOP;
-					TOP = m->getModuleStack(fiber)[m->variables[field].slot];
-					PUSH(v);
-					DISPATCH();
-				}
-				RERR("'.' can only be applied over an object!");
-			}
-
-			CASE(store_field) : {
-				NextString field = next_string();
-				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
-					NextClass * c   = obj->Class;
-					POP();
-					ASSERT(c->hasPublicField(field),
-					       "Member '@s' not found in class '@s'!", field,
-					       c->name);
-
-					Value &v = obj->slots[c->members[field].slot];
-					v        = TOP;
-					DISPATCH();
-				} else if(TOP.isModule()) {
-					Module *m = POP().toModule();
-					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '@s' found in module "
-					       "'@s'!",
-					       field, m->name);
-
-					Value &v =
-					    m->getModuleStack(fiber)[m->variables[field].slot];
-					v = TOP;
-					DISPATCH();
-				}
-				RERR("'.' can only be applied over an object!");
-			}
-
-			CASE(incr_field) : {
-				NextString field = next_string();
-				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
-					NextClass * c   = obj->Class;
-					ASSERT(c->hasPublicField(field),
-					       "Member '@s' not found in class '@s'!", field,
-					       c->name);
-
-					Value &v = obj->slots[c->members[field].slot];
-
-					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
-
-					v.setNumber(v.toNumber() + 1);
-					DISPATCH();
-				} else if(TOP.isModule()) {
-					Module *m = TOP.toModule();
-					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '@s' found in module "
-					       "'@s'!",
-					       field, m->name);
-
-					Value &v =
-					    m->getModuleStack(fiber)[m->variables[field].slot];
-
-					ASSERT(v.isNumber(), "Variable '@s' is not a number!",
-					       field);
-
-					v.setNumber(v.toNumber() + 1);
-					DISPATCH();
-				}
-				RERR("'.' can only be applied over an object!");
-			}
-
-			CASE(decr_field) : {
-				NextString field = next_string();
-				if(TOP.isObject()) {
-					NextObject *obj = TOP.toObject();
-					NextClass * c   = obj->Class;
-					ASSERT(c->hasPublicField(field),
-					       "Member '@s' not found in class '@s'!", field,
-					       c->name);
-
-					Value &v = obj->slots[c->members[field].slot];
-
-					ASSERT(v.isNumber(), "Member '@s' is not a number!", field);
-
-					v.setNumber(v.toNumber() - 1);
-					DISPATCH();
-				} else if(TOP.isModule()) {
-					Module *m = TOP.toModule();
-					ASSERT(m->hasPublicVar(field),
-					       "No such public variable '@s' found in module "
-					       "'@s'!",
-					       field, m->name);
-
-					Value &v =
-					    m->getModuleStack(fiber)[m->variables[field].slot];
-
-					ASSERT(v.isNumber(), "Variable '@s' is not a number!",
-					       field);
-
-					v.setNumber(v.toNumber() - 1);
-					DISPATCH();
-				}
-				RERR("'.' can only be applied over an object!");
-			}
-
-			CASE(call_method) : {
-				methodToCall   = next_long();
-				int    numArg_ = next_int(); // copy the object also
-				Value &v       = *(StackTop - numArg_ - 1);
-				if(v.isObject()) {
-					NextObject *obj = v.toObject();
-					NextClass * c   = obj->Class;
-					ASSERT(c->hasPublicMethod(methodToCall),
-					       "Method '@t' not found in class '@s'!", methodToCall,
-					       c->name);
-
-					CALL(c->functions[methodToCall]->frame.get(), numArg_ + 1);
-				} else if(v.isModule() &&
-				          v.toModule()->hasPublicFn(methodToCall)) {
-					NextString mtc = SymbolTable::getSymbol(methodToCall);
-					// First, readjust the stack
-					// If it's a constructor, just assign 0 in place of
-					// the module
-					Fn * f             = v.toModule()->functions[mtc].get();
-					bool isConstructor = f->isConstructor;
-					if(isConstructor)
-						v = Value();
-					else {
-						// shift the elements to one place left
-						// to manually pop the module
-						for(Value *v = StackTop - numArg_ - 1; v < StackTop;
-						    v++) {
-							*v = *(v + 1);
-						}
-						// decrement the stack pointer
-						StackTop--;
-					}
-
-					FrameInstance *fi = fiber->appendCallFrame(
-					    f->frame.get(), numArg_ + isConstructor, &StackTop);
-					CALL_INSTANCE(fi, numArg_ - 1);
-
-				} else {
-					ASSERT(Primitives::hasPrimitive(v.getType(), methodToCall),
-					       "Primitive method '@t' not found in type '@s'!",
-					       methodToCall, v.getTypeString());
-
-					rightOperand      = v;
-					numberOfArguments = numArg_;
-					goto call_primitive;
-				}
-			}
-			/*
-			CASE(call_intraclass) : {
-			    int            frame  = next_int();
-			    int            numArg = next_int();
-			    FrameInstance *f      = fiber->appendCallFrame(
-			        presentFrame->callFrames[frame], numArg, &StackTop);
-
-			    // Copy the arguments (not required anymore)
-			    while(numArg >= 0) {
-			        f->stack_[numArg + 1] = POP();
-			        ref_incr(f->stack_[numArg]);
-			        numArg--;
-			    }				// copy the object manually
-			                    f->stack_[0] = Stack[0];
-			    f->stack_[0].toObject()->incrCount();
-
-			    BACKUP_FRAMEINFO();
-			    presentFrame = f;
-			    RESTORE_FRAMEINFO();
-			    DISPATCH_WINC();
-			}*/
-			CASE(array_build) : {
-				// get the number of arguments to add
-				int         numArg = next_int();
-				NextObject *arrobj = StackTop[-numArg - 1].toObject();
-				// change the size of the array
-				arrobj->slots[1].setNumber(numArg);
-				Value *arr = arrobj->slots[0].toArray();
-				// insert all the elements
-				while(numArg--) {
-					Value &v    = POP();
-					arr[numArg] = v;
-					// v           = ValueNil;
-				}
-
+				int          field = next_int();
+				Value        v     = POP();
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+				int slot = c->get_fn(field).toInteger();
+				PUSH(v.toObject()->slots[slot]);
 				DISPATCH();
 			}
 
-			CASE(construct_ret) : {
-				// Pop the return object
-				Value v = Stack[0];
-				fiber->popFrame(&StackTop);
-				presentFrame = fiber->getCurrentFrame();
-				RESTORE_FRAMEINFO();
+			CASE(load_field_pushback) : {
+				int          field = next_int();
+				Value        v     = POP();
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+				int slot = c->get_fn(field).toInteger();
+				PUSH(v.toObject()->slots[slot]);
 				PUSH(v);
 				DISPATCH();
 			}
 
+			CASE(store_field) : {
+				int          field = next_int();
+				Value        v     = POP();
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+				int slot                  = c->get_fn(field).toInteger();
+				v.toObject()->slots[slot] = TOP;
+				DISPATCH();
+			}
+
+			CASE(incr_field) : {
+				int          field = next_int();
+				Value        v     = TOP;
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+				int    slot = c->get_fn(field).toInteger();
+				Value &to   = v.toObject()->slots[slot];
+				if(to.isNumber()) {
+					to = to.toNumber() + 1;
+					DISPATCH();
+				}
+				RERRF("'++' can only be applied over a number!");
+			}
+
+			CASE(decr_field) : {
+				int          field = next_int();
+				Value        v     = TOP;
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+				int    slot = c->get_fn(field).toInteger();
+				Value &to   = v.toObject()->slots[slot];
+				if(to.isNumber()) {
+					to = to.toNumber() - 1;
+					DISPATCH();
+				}
+				RERRF("'--' can only be applied over a number!");
+			}
+
+			CASE(array_build) : {
+				// get the number of arguments to add
+				int    numArg = next_int();
+				Array *a      = Array::create(numArg);
+				// manually adjust the size
+				a->size = numArg;
+				// insert all the elements
+				while(numArg--) {
+					a->values[numArg] = POP();
+					// v           = ValueNil;
+				}
+				PUSH(Value(a));
+				DISPATCH();
+			}
+
+			CASE(map_build) : {
+				int       numArg = next_int();
+				ValueMap *v =
+				    ValueMap::from(&fiber->stackTop[-(numArg * 2)], numArg);
+				fiber->stackTop -= (numArg * 2);
+				PUSH(Value(v));
+				DISPATCH();
+			}
+
+			CASE(bind_method) : {
+				// pop the function
+				Function *f = POP().toFunction();
+				// peek the binder
+				Value             v = TOP;
+				BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
+				// if the top is a class, it is going to be class bound
+				if(v.isClass())
+					t = BoundMethod::CLASS_BOUND;
+				BoundMethod *b = BoundMethod::from(f, v, t);
+				TOP            = Value(b);
+				DISPATCH();
+			}
+
 			CASE(construct) : {
-				NextString  mod = next_string();
-				NextString  cls = next_string();
-				NextObject *no =
-				    createObject(loadedModules[mod]->classes[cls].get());
-				Stack[0] = no;
+				Class * c = next_value().toClass();
+				Object *o = GcObject::allocObject(c);
+				// assign the 0th slot to the 0th slot of the object
+				o->slots[0] = Stack[0];
+				// assign the object to slot 0
+				Stack[0] = Value(o);
+				// if this is a module, store the instance to the class
+				if(c->module == NULL)
+					c->instance = o;
 				DISPATCH();
 			}
 
 			CASE(throw_) : {
 				// POP the thrown object
 				Value v = TOP;
-				if(v.isObject()) {
+				if(v.isGcObject()) {
 					TOP = ValueNil;
 				}
 				POP();
@@ -1142,75 +964,16 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 				goto error;
 			}
 
-			CASE(call_builtin) : {
-				NextString sig        = next_string();
-				int        args       = next_int();
-				Value *    stackStart = StackTop - args;
-				Value      res = Builtin::invoke_builtin(sig, stackStart);
-
-				if(pendingException != ValueNil) {
-					goto error;
-				} else {
-					while(args--) {
-						POP();
-					}
-					PUSH(res);
-					DISPATCH();
-				}
-			}
-
-			CASE(load_constant) : {
-				NextString name = next_string();
-				PUSH(Builtin::get_constant(name));
-				DISPATCH();
-			}
-
-			CASE(halt) : {
-				unsigned long instructionPointer = 0;
-				set_instruction_pointer(presentFrame);
-				return;
-			}
-
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > BytecodeHolder::CODE_halt) {
+				if(code > Bytecode::CODE_bind_method) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",
-					      BytecodeHolder::OpcodeNames[code])
+					      Bytecode::OpcodeNames[code])
 				}
 			}
 		}
-
-	call_primitive:
-
-		rightOperand =
-		    Primitives::invokePrimitive(rightOperand.getType(), methodToCall,
-		                                StackTop - numberOfArguments - 1);
-
-		if(pendingException != ValueNil) {
-			goto error;
-		} else {
-
-			// Pop the arguments
-			while(numberOfArguments >= 0) {
-				POP();
-				numberOfArguments--;
-			}
-
-			PUSH(rightOperand);
-			DISPATCH();
-		}
-
-	call_frame:
-		frameInstanceToCall =
-		    fiber->appendCallFrame(frameToCall, numberOfArguments, &StackTop);
-	call_frameinstance:
-		presentFrame = &fiber->getCurrentFrame()[-1];
-		BACKUP_FRAMEINFO();
-		presentFrame = frameInstanceToCall;
-		RESTORE_FRAMEINFO();
-		DISPATCH_WINC();
 	error:
 		// Only way we can get here is by a 'goto error'
 		// statement, which was triggered either by a
@@ -1223,10 +986,11 @@ void ExecutionEngine::execute(Module *m, Frame *f) {
 		// RuntimeException, and set pendingException
 		// to the same.
 		if(pendingException == ValueNil) {
-			pendingException = createRuntimeException(ExceptionMessage);
+			pendingException =
+			    RuntimeError::create(String::from(ExceptionMessage));
 		}
 		BACKUP_FRAMEINFO();
-		presentFrame = throwException(pendingException, fiber, RootFrameID);
+		fiber = throwException(pendingException, fiber);
 		RESTORE_FRAMEINFO();
 		pendingException = ValueNil;
 		DISPATCH_WINC();

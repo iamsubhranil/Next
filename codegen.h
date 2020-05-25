@@ -1,8 +1,10 @@
 #pragma once
 
-#include "bytecode.h"
-#include "fn.h"
 #include "stmt.h"
+
+#include "objects/classcompilationctx.h"
+#include "objects/common.h"
+#include "objects/string.h"
 
 class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
   private:
@@ -20,7 +22,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 		LOCAL,
 		CLASS,
 		MODULE,
-		BUILTIN,
+		CORE,
 		UNDEFINED /*, OBJECT*/
 	};
 	typedef struct VarInfo {
@@ -30,21 +32,17 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 
 	// Holds the status of a resolved call
 	struct CallInfo {
-		enum CallType {
-			INTRA_MODULE,
-			INTRA_CLASS,
-			IMPORTED,
-			BUILTIN,
-			UNDEFINED
-		} type;
-		Fn *fn;
-		int frameIdx;
+		VariablePosition type;
+		int              frameIdx;
+		bool             soft;
 	};
 
-	BytecodeHolder * bytecode;
-	Module *         module;
-	Frame *          frame;
-	CompilationState state;
+	ClassCompilationContext *   corectx;
+	ClassCompilationContext *   mtx;
+	ClassCompilationContext *   ctx;
+	FunctionCompilationContext *ftx;
+	BytecodeCompilationContext *btx;
+	CompilationState            state;
 	// Denotes logical scope ordering. Popping a scope with scopeID x
 	// marks all variables declared in scopeID(s) >= x invalid, so that
 	// they can't be referenced from a scope with ID < x, i.e. an
@@ -59,16 +57,14 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// to denote whether we are compiling a reference expression
 	bool onRefer;
 	// When we are on LHS and the expression is a reference expression,
-	// this variable will hold the name of the ultimate member in that
+	// this variable will hold the symbol of the ultimate member in that
 	// expression
-	NextString lastMemberReferenced;
+	int lastMemberReferenced;
 
 	// Denotes whether we are in a class
 	bool inClass;
-	// Current class pointer if we are in a class
-	NextClass *currentClass;
 	// Current visibility when we are in a class
-	AccessModifiableEntity::Visibility currentVisibility;
+	Visibility currentVisibility;
 
 	// try markers
 	int tryBlockStart, tryBlockEnd;
@@ -101,39 +97,44 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(VardeclStatement *ifs);
 	void visit(MemberVariableStatement *ifs);
 	void visit(VisibilityStatement *ifs);
-	void visit(PrintStatement *ifs);
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);
 
-	CallInfo         resolveCall(NextString signature, bool isImported = false,
-	                             Module *mod = NULL);
-	void             emitCall(CallExpression *call, bool isImported = false,
-	                          Module *mod = NULL);
-	int              getFrameIndex(std::vector<Frame *> &col, Frame *f);
-	NextString       generateSignature(const Token &name, int arity);
-	NextString       generateSignature(const std::string &name, int arity);
+	void     loadCoreModule();
+	void     loadPresentModule();
+	CallInfo resolveCall(String *name, String *signature);
+	void     emitCall(CallExpression *call);
+	// int              getFrameIndex(std::vector<Frame *> &col, Frame *f);
+	String *         generateSignature(const Token &name, int arity);
+	String *         generateSignature(const String *name, int arity);
+	String *         generateSignature(int arity);
 	VarInfo          lookForVariable(Token t, bool declare = false,
 	                                 bool       showError = true,
-	                                 Visibility vis = Visibility::VIS_PRIV);
-	VarInfo          lookForVariable(NextString name, bool declare = false);
+	                                 Visibility vis       = VIS_DEFAULT);
+	VarInfo          lookForVariable(String *name, bool declare = false,
+	                                 Visibility vis = VIS_DEFAULT);
 	void             compileAll(const std::vector<StmtPtr> &statements);
-	void             initFrame(Frame *f, Token t);
+	void             initFtx(FunctionCompilationContext *f, Token t);
 	void             popFrame();
 	CompilationState getState();
 	int              createTempSlot();
-#ifdef DEBUG
-	void disassembleFrame(Frame *f, NextString name);
-#endif
 
 	int  pushScope();
 	void popScope(); // discard all variables in present frame with
 	                 // scopeID >= present scope
 
   public:
-	CodeGenerator();
-	Module *compile(NextString name, const std::vector<StmtPtr> &statements);
-	void    compile(Module *compileIn, const std::vector<StmtPtr> &statements);
+	// if this code generator was invoked by another, this pointer holds
+	// the address of that, so that the objects in use by that generator
+	// can be marked
+	CodeGenerator *parentGenerator;
+
+	CodeGenerator(CodeGenerator *parent);
+	Class *compile(String *name, const std::vector<StmtPtr> &statements);
+	void   compile(ClassCompilationContext *   compileIn,
+	               const std::vector<StmtPtr> &statements);
+	void   mark();
 };
 
 class CodeGeneratorException : public std::runtime_error {

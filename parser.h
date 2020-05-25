@@ -124,7 +124,7 @@ class SubscriptParselet : public InfixParselet {
 
 class DeclarationParselet {
   public:
-	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_PRIV); }
+	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_DEFAULT); }
 	virtual StmtPtr parse(Parser *p, Token t, Visibility vis) = 0;
 	virtual ~DeclarationParselet() {}
 };
@@ -192,11 +192,6 @@ class TryStatementParselet : public StatementParselet {
 };
 
 class CatchStatementParselet : public StatementParselet {
-  public:
-	StmtPtr parse(Parser *p, Token t);
-};
-
-class PrintStatementParselet : public StatementParselet {
   public:
 	StmtPtr parse(Parser *p, Token t);
 };
@@ -287,6 +282,9 @@ class Parser {
 	StmtPtr              parseStatement();
 	StmtPtr              parseBlock(bool isStatic = false);
 	std::string          buildNextString(Token &t);
+
+	// release the parselets
+	void releaseAll();
 };
 
 class ParseException : public std::runtime_error {
