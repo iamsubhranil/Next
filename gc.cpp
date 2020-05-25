@@ -156,7 +156,7 @@ void GcObject::gc(bool force) {
 #endif
 		sweep();
 		if(next_gc < max_gc)
-			next_gc *= 2;
+			next_gc = Array::powerOf2Ceil(totalAllocated);
 #ifdef DEBUG_GC
 		std::cout << "[GC] Finished GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
@@ -176,13 +176,15 @@ void GcObject::setMaxGC(size_t v) {
 
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
                       const Class *klass) {
+	// try for gc before allocation
+	// because the returned pointer
+	// may be less fragmented
+	gc();
+
 	GcObject *obj = (GcObject *)GcObject::malloc(s);
 	obj->objType  = type;
 	obj->klass    = klass;
 	obj->next     = nullptr;
-
-	// try for gc
-	gc();
 
 	last->next = obj;
 	last       = obj;
