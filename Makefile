@@ -1,4 +1,4 @@
-override CXXFLAGS += -Wall -Wextra
+override CXXFLAGS += -Wall -Wextra -march=native
 override LDFLAGS +=
 
 RM=rm -f
