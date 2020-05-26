@@ -1,4 +1,4 @@
-override CXXFLAGS += -Wall -Wextra -march=native
+override CXXFLAGS += -Wall -Wextra
 override LDFLAGS +=
 
 RM=rm -f
@@ -41,7 +41,7 @@ pgo: merge_profraw pgouse
 clean_pgodata: clean
 	$(V) rm -f default_*.profraw default.profdata
 
-pgobuild: CXXFLAGS+=-fprofile-generate
+pgobuild: CXXFLAGS+=-fprofile-generate -march=native
 pgobuild: LDFLAGS+=-fprofile-generate -flto
 pgobuild: | clean_pgodata cgoto
 
