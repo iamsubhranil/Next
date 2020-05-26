@@ -592,7 +592,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				numberOfArguments = next_int();
 				const Class *c =
 				    fiber->stackTop[-numberOfArguments - 1].getClass();
-				functionToCall = c->functions->values[frame].toFunction();
+				functionToCall = c->get_fn(frame).toFunction();
 				goto performcall;
 			}
 
@@ -926,6 +926,33 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
+			CASE(search_method) : {
+				int          sym = next_int();
+				const Class *classToSearch;
+				// if it's a class, and it does have
+				// the sym, we're done
+				if(TOP.isClass() && TOP.toClass()->has_fn(sym))
+					classToSearch = TOP.toClass();
+				else {
+					// otherwise, search in its class
+					const Class *c = TOP.getClass();
+					ASSERT(c->has_fn(sym),
+					       "Method '@t' not found in class '@s'!", sym,
+					       c->name);
+					classToSearch = c;
+				}
+				// push the fn, and we're done
+				PUSH(Value(classToSearch->get_fn(sym).toFunction()));
+				DISPATCH();
+			}
+
+			CASE(load_method) : {
+				int   sym = next_int();
+				Value v   = TOP;
+				PUSH(v.getClass()->get_fn(sym));
+				DISPATCH();
+			}
+
 			CASE(bind_method) : {
 				// pop the function
 				Function *f = POP().toFunction();
@@ -966,7 +993,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_bind_method) {
+				if(code > Bytecode::CODE_search_method) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",

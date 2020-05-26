@@ -150,6 +150,17 @@ OPCODE1(map_build, 0, int)
 // Creates a new BoundMethod, and pushes
 // that back
 OPCODE0(bind_method, -1)
+// Performs a direct load of
+// sym from TOP, and pushes that
+// back to the stack
+OPCODE1(load_method, 1, int) // <sym>
+// Checks whether the signature actually
+// exists in TOP.getClass()
+// if it does, it just pushes the
+// Function*, and leaves it for
+// the following 'bind_method'
+OPCODE1(search_method, 1, int) // <sym>
+
 #undef OPCODE0
 #undef OPCODE1
 #undef OPCODE2

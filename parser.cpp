@@ -431,6 +431,18 @@ StmtPtr ForStatementParselet::parse(Parser *p, Token t) {
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {
 	(void)parser;
+	// if the next token is '@', it has to be a
+	// method reference
+	if(parser->match(TOKEN_AT)) {
+		Token num =
+		    parser->consume(TOKEN_NUMBER, "Expected argument count after '@'!");
+		char *end   = NULL;
+		int   count = strtol(num.start, &end, 10);
+		if(end == NULL || end - num.start < num.length) {
+			throw ParseException(num, "Invalid argument count!");
+		}
+		return unq(MethodReferenceExpression, t, count);
+	}
 	return unq(VariableExpression, t);
 }
 

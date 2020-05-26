@@ -19,6 +19,7 @@ import fortest
 import iterator
 import rangetest
 import formattest
+import boundmethods
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -36,7 +37,8 @@ modules = {prepost: "Pre and post increment/decrements",
         fortest: "For loops",
         iterator: "Iterators",
         rangetest: "Ranges",
-        formattest: "String formatting"}
+        formattest: "String formatting",
+        boundmethods: "Bound methods"}
 
 // find the maximum length
 len = 0

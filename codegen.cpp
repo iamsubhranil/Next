@@ -850,6 +850,57 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	}
 }
 
+void CodeGenerator::visit(MethodReferenceExpression *ifs) {
+#ifdef DEBUG_CODEGEN
+	dinfo("");
+	ifs->token.highlight();
+#endif
+	String *sig = generateSignature(ifs->token, ifs->args);
+	if(onRefer) {
+		// if we're on reference,
+		// emit code for search
+		int sym = SymbolTable2::insert(sig);
+		btx->search_method(sym);
+		// if successful, bind it too
+		btx->bind_method();
+	} else {
+		// we necessarily don't want this lookup to be
+		// a softcall. so we pass NULL as name to
+		// resolveCall
+		CallInfo info = resolveCall(NULL, sig);
+		switch(info.type) {
+			case LOCAL:
+				// this is impossible. since
+				// this is not a soft call, we
+				// have no way of resolving the
+				// signature in a local variable
+				panic("Method reference must not resolve to a local variable!");
+				break;
+			case CLASS:
+				// load the object
+				btx->load_slot(0);
+				break;
+			case MODULE:
+				// load the module
+				loadPresentModule();
+				break;
+			case CORE:
+				// load the module
+				loadCoreModule();
+				break;
+			case UNDEFINED:
+				lnerr_("No such method with siganture '%s' found in present "
+				       "context!",
+				       ifs->token, sig->str);
+				break;
+		}
+		// load the method
+		btx->load_method(info.frameIdx);
+		// finally, bind the method
+		btx->bind_method();
+	}
+}
+
 void CodeGenerator::visit(IfStatement *ifs) {
 #ifdef DEBUG_CODEGEN
 	dinfo("");
