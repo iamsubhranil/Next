@@ -463,21 +463,16 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 	if(var.position == UNDEFINED && showError) {
 		lnerr_("No such variable found : '%s'", t, name->str);
 
-	} /*else if(var.position == CLASS && !ctx->get_mem_slot.isStatic &&
-	           frame->isStatic) {
-	     lnerr_(
-	         "Non-static member '%.*s' cannot be used inside a static method!",
-	         t, t.length, t.start);
-	 }
-	 else if(declare && var.position == LOCAL && frame->parent == NULL &&
-	         mtx->variables.find(name) == mtx->variables.end()) {
-	     mtx->variables[name] =
-	         Variable(vis == VIS_PUB ? AccessModifiableEntity::PUB
-	                                 : AccessModifiableEntity::PRIV,
-	                  t);
-	     mtx->variables[name].isStatic = false;
-	     mtx->variables[name].slot     = var.slot;
-	 }*/
+	} else if(var.position == CLASS) {
+		// check if non static variable is used in a static method
+		ClassCompilationContext::MemberInfo m = ctx->get_mem_info(name);
+		if(ftx->f->isStatic() && !m.isStatic) {
+			lnerr_("Non-static variable '%s' cannot be accessed from static "
+			       "method '%s'!",
+			       t, name->str, ftx->f->name->str);
+		}
+	}
+
 	return var;
 }
 
@@ -1329,8 +1324,10 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 				*/
 			} else {
 				switch(currentVisibility) {
-					case VIS_PUB: ctx->add_public_mem(name); break;
-					default: ctx->add_private_mem(name); break;
+					case VIS_PUB:
+						ctx->add_public_mem(name, ifs->isStatic);
+						break;
+					default: ctx->add_private_mem(name, ifs->isStatic); break;
 				}
 			}
 		}

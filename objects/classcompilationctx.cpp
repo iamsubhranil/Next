@@ -9,7 +9,9 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ClassCompilationContext *ctx = GcObject::allocClassCompilationContext();
 	ctx->klass                   = GcObject::allocClass();
 	ctx->klass->init(n, Class::ClassType::NORMAL);
-	ctx->members            = ValueMap::create();
+	ctx->members = (HashMap<String *, MemberInfo> *)GcObject_malloc(
+	    sizeof(HashMap<String *, MemberInfo>));
+	::new(ctx->members) HashMap<String *, MemberInfo>();
 	ctx->public_signatures  = ValueMap::create();
 	ctx->private_signatures = ValueMap::create();
 	ctx->slotCount          = 0;
@@ -40,10 +42,10 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	return ctx;
 }
 
-bool ClassCompilationContext::add_public_mem(String *name) {
+int ClassCompilationContext::add_public_mem(String *name, bool isStatic) {
 	if(has_mem(name))
-		return false;
-	members->vv[Value(name)] = Value(slotCount++);
+		return get_mem_slot(name);
+	members[0][name] = (MemberInfo){slotCount++, isStatic};
 	klass->numSlots++;
 	// add the slot to the method buffer which will
 	// be directly accessed by load_field and store_field.
@@ -54,20 +56,25 @@ bool ClassCompilationContext::add_public_mem(String *name) {
 	return true;
 }
 
-bool ClassCompilationContext::add_private_mem(String *name) {
+int ClassCompilationContext::add_private_mem(String *name, bool isStatic) {
 	if(has_mem(name))
-		return false;
-	members->vv[Value(name)] = Value(slotCount++);
+		return get_mem_slot(name);
+	members[0][name] = (MemberInfo){slotCount++, isStatic};
 	klass->numSlots++;
 	return true;
 }
 
 bool ClassCompilationContext::has_mem(String *name) {
-	return members->vv.contains(Value(name));
+	return members->contains(name);
 }
 
 int ClassCompilationContext::get_mem_slot(String *name) {
-	return members->vv[Value(name)].toInteger();
+	return members[0][name].slot;
+}
+
+ClassCompilationContext::MemberInfo
+ClassCompilationContext::get_mem_info(String *name) {
+	return members[0][name];
 }
 
 bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
@@ -168,7 +175,7 @@ void ClassCompilationContext::init() {
 }
 
 void ClassCompilationContext::mark() {
-	GcObject::mark(members);
+	for(auto &i : *members) GcObject::mark(i.first);
 	GcObject::mark(public_signatures);
 	GcObject::mark(private_signatures);
 	GcObject::mark(klass);
@@ -182,6 +189,11 @@ void ClassCompilationContext::mark() {
 	if(moduleContext != NULL) {
 		GcObject::mark(moduleContext);
 	}
+}
+
+void ClassCompilationContext::release() {
+	members.~HashMap<String *, MemberInfo>();
+	GcObject_free(members, sizeof(members));
 }
 
 void ClassCompilationContext::finalize() {
@@ -199,8 +211,9 @@ void ClassCompilationContext::disassemble(std::ostream &o) {
 		o << "Class: " << klass->name->str << "\n";
 	}
 	o << "Members: ";
-	for(auto &a : members->vv) {
-		o << a.first.toString()->str << "(" << a.second.toNumber() << "), ";
+	for(auto &a : *members) {
+		o << a.first->str << "(slot=" << a.second.slot
+		  << ",static=" << a.second.isStatic << "), ";
 	}
 	o << "\n";
 	o << "Functions: " << fctxMap->vv.size() << "\n";

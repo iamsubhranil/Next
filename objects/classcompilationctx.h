@@ -12,8 +12,12 @@
 // are kept, and everything else is unmarked, and
 // freed in a subsequent gc.
 struct ClassCompilationContext {
-	GcObject  obj;
-	ValueMap *members;            // string:slot
+	struct MemberInfo {
+		int  slot;
+		bool isStatic;
+	};
+	GcObject                       obj;
+	HashMap<String *, MemberInfo> *members; // string:slot
 	ValueMap *public_signatures;  // string:token to report overload errors
 	ValueMap *private_signatures; // string:token
 	Class *   klass;              // generated runtime representation of a class
@@ -32,11 +36,12 @@ struct ClassCompilationContext {
 
 	void add_public_class(Class *c, ClassCompilationContext *ctx = NULL);
 	void add_private_class(Class *c, ClassCompilationContext *ctx = NULL);
-	bool add_public_mem(String *name);
-	bool add_private_mem(String *name);
+	int  add_public_mem(String *name, bool isStatic = false);
+	int  add_private_mem(String *name, bool isStatic = false);
 	bool has_mem(String *name);
 	// unchecked. use has_mem before
-	int get_mem_slot(String *name);
+	int        get_mem_slot(String *name);
+	MemberInfo get_mem_info(String *name);
 
 	bool add_public_fn(String *sig, Function *f,
 	                   FunctionCompilationContext *fctx = NULL);
@@ -62,7 +67,7 @@ struct ClassCompilationContext {
 	// mark2 only marks runtime-necessary members
 	void mark();
 	void mark2();
-	void release() {}
+	void release();
 
 	void disassemble(std::ostream &o);
 };
