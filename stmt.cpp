@@ -179,8 +179,12 @@ void StatementPrinter::visit(ThrowStatement *ifs) {
 
 void StatementPrinter::visit(ReturnStatement *ifs) {
 	printTabs();
-	os << "ret ";
-	ep.print(ifs->expr.get());
+	if(ifs->token.type == TOKEN_ret)
+		os << "ret ";
+	else
+		os << "yield ";
+	if(ifs->expr != NULL)
+		ep.print(ifs->expr.get());
 }
 
 void StatementPrinter::visit(ForStatement *ifs) {

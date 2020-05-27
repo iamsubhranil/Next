@@ -304,20 +304,25 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	dinfo("Generating call for");
 	call->callee->token.highlight();
 #endif
-	int argSize = call->arguments.size();
-	// btx->stackEffect(-argSize + 1);
-	// Since CALL has higher precedence than REFERENCE,
-	// a CallExpression will necessarily contain an identifier
-	// as its callee.
-	// Hence 'call->callee->accept(this)' is not required. We
-	// can directly use the token to generate the signature.
+	int     argSize   = call->arguments.size();
 	String *signature = generateSignature(call->callee->token, argSize);
 	String *name =
 	    String::from(call->callee->token.start, call->callee->token.length);
 
+	// if callee is a method reference, we force a soft
+	// call
+	bool force_soft = false;
+
 	CallInfo info = {UNDEFINED, 0, true};
 
-	if(!onRefer) {
+	if(call->callee->type == Expr::METHOD_REFERENCE) {
+		call->callee->accept(this);
+		force_soft = true;
+	}
+
+	// if this is a force soft call, we don't
+	// need to resolve anything
+	if(!onRefer && !force_soft) {
 		info = resolveCall(name, signature);
 		if(!info.soft) {
 			// not undefined, and not a soft call
@@ -330,10 +335,24 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			}
 		} else if(info.type != UNDEFINED) {
 			// resolved soft call
-			// we'll still need a slot to store the
-			// receiver
-			// so pushn
-			btx->pushn();
+			// the receiver will be stored where
+			// the class or the boundmethod is
+			// stored
+			switch(info.type) {
+				case LOCAL: btx->load_slot_n(info.frameIdx); break;
+				case CLASS: btx->load_object_slot(info.frameIdx); break;
+				case MODULE:
+					// load module
+					loadPresentModule();
+					btx->load_tos_slot(info.frameIdx);
+					break;
+				case CORE:
+					loadCoreModule();
+					// load the specified slot
+					btx->load_tos_slot(info.frameIdx);
+					break;
+				default: break; // error is already handled
+			}
 		}
 	}
 
@@ -345,12 +364,19 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	}
 	onRefer = bak;
 	btx->insert_token(call->callee->token);
+	btx->stackEffect(-argSize + 1);
+	// if this is a force soft call, we don't care
+	if(force_soft) {
+		// generate the no name signature
+		int sig = SymbolTable2::insert(generateSignature(argSize));
+		btx->call_soft(sig, argSize);
+	}
 	// If this a reference expression, dynamic dispatch will be used
-	if(onRefer) {
+	else if(onRefer) {
 		btx->call_method(SymbolTable2::insert(signature), argSize);
-		btx->stackEffect(-argSize + 1);
 		return;
 	} else {
+		// this call can be resolved compile time
 		if(info.type == UNDEFINED) {
 			// Function is not found
 			lnerr_("No function with the specified signature found "
@@ -375,33 +401,12 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		if(info.soft) {
 			// generate the no name signature
 			int sig = SymbolTable2::insert(generateSignature(argSize));
-			switch(info.type) {
-				case LOCAL: btx->load_slot_n(info.frameIdx); break;
-				case CLASS: btx->load_object_slot(info.frameIdx); break;
-				case MODULE:
-					// load module
-					loadPresentModule();
-					btx->load_tos_slot(info.frameIdx);
-					break;
-				case CORE:
-					loadCoreModule();
-					// load the specified slot
-					btx->load_tos_slot(info.frameIdx);
-					break;
-				default: break; // error is already handled
-			}
 			btx->call_soft(sig, argSize);
-			return;
-		}
-		// function call
-		switch(info.type) {
-			case CLASS:
-			case MODULE:
-			case CORE:
-				// the receiver is already loaded
-				btx->call(info.frameIdx, argSize);
-				break;
-			default: break; // error is already handled
+		} else {
+			// function call
+			// the receiver is already loaded
+			// error is already handled
+			btx->call(info.frameIdx, argSize);
 		}
 	}
 }
@@ -951,9 +956,21 @@ void CodeGenerator::visit(ReturnStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	ifs->expr->accept(this);
+	if(ifs->expr != NULL)
+		ifs->expr->accept(this);
+	else
+		btx->pushn();
 	btx->insert_token(ifs->token);
-	btx->ret();
+	TokenType t = ifs->token.type;
+	// if this is a return, it is illegal in top scope
+	if(t == TOKEN_ret) {
+		if(ftx == mtx->get_default_constructor()) {
+			lnerr_("Cannot return from top level scope!", ifs->token);
+		}
+		btx->ret();
+	} else if(t == TOKEN_yield) {
+		btx->yield();
+	}
 }
 
 void CodeGenerator::visit(ForStatement *ifs) {

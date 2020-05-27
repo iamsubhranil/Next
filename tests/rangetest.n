@@ -5,7 +5,7 @@ fn expect_err_to(x) {
         c = range(x)
         print("[Error] Should've thrown exception for range to '", x, "'! \n")
         res = false
-    } catch(runtime_error e) {}
+    } catch(type_error e) {}
 }
 
 fn expect_err_from(x) {
@@ -13,7 +13,7 @@ fn expect_err_from(x) {
         c = range(x, 1000)
         print("[Error] Should've thrown exception for range from '", x, "'! \n")
         res = false
-    } catch(runtime_error e) {}
+    } catch(type_error e) {}
 }
 
 fn expect_err_step(x) {
@@ -21,7 +21,7 @@ fn expect_err_step(x) {
         c = range(0, 1000, x)
         print("[Error] Should've thrown exception for range step '", x, "'! \n")
         res = false
-    } catch(runtime_error e) {}
+    } catch(type_error e) {}
 }
 
 fn expect_sum_from_to_step(f, t, s, sum) {

@@ -20,6 +20,7 @@ import iterator
 import rangetest
 import formattest
 import boundmethods
+import fibers
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -38,7 +39,8 @@ modules = {prepost: "Pre and post increment/decrements",
         iterator: "Iterators",
         rangetest: "Ranges",
         formattest: "String formatting",
-        boundmethods: "Bound methods"}
+        boundmethods: "Bound methods",
+        fibers: "Fibers"}
 
 // find the maximum length
 len = 0

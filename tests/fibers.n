@@ -1,0 +1,94 @@
+class SomeClass {
+    pub:
+        new() {}
+        fn someMethod(x) { ret x }
+}
+
+fn aLongMethod() {
+    a = 0
+    while(a++ < 10) {
+        yield a
+    }
+    ret a
+}
+
+fn recurse(x) {
+    if(x < 10) {
+        recurse(x + 1)
+        yield x
+    } else {
+        yield x
+    }
+    ret x
+}
+pub fn test() {
+    res = true
+    f = fiber(aLongMethod@0)
+    a = 1
+    for(i in f) {
+        if(i != a++) {
+            print("[Error] yield is broken!\n")
+            res = false
+        }
+    }
+    f = fiber(array.size@0, [[2]])
+    if(f.run() != 1) {
+        print("[Error] Fiber running builtin class bound method is broken!\n")
+        res = false
+    }
+    try {
+        f.run()
+        print("[Error] Running a finished fiber should produce an error!\n")
+        res = false
+    } catch(runtime_error e) {}
+    f = fiber([2, 3, 4].size@0)
+    if(f.run() != 3) {
+        print("[Error] Fiber running builtin object bound method is broken!\n")
+        res = false
+    }
+    if(fiber(map.has@1, [{"cool": "af"}, "cool"]).run() != true) {
+        print("[Error] Fiber running in place method reference is broken!\n")
+        res = false
+    }
+    f = fiber(recurse@1, [0])
+    if(f.run() != 10) {
+        print("[Error] Fiber running object bound method is broken!\n")
+        res = false
+    }
+    if(f.is_started() != true) {
+        print("[Error] Fiber.is_started() is broken!\n")
+        res = false
+    }
+    if(f.is_yielded() != true) {
+        print("[Error] Fiber.is_yielded() is broken!\n")
+        res = false
+    }
+    if(f.is_finished() == true) {
+        print("[Error] Fiber.is_finished() is broken!\n")
+        res = false
+    }
+    f.cancel()
+    try {
+        f.run()
+        print("[Error] Running a cancelled fiber should produce an error!\n")
+        res = false
+    } catch(runtime_error e) {}
+    if(f.is_finished() != true) {
+        print("[Error] Fiber.is_finished() is broken!\n")
+    }
+    try { 
+        fiber(SomeClass.someMethod@1, [])
+        print("[Error] Running a fiber with invalid arguments should produce an error!\n")
+        res = false
+    } catch(runtime_error e) {}
+    try { 
+        fiber(SomeClass.someMethod@1, [2, 3])
+        print("[Error] Running a fiber with invalid arguments should produce an error!\n")
+        res = false
+    } catch(type_error e) {}
+    if(fiber(SomeClass.someMethod@1, [SomeClass(), 2]).run() != 2) {
+        print("[Error] Fiber running class bound method is broken!\n")
+        res = false
+    }
+    ret res
+}

@@ -12,7 +12,8 @@ fn expect_err(arr, idx) {
         x = arr[idx]
         print("[ERROR] ", arr, " should not be accessible with idx ", idx, "!\n")
         res = false
-    } catch(runtime_error e) {}
+    } catch(type_error e) {}
+    catch(index_error f) {}
 }
 
 pub fn test() {

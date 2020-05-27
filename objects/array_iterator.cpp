@@ -37,8 +37,7 @@ void ArrayIterator::init() {
 	ArrayIteratorClass->init("array_iterator", Class::ClassType::BUILTIN);
 	ArrayIteratorClass->numSlots = 3; // array, pointer, has_next
 	// has_next
-	ArrayIteratorClass->add_sym(SymbolTable2::insert("has_next"),
-	                            Value(2));
+	ArrayIteratorClass->add_sym(SymbolTable2::insert("has_next"), Value(2));
 
 	ArrayIteratorClass->add_builtin_fn("(_)", 1,
 	                                   next_array_iterator_construct_1);
