@@ -85,7 +85,11 @@ struct Fiber {
 	Fiber::CallFrame *getCurrentFrame() {
 		return &callFrames[callFramePointer - 1];
 	}
+
 	void ensureStack(size_t el); // stackSize > stackPointer + el
+	// does state = s, additionally toggles 'has_next'
+	// of the iterator
+	void setState(State s);
 
 	static void init();
 	// most of the markings will be done

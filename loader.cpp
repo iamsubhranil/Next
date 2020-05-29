@@ -85,8 +85,6 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_try, new TryStatementParselet());
 	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
 	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
-	// yield has same exact semantics like return
-	p->registerParselet(TOKEN_yield, new ReturnStatementParselet());
 	p->registerParselet(TOKEN_for, new ForStatementParselet());
 
 	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());

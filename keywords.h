@@ -30,5 +30,5 @@ KEYWORD(throw, 5)
 KEYWORD(true, 4)
 KEYWORD(try, 3)
 KEYWORD(while, 5)
-KEYWORD(yield, 5)
+// KEYWORD(yield, 5)
 // clang-format on

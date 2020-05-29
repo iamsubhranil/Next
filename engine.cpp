@@ -296,6 +296,14 @@ Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
 	}
 
 Value ExecutionEngine::execute(Fiber *fiber) {
+	// check if the fiber actually has something to exec
+	if(fiber->callFramePointer == 0) {
+		fiber->setState(Fiber::FINISHED);
+		if(fiber->parent)
+			fiber = fiber->parent;
+		else
+			return ValueNil;
+	}
 
 	currentFiber = fiber;
 
@@ -329,6 +337,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
 		bool ret = presentFrame->returnToCaller;
 		fiber->popFrame();
+		// it may have caused a fiber switch
+		fiber = currentFiber;
 		// if we have to return, we do,
 		// otherwise, we continue normal execution
 		if(ret || (fiber->callFramePointer == 0 && fiber->parent == NULL))
@@ -694,6 +704,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					    &fiber->stackTop[-numberOfArguments - 1],
 					    numberOfArguments + 1); // include the receiver
 					fiber->stackTop -= (numberOfArguments + 1);
+					// it may have caused a fiber switch
+					fiber = currentFiber;
 					RESTORE_FRAMEINFO();
 					if(pendingException != ValueNil) {
 						goto error;
@@ -734,7 +746,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					// if there is no callframe in present
 					// fiber, but there is a parent, return
 					// to the parent fiber
-					fiber = fiber->parent;
+					fiber->setState(Fiber::FINISHED);
+					currentFiber = fiber = fiber->parent;
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
@@ -1011,28 +1024,9 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				goto error;
 			}
 
-			CASE(yield) : {
-				// pop the tos
-				Value v = POP();
-				// increment the ip to point to the next ins
-				InstructionPointer++;
-				// save the present state
-				BACKUP_FRAMEINFO();
-				// if it has any parent fiber, return to that
-				if(fiber->parent) {
-					fiber = fiber->parent;
-					RESTORE_FRAMEINFO();
-					PUSH(v);
-					DISPATCH_WINC();
-				} else {
-					// return
-					RETURN(v);
-				}
-			}
-
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_yield) {
+				if(code > Bytecode::CODE_search_method) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",
@@ -1056,7 +1050,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			    RuntimeError::create(String::from(ExceptionMessage));
 		}
 		BACKUP_FRAMEINFO();
-		fiber = throwException(pendingException, fiber);
+		currentFiber = fiber = throwException(pendingException, fiber);
 		RESTORE_FRAMEINFO();
 		pendingException = ValueNil;
 		DISPATCH_WINC();

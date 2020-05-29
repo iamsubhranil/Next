@@ -7,7 +7,7 @@ class SomeClass {
 fn aLongMethod() {
     a = 0
     while(a++ < 10) {
-        yield a
+        yield(a)
     }
     ret a
 }
@@ -15,12 +15,31 @@ fn aLongMethod() {
 fn recurse(x) {
     if(x < 10) {
         recurse(x + 1)
-        yield x
+        yield(x)
     } else {
-        yield x
+        yield(x)
     }
     ret x
 }
+
+fn ex1() {
+    throw runtime_error("Exception thrown!")
+}
+
+fn ex0() {
+    f = fiber(ex1@0)
+    f.run()
+}
+
+fn passing(x) {
+    for(i in x) {
+        a = yield(i)
+        if(i != a) {
+            throw runtime_error(fmt("yield not matched: {} != {}", i, a))
+        }
+    }
+}
+
 pub fn test() {
     res = true
     f = fiber(aLongMethod@0)
@@ -89,6 +108,25 @@ pub fn test() {
     if(fiber(SomeClass.someMethod@1, [SomeClass(), 2]).run() != 2) {
         print("[Error] Fiber running class bound method is broken!\n")
         res = false
+    }
+    f = fiber(ex0@0)
+    try {
+        f.run()
+        print("[Error] Exception produced in nested fiber should be caught in parent!\n")
+        res = false
+    } catch(runtime_error e) {}
+    arg = range(5)
+    f = fiber(passing@1, [arg])
+    // make the first run
+    if(f.run(0) != 0) {
+        print("[Error] Error passing value to yield!\n")
+    }
+    for(i in range(0, 4)) {
+        b = f.run(i)
+        if(b != i + 1) {
+            print("[Error] Error passing value to yield!\n")
+            res = false
+        }
     }
     ret res
 }

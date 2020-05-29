@@ -105,11 +105,18 @@ Value next_runtimerror_str(const Value *args, int numargs) {
 	return Value(args[0].toRuntimeError()->message);
 }
 
+Value next_runtimerror_construct_1(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(runtime_error, "(_)", 1, String);
+	return RuntimeError::create(args[1].toString());
+}
+
 void RuntimeError::init() {
 	Class *RuntimeErrorClass = GcObject::RuntimeErrorClass;
 
 	RuntimeErrorClass->init("runtime_error", Class::ClassType::BUILTIN);
 
+	RuntimeErrorClass->add_builtin_fn("(_)", 1, next_runtimerror_construct_1);
 	RuntimeErrorClass->add_builtin_fn("str()", 0, next_runtimerror_str);
 }
 

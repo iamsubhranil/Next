@@ -961,16 +961,12 @@ void CodeGenerator::visit(ReturnStatement *ifs) {
 	else
 		btx->pushn();
 	btx->insert_token(ifs->token);
-	TokenType t = ifs->token.type;
 	// if this is a return, it is illegal in top scope
-	if(t == TOKEN_ret) {
-		if(ftx == mtx->get_default_constructor()) {
-			lnerr_("Cannot return from top level scope!", ifs->token);
-		}
-		btx->ret();
-	} else if(t == TOKEN_yield) {
-		btx->yield();
+	if(ftx == mtx->get_default_constructor()) {
+		lnerr_("Cannot return from top level scope!", ifs->token);
 	}
+
+	btx->ret();
 }
 
 void CodeGenerator::visit(ForStatement *ifs) {

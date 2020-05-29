@@ -163,7 +163,9 @@ OPCODE1(search_method, 1, int) // <sym>
 // Yields, i.e. pauses and returns
 // from the present fiber. returns
 // the TOS
-OPCODE0(yield, -1)
+// Not need.
+// Use yield() or yield(_)
+// OPCODE0(yield, -1)
 
 #undef OPCODE0
 #undef OPCODE1
