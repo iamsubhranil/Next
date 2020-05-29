@@ -1,0 +1,77 @@
+fn amethod() {
+    ret "hello"
+}
+
+fn amethod(a) {
+    ret fmt("hello {}", a)
+}
+
+class MyClass {
+    priv:
+        x
+    pub:
+        new(s) {
+            x = s
+        }
+
+        fn display() {
+            ret fmt("x is {}", x)
+        }
+}
+
+fn lamba(func, arg) {
+    ret func(arg)
+}
+
+pub fn test() {
+    res = true
+    b = amethod@0
+    c = amethod@1
+    if(b() != "hello") {
+        print("[Error] Module bound methods not working!\n")
+        res = false
+    }
+    if(c(2) != "hello 2") {
+        print("[Error] Module bound methods not working!\n")
+        res = false
+    }
+    d = MyClass(2.32)
+    e = d.display@0
+    f = MyClass.display@0
+    if(e() != "x is 2.32") {
+        print("[Error] Object bound methods not working!\n")
+        res = false
+    }
+    try {
+        e(1)
+        print("[Error] Expected error on calling with wrong arity!\n")
+        res = false
+    } catch(runtime_error e) {}
+    if(f(MyClass(3)) != "x is 3") {
+        print("[Error] Class bound methods are not working!\n")
+        res = false
+    }
+    try {
+        f(2)
+        print("[Error] Expected error on passing wrong object to a class bound method!\n")
+        res = false
+    } catch(type_error te) {}
+    g = array.size@0
+    if(g([]) != 0) {
+        print("[Error] Builtin method references are not working!\n")
+        res = false
+    }
+    if(lamba(f, d) != "x is 2.32") {
+        print("[Error] Passing bound methods as arguments not working!\n")
+        res = false
+    }
+    if(d.display@0() != "x is 2.32") {
+        print("[Error] Direct softcalls on object method references not working!\n")
+        res = false
+    }
+    if(amethod@0() != "hello") {
+        print("[Error] Direct softcalls on module method references not working!\n")
+        res = false
+    }
+    ret res
+}

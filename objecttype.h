@@ -32,4 +32,5 @@ OBJTYPE(FormatError, FormatError)
 // When a fiber is not marked by the engine,
 // the gc is free to collect it.
 OBJTYPE(Fiber, Fiber)
+OBJTYPE(FiberIterator, FiberIterator)
 #undef OBJTYPE

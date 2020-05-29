@@ -265,18 +265,21 @@ class Parser {
 
   public:
 	Parser(Scanner &sc);
-	Token   lookAhead(size_t distance);
-	bool    match(TokenType expected);
-	Token   consume();
-	Token   consume(TokenType expected, const char *message);
-	void    registerParselet(TokenType type, PrefixParselet *p);
-	void    registerParselet(TokenType type, InfixParselet *p);
-	void    registerParselet(TokenType type, DeclarationParselet *p);
-	void    registerParselet(TokenType type, StatementParselet *p);
-	ExpPtr  parseExpression(Token token);
-	ExpPtr  parseExpression();
-	ExpPtr  parseExpression(int precedence, Token token);
-	ExpPtr  parseExpression(int precedence);
+	Token lookAhead(size_t distance);
+	bool  match(TokenType expected);
+	Token consume();
+	Token consume(TokenType expected, const char *message);
+	void  registerParselet(TokenType type, PrefixParselet *p);
+	void  registerParselet(TokenType type, InfixParselet *p);
+	void  registerParselet(TokenType type, DeclarationParselet *p);
+	void  registerParselet(TokenType type, StatementParselet *p);
+	// if silent is true, the parser won't trigger an
+	// exception if it cannot find a suitable expression
+	// to parse. it will bail out and return null
+	ExpPtr  parseExpression(Token token, bool silent = false);
+	ExpPtr  parseExpression(bool silent = false);
+	ExpPtr  parseExpression(int precedence, Token token, bool silent = false);
+	ExpPtr  parseExpression(int precedence, bool silent = false);
 	StmtPtr parseDeclaration();
 	std::vector<StmtPtr> parseAllDeclarations();
 	StmtPtr              parseStatement();

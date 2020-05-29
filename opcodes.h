@@ -85,11 +85,11 @@ OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 
 // performs a call on the method with <argument>
-// receiver is stored at arity - 1
+// receiver is stored at -arity - 1
 OPCODE2(call, 0, int, int) // <symbol> <arity>
-// performs a call on the TOS
+// performs a call on the (-arity - 1)
 // we will provide both the signature and the
-// arity. if the TOS is a class, we will use
+// arity. if the (-arity - 1) is a class, we will use
 // the signature to resolve the constructor.
 // otherwise, we will use the arity to validate
 // the boundmethod.
@@ -150,6 +150,23 @@ OPCODE1(map_build, 0, int)
 // Creates a new BoundMethod, and pushes
 // that back
 OPCODE0(bind_method, -1)
+// Performs a direct load of
+// sym from TOP, and pushes that
+// back to the stack
+OPCODE1(load_method, 1, int) // <sym>
+// Checks whether the signature actually
+// exists in TOP.getClass()
+// if it does, it just pushes the
+// Function*, and leaves it for
+// the following 'bind_method'
+OPCODE1(search_method, 1, int) // <sym>
+// Yields, i.e. pauses and returns
+// from the present fiber. returns
+// the TOS
+// Not need.
+// Use yield() or yield(_)
+// OPCODE0(yield, -1)
+
 #undef OPCODE0
 #undef OPCODE1
 #undef OPCODE2

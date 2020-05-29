@@ -13,6 +13,7 @@ class GetExpression;
 class GroupingExpression;
 class HashmapLiteralExpression;
 class LiteralExpression;
+class MethodReferenceExpression;
 class PrefixExpression;
 class PostfixExpression;
 class SetExpression;
@@ -21,19 +22,20 @@ class VariableExpression;
 
 class ExpressionVisitor {
   public:
-	virtual void visit(ArrayLiteralExpression *al)   = 0;
-	virtual void visit(AssignExpression *as)         = 0;
-	virtual void visit(BinaryExpression *bin)        = 0;
-	virtual void visit(CallExpression *cal)          = 0;
-	virtual void visit(GetExpression *get)           = 0;
-	virtual void visit(GroupingExpression *group)    = 0;
-	virtual void visit(HashmapLiteralExpression *al) = 0;
-	virtual void visit(LiteralExpression *lit)       = 0;
-	virtual void visit(PrefixExpression *pe)         = 0;
-	virtual void visit(PostfixExpression *pe)        = 0;
-	virtual void visit(SetExpression *sete)          = 0;
-	virtual void visit(SubscriptExpression *sube)    = 0;
-	virtual void visit(VariableExpression *vis)      = 0;
+	virtual void visit(ArrayLiteralExpression *al)    = 0;
+	virtual void visit(AssignExpression *as)          = 0;
+	virtual void visit(BinaryExpression *bin)         = 0;
+	virtual void visit(CallExpression *cal)           = 0;
+	virtual void visit(GetExpression *get)            = 0;
+	virtual void visit(GroupingExpression *group)     = 0;
+	virtual void visit(HashmapLiteralExpression *al)  = 0;
+	virtual void visit(LiteralExpression *lit)        = 0;
+	virtual void visit(MethodReferenceExpression *me) = 0;
+	virtual void visit(PrefixExpression *pe)          = 0;
+	virtual void visit(PostfixExpression *pe)         = 0;
+	virtual void visit(SetExpression *sete)           = 0;
+	virtual void visit(SubscriptExpression *sube)     = 0;
+	virtual void visit(VariableExpression *vis)       = 0;
 };
 
 class Expr {
@@ -51,7 +53,8 @@ class Expr {
 		SET,
 		PREFIX,
 		POSTFIX,
-		SUBSCRIPT
+		SUBSCRIPT,
+		METHOD_REFERENCE
 	};
 	Token token;
 	Type  type;
@@ -194,6 +197,14 @@ class SubscriptExpression : public Expr {
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
+class MethodReferenceExpression : public Expr {
+  public:
+	int args;
+	MethodReferenceExpression(Token n, int i)
+	    : Expr(n, METHOD_REFERENCE), args(i) {}
+	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+};
+
 #ifdef DEBUG
 class ExpressionPrinter : public ExpressionVisitor {
   private:
@@ -210,6 +221,7 @@ class ExpressionPrinter : public ExpressionVisitor {
 	void visit(GroupingExpression *group);
 	void visit(HashmapLiteralExpression *al);
 	void visit(LiteralExpression *lit);
+	void visit(MethodReferenceExpression *me);
 	void visit(PrefixExpression *pe);
 	void visit(PostfixExpression *pe);
 	void visit(SetExpression *sete);

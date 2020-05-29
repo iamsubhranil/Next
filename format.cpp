@@ -356,7 +356,8 @@ Value Formatter::fmt(const char *source, const Value *args, int size) {
 				    c->get_fn(SymbolTable2::const_sig_str).toFunction();
 				v = ExecutionEngine::execute(v, f, true);
 			} else {
-				FERR("Argument neither provides a 'fmt(_)' nor an str()!");
+				// convert it to default string, and format
+				v = String::toString(v);
 			}
 		}
 	}

@@ -9,8 +9,12 @@ struct Fiber {
 
 	// A running instance of a Function
 	struct CallFrame {
-		// Instruction Pointer
-		Bytecode::Opcode *code;
+		union {
+			// Instruction Pointer
+			Bytecode::Opcode *code;
+			// Builtin fn
+			next_builtin_fn func;
+		};
 		// Stack
 		Value *stack_;
 		// Function
@@ -41,6 +45,11 @@ struct Fiber {
 	// the parent of this fiber, if any
 	Fiber *parent;
 
+	// if this fiber is created at runtime,
+	// this will hold the iterator which
+	// iterate() will return
+	Object *fiberIterator;
+
 	// state of the fiber
 	State state;
 
@@ -58,6 +67,7 @@ struct Fiber {
 	// just avoids one BoundMethod allocation when called
 	// internally
 	Fiber::CallFrame *appendBoundMethodDirect(Value v, Function *f,
+	                                          const Value *args,
 	                                          bool returnToCaller = false);
 
 	// appends an intra-class method, whose stack is already
@@ -75,7 +85,11 @@ struct Fiber {
 	Fiber::CallFrame *getCurrentFrame() {
 		return &callFrames[callFramePointer - 1];
 	}
+
 	void ensureStack(size_t el); // stackSize > stackPointer + el
+	// does state = s, additionally toggles 'has_next'
+	// of the iterator
+	void setState(State s);
 
 	static void init();
 	// most of the markings will be done
@@ -83,4 +97,7 @@ struct Fiber {
 	// engine is executing
 	void mark();
 	void release();
+
+	// runs the fiber until it returns somehow
+	Value run();
 };

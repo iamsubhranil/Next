@@ -128,7 +128,7 @@ const char *Token::TokenNames[] = {
     "TOKEN_GREATER_EQUAL", "TOKEN_LESS",        "TOKEN_LESS_EQUAL",
     "TOKEN_MINUS",         "TOKEN_PLUS",        "TOKEN_SEMICOLON",
     "TOKEN_SLASH",         "TOKEN_STAR",        "TOKEN_PERCEN",
-    "TOKEN_CARET",
+    "TOKEN_CARET",         "TOKEN_AT",
 
     "TOKEN_IDENTIFIER",    "TOKEN_STRING",      "TOKEN_NUMBER",
     "TOKEN_HEX",           "TOKEN_OCT",         "TOKEN_BIN",
@@ -140,12 +140,11 @@ const char *Token::TokenNames[] = {
     "TOKEN_ERROR",         "TOKEN_EOF"};
 
 const char *Token::FormalNames[] = {
-    "(",      ")",          "{",      "}",      "[",          "]",
-    "[]",     "!",          "!=",     ",",      ".",          ":",
-    "=",      "==",         ">",      ">=",     "<",          "<=",
-    "-",      "+",          ";",      "/",      "*",          "%",
-    "^",      "identifier", "string", "number", "hexdecimal", "octal",
-    "binary",
+    "(",      ")",          "{",     "}",      "[", "]",          "[]",
+    "!",      "!=",         ",",     ".",      ":", "=",          "==",
+    ">",      ">=",         "<",     "<=",     "-", "+",          ";",
+    "/",      "*",          "%",     "^",      "@", "identifier", "string",
+    "number", "hexdecimal", "octal", "binary",
 #define KEYWORD(x, y) #x,
 #include "keywords.h"
 #undef KEYWORD
@@ -499,6 +498,7 @@ Token Scanner::scanNextToken() {
 		case '*': return Token::from(TOKEN_STAR, this);
 		case '%': return Token::from(TOKEN_PERCEN, this);
 		case '^': return Token::from(TOKEN_CARET, this);
+		case '@': return Token::from(TOKEN_AT, this);
 		case '!':
 			if(match('='))
 				return Token::from(TOKEN_BANG_EQUAL, this);

@@ -1,8 +1,11 @@
 #include "fiber.h"
+#include "../engine.h"
 #include "array.h"
 #include "boundmethod.h"
 #include "class.h"
 #include "errors.h"
+#include "fiber_iterator.h"
+#include "object.h"
 
 // allocate a stack of some size by default,
 // so that initially we don't have to perform
@@ -26,7 +29,8 @@ Fiber *Fiber::create(Fiber *parent) {
 	f->callFrameSize    = FIBER_DEFAULT_FRAME_ALLOC;
 	f->parent           = parent;
 
-	f->state = BUILT;
+	f->state         = BUILT;
+	f->fiberIterator = NULL;
 	return f;
 }
 
@@ -51,8 +55,6 @@ void Fiber::ensureStack(size_t e) {
 }
 
 Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
-	// arity number of elements is already on the stack
-	ensureStack(f->code->stackMaxSize - f->arity);
 
 	if(callFramePointer == callFrameSize) {
 		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
@@ -62,67 +64,145 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
 		callFrameSize = newsize;
 	}
 
-	callFrames[callFramePointer].f = f;
-	// the 0th slot is reserved for the receiver
-	callFrames[callFramePointer].stack_         = &stackTop[-f->arity - 1];
-	callFrames[callFramePointer].code           = f->code->bytecodes;
+	callFrames[callFramePointer].f              = f;
 	callFrames[callFramePointer].returnToCaller = returnToCaller;
-	// we have already managed the slot for the receiver
-	// and the arguments are already in place
-	stackTop += (f->code->numSlots - 1 - f->arity);
+
+	switch(f->getType()) {
+		case Function::METHOD:
+			// arity number of elements is already on the stack
+			ensureStack(f->code->stackMaxSize - f->arity);
+			callFrames[callFramePointer].code = f->code->bytecodes;
+			// the 0th slot is reserved for the receiver
+			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
+			// we have already managed the slot for the receiver
+			// and the arguments are already in place
+			stackTop += (f->code->numSlots - 1 - f->arity);
+			break;
+		case Function::BUILTIN:
+			// the only way a builtin_fn can be appended to the
+			// call stack is by appendBoundMethod, which
+			// manually lays down the arguments to the stack
+			// before this call. so right now, everything is
+			// present on the stack.
+			// we don't need slot for the args
+			// ensureStack(f->arity);
+			callFrames[callFramePointer].func = f->func;
+			// the 0th slot is reserved for the receiver
+			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
+			// stackTop += f->arity;
+			break;
+	}
 
 	return &callFrames[callFramePointer++];
 }
 
-Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
-                                           bool         returnToCaller) {
-	// noarg
-	// We ensure that there is at least one slot for the receiver
-	ensureStack(1);
-	// and we increment the top to make it look like a managed one
-	// to appendMethod
-	stackTop++;
-	Fiber::CallFrame *f = appendMethod(bm->func, returnToCaller);
-	f->stack_[0]        = bm->binder;
-	return f;
+Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
+                                                 const Value *args,
+                                                 bool         returnToCaller) {
+	// same as appendBoundMethod, we just don't need
+	// a boundmethod struct here, saving us one
+	// allocation
+	int effective_arity = f->arity;
+	// ensure there is required slots
+	// +1 for the receiver
+	ensureStack(effective_arity + 1);
+	// this must always be an object bound method
+	*stackTop++ = v;
+	// now we lay down the arguments
+	if(effective_arity > 0) {
+		memcpy(stackTop, args, sizeof(Value) * effective_arity);
+	}
+	stackTop += effective_arity;
+	// finally, append the method
+	Fiber::CallFrame *frame = appendMethod(f, returnToCaller);
+	return frame;
 }
 
 Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
                                            bool returnToCaller) {
-	// first, append the bound method
-	Fiber::CallFrame *f = appendBoundMethod(bm, returnToCaller);
-	// now lay down the rest of the arguments
-	// on the stack
-	memcpy(f->stack_ + 1, args, sizeof(Value) * bm->func->arity);
+	int effective_arity =
+	    bm->func->arity + (bm->type == BoundMethod::CLASS_BOUND);
+	// ensure there is required slots
+	// +1 for the receiver
+	ensureStack(effective_arity + 1);
+	// if this is a class bound method, we don't put the class
+	// here
+	if(bm->type == BoundMethod::OBJECT_BOUND)
+		*stackTop++ = bm->binder;
+	// now we lay down the arguments
+	if(effective_arity > 0) {
+		memcpy(stackTop, args, sizeof(Value) * effective_arity);
+	}
+	stackTop += effective_arity;
+	// finally, append the method
+	Fiber::CallFrame *f = appendMethod(bm->func, returnToCaller);
 	return f;
 }
 
-Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
-                                                 bool returnToCaller) {
-	ensureStack(1);
-	stackTop++;
-	Fiber::CallFrame *frame = appendMethod(f, returnToCaller);
-	frame->stack_[0]        = v;
-	return frame;
+Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
+                                           bool         returnToCaller) {
+	return appendBoundMethod(bm, NULL, returnToCaller);
+}
+
+Value Fiber::run() {
+	Value  result = ValueNil;
+	Fiber *bak    = ExecutionEngine::getCurrentFiber();
+	parent        = bak;
+	switch(state) {
+		case Fiber::BUILT: {
+			// if this a newly built fiber, there
+			// will be a new value in the stack
+			// which it is not prepared for yet.
+			// prepare for that.
+			ensureStack(1);
+			// if the top of the callframe contains
+			// a builtin, execute it
+			CallFrame *f = getCurrentFrame();
+			if(f->f->getType() == Function::BUILTIN) {
+				result = f->func(f->stack_, f->f->arity);
+				popFrame();
+			}
+			// if don't have any more frames in this
+			// fiber, we switch
+			if(callFramePointer == 0) {
+				setState(Fiber::FINISHED);
+				ExecutionEngine::setCurrentFiber(parent);
+				return result;
+			}
+			// otherwise, we store the result in the
+			// callers top
+			*stackTop++ = result;
+			// we're now sure this is a normal method
+			// because BUILT has already taken care
+			// of builtin.
+			// wherever the instruction pointer was
+			// pointing for the present frame, decrement
+			// that by 1, because that will be increased
+			// in DISPATCH()
+			getCurrentFrame()->code--;
+			break;
+		}
+		case Fiber::YIELDED: {
+			break;
+		}
+		case Fiber::FINISHED: {
+			RERR("Fiber has already finished execution!");
+		}
+	}
+	ExecutionEngine::setCurrentFiber(this);
+	return ValueNil;
+}
+
+void Fiber::setState(Fiber::State s) {
+	state = s;
+	if(s == FINISHED && fiberIterator)
+		fiberIterator->slots[1] = ValueFalse;
 }
 
 Value next_fiber_cancel(const Value *args, int numargs) {
 	(void)numargs;
 	Fiber *f = args[0].toFiber();
-	// only a fiber which is on yield or finished
-	// can be cancelled
-	switch(f->state) {
-		case Fiber::FINISHED:
-		case Fiber::YIELDED:
-			f->callFramePointer = 0; // reset the callFramePointer
-			// reset the stack pointer
-			f->stackTop = f->stack_;
-			// the fiber is now fresh, so mark it as a newly
-			// built one.
-			f->state = Fiber::BUILT;
-			break;
-		default: break;
-	}
+	f->state = Fiber::FINISHED;
 	return ValueNil;
 }
 
@@ -141,36 +221,38 @@ Value next_fiber_is_finished(const Value *args, int numargs) {
 	return Value(args[0].toFiber()->state == Fiber::FINISHED);
 }
 
-Value next_fiber_resume(const Value *args, int numargs) {
+Value next_fiber_run(const Value *args, int numargs) {
 	(void)numargs;
-	// only a fiber which is on yield can be resumed
+	return args[0].toFiber()->run();
+}
+
+Value next_fiber_run_1(const Value *args, int numargs) {
+	(void)numargs;
 	Fiber *f = args[0].toFiber();
-	// f->parent = Engine::getCurrentFiber()
-	switch(f->state) {
-		case Fiber::YIELDED:
-		case Fiber::BUILT:
-			// THIS is the important point.
-			// how do we resume? do we change
-			// ExecutionEngine::execute to take
-			// a Fiber and execute it directly?
-			// ExecutionEngine::execute(f);
-			// if so, we need to protect
-			// overflow errors due to recursion.
-			//
-			// we can also somehow trigger the
-			// change using the state of the engine
-			// itself.
-			// ExecutionEngine::setActiveFiber(f);
-			// return;
-			break;
-		default: break;
-	}
-	return ValueNil;
+	// make the switch
+	f->run();
+	// return whatever was in the argument
+	// so that it will get pushed
+	return args[1];
+}
+
+Value next_fiber_iterate(const Value *args, int numargs) {
+	(void)numargs;
+	Fiber *f = args[0].toFiber();
+	// if the fiber already has an iterator,
+	// return that
+	if(f->fiberIterator)
+		return Value(f->fiberIterator);
+	// otherwise, create an iterator, and return
+	// that
+	Object *o        = FiberIterator::from(f);
+	f->fiberIterator = o;
+	return Value(o);
 }
 
 Value next_fiber_construct_0(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(fiber, run, 1, BoundMethod);
+	EXPECT(fiber, new(method), 1, BoundMethod);
 	BoundMethod *b = args[1].toBoundMethod();
 	// verify the function with given arguments
 	BoundMethod::Status s = b->verify(NULL, 0);
@@ -183,8 +265,8 @@ Value next_fiber_construct_0(const Value *args, int numargs) {
 
 Value next_fiber_construct_x(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(fiber, run, 1, BoundMethod);
-	EXPECT(fiber, run, 2, Array);
+	EXPECT(fiber, new(method, args), 1, BoundMethod);
+	EXPECT(fiber, new(method, args), 2, Array);
 	BoundMethod *b = args[1].toBoundMethod();
 	Array *      a = args[2].toArray();
 	// verify the function with the given arguments
@@ -224,12 +306,17 @@ void Fiber::init() {
 	 *  f.is_finished()
 	 *
 	 *  the fiber can be started, and resumed after an yield,
-	 *  using fiber.resume()
+	 *  using fiber.run().
 	 *
-	 *  f.resume()
+	 *  f.run()
 	 *
-	 *  the fiber can be cancelled forcefully, which will reset
-	 *  the state of the fiber back to not started.
+	 *  run will continue until the fiber ends, or it encounters
+	 *  an yield.
+	 *
+	 *  the fiber can be cancelled forcefully, which will set the
+	 *  fiber's state to finished, preventing further execution
+	 *  of the fiber. calling cancel on a finished fiber has no
+	 *  effects.
 	 *
 	 *  f.cancel()
 	 *
@@ -239,18 +326,55 @@ void Fiber::init() {
 	 *      yield i
 	 *  }
 	 *
-	 *  at the call site where f.run() or f.resume() is called,
-	 *  i will be returned.
+	 *  iterating over a fiber is possible using standard for
+	 *  loops. fiber.iterator() returns a singleton iterator
+	 *  for a fiber, which contains 'has_next' and 'next()'
+	 *  members. 'next()' runs 'fiber.run()' continuously
+	 *  until the fiber finishes.
+	 *
+	 *  consider the following example:
+	 *
+	 *  fn longRunningMethod() {
+	 *      i = 0
+	 *      while(i++ < 10) {
+	 *          yield i
+	 *      }
+	 *  }
+	 *
+	 *  f = fiber(longRunningMethod@0)
+	 *
+	 *  for(i in f) {
+	 *      print(i)        // 0, 1, 2, 3, 4, 5
+	 *      if(i == 5) {
+	 *          break
+	 *      }
+	 *  }
+	 *
+	 *  print(f.run())      // 6
+	 *  print(f.run())      // 7
+	 *
+	 *  j = f.iterate()     // not actually resumed,
+	 *                      // just the iterator returned
+	 *  print(j.next())     // 8
+	 *  print(j.has_next)   // true
+	 *  for(i in j) {
+	 *      print(i)        // 9
+	 *  }
+	 *  print(j.has_next)   // false
+	 *  print(f.run())      // error
+	 *  print(f.iterate())   // still the iterator
 	 *
 	 */
 
 	FiberClass->add_builtin_fn("(_)", 1, next_fiber_construct_0);
 	FiberClass->add_builtin_fn("(_,_)", 2, next_fiber_construct_x);
-	FiberClass->add_builtin_fn("cancel()", 1, next_fiber_cancel);
+	FiberClass->add_builtin_fn("cancel()", 0, next_fiber_cancel);
 	FiberClass->add_builtin_fn("is_started()", 0, next_fiber_is_started);
 	FiberClass->add_builtin_fn("is_yielded()", 0, next_fiber_is_yielded);
 	FiberClass->add_builtin_fn("is_finished()", 0, next_fiber_is_finished);
-	FiberClass->add_builtin_fn("resume()", 1, next_fiber_resume);
+	FiberClass->add_builtin_fn("iterate()", 0, next_fiber_iterate);
+	FiberClass->add_builtin_fn("run()", 0, next_fiber_run);
+	FiberClass->add_builtin_fn("run(_)", 1, next_fiber_run_1);
 }
 
 void Fiber::mark() {
@@ -260,6 +384,12 @@ void Fiber::mark() {
 	for(size_t i = 0; i < callFramePointer; i++) {
 		GcObject::mark(callFrames[i].f);
 	}
+	// mark the parent if present
+	if(parent)
+		GcObject::mark(parent);
+	// mark the iterator if present
+	if(fiberIterator)
+		GcObject::mark(fiberIterator);
 }
 
 void Fiber::release() {

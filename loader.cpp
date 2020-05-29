@@ -157,7 +157,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 			Fiber *f = Fiber::create();
 			// add CoreObject in slot 0
 			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
-			                           ctx->get_default_constructor()->f);
+			                           ctx->get_default_constructor()->f, NULL);
 			return ex.execute(f).toGcObject();
 		}
 		return (GcObject *)ctx->get_class();
@@ -199,7 +199,8 @@ GcObject *Loader::compile_and_load_from_source(
 			Fiber *f = Fiber::create();
 			// add CoreObject in slot 0
 			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
-			                           modulectx->get_default_constructor()->f);
+			                           modulectx->get_default_constructor()->f,
+			                           NULL);
 			return ex.execute(f).toGcObject();
 		}
 	} catch(ParseException pe) {

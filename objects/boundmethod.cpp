@@ -1,12 +1,29 @@
 #include "boundmethod.h"
+#include "../format.h"
 #include "class.h"
 #include "errors.h"
 #include "function.h"
+
+Value next_boundmethod_str(const Value *args, int numargs) {
+	(void)numargs;
+	BoundMethod *b = args[0].toBoundMethod();
+	switch(b->type) {
+		case BoundMethod::CLASS_BOUND:
+			return Formatter::fmt("<class bound method {}.{}@{}>",
+			                      b->binder.toClass()->name, b->func->name,
+			                      Value(b->func->arity));
+		default:
+			return Formatter::fmt("<object bound method {}.{}@{}>",
+			                      b->binder.getClass()->name, b->func->name,
+			                      Value(b->func->arity));
+	}
+}
 
 void BoundMethod::init() {
 	Class *BoundMethodClass = GcObject::BoundMethodClass;
 
 	BoundMethodClass->init("bound_method", Class::ClassType::BUILTIN);
+	BoundMethodClass->add_builtin_fn("str()", 0, next_boundmethod_str);
 }
 
 void BoundMethod::mark() {
@@ -21,7 +38,7 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 	// must be an instance of the same class, unless the
 	// function is static
 	if(type == CLASS_BOUND)
-		arity += 1 - func->isStatic();
+		effective_arity += 1 - func->isStatic();
 	// for a vararg function, at least arity number of arguments
 	// must be present.
 	if((func->isVarArg() && arity < effective_arity) ||
@@ -33,7 +50,7 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 	// argument
 	if(type == CLASS_BOUND) {
 		Class *cls = binder.toClass();
-		if(args[0].toGcObject()->klass != cls) {
+		if(args[0].getClass() != cls) {
 			TypeError::sete(cls->name, func->name, cls->name, args[0], 1);
 			return INVALID_CLASS_INSTANCE;
 		}

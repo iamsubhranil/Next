@@ -18,9 +18,11 @@
 char                       ExecutionEngine::ExceptionMessage[1024] = {0};
 HashMap<String *, Class *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
-Value   ExecutionEngine::pendingException = ValueNil;
-Fiber * ExecutionEngine::currentFiber     = nullptr;
-Object *ExecutionEngine::CoreObject       = nullptr;
+Value   ExecutionEngine::pendingException      = ValueNil;
+Fiber * ExecutionEngine::currentFiber          = nullptr;
+Object *ExecutionEngine::CoreObject            = nullptr;
+size_t  ExecutionEngine::maxRecursionLimit     = 1024;
+size_t  ExecutionEngine::currentRecursionDepth = 0;
 
 void ExecutionEngine::init() {
 	pendingException = ValueNil;
@@ -246,9 +248,17 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				}
 				matched->code = matched->f->code->bytecodes + c.jump;
 				break;
+			} else {
+				caughtClass = NULL;
 			}
 		}
+		if(caughtClass == NULL) {
+			printException(thrown, root);
+			printStackTrace(f);
+			exit(1);
+		}
 		Fiber *fiber = f;
+		fiber->ensureStack(1);
 		PUSH(thrown);
 		return f;
 	}
@@ -256,42 +266,9 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 
 Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
                                bool returnToCaller) {
-	// if this is built in function, don't bother
+	(void)numarg;
 	Fiber *fiber = currentFiber;
-	// we need to store the args somewhere where they can
-	// be tracked. storing them in the present fiber
-	// seems like a fine idea for now
-	switch(f->getType()) {
-		case Function::Type::BUILTIN: {
-			fiber->ensureStack(numarg + 1);
-			PUSH(v);
-			if(numarg > 0) {
-				memcpy(fiber->stackTop, args, sizeof(Value) * numarg);
-			}
-			fiber->stackTop += numarg;
-			// execute
-			Value res = f->func(&fiber->stackTop[-numarg - 1], numarg);
-			// decrement the top back to previous position
-			fiber->stackTop -= (numarg + 1);
-			// if we need to return, go back
-			if(returnToCaller)
-				return res;
-			else {
-				// push the value to the fiber, and continue
-				PUSH(v);
-				break;
-			}
-		}
-		case Function::Type::METHOD:
-			currentFiber->appendBoundMethodDirect(v, f, returnToCaller);
-			// push the arguments
-			if(numarg > 0) {
-				fiber->ensureStack(numarg);
-				memcpy(fiber->stackTop, args, sizeof(Value) * numarg);
-				fiber->stackTop += numarg;
-			}
-			break;
-	}
+	fiber->appendBoundMethodDirect(v, f, args, returnToCaller);
 	return execute(currentFiber);
 }
 
@@ -319,6 +296,15 @@ Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
 	}
 
 Value ExecutionEngine::execute(Fiber *fiber) {
+	// check if the fiber actually has something to exec
+	if(fiber->callFramePointer == 0) {
+		fiber->setState(Fiber::FINISHED);
+		if(fiber->parent)
+			fiber = fiber->parent;
+		else
+			return ValueNil;
+	}
+
 	currentFiber = fiber;
 
 	int       numberOfArguments;
@@ -326,13 +312,41 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	int       methodToCall;
 	Function *functionToCall;
 
+	// variable to denote the relocation of instruction
+	// pointer after extracting an argument
+	size_t reloc = 0;
+
 	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
 
-	// variable to denote the relocation of instruction
-	// pointer after extracting an argument
-	size_t reloc = 0;
+	if(currentRecursionDepth == maxRecursionLimit) {
+		// reduce the depth so that we can print the message
+		currentRecursionDepth -= 1;
+		RERRF("Maxmimum recursion depth reached!");
+	}
+	currentRecursionDepth++;
+	// Next fibers has no way of saving state of builtin
+	// functions. They are handled by the native stack.
+	// So, they must always appear at the top of the
+	// Next callframe so that they can be immediately
+	// executed, before proceeding with further execution.
+	// So we check that here
+	if(presentFrame->f->getType() == Function::BUILTIN) {
+		Value res =
+		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
+		bool ret = presentFrame->returnToCaller;
+		fiber->popFrame();
+		// it may have caused a fiber switch
+		fiber = currentFiber;
+		// if we have to return, we do,
+		// otherwise, we continue normal execution
+		if(ret || (fiber->callFramePointer == 0 && fiber->parent == NULL))
+			return res;
+		else if(fiber->callFramePointer == 0)
+			fiber = fiber->parent;
+		PUSH(res);
+	}
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
@@ -364,6 +378,11 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 #define DEFAULT() default
 #endif
 
+#define RETURN(x)                \
+	{                            \
+		currentRecursionDepth--; \
+		return (x);              \
+	}
 #define TOP (*(fiber->stackTop - 1))
 #define POP() (*(--fiber->stackTop))
 
@@ -442,38 +461,46 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		RERRF(str, ##__VA_ARGS__) \
 	}
 
+	// the top may have been occupied by a builtin,
+	// so we restore the state just to be safe
+	RESTORE_FRAMEINFO();
+
 	LOOP() {
 #ifdef DEBUG_INS
-		int instructionPointer =
-		    InstructionPointer - presentFrame->f->code->bytecodes;
-		int   stackPointer = fiber->stackTop - presentFrame->stack_;
-		Token t = presentFrame->f->code->ctx->get_token(instructionPointer);
-		if(t.type != TOKEN_ERROR)
-			t.highlight();
-		else
-			std::cout << "<source not found>\n";
-		std::cout << " StackMaxSize: " << presentFrame->f->code->stackMaxSize
-		          << " IP: " << std::setw(4) << instructionPointer
-		          << " SP: " << stackPointer << " " << std::flush;
-		for(int i = 0; i < presentFrame->f->code->stackMaxSize; i++) {
-			if(i == stackPointer)
-				std::cout << " |> ";
+		{
+			int instructionPointer =
+			    InstructionPointer - presentFrame->f->code->bytecodes;
+			int   stackPointer = fiber->stackTop - presentFrame->stack_;
+			Token t = presentFrame->f->code->ctx->get_token(instructionPointer);
+			if(t.type != TOKEN_ERROR)
+				t.highlight();
 			else
-				std::cout << " | ";
-			Bytecode::disassemble_Value(
-			    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
-		}
-		std::cout << " | \n";
-		Bytecode::disassemble(
-		    std::cout, &presentFrame->f->code->bytecodes[instructionPointer]);
-		if(stackPointer > presentFrame->f->code->stackMaxSize) {
-			RERRF("Invalid stack access!");
-		}
-		std::cout << "\n\n";
+				std::cout << "<source not found>\n";
+			std::cout << " StackMaxSize: "
+			          << presentFrame->f->code->stackMaxSize
+			          << " IP: " << std::setw(4) << instructionPointer
+			          << " SP: " << stackPointer << " " << std::flush;
+			for(int i = 0; i < presentFrame->f->code->stackMaxSize; i++) {
+				if(i == stackPointer)
+					std::cout << " |> ";
+				else
+					std::cout << " | ";
+				Bytecode::disassemble_Value(
+				    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
+			}
+			std::cout << " | \n";
+			Bytecode::disassemble(
+			    std::cout,
+			    &presentFrame->f->code->bytecodes[instructionPointer]);
+			if(stackPointer > presentFrame->f->code->stackMaxSize) {
+				RERRF("Invalid stack access!");
+			}
+			std::cout << "\n\n";
 #ifdef DEBUG_INS
-		fflush(stdout);
-		// getchar();
+			fflush(stdout);
+			// getchar();
 #endif
+		}
 #endif
 		SWITCH() {
 			CASE(add) : binary(+, addition, Number, Number, add);
@@ -592,7 +619,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				numberOfArguments = next_int();
 				const Class *c =
 				    fiber->stackTop[-numberOfArguments - 1].getClass();
-				functionToCall = c->functions->values[frame].toFunction();
+				functionToCall = c->get_fn(frame).toFunction();
 				goto performcall;
 			}
 
@@ -605,7 +632,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(call_soft) : {
 				int sym           = next_int();
 				numberOfArguments = next_int();
-				Value v           = POP();
+				// the callable is placed before the arguments
+				Value v = fiber->stackTop[-numberOfArguments - 1];
 				ASSERT(v.isGcObject(), "Not a callable object!");
 				switch(v.toGcObject()->objType) {
 					case GcObject::OBJ_Class: {
@@ -676,6 +704,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					    &fiber->stackTop[-numberOfArguments - 1],
 					    numberOfArguments + 1); // include the receiver
 					fiber->stackTop -= (numberOfArguments + 1);
+					// it may have caused a fiber switch
+					fiber = currentFiber;
 					RESTORE_FRAMEINFO();
 					if(pendingException != ValueNil) {
 						goto error;
@@ -696,17 +726,19 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(ret) : {
 				// Pop the return value
 				Value v = POP();
+				// backup the current frame
+				Fiber::CallFrame *cur = fiber->getCurrentFrame();
+				// pop the current frame
+				fiber->popFrame();
 				// if the current frame is invoked by
 				// a native method, return to that
-				if(fiber->getCurrentFrame()->returnToCaller) {
-					fiber->popFrame();
-					return v;
+				if(cur->returnToCaller) {
+					RETURN(v);
 				}
 				// if we have somewhere to return to,
 				// return there first. this would
 				// be true maximum number of times
-				if(fiber->callFramePointer > 1) {
-					fiber->popFrame();
+				if(fiber->callFramePointer > 0) {
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
@@ -714,7 +746,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					// if there is no callframe in present
 					// fiber, but there is a parent, return
 					// to the parent fiber
-					fiber = fiber->parent;
+					fiber->setState(Fiber::FINISHED);
+					currentFiber = fiber = fiber->parent;
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
@@ -722,7 +755,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					// neither parent fiber nor parent callframe
 					// exists. Return the value back to
 					// the caller.
-					return v;
+					RETURN(v);
 				}
 			}
 
@@ -926,6 +959,33 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
+			CASE(search_method) : {
+				int          sym = next_int();
+				const Class *classToSearch;
+				// if it's a class, and it does have
+				// the sym, we're done
+				if(TOP.isClass() && TOP.toClass()->has_fn(sym))
+					classToSearch = TOP.toClass();
+				else {
+					// otherwise, search in its class
+					const Class *c = TOP.getClass();
+					ASSERT(c->has_fn(sym),
+					       "Method '@t' not found in class '@s'!", sym,
+					       c->name);
+					classToSearch = c;
+				}
+				// push the fn, and we're done
+				PUSH(Value(classToSearch->get_fn(sym).toFunction()));
+				DISPATCH();
+			}
+
+			CASE(load_method) : {
+				int   sym = next_int();
+				Value v   = TOP;
+				PUSH(v.getClass()->get_fn(sym));
+				DISPATCH();
+			}
+
 			CASE(bind_method) : {
 				// pop the function
 				Function *f = POP().toFunction();
@@ -966,7 +1026,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_bind_method) {
+				if(code > Bytecode::CODE_search_method) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",
@@ -990,7 +1050,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			    RuntimeError::create(String::from(ExceptionMessage));
 		}
 		BACKUP_FRAMEINFO();
-		fiber = throwException(pendingException, fiber);
+		currentFiber = fiber = throwException(pendingException, fiber);
 		RESTORE_FRAMEINFO();
 		pendingException = ValueNil;
 		DISPATCH_WINC();

@@ -239,7 +239,7 @@ class ReturnStatement : public Statement {
   public:
 	ExpPtr expr;
 	ReturnStatement(Token t, ExpPtr &e)
-	    : Statement(t, RETURN), expr(e.release()) {}
+	    : Statement(t, RETURN), expr(e == NULL ? NULL : e.release()) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 

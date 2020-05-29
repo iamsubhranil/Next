@@ -78,6 +78,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(GroupingExpression *group);
 	void visit(HashmapLiteralExpression *as);
 	void visit(LiteralExpression *lit);
+	void visit(MethodReferenceExpression *me);
 	void visit(PrefixExpression *pe);
 	void visit(PostfixExpression *pe);
 	void visit(SetExpression *sete);

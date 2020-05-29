@@ -13,6 +13,7 @@
 #include "objects/core.h"
 #include "objects/errors.h"
 #include "objects/fiber.h"
+#include "objects/fiber_iterator.h"
 #include "objects/formatspec.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
@@ -151,6 +152,10 @@ void GcObject::gc(bool force) {
 		std::cout << "[GC] Marking weak strings..\n";
 #endif
 		String::keep();
+#ifdef DEBUG_GC
+		std::cout << "[GC] Marking symbol table..\n";
+#endif
+		SymbolTable2::mark();
 #ifdef DEBUG_GC
 		std::cout << "[GC] Sweeping..\n";
 #endif

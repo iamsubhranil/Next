@@ -27,11 +27,18 @@ void Parser::registerParselet(TokenType t, StatementParselet *i) {
 	statementParselets[t] = StatementParseletPtr(i);
 }
 
-ExpPtr Parser::parseExpression(int precedence, Token token) {
+ExpPtr Parser::parseExpression(int precedence, Token token, bool silent) {
 	PrefixParselet *prefix = prefixParselets[token.type].get();
 
 	if(prefix == NULL) {
+		// if it is a silent parse, bail out
+		if(silent)
+			return NULL;
 		throw ParseException(token, "Unable to parse the expression!");
+	} else if(silent) {
+		// if we got a prefix but this was a silent call,
+		// we haven't consumed the token yet
+		consume();
 	}
 
 	ExpPtr left = prefix->parse(this, token);
@@ -110,16 +117,17 @@ StmtPtr Parser::parseStatement() {
 	return p->parse(this, t);
 }
 
-ExpPtr Parser::parseExpression(Token token) {
-	return parseExpression(0, token);
+ExpPtr Parser::parseExpression(Token token, bool silent) {
+	return parseExpression(0, token, silent);
 }
 
-ExpPtr Parser::parseExpression(int precedence) {
-	return parseExpression(precedence, consume());
+ExpPtr Parser::parseExpression(int precedence, bool silent) {
+	return parseExpression(precedence, silent ? lookAhead(0) : consume(),
+	                       silent);
 }
 
-ExpPtr Parser::parseExpression() {
-	return parseExpression(0);
+ExpPtr Parser::parseExpression(bool silent) {
+	return parseExpression(0, silent);
 }
 
 Token Parser::lookAhead(size_t distance) {
@@ -236,9 +244,10 @@ FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative, int numArgs) {
 StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,
                                         Visibility vis) {
 	bool isn = false;
-	if(p->match(TOKEN_native)) {
-		isn = true;
-	}
+	// native functions not yet implemented
+	// if(p->match(TOKEN_native)) {
+	//	isn = true;
+	//}
 	Token name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
 	std::unique_ptr<FnBodyStatement> body =
 	    FnDeclaration::parseFnBody(p, t, isn);
@@ -386,7 +395,7 @@ StmtPtr ThrowStatementParselet::parse(Parser *p, Token t) {
 }
 
 StmtPtr ReturnStatementParselet::parse(Parser *p, Token t) {
-	ExpPtr th = p->parseExpression();
+	ExpPtr th = p->parseExpression(true); // parse silently
 	return unq(ReturnStatement, t, th);
 }
 
@@ -431,6 +440,18 @@ StmtPtr ForStatementParselet::parse(Parser *p, Token t) {
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {
 	(void)parser;
+	// if the next token is '@', it has to be a
+	// method reference
+	if(parser->match(TOKEN_AT)) {
+		Token num =
+		    parser->consume(TOKEN_NUMBER, "Expected argument count after '@'!");
+		char *end   = NULL;
+		int   count = strtol(num.start, &end, 10);
+		if(end == NULL || end - num.start < num.length) {
+			throw ParseException(num, "Invalid argument count!");
+		}
+		return unq(MethodReferenceExpression, t, count);
+	}
 	return unq(VariableExpression, t);
 }
 

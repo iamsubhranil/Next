@@ -50,7 +50,7 @@ pub fn test() {
         }
         print("[Error] string.contains() should not accept 123 as a valid argument!\n")
         res = false
-    } catch(runtime_error e) {}
+    } catch(type_error e) {}
 
     if(!s.contains("Hello") or !s.contains("lo Wo") or s.contains("Hola")) {
         print("[Error] string.contains() is broken!\n")
@@ -61,7 +61,7 @@ pub fn test() {
         t = s.append(212)
         print("[Error] string.append() should not accept 212 as a valid argument!\n")
         res = false
-    } catch(runtime_error e) {}
+    } catch(type_error e) {}
 
     if(s.append(" Subhranil!") != "Hello World! Subhranil!") {
         print("[Error] string.append() is broken!\n")

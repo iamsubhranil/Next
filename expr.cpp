@@ -86,6 +86,10 @@ void ExpressionPrinter::visit(LiteralExpression *le) {
 	out << le->token;
 }
 
+void ExpressionPrinter::visit(MethodReferenceExpression *me) {
+	out << me->token << "@" << me->args;
+}
+
 void ExpressionPrinter::visit(PrefixExpression *pe) {
 	out << pe->token;
 	pe->right->accept(this);
