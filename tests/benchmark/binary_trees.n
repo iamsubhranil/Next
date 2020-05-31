@@ -32,15 +32,15 @@ print("stretch tree of depth ", stretchDepth, " check : ", Tree(0, stretchDepth)
 longLivedTree = Tree(0, maxDepth)
 
 iterations = 1
-d = 0
-while(d++ < maxDepth) {
+d = -1
+while(++d < maxDepth) {
     iterations = iterations * 2
 }
 
 for(depth in range(minDepth, stretchDepth, 2)) {
     check = 0
-    i = 0
-    while(i++ < iterations) {
+    i = -1
+    while(++i < iterations) {
         check = check + Tree(i, depth).check() + Tree(-i, depth).check()
     }
 

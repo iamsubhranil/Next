@@ -24,14 +24,27 @@ OPCODE0(mul, -1)
 OPCODE0(div, -1)
 OPCODE0(power, -1)
 
-OPCODE1(incr_slot, 1, int)        // <slot>
-OPCODE1(incr_tos_slot, 1, int)    // <slot>
-OPCODE1(incr_object_slot, 1, int) // <slot>
-OPCODE1(incr_field, 1, int)       // <field>
-OPCODE1(decr_slot, 1, int)        // <slot>
-OPCODE1(decr_tos_slot, 1, int)    // <slot>
-OPCODE1(decr_object_slot, 1, int) // <slot>
-OPCODE1(decr_field, 1, int)       // <field>
+// ++ and -- operations are desugared
+// into
+// a) prefix
+//          0) load
+//          1) incr/decr
+//          2) store // the resultant is in TOS
+// b) postfix
+//          0) load
+//          1) copy
+//          2) incr/decr
+//          3) store
+//          4) pop // the first load remains
+// copies the TOS if TOS is a number,
+// otherwise calls ++(_)/--(_) on TOS
+OPCODE1(copy, 1, int) // <sym>
+// if TOS is a number, adds +1, otherwise
+// calls ++ on TOS
+OPCODE0(incr, 0)
+// if TOS is a number, adds -1, otherwise
+// calls -- on TOS
+OPCODE0(decr, 0)
 
 OPCODE0(neg, 0)
 
@@ -106,23 +119,9 @@ OPCODE1(construct, 0, Value) // <class>
 // Pop the object from TOS and push
 // the required field
 OPCODE1(load_field, 0, int) // <symbol>
-// incr/decr_field always expects the object
-// on TOS, which certainly is not the
-// case for postfix operations, where,
-// a load_field happens before the
-// actual incr/decr_field.
-// Hence this special opcode is introduced
-// which will load the specified field,
-// but also push the object back to the TOS
-OPCODE1(load_field_pushback, 1, int) // <symbol>
 // Pop the object from TOS and assign
 // the value at present TOS to the field
 OPCODE1(store_field, -1, int) // <symbol>
-
-// Optimized 'call' for intraclass
-// calls (i.e. call between two methods
-// of the same class)
-// OPCODE2(call_intraclass, 0, int, int)
 
 // Pops the value at TOS and starts stack unwinding
 // until a frame with matching exception handler is

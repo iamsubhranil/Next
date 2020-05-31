@@ -1,10 +1,10 @@
 fn combinations(l) {
     res = []
     size = l.size()
-    j = 0
+    j = -1
     for(i in range(size - 1)) {
         for(k in range(i + 1, size)) {
-            res[j++] = [l[i], l[k]]
+            res[++j] = [l[i], l[k]]
         }
     }
     ret res
@@ -80,7 +80,7 @@ BODIES = [
 PAIRS = combinations(BODIES)
 
 fn advance(dt, n, bodies, pairs) {
-    for(i=0;i < n;i++) {
+    for(i=0;i < n;++i) {
         for(pair in pairs) {
             body1 = pair[0]
             body2 = pair[1]

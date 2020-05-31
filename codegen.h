@@ -102,6 +102,11 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);
 
+	// generates necessary load/store instructions
+	// based on variableInfo
+	void loadVariable(VarInfo info, bool isReference = false);
+	void storeVariable(VarInfo info, bool isReference = false);
+
 	void     loadCoreModule();
 	void     loadPresentModule();
 	CallInfo resolveCall(String *name, String *signature);

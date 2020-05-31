@@ -557,8 +557,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				methodToCall      = SymbolTable2::const_sig_subscript_set;
 				numberOfArguments = 2;
 				goto methodcall;
-				// CALL_METHOD(c->get_fn(SymbolTable2::const_sig_subscript_set),
-				//            3);
 			}
 
 			CASE(lnot) : {
@@ -572,6 +570,44 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					DISPATCH();
 				}
 				RERRF("'-' must only be applied over a number!");
+			}
+
+			CASE(copy) : {
+				Value v   = TOP;
+				int   sym = next_int();
+				if(TOP.isNumber()) {
+					PUSH(v);
+					DISPATCH();
+				}
+				// push false to denote postfix
+				PUSH(ValueFalse);
+				methodToCall      = sym;
+				numberOfArguments = 1;
+				goto methodcall;
+			}
+
+			CASE(incr) : {
+				if(TOP.isNumber()) {
+					TOP.setNumber(TOP.toNumber() + 1);
+					DISPATCH();
+				}
+				// push true to denote prefix
+				PUSH(ValueTrue);
+				methodToCall      = SymbolTable2::const_sig_incr;
+				numberOfArguments = 1;
+				goto methodcall;
+			}
+
+			CASE(decr) : {
+				if(TOP.isNumber()) {
+					TOP.setNumber(TOP.toNumber() - 1);
+					DISPATCH();
+				}
+				// push true to denote prefix
+				PUSH(ValueTrue);
+				methodToCall      = SymbolTable2::const_sig_decr;
+				numberOfArguments = 1;
+				goto methodcall;
 			}
 
 			CASE(push) : {
@@ -798,42 +834,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
-			CASE(incr_slot) : {
-				Value &v = Stack[next_int()];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() + 1);
-					DISPATCH();
-				}
-				RERRF("'++' can only be applied on a number!");
-			}
-
-			CASE(incr_tos_slot) : {
-				Value &v = POP().toObject()->slots[next_int()];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() + 1);
-					DISPATCH();
-				}
-				RERRF("'++' can only be applied on a number!");
-			}
-
-			CASE(decr_slot) : {
-				Value &v = Stack[next_int()];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() - 1);
-					DISPATCH();
-				}
-				RERRF("'--' can only be applied on a number!");
-			}
-
-			CASE(decr_tos_slot) : {
-				Value &v = POP().toObject()->slots[next_int()];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() - 1);
-					DISPATCH();
-				}
-				RERRF("'--' can only be applied on a number!");
-			}
-
 			CASE(load_object_slot) : {
 				int slot = next_int();
 				PUSH(Stack[0].toObject()->slots[slot]);
@@ -844,26 +844,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				int slot                         = next_int();
 				Stack[0].toObject()->slots[slot] = TOP;
 				DISPATCH();
-			}
-
-			CASE(incr_object_slot) : {
-				int    slot = next_int();
-				Value &v    = Stack[0].toObject()->slots[slot];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() + 1);
-					DISPATCH();
-				}
-				RERRF("'++' can only be applied on a number!");
-			}
-
-			CASE(decr_object_slot) : {
-				int    slot = next_int();
-				Value &v    = Stack[0].toObject()->slots[slot];
-				if(v.isNumber()) {
-					v.setNumber(v.toNumber() - 1);
-					DISPATCH();
-				}
-				RERRF("'--' can only be applied on a number!");
 			}
 
 			CASE(load_field) : {
@@ -878,19 +858,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
-			CASE(load_field_pushback) : {
-				int          field = next_int();
-				Value        v     = POP();
-				const Class *c     = v.getClass();
-				ASSERT(c->has_fn(field),
-				       "No public member '@t' found in class '@s'!", field,
-				       c->name);
-				int slot = c->get_fn(field).toInteger();
-				PUSH(v.toObject()->slots[slot]);
-				PUSH(v);
-				DISPATCH();
-			}
-
 			CASE(store_field) : {
 				int          field = next_int();
 				Value        v     = POP();
@@ -901,38 +868,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				int slot                  = c->get_fn(field).toInteger();
 				v.toObject()->slots[slot] = TOP;
 				DISPATCH();
-			}
-
-			CASE(incr_field) : {
-				int          field = next_int();
-				Value        v     = TOP;
-				const Class *c     = v.getClass();
-				ASSERT(c->has_fn(field),
-				       "No public member '@t' found in class '@s'!", field,
-				       c->name);
-				int    slot = c->get_fn(field).toInteger();
-				Value &to   = v.toObject()->slots[slot];
-				if(to.isNumber()) {
-					to = to.toNumber() + 1;
-					DISPATCH();
-				}
-				RERRF("'++' can only be applied over a number!");
-			}
-
-			CASE(decr_field) : {
-				int          field = next_int();
-				Value        v     = TOP;
-				const Class *c     = v.getClass();
-				ASSERT(c->has_fn(field),
-				       "No public member '@t' found in class '@s'!", field,
-				       c->name);
-				int    slot = c->get_fn(field).toInteger();
-				Value &to   = v.toObject()->slots[slot];
-				if(to.isNumber()) {
-					to = to.toNumber() - 1;
-					DISPATCH();
-				}
-				RERRF("'--' can only be applied over a number!");
 			}
 
 			CASE(array_build) : {

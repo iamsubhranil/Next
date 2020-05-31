@@ -62,6 +62,24 @@ class List {
             ret mem ^ x
         }
 
+        // postfix is desugared as
+        // val = obj++:
+        // val = obj.++(false)
+        // obj.++(true)
+        op ++(isprefix) {
+            if(isprefix) {
+                ++mem
+            }
+            ret mem
+        }
+
+        op --(isprefix) {
+            if(isprefix) {
+                --mem
+            }
+            ret mem
+        }
+
         fn getMem() {
             ret mem
         }
@@ -140,6 +158,22 @@ pub fn test() {
     if(something != 324) {
         print("^(_) is not working\n")
         res = false
+    }
+    something = ++obj
+    if(something != 19) {
+        print("++(true) is not working!\n")
+    }
+    something = obj++
+    if(something != 19) {
+        print("++(false) is not working!\n")
+    }
+    something = --obj
+    if(something != 19) {
+        print("--(true) is not working!\n")
+    }
+    something = obj--
+    if(something != 19) {
+        print("++(false) is not working!\n")
     }
 
     ret res

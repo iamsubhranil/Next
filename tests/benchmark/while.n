@@ -1,7 +1,7 @@
 start = clock()
 a = 0
 b = 0
-while(a++ < 5000000) { 
+while(++a < 5000001) { 
     if(a == 382938) {
         b = b + 3
     }

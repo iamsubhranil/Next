@@ -338,21 +338,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			// the receiver will be stored where
 			// the class or the boundmethod is
 			// stored
-			switch(info.type) {
-				case LOCAL: btx->load_slot_n(info.frameIdx); break;
-				case CLASS: btx->load_object_slot(info.frameIdx); break;
-				case MODULE:
-					// load module
-					loadPresentModule();
-					btx->load_tos_slot(info.frameIdx);
-					break;
-				case CORE:
-					loadCoreModule();
-					// load the specified slot
-					btx->load_tos_slot(info.frameIdx);
-					break;
-				default: break; // error is already handled
-			}
+			variableInfo.position = info.type;
+			variableInfo.slot     = info.frameIdx;
+			loadVariable(variableInfo);
 		}
 	}
 
@@ -515,27 +503,19 @@ void CodeGenerator::visit(AssignExpression *as) {
 			as->val->accept(this);
 		}
 
-		VarInfo var = lookForVariable(as->target->token, true);
+		variableInfo = lookForVariable(as->target->token, true);
 
 		if(state == COMPILE_BODY) {
 			btx->insert_token(as->token);
 			// target of an assignment expression cannot be a
 			// builtin constant
-			switch(var.position) {
-				case LOCAL: btx->store_slot(var.slot); break;
-				case CLASS: btx->store_object_slot(var.slot); break;
-				case MODULE:
-					loadPresentModule();
-					btx->store_tos_slot(var.slot);
-					break;
-				case CORE: {
-					lnerr_("Built-in variable '%.*s' cannot be "
-					       "reassigned!",
-					       as->target->token, as->target->token.length,
-					       as->target->token.start);
-					break;
-				}
-				default: break;
+			if(variableInfo.position == CORE) {
+				lnerr_("Built-in variable '%.*s' cannot be "
+				       "reassigned!",
+				       as->target->token, as->target->token.length,
+				       as->target->token.start);
+			} else {
+				storeVariable(variableInfo);
 			}
 		}
 	}
@@ -641,6 +621,48 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 		btx->subscript_get();
 }
 
+void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
+	if(isref) {
+		btx->load_field(lastMemberReferenced);
+	} else {
+		switch(variableInfo.position) {
+			case LOCAL: btx->load_slot_n(variableInfo.slot); break;
+			case MODULE:
+				loadPresentModule();
+				btx->load_tos_slot(variableInfo.slot);
+				break;
+			case CLASS: btx->load_object_slot(variableInfo.slot); break;
+			case CORE:
+				loadCoreModule();
+				btx->load_tos_slot(variableInfo.slot);
+				break;
+			case UNDEFINED: // should already be handled
+				break;
+		}
+	}
+}
+
+void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
+	if(isref) {
+		btx->store_field(lastMemberReferenced);
+	} else {
+		switch(variableInfo.position) {
+			case LOCAL: btx->store_slot(variableInfo.slot); break;
+			case MODULE:
+				loadPresentModule();
+				btx->store_tos_slot(variableInfo.slot);
+				break;
+			case CLASS: btx->store_object_slot(variableInfo.slot); break;
+			case CORE:
+				loadCoreModule();
+				btx->store_tos_slot(variableInfo.slot);
+				break;
+			case UNDEFINED: // should already be handled
+				break;
+		}
+	}
+}
+
 void CodeGenerator::visit(PrefixExpression *pe) {
 #ifdef DEBUG_CODEGEN
 	dinfo("");
@@ -658,81 +680,25 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 			btx->neg();
 			break;
 		case TOKEN_PLUS_PLUS:
+		case TOKEN_MINUS_MINUS:
 			if(!pe->right->isAssignable()) {
 				lnerr_("Cannot apply '++' on a non-assignable expression!",
 				       pe->token);
 			} else {
-				onLHS = true;
+				// perform the load
 				pe->right->accept(this);
-				onLHS = false;
+				if(pe->token.type == TOKEN_PLUS_PLUS)
+					btx->incr();
+				else
+					btx->decr();
+				// if this  is a member access, reload the object,
+				// then store
 				if(pe->right->isMemberAccess()) {
-					int sym = lastMemberReferenced;
-					btx->incr_field(sym);
-					btx->load_field(sym);
-					return;
+					onLHS = true;
+					pe->right->accept(this);
+					onLHS = false;
 				}
-				switch(variableInfo.position) {
-					case LOCAL:
-						btx->incr_slot(variableInfo.slot);
-						btx->load_slot_n(variableInfo.slot);
-						break;
-					case MODULE:
-						loadPresentModule();
-						btx->incr_tos_slot(variableInfo.slot);
-						btx->load_tos_slot(variableInfo.slot);
-						break;
-					case CLASS:
-						btx->incr_object_slot(variableInfo.slot);
-						btx->load_object_slot(variableInfo.slot);
-						break;
-					case CORE: {
-						lnerr_(
-						    "Built-in constant '%.*s' cannot be incremented!",
-						    pe->right->token, pe->right->token.length,
-						    pe->right->token.start);
-						break;
-					}
-					default: break;
-				}
-			}
-			break;
-		case TOKEN_MINUS_MINUS:
-			if(!pe->right->isAssignable()) {
-				lnerr_("Cannot apply '--' on a non-assignable expression!",
-				       pe->token);
-			} else {
-				btx->insert_token(pe->token);
-				onLHS = true;
-				pe->right->accept(this);
-				onLHS = false;
-				if(pe->right->isMemberAccess()) {
-					btx->decr_field(lastMemberReferenced);
-					btx->load_field(lastMemberReferenced);
-					return;
-				}
-				switch(variableInfo.position) {
-					case LOCAL:
-						btx->decr_slot(variableInfo.slot);
-						btx->load_slot_n(variableInfo.slot);
-						break;
-					case MODULE:
-						loadPresentModule();
-						btx->decr_tos_slot(variableInfo.slot);
-						btx->load_tos_slot(variableInfo.slot);
-						break;
-					case CLASS:
-						btx->decr_object_slot(variableInfo.slot);
-						btx->load_object_slot(variableInfo.slot);
-						break;
-					case CORE: {
-						lnerr_(
-						    "Built-in constant '%.*s' cannot be decremented!",
-						    pe->right->token, pe->right->token.length,
-						    pe->right->token.start);
-						break;
-					}
-					default: break;
-				}
+				storeVariable(variableInfo, pe->right->isMemberAccess());
 			}
 			break;
 		default: panic("Bad prefix operator!");
@@ -748,71 +714,27 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 		lnerr_("Cannot apply postfix operator on a non-assignable expression!",
 		       pe->token);
 	}
-	onLHS = true;
+	// perform the load
 	pe->left->accept(this);
-	onLHS = false;
 	switch(pe->token.type) {
 		case TOKEN_PLUS_PLUS:
-			if(pe->left->isMemberAccess()) {
-				btx->load_field_pushback(lastMemberReferenced);
-				btx->incr_field(lastMemberReferenced);
-				// pop off the object load_field_pushback pushed back
-				btx->pop();
-				return;
-			}
-			switch(variableInfo.position) {
-				case LOCAL:
-					btx->load_slot_n(variableInfo.slot);
-					btx->incr_slot(variableInfo.slot);
-					break;
-				case MODULE:
-					loadPresentModule();
-					btx->load_tos_slot(variableInfo.slot);
-					btx->incr_tos_slot(variableInfo.slot);
-					break;
-				case CLASS:
-					btx->load_object_slot(variableInfo.slot);
-					btx->incr_object_slot(variableInfo.slot);
-					break;
-				case CORE: {
-					lnerr_("Built-in constant '%.*s' cannot be incremented!",
-					       pe->left->token, pe->left->token.length,
-					       pe->left->token.start);
-					break;
-				}
-				default: break;
-			}
-			break;
 		case TOKEN_MINUS_MINUS:
+			if(pe->token.type == TOKEN_PLUS_PLUS) {
+				btx->copy(SymbolTable2::const_sig_incr);
+				btx->incr();
+			} else {
+				btx->copy(SymbolTable2::const_sig_decr);
+				btx->decr();
+			}
+			// if this  is a member access, reload the object,
+			// then store
 			if(pe->left->isMemberAccess()) {
-				btx->load_field_pushback(lastMemberReferenced);
-				btx->decr_field(lastMemberReferenced);
-				// pop off the object load_field_pushback pushed back
-				btx->pop();
-				return;
+				onLHS = true;
+				pe->left->accept(this);
+				onLHS = false;
 			}
-			switch(variableInfo.position) {
-				case LOCAL:
-					btx->load_slot_n(variableInfo.slot);
-					btx->decr_slot(variableInfo.slot);
-					break;
-				case MODULE:
-					loadPresentModule();
-					btx->load_tos_slot(variableInfo.slot);
-					btx->decr_tos_slot(variableInfo.slot);
-					break;
-				case CLASS:
-					btx->load_object_slot(variableInfo.slot);
-					btx->decr_object_slot(variableInfo.slot);
-					break;
-				case CORE: {
-					lnerr_("Built-in constant '%.*s' cannot be decremented!",
-					       pe->left->token, pe->left->token.length,
-					       pe->left->token.start);
-					break;
-				}
-				default: break;
-			}
+			storeVariable(variableInfo, pe->left->isMemberAccess());
+			btx->pop();
 			break;
 		default:
 			panic("Bad postfix operator '%s'!",
@@ -828,24 +750,11 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	String *name = String::from(vis->token.start, vis->token.length);
 	btx->insert_token(vis->token);
 	if(!onRefer) {
-		VarInfo var = lookForVariable(vis->token);
+		variableInfo = lookForVariable(vis->token);
 		if(onLHS) { // in case of LHS, just pass on the information
-			variableInfo = var;
-			onLHS        = false;
+			onLHS = false;
 		} else {
-			switch(var.position) {
-				case LOCAL: btx->load_slot_n(var.slot); break;
-				case MODULE:
-					loadPresentModule();
-					btx->load_tos_slot(var.slot);
-					break;
-				case CORE:
-					loadCoreModule();
-					btx->load_tos_slot(var.slot);
-					break;
-				case CLASS: btx->load_object_slot(var.slot); break;
-				default: break;
-			}
+			loadVariable(variableInfo);
 		}
 	} else {
 		if(onLHS)
@@ -879,7 +788,8 @@ void CodeGenerator::visit(MethodReferenceExpression *ifs) {
 				// this is not a soft call, we
 				// have no way of resolving the
 				// signature in a local variable
-				panic("Method reference must not resolve to a local variable!");
+				panic("Method reference must not resolve to a local "
+				      "variable!");
 				break;
 			case CLASS:
 				// load the object
@@ -1319,7 +1229,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				// Also, if the import is a success, we know
 				// the returned value is the instance of the
 				// module
-				VarInfo v = lookForVariable(lastName, true);
+				variableInfo = lookForVariable(lastName, true);
 				btx->push(Value(m));
 				// if it is a partial import, load the rest
 				// of the parts
@@ -1335,11 +1245,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 					}
 				}
 				// store the result to the declared slot
-				switch(v.position) {
-					case LOCAL: btx->store_slot(v.slot); break;
-					case CLASS: btx->store_object_slot(v.slot); break;
-					default: break;
-				}
+				storeVariable(variableInfo);
 				btx->pop();
 
 				break;
@@ -1353,18 +1259,14 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	VarInfo v = lookForVariable(ifs->token, true, false, ifs->vis);
+	VarInfo info = lookForVariable(ifs->token, true, false, ifs->vis);
 	if(getState() == COMPILE_BODY) {
-		if(v.position == CORE) {
+		if(info.position == CORE) {
 			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
 			       ifs->token.length, ifs->token.start);
 		}
 		ifs->expr->accept(this);
-		switch(v.position) {
-			case LOCAL: btx->store_slot(v.slot); break;
-			case CLASS: btx->store_object_slot(v.slot); break;
-			default: break;
-		}
+		storeVariable(info);
 		btx->pop();
 	}
 }
@@ -1382,7 +1284,8 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 				lnerr_("Member '%s' variable already declared!", (*i),
 				       name->str);
 				/* TODO: Fix this
-				lnerr("Previously declared at : ", ctx->members[name].token);
+				lnerr("Previously declared at : ",
+				ctx->members[name].token);
 				ctx->members[name].token.highlight();
 				lnerr("Redefined at : ", (*i));
 				*/

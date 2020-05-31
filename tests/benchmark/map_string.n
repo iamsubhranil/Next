@@ -80,10 +80,10 @@ for (animal in animals) {
 
 start = clock()
 map_ = {}
-i = 0
+i = -1
 
 for (key in keys) {
-    map_[key] = i++
+    map_[key] = ++i
 }
 
 sum = 0

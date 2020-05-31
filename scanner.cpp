@@ -44,6 +44,8 @@ bool Token::isOperator() {
 		case TOKEN_SLASH:
 		/*case TOKEN_or: AND and OR opmethods are not yet implemented
 		case TOKEN_and:*/
+		case TOKEN_PLUS_PLUS:
+		case TOKEN_MINUS_MINUS:
 		case TOKEN_SUBSCRIPT:
 		case TOKEN_CARET: return true;
 		default: return false;
