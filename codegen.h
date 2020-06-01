@@ -28,13 +28,14 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	typedef struct VarInfo {
 		int              slot;
 		VariablePosition position;
+		bool             isStatic;
 	} VarInfo;
 
 	// Holds the status of a resolved call
 	struct CallInfo {
 		VariablePosition type;
 		int              frameIdx;
-		bool             soft;
+		bool             soft, isStatic;
 	};
 
 	ClassCompilationContext *   corectx;

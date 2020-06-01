@@ -1,21 +1,61 @@
 class StaticTest {
-    priv:
-        static a, b
-        c
     pub:
-        new(x) {
-            a = b = c = x
-        }
+        static c
+        new(x) { c = x }
 
         static fn changeA() {
-            a = b = 3
-            c = 5
+            ret c
         }
 
-        fn changeB() {
-            changeA()
+        static fn changeC(x) {
+            c = x
+            ret changeA()
+        }
+
+        fn changeB(x) {
+            c = x
+            ret changeA()
         }
 }
 
-obj = StaticTest(2)
-obj.changeA()
+pub fn test() {
+    res = true
+    obj = StaticTest(2)
+    if(obj.changeA() != 2) {
+        print("[Error] Static method call from instance not working!\n")
+        res = false
+    }
+    if(obj.changeB(1) != 1) {
+        print("[Error] Static method call from non static not working!\n")
+        res = false
+    }
+    if(obj.changeC(3) != 3) {
+        print("[Error] Static method call from static not working!\n")
+        res = false
+    }
+    obj.c = 12
+    if(obj.c != 12) {
+        print("[Error] Static member assignment not working!\n")
+        res = false
+    }
+    if(StaticTest.c != 12) {
+        print("[Error] Static member load via class not working!\n")
+        res = false
+    }
+    StaticTest.c = 13
+    if(obj.c != 13) {
+        print("[Error] Static member write via class not working!\n")
+        res = false
+    }
+    if(StaticTest.changeA() != 13) {
+        print("[Error] Static method call from class not working!\n")
+        res = false
+    }
+    try {
+        x = StaticTest.changeB(3)
+        res = false
+        print("[Error] Expected error while calling non static method via class!\n")
+    } catch(runtime_error x) {}
+
+    ret res
+}

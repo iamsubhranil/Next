@@ -166,8 +166,12 @@ int CodeGenerator::createTempSlot() {
 void CodeGenerator::loadPresentModule() {
 	// check if we're in a class
 	if(ctx != mtx) {
-		// module is in the 0th slot of the class
-		btx->load_object_slot(0);
+		// check if we're in a static method
+		if(ftx->f->isStatic())
+			btx->load_module();
+		else
+			// module is in the 0th slot of the class
+			btx->load_object_slot(0);
 	} else {
 		// if we're not inside of any class, then
 		// the 0th slot is the present module
@@ -238,7 +242,7 @@ int CodeGenerator::getFrameIndex(vector<Frame *> &frames, Frame *searching) {
 */
 CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
                                                    String *signature) {
-	CallInfo info = {UNDEFINED, 0, true};
+	CallInfo info = {UNDEFINED, 0, true, false};
 
 	// the order of preference is as following
 	// local > class > module > core > builtin
@@ -266,6 +270,8 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 		info.type     = CLASS;
 		info.frameIdx = ctx->get_fn_sym(signature);
 		info.soft     = false;
+		info.isStatic =
+		    ctx->get_class()->get_fn(info.frameIdx).toFunction()->isStatic();
 		// Search for the frame in the class
 		return info;
 	}
@@ -280,6 +286,8 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 		info.type     = MODULE;
 		info.frameIdx = mtx->get_fn_sym(signature);
 		info.soft     = false;
+		info.isStatic =
+		    mtx->get_class()->get_fn(info.frameIdx).toFunction()->isStatic();
 		return info;
 	}
 	// try searching in core
@@ -291,6 +299,10 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
 		info.type     = CORE;
 		info.frameIdx = corectx->get_fn_sym(signature);
 		info.soft     = false;
+		info.isStatic = corectx->get_class()
+		                    ->get_fn(info.frameIdx)
+		                    .toFunction()
+		                    ->isStatic();
 		return info;
 	}
 
@@ -313,7 +325,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	// call
 	bool force_soft = false;
 
-	CallInfo info = {UNDEFINED, 0, true};
+	CallInfo info = {UNDEFINED, 0, true, false};
 
 	if(call->callee->type == Expr::METHOD_REFERENCE) {
 		call->callee->accept(this);
@@ -340,6 +352,8 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			// stored
 			variableInfo.position = info.type;
 			variableInfo.slot     = info.frameIdx;
+			variableInfo.isStatic =
+			    info.type == CLASS && ctx->get_mem_info(name).isStatic;
 			loadVariable(variableInfo);
 		}
 	}
@@ -393,8 +407,15 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		} else {
 			// function call
 			// the receiver is already loaded
-			// error is already handled
-			btx->call(info.frameIdx, argSize);
+			if(ftx->get_fn()->isStatic() && !info.isStatic) {
+				lnerr_(
+				    "Cannot call a non static function from a static function!",
+				    call->token);
+			}
+			if(info.isStatic)
+				btx->call_static(info.frameIdx, argSize);
+			else
+				btx->call(info.frameIdx, argSize);
 		}
 	}
 }
@@ -409,20 +430,21 @@ CodeGenerator::lookForVariable(String *name, bool declare, Visibility vis) {
 	// first check the present context
 	if(ftx->has_slot(name, scopeID)) {
 		slot = ftx->get_slot(name);
-		return (VarInfo){slot, LOCAL};
+		return (VarInfo){slot, LOCAL, false};
 	} else { // It's in an enclosing class, or parent frame or another mtx
 		// Check if it is in present class
 		if(ctx->has_mem(name)) {
-			return (VarInfo){ctx->get_mem_slot(name), CLASS};
+			return (VarInfo){ctx->get_mem_slot(name), CLASS,
+			                 ctx->is_static_slot(name)};
 		}
 
 		// Check if it is in the parent module
 		if(mtx->has_mem(name)) {
-			return (VarInfo){mtx->get_mem_slot(name), MODULE};
+			return (VarInfo){mtx->get_mem_slot(name), MODULE, false};
 		}
 		// Check if it is in core
 		if(corectx->has_mem(name)) {
-			return (VarInfo){corectx->get_mem_slot(name), CORE};
+			return (VarInfo){corectx->get_mem_slot(name), CORE, false};
 		}
 	}
 
@@ -438,14 +460,14 @@ CodeGenerator::lookForVariable(String *name, bool declare, Visibility vis) {
 				default: ctx->add_private_mem(name); break;
 			}
 			slot = ctx->get_mem_slot(name);
-			return (VarInfo){slot, CLASS};
+			return (VarInfo){slot, CLASS, false};
 		} else {
 			// otherwise, declare it in the present scope
 			slot = ftx->create_slot(name, scopeID);
-			return (VarInfo){slot, LOCAL};
+			return (VarInfo){slot, LOCAL, false};
 		}
 	}
-	return (VarInfo){-1, UNDEFINED};
+	return (VarInfo){-1, UNDEFINED, false};
 }
 
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
@@ -631,7 +653,12 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 				loadPresentModule();
 				btx->load_tos_slot(variableInfo.slot);
 				break;
-			case CLASS: btx->load_object_slot(variableInfo.slot); break;
+			case CLASS:
+				if(variableInfo.isStatic)
+					btx->load_static_slot(variableInfo.slot);
+				else
+					btx->load_object_slot(variableInfo.slot);
+				break;
 			case CORE:
 				loadCoreModule();
 				btx->load_tos_slot(variableInfo.slot);
@@ -652,7 +679,12 @@ void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 				loadPresentModule();
 				btx->store_tos_slot(variableInfo.slot);
 				break;
-			case CLASS: btx->store_object_slot(variableInfo.slot); break;
+			case CLASS:
+				if(variableInfo.isStatic)
+					btx->store_static_slot(variableInfo.slot);
+				else
+					btx->store_object_slot(variableInfo.slot);
+				break;
 			case CORE:
 				loadCoreModule();
 				btx->store_tos_slot(variableInfo.slot);
@@ -912,19 +944,8 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			btx->load_slot_n(slot);
 			btx->call_method(SymbolTable2::insert("next()"), 0);
 			// store the next value in the given variable
-			switch(var.position) {
-				case LOCAL: btx->store_slot_pop(var.slot); break;
-				case MODULE:
-					loadPresentModule();
-					btx->store_tos_slot(var.slot);
-					btx->pop();
-					break;
-				case CLASS:
-					btx->store_object_slot(var.slot);
-					btx->pop();
-					break;
-				default: break;
-			}
+			storeVariable(var);
+			btx->pop();
 			// execute the body
 			ifs->body->accept(this);
 			// jump back to iterate
@@ -1040,8 +1061,8 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		} else {
 			FunctionCompilationContext *fctx =
 			    FunctionCompilationContext::create(
-			        String::from(ifs->name.start, ifs->name.length),
-			        ifs->arity);
+			        String::from(ifs->name.start, ifs->name.length), ifs->arity,
+			        ifs->isStatic);
 			Visibility consider = currentVisibility;
 			if(ifs->visibility != VIS_DEFAULT)
 				consider = ifs->visibility;

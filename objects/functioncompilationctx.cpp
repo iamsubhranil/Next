@@ -12,11 +12,11 @@ void FunctionCompilationContext::init() {
 	                                      Class::ClassType::BUILTIN);
 }
 
-FunctionCompilationContext *FunctionCompilationContext::create(String *name,
-                                                               int     arity) {
+FunctionCompilationContext *
+FunctionCompilationContext::create(String *name, int arity, bool isStatic) {
 	FunctionCompilationContext *fcc =
 	    GcObject::allocFunctionCompilationContext();
-	fcc->f       = Function::create(name, arity);
+	fcc->f       = Function::create(name, arity, false, isStatic);
 	fcc->slotmap = (HashMap<String *, VarState> *)GcObject::malloc(
 	    sizeof(HashMap<String *, VarState>));
 	::new(fcc->slotmap) HashMap<String *, VarState>();

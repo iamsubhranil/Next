@@ -15,6 +15,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->public_signatures  = ValueMap::create();
 	ctx->private_signatures = ValueMap::create();
 	ctx->slotCount          = 0;
+	ctx->staticSlotCount    = 0;
+	ctx->isCompiled         = false;
 	ctx->moduleContext      = s;
 	ctx->defaultConstructor = nullptr;
 	ctx->cctxMap            = nullptr;
@@ -45,22 +47,38 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 int ClassCompilationContext::add_public_mem(String *name, bool isStatic) {
 	if(has_mem(name))
 		return get_mem_slot(name);
-	members[0][name] = (MemberInfo){slotCount++, isStatic};
-	klass->numSlots++;
 	// add the slot to the method buffer which will
 	// be directly accessed by load_field and store_field.
 	// adding directly the name of the variable as a method
 	// should not cause any problems, as all user defined
 	// methods have signatures with at least one '()'.
-	klass->add_sym(SymbolTable2::insert(name), Value(slotCount - 1));
+	//
+	// static members are also added to the same symbol table,
+	// except that their Value contains a pointer to the index
+	// in the static array in the class, where the content is
+	// stored.
+	if(!isStatic) {
+		members[0][name] = (MemberInfo){slotCount++, false};
+		klass->add_sym(SymbolTable2::insert(name), Value(klass->add_slot()));
+	} else {
+		members[0][name] = (MemberInfo){staticSlotCount++, true};
+		int slot         = klass->add_static_slot();
+		klass->add_sym(SymbolTable2::insert(name),
+		               Value(&klass->static_values[slot]));
+	}
 	return true;
 }
 
 int ClassCompilationContext::add_private_mem(String *name, bool isStatic) {
 	if(has_mem(name))
 		return get_mem_slot(name);
-	members[0][name] = (MemberInfo){slotCount++, isStatic};
-	klass->numSlots++;
+	if(!isStatic) {
+		members[0][name] = (MemberInfo){slotCount++, false};
+		klass->add_slot();
+	} else {
+		members[0][name] = (MemberInfo){staticSlotCount++, true};
+		klass->add_static_slot();
+	}
 	return true;
 }
 
@@ -75,6 +93,10 @@ int ClassCompilationContext::get_mem_slot(String *name) {
 ClassCompilationContext::MemberInfo
 ClassCompilationContext::get_mem_info(String *name) {
 	return members[0][name];
+}
+
+bool ClassCompilationContext::is_static_slot(String *name) {
+	return get_mem_info(name).isStatic;
 }
 
 bool ClassCompilationContext::add_public_fn(String *sig, Function *f,

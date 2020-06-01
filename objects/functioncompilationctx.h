@@ -24,7 +24,8 @@ struct FunctionCompilationContext {
 	BytecodeCompilationContext *get_codectx();
 	Function *                  get_fn();
 
-	static FunctionCompilationContext *create(String *name, int arity);
+	static FunctionCompilationContext *create(String *name, int arity,
+	                                          bool isStatic = false);
 
 	static void init();
 	void        mark();

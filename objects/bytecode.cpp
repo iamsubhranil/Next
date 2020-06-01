@@ -124,6 +124,9 @@ void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
 		case Value::VAL_Number:
 			os << std::setprecision(16) << v.toNumber() << std::setprecision(6);
 			break;
+		case Value::VAL_Pointer:
+			os << "<pointer at " << v.toPointer() << ">";
+			break;
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
 			if(v.isString()) {

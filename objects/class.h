@@ -17,8 +17,16 @@ struct Class {
 
 	// in case of a module, it will store the module instance
 	// in case of a class, it will store the static members
-	Object *instance;
-	int     numSlots;
+	union {
+		Object *instance;
+		struct {
+			// stores the static values
+			Value *static_values;
+			// manages the static_slots array
+			int static_slot_count;
+		};
+	};
+	int numSlots;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 
 	static void init();
@@ -29,18 +37,29 @@ struct Class {
 	// the slot number.
 	// also, get_fns are unchecked. must call has_fn eariler
 	void add_sym(int sym, Value v);
+	// increments the numSlots by 1, so that instances
+	// get a new slot
+	int add_slot();
+	// adds a new slot to static_values, returns index
+	int  add_static_slot();
 	void add_fn(const char *str, Function *fn);
 	void add_fn(String *s, Function *fn);
 	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
 	bool has_fn(int sym) const {
 		return functions->capacity > sym && functions->values[sym] != ValueNil;
 	}
-	bool  has_fn(const char *sig) const;
-	bool  has_fn(String *sig) const;
+	bool has_fn(const char *sig) const;
+	bool has_fn(String *sig) const;
+	bool has_static_field(int sym) const {
+		return has_fn(sym) && get_fn(sym).isPointer();
+	}
 	Value get_fn(int sym) const { return functions->values[sym]; }
 	Value get_fn(const char *sig) const;
 	Value get_fn(String *sig) const;
+	Value get_static_sym(int sym) {
+		return *(functions->values[sym].toPointer());
+	}
 	// gc functions
-	void release() {}
+	void release();
 	void mark();
 };

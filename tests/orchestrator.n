@@ -21,6 +21,7 @@ import rangetest
 import formattest
 import boundmethods
 import fibers
+import static_members
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -40,7 +41,8 @@ modules = {prepost: "Pre and post increment/decrements",
         rangetest: "Ranges",
         formattest: "String formatting",
         boundmethods: "Bound methods",
-        fibers: "Fibers"}
+        fibers: "Fibers",
+        static_members: "Static member and methods"}
 
 // find the maximum length
 len = 0

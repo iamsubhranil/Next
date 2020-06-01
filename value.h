@@ -37,6 +37,9 @@ struct Value {
 	inline void encodeGcObject(const GcObject *g) {
 		value = QNAN_GcObject | ((uintptr_t)g & VAL_MASK);
 	}
+	inline void encodePointer(const Value *g) {
+		value = QNAN_Pointer | ((uintptr_t)g & VAL_MASK);
+	}
 
   public:
 	enum Type : int {
@@ -139,6 +142,7 @@ struct Value {
 			case Value::VAL_Number: return GcObject::NumberClass;
 			case Value::VAL_Boolean: return GcObject::BooleanClass;
 			case Value::VAL_GcObject: return toGcObject()->klass;
+			case Value::VAL_Pointer: return toPointer()->getClass();
 			default: return GcObject::ObjectClass;
 		}
 	}

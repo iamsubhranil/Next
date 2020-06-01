@@ -29,6 +29,7 @@ struct ClassCompilationContext {
 	FunctionCompilationContext *defaultConstructor;
 	// slots
 	int  slotCount;
+	int  staticSlotCount;
 	bool isCompiled;
 
 	static ClassCompilationContext *
@@ -42,6 +43,7 @@ struct ClassCompilationContext {
 	// unchecked. use has_mem before
 	int        get_mem_slot(String *name);
 	MemberInfo get_mem_info(String *name);
+	bool       is_static_slot(String *name);
 
 	bool add_public_fn(String *sig, Function *f,
 	                   FunctionCompilationContext *fctx = NULL);

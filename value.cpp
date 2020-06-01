@@ -15,6 +15,6 @@ void Value::init() {
 
 	ValueTypeStrings[i++] = String::const_Number;
 	ValueTypeStrings[i++] = String::const_Nil;
-#define TYPE(r, n) ValueTypeStrings[i++] = String::const_##n;
+#define TYPE(r, n) ValueTypeStrings[i++] = String::const_type_##n;
 #include "valuetypes.h"
 }

@@ -5,12 +5,14 @@
 #include "symtab.h"
 
 void Class::init(String *s, ClassType typ) {
-	name      = s;
-	type      = typ;
-	functions = Array::create(1);
-	numSlots  = 0;
-	module    = NULL;
-	instance  = NULL;
+	name              = s;
+	type              = typ;
+	functions         = Array::create(1);
+	numSlots          = 0;
+	module            = NULL;
+	instance          = NULL;
+	static_slot_count = 0;
+	static_values     = NULL;
 }
 
 void Class::init(const char *n, ClassType typ) {
@@ -27,6 +29,18 @@ void Class::add_sym(int sym, Value v) {
 	// case of a gc
 	if(sym > functions->size)
 		functions->size = sym + 1;
+}
+
+int Class::add_slot() {
+	return numSlots++;
+}
+
+int Class::add_static_slot() {
+	static_values = (Value *)GcObject_realloc(
+	    static_values, sizeof(Value) * static_slot_count,
+	    sizeof(Value) * (static_slot_count + 1));
+	static_values[static_slot_count] = ValueNil;
+	return static_slot_count++;
 }
 
 void Class::add_fn(String *s, Function *f) {
@@ -46,9 +60,16 @@ void Class::mark() {
 	GcObject::mark(functions);
 	if(module != NULL) {
 		GcObject::mark(module);
-	}
-	if(instance != NULL) {
+		if(static_slot_count > 0)
+			GcObject::mark(static_values, static_slot_count);
+	} else if(instance != NULL) {
 		GcObject::mark(instance);
+	}
+}
+
+void Class::release() {
+	if(module != NULL && static_slot_count > 0) {
+		GcObject_free(static_values, sizeof(Value) * static_slot_count);
 	}
 }
 

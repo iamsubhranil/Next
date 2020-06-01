@@ -59,6 +59,14 @@ pub fn test() {
         print("[Error] Member pre increment not working!\n")
         res = false
     }
+    if(x.mem2++ != 8) {
+        print("[Error] Static member post increment not working!\n")
+        res = false
+    }
+    if(++x.mem2 != 10) {
+        print("[Error] Static member pre increment not working!\n")
+        res = false
+    }
     x.mem = LinkedList(3)
     temp = x.mem.some()
     
