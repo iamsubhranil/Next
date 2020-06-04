@@ -1,6 +1,4 @@
 #include "bytecodecompilationctx.h"
-#include "array.h"
-#include "bytecode.h"
 #include "class.h"
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
@@ -61,12 +59,4 @@ void BytecodeCompilationContext::finalize() {
 		    ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * size);
 		capacity = size;
 	}
-}
-
-void BytecodeCompilationContext::mark() {
-	GcObject::mark(code);
-}
-
-void BytecodeCompilationContext::release() {
-	GcObject::free(ranges_, sizeof(TokenRange) * capacity);
 }

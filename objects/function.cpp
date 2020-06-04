@@ -1,6 +1,6 @@
 #include "function.h"
-#include "bytecode.h"
 #include "class.h"
+#include <ostream>
 
 Function *Function::from(String *str, int arity, next_builtin_fn fn, bool isva,
                          bool isStatic) {
@@ -61,22 +61,6 @@ bool Exception::add_catch(int slot, CatchBlock::SlotType type, int jump) {
 	return true;
 }
 
-void Function::mark() {
-	GcObject::mark(name);
-	if(getType() != BUILTIN) {
-		GcObject::mark(code);
-	}
-}
-
-void Function::release() {
-	for(size_t i = 0; i < numExceptions; i++) {
-		Exception e = exceptions[i];
-		GcObject::free(e.catches, sizeof(CatchBlock) * e.numCatches);
-	}
-	if(numExceptions > 0)
-		GcObject::free(exceptions, sizeof(Exception) * numExceptions);
-}
-
 Value next_function_arity(const Value *args, int numargs) {
 	(void)numargs;
 	return Value(args[0].toFunction()->arity);
@@ -102,6 +86,7 @@ void Function::init() {
 	FunctionClass->add_builtin_fn("type()", 0, next_function_type);
 }
 
+#ifdef DEBUG
 void Function::disassemble(std::ostream &o) {
 	o << "Name: " << name->str << "\n";
 	o << "Arity: " << arity << "\n";
@@ -138,3 +123,4 @@ void Function::disassemble(std::ostream &o) {
 			break;
 	}
 }
+#endif

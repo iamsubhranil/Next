@@ -3,7 +3,7 @@
 
 ValueSet *ValueSet::create() {
 	ValueSet *v = GcObject::allocValueSet();
-	::new(&v->hset) HashSet<Value>();
+	::new(&v->hset) ValueSetType();
 	return v;
 }
 
@@ -50,14 +50,4 @@ void ValueSet::init() {
 	ValueSetClass->add_builtin_fn("has(_)", 1, next_set_has);
 	ValueSetClass->add_builtin_fn("size()", 0, next_set_size);
 	ValueSetClass->add_builtin_fn("remove(_)", 1, next_set_remove);
-}
-
-void ValueSet::mark() {
-	for(auto v : hset) {
-		GcObject::mark(v);
-	}
-}
-
-void ValueSet::release() {
-	hset.~HashSet<Value>();
 }

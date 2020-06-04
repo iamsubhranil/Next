@@ -82,25 +82,29 @@ struct Bytecode {
 #include "../opcodes.h"
 
 #define insert_type(type)                                         \
+	union union_Opcode_##type {                                   \
+		type   val;                                               \
+		Opcode codes[sizeof(type) / sizeof(Opcode)];              \
+	};                                                            \
 	int insert_##type(type x) {                                   \
 		add_constant(x);                                          \
-		Opcode *num = (Opcode *)&x;                               \
+		union_Opcode_##type t = {.val = x};                       \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
-			push_back(num[i]);                                    \
+			push_back(t.codes[i]);                                \
 		return size - (sizeof(type) / sizeof(Opcode));            \
 	}                                                             \
 	int insert_##type(int pos, type x) {                          \
 		add_constant(x);                                          \
-		Opcode *num = (Opcode *)&x;                               \
+		union_Opcode_##type t = {.val = x};                       \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
-			bytecodes[pos + i] = (num[i]);                        \
+			bytecodes[pos + i] = t.codes[i];                      \
 		return pos;                                               \
 	}
 	insert_type(Value);
 	insert_type(int);
 
 	void add_constant(int x) { (void)x; }
-	void add_constant(Value v) {
+	void add_constant(Value v) const {
 		if(v.isGcObject())
 			values->insert(v);
 	}
@@ -120,17 +124,23 @@ struct Bytecode {
 
 	static void      init();
 	static Bytecode *create();
-	static Bytecode *create_getter(int slot);
-	static Bytecode *create_setter(int slot);
 
-	void mark();
-	void release();
+	void mark() const {
+		GcObject::mark(values);
+		GcObject::mark(ctx);
+	}
 
+	void release() const {
+		GcObject::free(bytecodes, sizeof(Opcode) * capacity);
+	}
+
+#ifdef DEBUG
 	void disassemble(std::ostream &o);
 
-	static void        disassemble_int(std::ostream &os, const Opcode *o);
-	static void        disassemble_Value(std::ostream &os, const Opcode *o);
-	static void        disassemble(std::ostream &os, const Opcode *o,
-	                               size_t *ip = NULL);
+	static void disassemble_int(std::ostream &os, const Opcode *o);
+	static void disassemble_Value(std::ostream &os, const Opcode *o);
+	static void disassemble(std::ostream &os, const Opcode *o,
+	                        size_t *ip = NULL);
+#endif
 	static const char *OpcodeNames[];
 };

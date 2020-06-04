@@ -1,5 +1,4 @@
 #include "array.h"
-#include "../value.h"
 #include "array_iterator.h"
 #include "class.h"
 #include "errors.h"
@@ -117,14 +116,6 @@ void Array::resize(int newsize) {
 	}
 
 	capacity = newcapacity;
-}
-
-void Array::mark() {
-	GcObject::mark(values, size);
-}
-
-void Array::release() {
-	GcObject_free(values, sizeof(Value) * capacity);
 }
 
 void Array::init() {

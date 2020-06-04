@@ -1,9 +1,8 @@
-#include <inttypes.h>
+
 #include <stdarg.h>
 #include <stdio.h>
 
 #include "display.h"
-#include "scanner.h"
 
 void dbg(const char *msg, ...) {
 	printf(ANSI_COLOR_GREEN "[Debug] ");

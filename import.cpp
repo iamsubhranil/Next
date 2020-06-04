@@ -1,11 +1,6 @@
 #include "import.h"
 #include "objects/array.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <string>
 #include <sys/stat.h>
-#include <sys/types.h>
 #ifdef DEBUG
 #include <iostream>
 #endif
@@ -44,7 +39,7 @@ ImportStatus Importer::import(vector<Token> &loc) {
 	bool    lastIsFolder = true;
 	auto    it           = 0;
 	String *dot          = String::from(".");
-	String *paths        = dot;
+	String *paths;
 	// the path will be relative to the file
 	// where the import statement is written
 	const char *lastPath   = (*loc.begin()).fileName;

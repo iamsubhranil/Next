@@ -58,7 +58,6 @@ class Statement {
 		VARDECL,
 		MEMVAR,
 		VISIBILITY,
-		PRINT,
 		THROW,
 		RETURN,
 		FOR

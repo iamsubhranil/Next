@@ -1,8 +1,6 @@
 #include "fiber.h"
 #include "../engine.h"
-#include "array.h"
 #include "boundmethod.h"
-#include "class.h"
 #include "errors.h"
 #include "fiber_iterator.h"
 #include "object.h"
@@ -375,24 +373,4 @@ void Fiber::init() {
 	FiberClass->add_builtin_fn("iterate()", 0, next_fiber_iterate);
 	FiberClass->add_builtin_fn("run()", 0, next_fiber_run);
 	FiberClass->add_builtin_fn("run(_)", 1, next_fiber_run_1);
-}
-
-void Fiber::mark() {
-	// mark the active stack
-	GcObject::mark(stack_, stackTop - stack_);
-	// mark the active functions
-	for(size_t i = 0; i < callFramePointer; i++) {
-		GcObject::mark(callFrames[i].f);
-	}
-	// mark the parent if present
-	if(parent)
-		GcObject::mark(parent);
-	// mark the iterator if present
-	if(fiberIterator)
-		GcObject::mark(fiberIterator);
-}
-
-void Fiber::release() {
-	GcObject::free(stack_, sizeof(Value) * stackSize);
-	GcObject::free(callFrames, sizeof(CallFrame) * callFrameSize);
 }

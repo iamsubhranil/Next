@@ -4,6 +4,7 @@
 #include "qnan.h"
 #include <cmath>
 #include <cstdint>
+#include <functional>
 
 struct Value {
   private:

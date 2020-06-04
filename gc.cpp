@@ -2,30 +2,19 @@
 #include "display.h"
 #include "engine.h"
 #include "loader.h"
-#include "objects/array.h"
 #include "objects/array_iterator.h"
 #include "objects/boolean.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecode.h"
 #include "objects/bytecodecompilationctx.h"
-#include "objects/class.h"
-#include "objects/classcompilationctx.h"
 #include "objects/core.h"
 #include "objects/errors.h"
 #include "objects/fiber.h"
 #include "objects/fiber_iterator.h"
-#include "objects/formatspec.h"
-#include "objects/function.h"
 #include "objects/functioncompilationctx.h"
-#include "objects/map.h"
-#include "objects/module.h"
 #include "objects/number.h"
-#include "objects/object.h"
 #include "objects/range.h"
-#include "objects/set.h"
-#include "objects/string.h"
 #include "objects/symtab.h"
-#include "value.h"
 
 #ifdef DEBUG
 #include <iomanip>
@@ -160,8 +149,18 @@ void GcObject::gc(bool force) {
 		std::cout << "[GC] Sweeping..\n";
 #endif
 		sweep();
-		if(next_gc < max_gc)
-			next_gc = Array::powerOf2Ceil(totalAllocated);
+		if(next_gc < max_gc) {
+			// check the ceiling of where the program
+			// has already hit
+			size_t c = Array::powerOf2Ceil(totalAllocated);
+			// this is our budget
+			next_gc *= 2;
+			// if the ceiling is less than max but
+			// greater than our budget, that is our
+			// new budget
+			if(next_gc < c && c < max_gc)
+				next_gc = c;
+		}
 #ifdef DEBUG_GC
 		std::cout << "[GC] Finished GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
@@ -303,7 +302,7 @@ void GcObject::unmark(GcObject *p) {
 	p->klass = (Class *)((uintptr_t)(p->klass) ^ marker);
 }
 
-Class *GcObject::getMarkedClass(Object *o) {
+Class *GcObject::getMarkedClass(const Object *o) {
 	return (Class *)((uintptr_t)o->obj.klass ^ marker);
 }
 
@@ -336,7 +335,6 @@ void GcObject::init() {
 	// initialize the primitive classes
 	Number::init();
 	Boolean::init();
-
 	// initialize the core classes
 #ifdef DEBUG_GC
 #define OBJTYPE(n, r)                                  \

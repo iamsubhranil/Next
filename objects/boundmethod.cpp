@@ -26,11 +26,6 @@ void BoundMethod::init() {
 	BoundMethodClass->add_builtin_fn("str()", 0, next_boundmethod_str);
 }
 
-void BoundMethod::mark() {
-	GcObject::mark(func);
-	GcObject::mark(binder);
-}
-
 BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 	// for object bound functions, this is fine
 	int effective_arity = func->arity;

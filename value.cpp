@@ -1,7 +1,5 @@
 #include "value.h"
-#include "display.h"
 #include "objects/string.h"
-#include <iomanip>
 
 String *Value::ValueTypeStrings[] = {
     0,

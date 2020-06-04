@@ -162,11 +162,6 @@ class FnDeclaration : public DeclarationParselet {
 	                                Visibility vis);
 };
 
-class OperatorMethodDeclaration : public DeclarationParselet {
-  public:
-	StmtPtr parse(Parser *p, Token t, Visibility vis);
-};
-
 class VarDeclaration : public DeclarationParselet {
 	StmtPtr parse(Parser *p, Token t, Visibility vis);
 };
@@ -187,11 +182,6 @@ class DoStatementParselet : public StatementParselet {
 };
 
 class TryStatementParselet : public StatementParselet {
-  public:
-	StmtPtr parse(Parser *p, Token t);
-};
-
-class CatchStatementParselet : public StatementParselet {
   public:
 	StmtPtr parse(Parser *p, Token t);
 };

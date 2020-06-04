@@ -10,7 +10,7 @@ struct BoundMethod {
 	GcObject  ob;
 	Function *func;
 	Value     binder;
-	enum Type { MODULE_BOUND, CLASS_BOUND, OBJECT_BOUND } type;
+	enum Type { CLASS_BOUND, OBJECT_BOUND } type;
 
 	enum Status { OK, MISMATCHED_ARITY, INVALID_CLASS_INSTANCE };
 	// verifies the given arguments for this bound method
@@ -24,6 +24,10 @@ struct BoundMethod {
 	static void init();
 
 	// gc functions
-	void release() {}
-	void mark();
+	void mark() const {
+        GcObject::mark(func);
+        GcObject::mark(binder);
+    }
+
+    void release() {}
 };

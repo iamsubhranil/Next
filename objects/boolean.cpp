@@ -17,7 +17,7 @@ Value next_boolean_fmt(const Value *args, int numargs) {
 		    args[0].toBoolean() ? String::const_true_ : String::const_false_;
 		return String::fmt(f, val);
 	} else {
-		return Number::fmt(f, (args[0].toBoolean() == true) * 1.0);
+		return Number::fmt(f, args[0].toBoolean() * 1.0);
 	}
 }
 

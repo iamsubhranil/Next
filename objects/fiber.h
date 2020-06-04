@@ -95,8 +95,25 @@ struct Fiber {
 	// most of the markings will be done
 	// using this method while the
 	// engine is executing
-	void mark();
-	void release();
+    void mark() const {
+        // mark the active stack
+        GcObject::mark(stack_, stackTop - stack_);
+        // mark the active functions
+        for(size_t i = 0; i < callFramePointer; i++) {
+            GcObject::mark(callFrames[i].f);
+        }
+        // mark the parent if present
+        if(parent)
+            GcObject::mark(parent);
+        // mark the iterator if present
+        if(fiberIterator)
+            GcObject::mark(fiberIterator);
+    }
+
+    void release() const {
+        GcObject::free(stack_, sizeof(Value) * stackSize);
+        GcObject::free(callFrames, sizeof(CallFrame) * callFrameSize);
+    }
 
 	// runs the fiber until it returns somehow
 	Value run();

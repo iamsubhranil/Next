@@ -5,7 +5,8 @@
 
 struct ValueMap {
 	GcObject              obj;
-	HashMap<Value, Value> vv;
+	typedef HashMap<Value, Value> ValueMapType;
+	ValueMapType vv;
 	static ValueMap *     create();
 	static void           init();
 	Value &               operator[](const Value &v);
@@ -16,6 +17,14 @@ struct ValueMap {
 	static ValueMap *from(const Value *args, int numArg);
 
 	// gc functions
-	void release();
-	void mark();
+    void mark() const {
+        for(auto kv : vv) {
+            GcObject::mark(kv.first);
+            GcObject::mark(kv.second);
+        }
+    }
+
+    void release() const {
+        vv.~ValueMapType();
+    }
 };

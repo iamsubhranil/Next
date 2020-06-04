@@ -1,5 +1,4 @@
 #include "bytecode.h"
-#include "array.h"
 #include "class.h"
 #include "string.h"
 
@@ -28,10 +27,6 @@ void Bytecode::finalize() {
 		    bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * size);
 		capacity = size;
 	}
-}
-
-void Bytecode::release() {
-	GcObject::free(bytecodes, sizeof(Opcode) * capacity);
 }
 
 int Bytecode::load_slot_n(int n) {
@@ -101,10 +96,7 @@ Bytecode *Bytecode::create() {
 	return code;
 }
 
-void Bytecode::mark() {
-	GcObject::mark(values);
-	GcObject::mark(ctx);
-}
+#ifdef DEBUG
 
 void Bytecode::disassemble_int(std::ostream &os, const Opcode *o) {
 	os << " " << *(int *)o;
@@ -190,3 +182,5 @@ std::ostream &operator<<(std::ostream &o, const Bytecode &a) {
 	(void)a;
 	return o << "<bytecode object>";
 }
+
+#endif

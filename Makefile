@@ -38,18 +38,29 @@ debug_all: debug
 
 pgo: merge_profraw pgouse
 
+ifeq ($(CXX),clang++)
 clean_pgodata: clean
 	$(V) rm -f default_*.profraw default.profdata
+else
+clean_pgodata: clean
+	$(V) rm -f *.gcda objects/*.gcda
+endif
 
 pgobuild: CXXFLAGS+=-fprofile-generate -march=native
 pgobuild: LDFLAGS+=-fprofile-generate -flto
 pgobuild: | clean_pgodata cgoto
 
+ifeq ($(CXX),clang++)
 pgorun: NUM_TRIALS=2
+endif
 pgorun: | pgobuild benchmark tests
 
+ifeq ($(CXX),clang++)
 merge_profraw: pgorun
 	$(V) llvm-profdata merge --output=default.profdata default_*.profraw
+else
+merge_profraw: pgorun
+endif
 
 pgouse: merge_profraw
 	$(V) $(MAKE) clean

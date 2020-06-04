@@ -22,7 +22,13 @@ struct TypeError {
 	                       int arg);
 
 	static void init();
-	void        mark();
+
+    void mark() const {
+        GcObject::mark(ontype);
+        GcObject::mark(method);
+        GcObject::mark(expected);
+        GcObject::mark(received);
+    }
 	void        release() {}
 };
 
@@ -36,7 +42,11 @@ struct RuntimeError {
 	static Value         sete(const char *msg);
 
 	static void init();
-	void        mark();
+
+    void mark() const {
+        GcObject::mark(message);
+    }
+
 	void        release() {}
 };
 
@@ -51,7 +61,11 @@ struct IndexError {
 	static Value       sete(const char *m, long l, long h, long r);
 
 	static void init();
-	void        mark();
+
+    void mark() const {
+        GcObject::mark(message);
+    }
+
 	void        release() {}
 };
 
@@ -65,7 +79,11 @@ struct FormatError {
 	static Value        sete(const char *msg);
 
 	static void init();
-	void        mark();
+
+    void mark() const {
+        GcObject::mark(message);
+    }
+
 	void        release() {}
 };
 

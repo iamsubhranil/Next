@@ -6,11 +6,19 @@
 
 struct ValueSet {
 	GcObject         obj;
-	HashSet<Value>   hset;
+	typedef HashSet<Value> ValueSetType;
+	ValueSetType  hset;
 	static ValueSet *create();
 	static void      init();
 
 	// gc functions
-	void release();
-	void mark();
+    void mark() const {
+        for(auto v : hset) {
+            GcObject::mark(v);
+        }
+    }
+
+    void release() const {
+        hset.~ValueSetType();
+    }
 };

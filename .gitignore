@@ -20,3 +20,4 @@ programs/
 gc_map/
 *.profraw
 *.profdata
+cmake-build*/

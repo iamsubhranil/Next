@@ -9,9 +9,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ClassCompilationContext *ctx = GcObject::allocClassCompilationContext();
 	ctx->klass                   = GcObject::allocClass();
 	ctx->klass->init(n, Class::ClassType::NORMAL);
-	ctx->members = (HashMap<String *, MemberInfo> *)GcObject_malloc(
-	    sizeof(HashMap<String *, MemberInfo>));
-	::new(ctx->members) HashMap<String *, MemberInfo>();
+	ctx->members = (MemberMap *)GcObject_malloc(sizeof(MemberMap));
+	::new(ctx->members) MemberMap();
 	ctx->public_signatures  = ValueMap::create();
 	ctx->private_signatures = ValueMap::create();
 	ctx->slotCount          = 0;
@@ -32,7 +31,7 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		                   ctx->defaultConstructor);
 		// add slot for the module
 		ctx->defaultConstructor->create_slot(String::from("mod "), 0);
-		// intialize the module
+		// initialize the module
 		ctx->defaultConstructor->get_codectx()->construct(
 		    Value(ctx->get_class()));
 		// construct will automatically store it to slot 0
@@ -196,28 +195,6 @@ void ClassCompilationContext::init() {
 	                                   Class::ClassType::BUILTIN);
 }
 
-void ClassCompilationContext::mark() {
-	for(auto &i : *members) GcObject::mark(i.first);
-	GcObject::mark(public_signatures);
-	GcObject::mark(private_signatures);
-	GcObject::mark(klass);
-	GcObject::mark(fctxMap);
-	if(defaultConstructor != NULL) {
-		GcObject::mark(defaultConstructor);
-	}
-	if(cctxMap != NULL) {
-		GcObject::mark(cctxMap);
-	}
-	if(moduleContext != NULL) {
-		GcObject::mark(moduleContext);
-	}
-}
-
-void ClassCompilationContext::release() {
-	members.~HashMap<String *, MemberInfo>();
-	GcObject_free(members, sizeof(members));
-}
-
 void ClassCompilationContext::finalize() {
 	// add ret to the ()
 	if(defaultConstructor != NULL && moduleContext == NULL) {
@@ -226,6 +203,7 @@ void ClassCompilationContext::finalize() {
 	}
 }
 
+#ifdef DEBUG
 void ClassCompilationContext::disassemble(std::ostream &o) {
 	if(moduleContext == NULL) {
 		o << "Module: " << klass->name->str << "\n";
@@ -253,3 +231,4 @@ void ClassCompilationContext::disassemble(std::ostream &o) {
 		}
 	}
 }
+#endif

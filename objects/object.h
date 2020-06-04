@@ -4,9 +4,9 @@
 #include "../gc.h"
 #include "../hashmap.h"
 #include "../value.h"
+#include "class.h"
 
 struct Value;
-struct Class;
 
 struct Object {
 	GcObject obj;
@@ -15,6 +15,15 @@ struct Object {
 	static void init();
 
 	// gc functions
-	void release();
-	void mark();
+	void mark() const {
+		// temporary unmark to get the klass
+		Class *c = GcObject::getMarkedClass(this);
+		for(int i = 0; i < c->numSlots; i++) {
+			GcObject::mark(slots[i]);
+		}
+	}
+
+	void release() const {
+		GcObject_free(slots, sizeof(Value) * obj.klass->numSlots);
+	}
 };

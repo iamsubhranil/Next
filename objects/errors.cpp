@@ -1,8 +1,6 @@
 #include "errors.h"
 #include "../engine.h"
 #include "../format.h"
-#include "class.h"
-#include "string.h"
 
 TypeError *TypeError::create(String *o, String *m, String *e, Value r,
                              int arg) {
@@ -78,13 +76,6 @@ void TypeError::init() {
 	TypeErrorClass->add_builtin_fn("str()", 0, next_typeerror_str);
 }
 
-void TypeError::mark() {
-	GcObject::mark(ontype);
-	GcObject::mark(method);
-	GcObject::mark(expected);
-	GcObject::mark(received);
-}
-
 RuntimeError *RuntimeError::create(String *m) {
 	RuntimeError *re = GcObject::allocRuntimeError();
 	re->message      = m;
@@ -118,10 +109,6 @@ void RuntimeError::init() {
 
 	RuntimeErrorClass->add_builtin_fn("(_)", 1, next_runtimerror_construct_1);
 	RuntimeErrorClass->add_builtin_fn("str()", 0, next_runtimerror_str);
-}
-
-void RuntimeError::mark() {
-	GcObject::mark(message);
 }
 
 IndexError *IndexError::create(String *m, long l, long h, long r) {
@@ -176,10 +163,6 @@ void IndexError::init() {
 	IndexErrorClass->add_builtin_fn("str()", 0, next_indexerror_str);
 }
 
-void IndexError::mark() {
-	GcObject::mark(message);
-}
-
 FormatError *FormatError::create(String *m) {
 	FormatError *re = GcObject::allocFormatError();
 	re->message     = m;
@@ -206,8 +189,4 @@ void FormatError::init() {
 	FormatErrorClass->init("format_error", Class::ClassType::BUILTIN);
 
 	FormatErrorClass->add_builtin_fn("str()", 0, next_formaterror_str);
-}
-
-void FormatError::mark() {
-	GcObject::mark(message);
 }

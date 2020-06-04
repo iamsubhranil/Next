@@ -1,9 +1,6 @@
 #include "string.h"
 #include "../engine.h"
-#include "../value.h"
-#include "class.h"
 #include "errors.h"
-#include "formatspec.h"
 #include "set.h"
 #include "symtab.h"
 
@@ -436,8 +433,8 @@ void String::release_all() {
 	for(auto a : string_set->hset) {
 		a->release();
 	}
-	string_set->hset.~HashSet<String *, StringHash, StringEquals>();
-	keep_set->hset.~HashSet<String *, StringHash, StringEquals>();
+	string_set->hset.~Table();
+	keep_set->hset.~Table();
 
 	GcObject_free(string_set, sizeof(StringSet));
 	GcObject_free(keep_set, sizeof(StringSet));

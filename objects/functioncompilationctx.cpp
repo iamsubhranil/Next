@@ -2,8 +2,6 @@
 #include "bytecodecompilationctx.h"
 #include "class.h"
 
-#include "../display.h"
-
 void FunctionCompilationContext::init() {
 	Class *FunctionCompilationContextClass =
 	    GcObject::FunctionCompilationContextClass;
@@ -17,9 +15,8 @@ FunctionCompilationContext::create(String *name, int arity, bool isStatic) {
 	FunctionCompilationContext *fcc =
 	    GcObject::allocFunctionCompilationContext();
 	fcc->f       = Function::create(name, arity, false, isStatic);
-	fcc->slotmap = (HashMap<String *, VarState> *)GcObject::malloc(
-	    sizeof(HashMap<String *, VarState>));
-	::new(fcc->slotmap) HashMap<String *, VarState>();
+	fcc->slotmap = (SlotMap *)GcObject::malloc(sizeof(SlotMap));
+	::new(fcc->slotmap) SlotMap();
 	fcc->bcc       = BytecodeCompilationContext::create();
 	fcc->f->code   = fcc->bcc->code;
 	fcc->slotCount = 0;
@@ -34,19 +31,9 @@ Function *FunctionCompilationContext::get_fn() {
 	return f;
 }
 
-void FunctionCompilationContext::mark() {
-	GcObject::mark(f);
-	GcObject::mark(bcc);
-}
-
-void FunctionCompilationContext::release() {
-	slotmap->~HashMap<String *, VarState>();
-	GcObject::free(slotmap, sizeof(HashMap<String *, VarState>));
-}
-
 int FunctionCompilationContext::create_slot(String *s, int scopeID) {
 	if(slotmap->contains(s)) {
-		// reassignt the variable to the new scope
+		// reassign the variable to the new scope
 		slotmap[0][s].scopeID = scopeID;
 		return (*slotmap)[s].slot;
 	}
@@ -63,6 +50,7 @@ int FunctionCompilationContext::get_slot(String *s) {
 	return slotmap[0][s].slot;
 }
 
+#ifdef DEBUG
 void FunctionCompilationContext::disassemble(std::ostream &o) {
 	o << "Slots: ";
 	for(auto &a : slotmap[0]) {
@@ -71,3 +59,4 @@ void FunctionCompilationContext::disassemble(std::ostream &o) {
 	o << "\n";
 	f->disassemble(o);
 }
+#endif

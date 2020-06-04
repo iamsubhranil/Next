@@ -1029,7 +1029,6 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	String *signature;
-	int     sym;
 
 	bool inConstructor = inClass && ifs->isConstructor;
 	if(inConstructor) {
@@ -1039,9 +1038,6 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		signature = generateSignature(ifs->arity);
 	} else {
 		signature = generateSignature(ifs->name, ifs->arity);
-	}
-	if(inClass) {
-		sym = SymbolTable2::insert(signature);
 	}
 	if(getState() == COMPILE_DECLARATION) {
 		if(ctx->has_fn(signature)) {

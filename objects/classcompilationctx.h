@@ -16,13 +16,15 @@ struct ClassCompilationContext {
 		int  slot;
 		bool isStatic;
 	};
-	GcObject                       obj;
-	HashMap<String *, MemberInfo> *members; // string:slot
-	ValueMap *public_signatures;  // string:token to report overload errors
-	ValueMap *private_signatures; // string:token
-	Class *   klass;              // generated runtime representation of a class
-	ValueMap *fctxMap; // a classctx also keeps track of all the function ctxes
-	ValueMap *cctxMap; // a modulectx keeps track of classctxes declared inside
+	typedef HashMap<String *, ClassCompilationContext::MemberInfo> MemberMap;
+
+	GcObject   obj;
+	MemberMap *members;            // string:slot
+	ValueMap * public_signatures;  // string:token to report overload errors
+	ValueMap * private_signatures; // string:token
+	Class *    klass;   // generated runtime representation of a class
+	ValueMap * fctxMap; // a classctx also keeps track of all the function ctxes
+	ValueMap * cctxMap; // a modulectx keeps track of classctxes declared inside
 	// super context
 	struct ClassCompilationContext *moduleContext;
 	// for module
@@ -66,10 +68,29 @@ struct ClassCompilationContext {
 	void finalize();
 
 	static void init();
-	// mark2 only marks runtime-necessary members
-	void mark();
-	void mark2();
-	void release();
 
+	void mark() const {
+		for(auto &i : *members) GcObject::mark(i.first);
+		GcObject::mark(public_signatures);
+		GcObject::mark(private_signatures);
+		GcObject::mark(klass);
+		GcObject::mark(fctxMap);
+		if(defaultConstructor != NULL) {
+			GcObject::mark(defaultConstructor);
+		}
+		if(cctxMap != NULL) {
+			GcObject::mark(cctxMap);
+		}
+		if(moduleContext != NULL) {
+			GcObject::mark(moduleContext);
+		}
+	}
+
+	void release() const {
+		members->~MemberMap();
+		GcObject_free(members, sizeof(MemberMap));
+	}
+#ifdef DEBUG
 	void disassemble(std::ostream &o);
+#endif
 };

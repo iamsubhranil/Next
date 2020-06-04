@@ -13,10 +13,11 @@ struct FunctionCompilationContext {
 		int scopeID;
 	};
 
-	HashMap<String *, VarState> *slotmap;
-	Function *                   f;
-	BytecodeCompilationContext * bcc;
-	int                          slotCount;
+	typedef HashMap<String *, VarState> SlotMap;
+	SlotMap *                           slotmap;
+	Function *                          f;
+	BytecodeCompilationContext *        bcc;
+	int                                 slotCount;
 
 	int                         create_slot(String *s, int scopeID);
 	bool                        has_slot(String *s, int scopeID);
@@ -28,8 +29,18 @@ struct FunctionCompilationContext {
 	                                          bool isStatic = false);
 
 	static void init();
-	void        mark();
-	void        release();
 
+	void mark() const {
+		GcObject::mark(f);
+		GcObject::mark(bcc);
+	}
+
+	void release() const {
+		slotmap->~SlotMap();
+		GcObject::free(slotmap, sizeof(SlotMap));
+	}
+
+#ifdef DEBUG
 	void disassemble(std::ostream &o);
+#endif
 };

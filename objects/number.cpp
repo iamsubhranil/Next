@@ -1,12 +1,9 @@
 #include "number.h"
-#include "../gc.h"
 #include "../value.h"
 #include "buffer.h"
 #include "class.h"
 #include "errors.h"
-#include "formatspec.h"
 #include "string.h"
-#include <iostream>
 
 char getsign(char s, bool isminus) {
 	switch(s) {
@@ -135,7 +132,7 @@ void format_snprintf(FormatSpec *fs, Buffer<char> &buf, T value) {
 		// Suppress the warning about a nonliteral format string.
 		// Cannot use auto becase of a bug in MinGW (#1532).
 		int (*snprintf_ptr)(char *, size_t, const char *, ...) = snprintf;
-		int result                                             = 0;
+		int result;
 		if(fs->width != -1 && fs->precision != -1) {
 			result = snprintf_ptr(begin, capacity, format_string, fs->width,
 			                      fs->precision, value);
@@ -161,8 +158,6 @@ void format_snprintf(FormatSpec *fs, Buffer<char> &buf, T value) {
 	}
 }
 
-template <typename T> void format_fn(FormatSpec *f, Buffer<char> &b, T val);
-
 template <typename F, typename T>
 Value next_number_fmt_(FormatSpec *f, F fn, T val) {
 	Buffer<char> b;
@@ -171,7 +166,7 @@ Value next_number_fmt_(FormatSpec *f, F fn, T val) {
 	if(f->align == '^') {
 		// find out how much space we have on the left
 		char * data = b.data();
-		size_t i = 0, j = 0;
+		size_t i = 0, j;
 		for(; i < b.size(); i++) {
 			if(data[i] != ' ')
 				break;

@@ -11,6 +11,8 @@
 #include <cmath>
 #include <iostream>
 
+//#define DEBUG_INS
+
 #ifdef DEBUG_INS
 #include <iomanip>
 #endif
@@ -179,7 +181,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	int               instructionPointer = 0;
 	Fiber::CallFrame *matched            = NULL;
 	Fiber::CallFrame *searching          = &f->callFrames[num];
-	Exception         block;
+	Exception         block              = {0, NULL, 0, 0};
 	while(num >= 0 && matched == NULL) {
 		for(size_t i = 0; i < searching->f->numExceptions; i++) {
 			Exception e = searching->f->exceptions[i];
@@ -459,6 +461,12 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 #define ASSERT(x, str, ...)       \
 	if(!(x)) {                    \
 		RERRF(str, ##__VA_ARGS__) \
+	}
+
+#define UNREACHABLE()                                     \
+	{                                                     \
+		panic("This path should have never been taken!"); \
+		return ValueNil;                                  \
 	}
 
 	// the top may have been occupied by a builtin,
@@ -743,7 +751,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		methodcall : {
 			Value &      v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
-			if(c == GcObject::ClassClass) {
+			if(v.isClass()) {
 				// v itself was a class
 				// so search if v has it first
 				if(v.toClass()->has_fn(methodToCall)) {
@@ -790,6 +798,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					DISPATCH_WINC();
 					break;
 			}
+			UNREACHABLE();
 		}
 
 			CASE(ret) : {
@@ -826,6 +835,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					// the caller.
 					RETURN(v);
 				}
+				UNREACHABLE();
 			}
 
 			CASE(load_slot) : {

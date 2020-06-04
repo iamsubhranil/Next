@@ -1,8 +1,6 @@
 #include "map.h"
 #include "../engine.h"
-#include "../value.h"
 #include "boundmethod.h"
-#include "class.h"
 #include "symtab.h"
 
 Value next_map_get_hash(const Value &v) {
@@ -107,7 +105,7 @@ void ValueMap::init() {
 
 ValueMap *ValueMap::create() {
 	ValueMap *vvm = GcObject::allocValueMap();
-	::new(&vvm->vv) HashMap<Value, Value>();
+	::new(&vvm->vv) ValueMapType ();
 	return vvm;
 }
 
@@ -128,15 +126,4 @@ Value &ValueMap::operator[](const Value &v) {
 
 Value &ValueMap::operator[](Value &&v) {
 	return vv[v];
-}
-
-void ValueMap::mark() {
-	for(auto kv : vv) {
-		GcObject::mark(kv.first);
-		GcObject::mark(kv.second);
-	}
-}
-
-void ValueMap::release() {
-	vv.~HashMap<Value, Value>();
 }

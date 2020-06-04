@@ -1,5 +1,4 @@
 #include "loader.h"
-#include "codegen.h"
 #include "display.h"
 #include "engine.h"
 #include "objects/fiber.h"
@@ -161,7 +160,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 			return ex.execute(f).toGcObject();
 		}
 		return (GcObject *)ctx->get_class();
-	} catch(ParseException pe) {
+	} catch(ParseException &pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
@@ -203,7 +202,7 @@ GcObject *Loader::compile_and_load_from_source(
 			                           NULL);
 			return ex.execute(f).toGcObject();
 		}
-	} catch(ParseException pe) {
+	} catch(ParseException &pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);

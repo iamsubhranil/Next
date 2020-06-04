@@ -1,5 +1,4 @@
 #include "symtab.h"
-#include "../value.h"
 
 int    SymbolTable2::counter = 0;
 Array *SymbolTable2::symbols = nullptr;

@@ -1,6 +1,7 @@
 #pragma once
 #include "../gc.h"
 #include "../value.h"
+#include "errors.h"
 
 struct Array {
 	GcObject obj;
@@ -23,6 +24,7 @@ struct Array {
 	static void init();
 
 	// gc functions
-	void release();
-	void mark();
+	void mark() const { GcObject::mark(values, size); }
+
+	void release() const { GcObject_free(values, sizeof(Value) * capacity); }
 };

@@ -56,10 +56,22 @@ struct Class {
 	Value get_fn(int sym) const { return functions->values[sym]; }
 	Value get_fn(const char *sig) const;
 	Value get_fn(String *sig) const;
-	Value get_static_sym(int sym) {
-		return *(functions->values[sym].toPointer());
-	}
 	// gc functions
-	void release();
-	void mark();
+	void mark() const {
+		GcObject::mark(name);
+		GcObject::mark(functions);
+		if(module != NULL) {
+			GcObject::mark(module);
+			if(static_slot_count > 0)
+				GcObject::mark(static_values, static_slot_count);
+		} else if(instance != NULL) {
+			GcObject::mark(instance);
+		}
+	}
+
+	void release() const {
+		if(module != NULL && static_slot_count > 0) {
+			GcObject_free(static_values, sizeof(Value) * static_slot_count);
+		}
+	}
 };

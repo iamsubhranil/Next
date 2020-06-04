@@ -1,15 +1,13 @@
 #include "core.h"
 #include "../engine.h"
 #include "../format.h"
-#include "../gc.h"
-#include "../value.h"
 #include "bytecodecompilationctx.h"
-#include "class.h"
 #include "classcompilationctx.h"
 #include "errors.h"
 #include "fiber.h"
 #include "functioncompilationctx.h"
 #include <iostream>
+#include <time.h>
 
 Value next_core_clock(const Value *args, int numargs) {
 	(void)numargs;

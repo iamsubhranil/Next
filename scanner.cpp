@@ -3,7 +3,6 @@
 #include <iomanip>
 #include <iostream>
 #include <string.h>
-#include <string_view>
 
 using namespace std;
 
@@ -263,8 +262,6 @@ bool Scanner::match(char expected) {
 	return 1;
 }
 
-#include <iostream>
-
 Token Scanner::identifier() {
 	while(isAlphaNumeric(peek())) advance();
 
@@ -451,7 +448,7 @@ Token Scanner::scanNextToken() {
 				line++;
 			}
 			return scanNextToken(); // Ignore \r
-		case '\n': line++;
+		case '\n': line++; return scanNextToken();
 		case '\t': return scanNextToken();
 		case '(': return Token::from(TOKEN_LEFT_PAREN, this);
 		case ')': return Token::from(TOKEN_RIGHT_PAREN, this);

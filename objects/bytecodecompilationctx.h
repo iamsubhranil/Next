@@ -61,6 +61,12 @@ struct BytecodeCompilationContext {
 
 	static BytecodeCompilationContext *create();
 	static void                        init();
-	void                               mark();
-	void                               release();
+
+    void mark() const {
+        GcObject::mark(code);
+    }
+
+    void release() const {
+        GcObject::free(ranges_, sizeof(TokenRange) * capacity);
+    }
 };

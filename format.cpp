@@ -1,9 +1,6 @@
 #include "format.h"
 #include "engine.h"
-#include "objects/class.h"
 #include "objects/errors.h"
-#include "objects/formatspec.h"
-#include "objects/string.h"
 #include "objects/symtab.h"
 
 // see https://fmt.dev/latest/syntax.html

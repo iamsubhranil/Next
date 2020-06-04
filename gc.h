@@ -1,9 +1,7 @@
 #pragma once
 #include <cstdint>
-#include <ostream>
-//#define DEBUG_GC
 
-#ifdef DEBUG_GC
+#ifdef DEBUG
 #include "display.h"
 #include <iostream>
 #endif
@@ -85,7 +83,6 @@ struct GcObject {
 #define GcObject_free(x, y) GcObject::free(x, y)
 #endif
 	// marking and unmarking functions
-	static void mark();
 	static void mark(Value v);
 	static void mark(GcObject *p);
 #define OBJTYPE(r, n) \
@@ -98,7 +95,7 @@ struct GcObject {
 
 	// get the class of an object which is
 	// already marked
-	static Class *getMarkedClass(Object *o);
+	static Class *getMarkedClass(const Object *o);
 	// this methods should be called by an
 	// object when it holds reference to an
 	// object which it does explicitly

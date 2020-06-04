@@ -1,5 +1,4 @@
 #include "engine.h"
-#include "gc.h"
 #include "loader.h"
 #include <iostream>
 using namespace std;

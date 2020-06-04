@@ -55,24 +55,6 @@ void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn) {
 	add_fn(str, Function::from(str, arity, fn));
 }
 
-void Class::mark() {
-	GcObject::mark(name);
-	GcObject::mark(functions);
-	if(module != NULL) {
-		GcObject::mark(module);
-		if(static_slot_count > 0)
-			GcObject::mark(static_values, static_slot_count);
-	} else if(instance != NULL) {
-		GcObject::mark(instance);
-	}
-}
-
-void Class::release() {
-	if(module != NULL && static_slot_count > 0) {
-		GcObject_free(static_values, sizeof(Value) * static_slot_count);
-	}
-}
-
 bool Class::has_fn(const char *sig) const {
 	return has_fn(SymbolTable2::insert(sig));
 }

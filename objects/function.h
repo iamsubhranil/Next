@@ -49,10 +49,10 @@ struct Function {
 
 	enum Type : uint8_t { METHOD = 0, BUILTIN = 1 };
 
-	Function::Type getType() { return (Type)(mode & 0x0f); }
+	Function::Type getType() const { return (Type)(mode & 0x0f); }
 
-	bool isStatic() { return (bool)(mode & 0xf0); }
-	bool isVarArg() { return varArg; }
+	bool isStatic() const { return (bool)(mode & 0xf0); }
+	bool isVarArg() const { return varArg; }
 
 	// will traverse the whole exceptions array, and
 	// return an existing one if and only if it matches
@@ -69,8 +69,23 @@ struct Function {
 	                      bool isva = false, bool isStatic = false);
 
 	// gc functions
-	void release();
-	void mark();
+	void mark() const {
+		GcObject::mark(name);
+		if(getType() != BUILTIN) {
+			GcObject::mark(code);
+		}
+	}
 
+	void release() const {
+		for(size_t i = 0; i < numExceptions; i++) {
+			Exception e = exceptions[i];
+			GcObject::free(e.catches, sizeof(CatchBlock) * e.numCatches);
+		}
+		if(numExceptions > 0)
+			GcObject::free(exceptions, sizeof(Exception) * numExceptions);
+	}
+
+#ifdef DEBUG
 	void disassemble(std::ostream &o);
+#endif
 };

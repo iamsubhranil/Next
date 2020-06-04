@@ -8,7 +8,6 @@ struct SymbolTable2 {
 
 	static void init();
 	static int  insert(const char *str);
-	static int  insert(const std::string &str);
 	static int  insert(const String *str);
 
 	static const char *get(int id);
