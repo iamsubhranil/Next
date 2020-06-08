@@ -231,6 +231,8 @@ void GcObject::release(GcObject *obj) {
 void GcObject::release(Value v) {
 	if(v.isGcObject())
 		release(v.toGcObject());
+	else if(v.isPointer())
+		release(*v.toPointer());
 }
 
 #ifdef DEBUG_GC
@@ -254,8 +256,7 @@ void GcObject::mark(Value v) {
 
 void GcObject::mark(Value *v, size_t num) {
 	for(size_t i = 0; i < num; i++) {
-		if(v[i].isGcObject())
-			mark(v[i].toGcObject());
+		mark(v[i]);
 	}
 }
 
@@ -295,6 +296,8 @@ bool GcObject::isMarked(GcObject *p) {
 void GcObject::unmark(Value v) {
 	if(v.isGcObject())
 		unmark(v.toGcObject());
+	else if(v.isPointer())
+		unmark(v.toPointer());
 }
 
 void GcObject::unmark(GcObject *p) {
