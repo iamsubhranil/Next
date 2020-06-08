@@ -64,7 +64,7 @@ endif
 
 pgouse: merge_profraw
 	$(V) $(MAKE) clean
-	$(V) $(MAKE) cgoto CXXFLAGS=-fprofile-use LDFLAGS+=-fprofile-use LDFLAGS+=-flto
+	$(V) $(MAKE) cgoto CXXFLAGS=-fprofile-use CXXFLAGS+=-march=native LDFLAGS+=-fprofile-use LDFLAGS+=-flto
 	$(V) $(MAKE) benchmark
 
 tests: release
