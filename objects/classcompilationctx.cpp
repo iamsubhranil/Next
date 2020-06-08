@@ -37,8 +37,20 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		// construct will automatically store it to slot 0
 		// add the class map
 		ctx->cctxMap = ValueMap::create();
+		// a module does not have a metaclass
+		ctx->metaclass = NULL;
 	} else {
 		ctx->klass->module = s->klass;
+		// if this is a normal class, create a metaclass
+		// for it
+		// a metaclass is a copy of the root 'class' class,
+		// only it has added slots for static methods
+		// and members of the present class
+		ctx->metaclass = GcObject::ClassClass->copy();
+		// link the metaclass first, so it doesn't get
+		// garbage collected
+		ctx->klass->obj.klass = ctx->metaclass;
+		ctx->metaclass->name  = String::append(n, " metaclass");
 	}
 	return ctx;
 }
@@ -56,14 +68,19 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic) {
 	// except that their Value contains a pointer to the index
 	// in the static array in the class, where the content is
 	// stored.
+	int sym = SymbolTable2::insert(name);
 	if(!isStatic) {
 		members[0][name] = (MemberInfo){slotCount++, false};
-		klass->add_sym(SymbolTable2::insert(name), Value(klass->add_slot()));
+		klass->add_sym(sym, Value(klass->add_slot()));
 	} else {
 		members[0][name] = (MemberInfo){staticSlotCount++, true};
 		int slot         = klass->add_static_slot();
-		klass->add_sym(SymbolTable2::insert(name),
-		               Value(&klass->static_values[slot]));
+		klass->add_sym(sym, Value(&klass->static_values[slot]));
+		if(metaclass) {
+			// add it as a public variable of the metaclass,
+			// pointing to the static slot of this class
+			metaclass->add_sym(sym, Value(&klass->static_values[slot]));
+		}
 	}
 	return true;
 }
@@ -77,6 +94,8 @@ int ClassCompilationContext::add_private_mem(String *name, bool isStatic) {
 	} else {
 		members[0][name] = (MemberInfo){staticSlotCount++, true};
 		klass->add_static_slot();
+		// this is a private static variable, so we don't
+		// need to add anything to the metaclass
 	}
 	return true;
 }
@@ -107,6 +126,9 @@ bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
 	klass->add_fn(sig, f);
 	if(fctx)
 		fctxMap->vv[Value(sig)] = Value(fctx);
+	if(f->isStatic() && metaclass) {
+		metaclass->add_fn(sig, f);
+	}
 	return true;
 }
 
@@ -122,6 +144,7 @@ bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
 	klass->add_fn(priv_signature, f);
 	if(fctx)
 		fctxMap->vv[Value(sig)] = Value(fctx);
+	// we don't need to add anything to the metaclass
 	return true;
 }
 

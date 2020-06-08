@@ -56,6 +56,9 @@ struct Class {
 	Value get_fn(int sym) const { return functions->values[sym]; }
 	Value get_fn(const char *sig) const;
 	Value get_fn(String *sig) const;
+	// creates a copy of the class
+	// used for generating metaclasses
+	Class *copy();
 	// gc functions
 	void mark() const {
 		GcObject::mark(name);

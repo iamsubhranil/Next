@@ -662,14 +662,10 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				int frame         = next_int();
 				numberOfArguments = next_int();
 				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
-				const Class *c;
-				// if v is already a class, we're done
-				if(!v.isClass())
-					c = v.getClass();
-				else
-					c = v.toClass();
-				functionToCall = c->get_fn(frame).toFunction();
-				v              = Value(c);
+				const Class *c    = v.getClass();
+				functionToCall    = c->get_fn(frame).toFunction();
+				if(v.isObject())
+					v = Value(c);
 				goto performcall;
 			}
 
@@ -751,26 +747,12 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		methodcall : {
 			Value &      v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
-			if(v.isClass()) {
-				// v itself was a class
-				// so search if v has it first
-				if(v.toClass()->has_fn(methodToCall)) {
-					// it does, so it is a static call
-					// and we already have the class as
-					// receiver
-					functionToCall =
-					    v.toClass()->get_fn(methodToCall).toFunction();
-					// make sure functionToCall is static
-					if(functionToCall->isStatic())
-						goto performcall;
-				}
-			}
 			ASSERT(c->has_fn(methodToCall),
 			       "Method '@t' not found in class '@s'!", methodToCall,
 			       c->name);
 			functionToCall = c->get_fn(methodToCall).toFunction();
 			// if function is a static one, put the class in receiver
-			if(functionToCall->isStatic())
+			if(functionToCall->isStatic() && v.isObject())
 				v = Value(c);
 		}
 		performcall : {
@@ -897,18 +879,10 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(load_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c;
-				// if it is a class and it has the field,
-				// we're done
-				if(v.isClass() && v.toClass()->has_static_field(field))
-					c = v.toClass();
-				else {
-					// fall back to usual check
-					c = v.getClass();
-					ASSERT(c->has_fn(field),
-					       "No public member '@t' found in class '@s'!", field,
-					       c->name);
-				}
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
 				Value slot = c->get_fn(field);
 				// check if it's an instance slot
 				// we ignore the costly isInteger
@@ -926,18 +900,11 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(store_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c;
-				// if it is a class and it has the field,
-				// we're done
-				if(v.isClass() && v.toClass()->has_static_field(field))
-					c = v.toClass();
-				else {
-					// fall back to usual check
-					c = v.getClass();
-					ASSERT(c->has_fn(field),
-					       "No public member '@t' found in class '@s'!", field,
-					       c->name);
-				}
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+
 				Value slot = c->get_fn(field);
 				// check if it's an instance slot
 				// we ignore the costly isInteger

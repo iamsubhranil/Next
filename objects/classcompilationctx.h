@@ -22,7 +22,8 @@ struct ClassCompilationContext {
 	MemberMap *members;            // string:slot
 	ValueMap * public_signatures;  // string:token to report overload errors
 	ValueMap * private_signatures; // string:token
-	Class *    klass;   // generated runtime representation of a class
+	Class *    klass;     // generated runtime representation of a class
+	Class *    metaclass; // metaclass of the class
 	ValueMap * fctxMap; // a classctx also keeps track of all the function ctxes
 	ValueMap * cctxMap; // a modulectx keeps track of classctxes declared inside
 	// super context
