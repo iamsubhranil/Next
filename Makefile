@@ -24,6 +24,9 @@ release: CXXFLAGS += -O3
 release: LDFLAGS += -s
 release: next
 
+profile: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO -O2 -g3
+profile: next
+
 debug: CXXFLAGS += -g3 -DDEBUG
 debug: next
 
