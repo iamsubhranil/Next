@@ -252,6 +252,8 @@ void GcObject::release(Value v) {
 void GcObject::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
+	else if(v.isPointer())
+		mark(*v.toPointer());
 }
 
 void GcObject::mark(Value *v, size_t num) {
