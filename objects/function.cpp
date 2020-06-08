@@ -7,7 +7,8 @@ Function *Function::from(String *str, int arity, next_builtin_fn fn, bool isva,
 	Function *f      = GcObject::allocFunction();
 	f->name          = str;
 	f->func          = fn;
-	f->mode          = ((int)isStatic << 4) | BUILTIN;
+	f->mode          = BUILTIN;
+	f->static_       = isStatic;
 	f->arity         = arity;
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
@@ -24,7 +25,8 @@ Function *Function::create(String *str, int arity, bool isva, bool isStatic) {
 	Function *f      = GcObject::allocFunction();
 	f->name          = str;
 	f->code          = NULL;
-	f->mode          = ((int)isStatic << 4) | METHOD;
+	f->mode          = METHOD;
+	f->static_       = isStatic;
 	f->arity         = arity;
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
