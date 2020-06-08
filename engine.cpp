@@ -387,6 +387,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	}
 #define TOP (*(fiber->stackTop - 1))
 #define POP() (*(--fiber->stackTop))
+#define DROP() (fiber->stackTop--) // does not touch the value
 
 #define JUMPTO(x)                                      \
 	{                                                  \
@@ -447,7 +448,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		if(__VA_ARGS__ is_falsey(rightOperand)) { \
 			JUMPTO_OFFSET(skipTo);                \
 		} else {                                  \
-			POP();                                \
+			DROP();                               \
 			DISPATCH();                           \
 		}                                         \
 	}
@@ -629,7 +630,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(pop) : {
-				POP();
+				DROP();
 				DISPATCH();
 			}
 
@@ -1016,7 +1017,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				if(v.isGcObject()) {
 					TOP = ValueNil;
 				}
-				POP();
+				DROP();
 				pendingException = v;
 				goto error;
 			}
