@@ -658,17 +658,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
-			CASE(call_static) : {
-				int frame         = next_int();
-				numberOfArguments = next_int();
-				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
-				const Class *c    = v.getClass();
-				functionToCall    = c->get_fn(frame).toFunction();
-				if(v.isObject())
-					v = Value(c);
-				goto performcall;
-			}
-
 			CASE(call) : {
 				int frame         = next_int();
 				numberOfArguments = next_int();
@@ -751,9 +740,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			       "Method '@t' not found in class '@s'!", methodToCall,
 			       c->name);
 			functionToCall = c->get_fn(methodToCall).toFunction();
-			// if function is a static one, put the class in receiver
-			if(functionToCall->isStatic() && v.isObject())
-				v = Value(c);
 		}
 		performcall : {
 			switch(functionToCall->getType()) {

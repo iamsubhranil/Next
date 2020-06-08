@@ -412,10 +412,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 				    "Cannot call a non static function from a static function!",
 				    call->token);
 			}
-			if(info.isStatic)
-				btx->call_static(info.frameIdx, argSize);
-			else
-				btx->call(info.frameIdx, argSize);
+			btx->call(info.frameIdx, argSize);
 		}
 	}
 }
@@ -1075,7 +1072,12 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		// 0th slot of all functions will contain the bound
 		// object. which will either be a module, or a class
 		// instance
-		ftx->create_slot(String::from("this"), scopeID + 1);
+		if(ifs->isStatic) {
+			// if this is a static method, 'this' should
+			// not be accessible by the programmer
+			ftx->create_slot(String::from("this "), scopeID + 1);
+		} else
+			ftx->create_slot(String::from("this"), scopeID + 1);
 
 		/* TODO: Handle native functions
 		if(ifs->isNative) {
