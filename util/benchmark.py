@@ -11,6 +11,7 @@ import os.path
 import re
 import subprocess
 import sys
+import json
 
 # Runs the benchmarks.
 #
@@ -49,9 +50,40 @@ NUM_TRIALS = 10
 
 BENCHMARKS = []
 
+# baselines is a dictionary where each baselines are stored for
+# each benchmark
+# each benchmark again contains a dictionary where each branchname
+# name maps to its score in the branch
+BASELINES = {}
+CURRENT_BRANCH_NAME = "<default>"
+
+def baseline_has_branch(n):
+    return BASELINES["branch list"].count(n) == 1
+
+def baseline_branch_count():
+    if BASELINES["branch list"] == None:
+        BASELINES["branch list"] = []
+    return len(BASELINES["branch list"])
+
+def baseline_get_branch_idx(n):
+    global BASELINES
+    if "branch list" not in BASELINES:
+        BASELINES["branch list"] = []
+    if BASELINES["branch list"].count(n) == 0:
+        BASELINES["branch list"].append(n)
+        return len(BASELINES["branch list"]) - 1
+    return BASELINES["branch list"].index(n)
+
+def baseline_get_max_branch_length():
+    if "branch list" not in BASELINES:
+        BASELINES["branch list"] = []
+    if len(BASELINES["branch list"]) == 0:
+        return 0
+    return len(max(BASELINES["branch list"], key=lambda x: len(x)))
+
 def BENCHMARK(name, pattern):
-  regex = re.compile(pattern + "\n" + r"elapsed: (\d+\.\d+)", re.MULTILINE)
-  BENCHMARKS.append([name, regex, None])
+    regex = re.compile(pattern + "\n" + r"elapsed: (\d+\.\d+)", re.MULTILINE)
+    BENCHMARKS.append([name, regex, None])
 
 # BENCHMARK("api_call", "true")
 
@@ -104,291 +136,352 @@ BENCHMARK("string_equals", r"""3000000""")
 BENCHMARK("while", r"""12500002500003""")
 
 LANGUAGES = [
-  ("next",           [os.path.join(NEXT_BIN, 'next')], ".n"),
-  ("dart",           ["fletch", "run"],                ".dart"),
-  ("lua",            ["lua"],                          ".lua"),
-  ("luajit (-joff)", ["luajit", "-joff"],              ".lua"),
-  ("python",         ["python"],                       ".py"),
-  ("python3",        ["python3"],                      ".py"),
-  ("ruby",           ["ruby"],                         ".rb")
+    ("next",           [os.path.join(NEXT_BIN, 'next')], ".n"),
+    ("dart",           ["fletch", "run"],                ".dart"),
+    ("lua",            ["lua"],                          ".lua"),
+    ("luajit (-joff)", ["luajit", "-joff"],              ".lua"),
+    ("python",         ["python"],                       ".py"),
+    ("python3",        ["python3"],                      ".py"),
+    ("ruby",           ["ruby"],                         ".rb")
 ]
 
 results = {}
 
 if sys.platform == 'win32':
-  GREEN = NORMAL = RED = YELLOW = ''
+    GREEN = NORMAL = RED = YELLOW = ''
 else:
-  GREEN = '\033[32m'
-  NORMAL = '\033[0m'
-  RED = '\033[31m'
-  YELLOW = '\033[33m'
+    GREEN = '\033[32m'
+    NORMAL = '\033[0m'
+    RED = '\033[31m'
+    YELLOW = '\033[33m'
 
 def green(text):
-  return GREEN + text + NORMAL
+    return GREEN + text + NORMAL
 
 def red(text):
-  return RED + text + NORMAL
+    return RED + text + NORMAL
 
 def yellow(text):
-  return YELLOW + text + NORMAL
+    return YELLOW + text + NORMAL
 
 
 def get_score(time):
-  """
-  Converts time into a "score". This is the inverse of the time with an
+    """
+    Converts time into a "score". This is the inverse of the time with an
   arbitrary scale applied to get the number in a nice range. The goal here is
   to have benchmark results where faster = bigger number.
-  """
-  return 1000.0 / time
+    """
+    return 1000.0 / time
 
 
 def standard_deviation(times):
-  """
-  Calculates the standard deviation of a list of numbers.
-  """
-  mean = sum(times) / len(times)
+    """
+    Calculates the standard deviation of a list of numbers.
+    """
+    mean = sum(times) / len(times)
 
-  # Sum the squares of the differences from the mean.
-  result = 0
-  for time in times:
-    result += (time - mean) ** 2
+    # Sum the squares of the differences from the mean.
+    result = 0
+    for time in times:
+        result += (time - mean) ** 2
 
-  return math.sqrt(result / len(times))
+    return math.sqrt(result / len(times))
 
 
 def run_trial(benchmark, language):
-  """Runs one benchmark one time for one language."""
-  executable_args = language[1]
+    """Runs one benchmark one time for one language."""
+    executable_args = language[1]
 
-  # Hackish. If the benchmark name starts with "api_", it's testing the Next
-  # C API, so run the test_api executable which has those test methods instead
-  # of the normal Next build.
-  #if benchmark[0].startswith("api_"):
-  #  executable_args = [
-  #    os.path.join(NEXT_DIR, "build", "release", "test", "api_next")
-  #  ]
+    # Hackish. If the benchmark name starts with "api_", it's testing the Next
+    # C API, so run the test_api executable which has those test methods instead
+    # of the normal Next build.
+    #if benchmark[0].startswith("api_"):
+    #  executable_args = [
+    #    os.path.join(NEXT_DIR, "build", "release", "test", "api_next")
+    #  ]
 
-  args = []
-  args.extend(executable_args)
-  args.append(os.path.join(BENCHMARK_DIR, benchmark[0] + language[2]))
+    args = []
+    args.extend(executable_args)
+    args.append(os.path.join(BENCHMARK_DIR, benchmark[0] + language[2]))
 
-  try:
-    out = subprocess.check_output(args, universal_newlines=True)
+    try:
+        out = subprocess.check_output(args, universal_newlines=True)
     #`print("{" + out + "}\n")
-  except OSError:
-    print('Interpreter was not found')
-    return None
-  match = benchmark[1].match(out)
-  if match:
-    return float(match.group(1))
-  else:
-    print("Incorrect output:")
-    print(out)
-    return None
+    except OSError:
+        print('Interpreter was not found')
+        return None
+    match = benchmark[1].match(out)
+    if match:
+        return float(match.group(1))
+    else:
+        print("Incorrect output:")
+        print(out)
+        return None
 
 
 def run_benchmark_language(benchmark, language, benchmark_result):
-  """
-  Runs one benchmark for a number of trials for one language.
+    """
+    Runs one benchmark for a number of trials for one language.
 
   Adds the result to benchmark_result, which is a map of language names to
   results.
-  """
+    """
 
-  name = "{0} - {1}".format(benchmark[0], language[0])
-  print("{0:30s}".format(name), end=' ')
+    name = "{0} - {1}".format(benchmark[0], language[0])
+    print("{0:30s}".format(name), end='\t')
 
-  if not os.path.exists(os.path.join(
-      BENCHMARK_DIR, benchmark[0] + language[2])):
-    print("No implementation for this language")
-    return
+    if NUM_TRIALS < 3:
+        print("{:^{}}".format(" ", 3 - NUM_TRIALS - 1), end='')
 
-  times = []
-  for i in range(0, NUM_TRIALS):
-    sys.stdout.flush()
-    time = run_trial(benchmark, language)
-    if not time:
-      return
-    times.append(time)
-    sys.stdout.write(".")
+    if not os.path.exists(os.path.join(
+            BENCHMARK_DIR, benchmark[0] + language[2])):
+        print("No implementation for this language")
+        return
 
-  best = min(times)
-  score = get_score(best)
+    times = []
+    for i in range(0, NUM_TRIALS):
+        sys.stdout.flush()
+        time = run_trial(benchmark, language)
+        if not time:
+            return
+        times.append(time)
+        sys.stdout.write(".")
 
-  comparison = ""
-  if language[0] == "next":
-    if benchmark[2] != None:
-      ratio = 100 * score / benchmark[2]
-      comparison =  "{:6.2f}% relative to baseline".format(ratio)
-      if ratio > 105:
-        comparison = green(comparison)
-      if ratio < 95:
-        comparison = red(comparison)
+    print("\t", end='')
+
+    best = min(times)
+    score = get_score(best)
+
+    comparison = ""
+    max_width = baseline_get_max_branch_length()
+    #print(max_width)
+    if language[0] == "next":
+        all_scores = benchmark[2]
+        comparison = ""
+        for ascore in all_scores:
+            if ascore != None:
+                ratio = 100 * score / ascore
+                ratio_str =  "{:^6.2f}%".format(ratio)
+                ratio_str = "{:^{}}".format(ratio_str, max_width)
+                if ratio > 105:
+                    ratio_str = green(ratio_str)
+                if ratio < 95:
+                    ratio_str = red(ratio_str)
+                comparison += ratio_str
+            else:
+                comparison += "{:^{}}".format("---", max_width)
+            comparison += '\t'
     else:
-      comparison = "no baseline"
-  else:
-    # Hack: assumes next gets run first.
-    next_score = benchmark_result["next"]["score"]
-    ratio = 100.0 * next_score / score
-    comparison =  "{:6.2f}%".format(ratio)
-    if ratio > 105:
-      comparison = green(comparison)
-    if ratio < 95:
-      comparison = red(comparison)
+        # Hack: assumes next gets run first.
+        next_score = benchmark_result["next"]["score"]
+        ratio = 100.0 * next_score / score
+        comparison =  "{:^6.2f}%".format(ratio)
+        if ratio > 105:
+            comparison = green(comparison)
+        if ratio < 95:
+            comparison = red(comparison)
 
-  print(" {:4.2f}s {:4.4f} {:s}".format(
-      best,
-      standard_deviation(times),
-      comparison))
+    print("{:4.2f}s\t{:4.4f}\t{:s}".format(
+        best,
+        standard_deviation(times),
+        comparison))
 
-  benchmark_result[language[0]] = {
-    "desc": name,
-    "times": times,
-    "score": score
-  }
+    benchmark_result[language[0]] = {
+        "desc": name,
+        "times": times,
+        "score": score
+    }
 
-  return score
+    return score
 
 
 def run_benchmark(benchmark, languages, graph):
-  """Runs one benchmark for the given languages (or all of them)."""
+    """Runs one benchmark for the given languages (or all of them)."""
 
-  benchmark_result = {}
-  results[benchmark[0]] = benchmark_result
+    benchmark_result = {}
+    results[benchmark[0]] = benchmark_result
 
-  num_languages = 0
-  for language in LANGUAGES:
-    if not languages or language[0] in languages:
-      num_languages += 1
-      run_benchmark_language(benchmark, language, benchmark_result)
+    num_languages = 0
+    for language in LANGUAGES:
+        if not languages or language[0] in languages:
+            num_languages += 1
+            run_benchmark_language(benchmark, language, benchmark_result)
 
-  if num_languages > 1 and graph:
-    graph_results(benchmark_result)
+    if num_languages > 1 and graph:
+        graph_results(benchmark_result)
 
 
 def graph_results(benchmark_result):
-  print()
+    print()
 
-  INCREMENT = {
-    '-': 'o',
-    'o': 'O',
-    'O': '0',
-    '0': '0'
-  }
+    INCREMENT = {
+        '-': 'o',
+        'o': 'O',
+        'O': '0',
+        '0': '0'
+    }
 
-  # Scale everything by the highest score.
-  highest = 0
-  for language, result in benchmark_result.items():
-    score = get_score(min(result["times"]))
+    # Scale everything by the highest score.
+    highest = 0
+    for language, result in benchmark_result.items():
+        score = get_score(min(result["times"]))
     if score > highest: highest = score
 
-  print("{0:30s}0 {1:66.0f}".format("", highest))
-  for language, result in benchmark_result.items():
-    line = ["-"] * 68
+    print("{0:30s}0 {1:66.0f}".format("", highest))
+    for language, result in benchmark_result.items():
+        line = ["-"] * 68
     for time in result["times"]:
-      index = int(get_score(time) / highest * 67)
-      line[index] = INCREMENT[line[index]]
+        index = int(get_score(time) / highest * 67)
+        line[index] = INCREMENT[line[index]]
     print("{0:30s}{1}".format(result["desc"], "".join(line)))
-  print()
+    print()
 
 
 def read_baseline():
-  baseline_file = os.path.join(BENCHMARK_DIR, "baseline.txt")
-  if os.path.exists(baseline_file):
-    with open(baseline_file) as f:
-      for line in f.readlines():
-        name, best = line.split(",")
-        for benchmark in BENCHMARKS:
-          if benchmark[0] == name:
-            benchmark[2] = float(best)
+    global BASELINES
+    baseline_file = os.path.join(BENCHMARK_DIR, "baseline.json")
+    if os.path.exists(baseline_file):
+        with open(baseline_file) as f:
+            BASELINES = json.load(f)
+    #print(BASELINES)
+    for benchmark in BENCHMARKS:
+        if benchmark[0] in BASELINES:
+            all_scores = BASELINES[benchmark[0]]
+            benchmark[2] = all_scores
+        else:
+            benchmark[2] = []
 
+def get_branch_name(b):
+    if b != None:
+        return b
+    out = "<default>"
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], universal_newlines=True)[:-1]
+    except:
+        pass
+    return out
+
+def resize(l, newsize, filling=None):
+    if newsize > len(l):
+        l.extend([filling for x in range(len(l), newsize)])
+
+def print_header():
+    # print the header
+    print("{:^30s}".format("Name"), end='\t')
+    print("{:^{}s}".format("Run", NUM_TRIALS), end='\t')
+    print("{:^6s}".format("Best"), end='\t')
+    print("{:^6s}".format("SD"), end='\t')
+    maxlen = baseline_get_max_branch_length()
+    if maxlen == 0:
+        maxlen = len(CURRENT_BRANCH_NAME)
+    for i in BASELINES["branch list"]:
+        print("{:^{}s}".format(i, maxlen), end='\t')
+    print()
+    print("{:-^30s}".format(""), end='\t')
+    print("{:-^{}s}".format("---", NUM_TRIALS), end='\t')
+    print("{:-^6s}".format(""), end='\t')
+    print("{:-^6s}".format(""), end='\t')
+    for i in BASELINES["branch list"]:
+        print("{:-^{}s}".format("", maxlen), end='\t')
+    print()
 
 def generate_baseline():
-  print("generating baseline")
-  baseline_text = ""
-  for benchmark in BENCHMARKS:
-    best = run_benchmark_language(benchmark, LANGUAGES[0], {})
-    baseline_text += ("{},{}\n".format(benchmark[0], best))
+    global BASELINES
+    print("Generating baseline for branch '", CURRENT_BRANCH_NAME, "'..")
+    print_header()
+    idx = baseline_get_branch_idx(CURRENT_BRANCH_NAME)
+    for benchmark in BENCHMARKS:
+        best = run_benchmark_language(benchmark, LANGUAGES[0], {})
+        if benchmark[0] not in BASELINES:
+            BASELINES[benchmark[0]] = []
+        resize(BASELINES[benchmark[0]], idx + 1)
+        BASELINES[benchmark[0]][idx] = best
 
-  # Write them to a file.
-  baseline_file = os.path.join(BENCHMARK_DIR, "baseline.txt")
-  with open(baseline_file, 'w') as out:
-    out.write(baseline_text)
+    # Write them to a file.
+    baseline_file = os.path.join(BENCHMARK_DIR, "baseline.json")
+    with open(baseline_file, 'w') as out:
+        json.dump(BASELINES, out)
 
 
 def print_html():
-  '''Print the results as an HTML chart.'''
+    '''Print the results as an HTML chart.'''
 
-  def print_benchmark(benchmark, name):
-    print('<h3>{}</h3>'.format(name))
+    def print_benchmark(benchmark, name):
+        print('<h3>{}</h3>'.format(name))
     print('<table class="chart">')
 
     # Scale everything by the highest time.
     highest = 0
     for language, result in results[benchmark].items():
-      time = min(result["times"])
-      if time > highest: highest = time
+        time = min(result["times"])
+        if time > highest: highest = time
 
     languages = sorted(results[benchmark].keys(),
-        key=lambda lang: results[benchmark][lang]["score"], reverse=True)
+                       key=lambda lang: results[benchmark][lang]["score"], reverse=True)
 
     for language in languages:
-      result = results[benchmark][language]
-      time = float(min(result["times"]))
-      ratio = int(100 * time / highest)
-      css_class = "chart-bar"
-      if language == "next":
-        css_class += " next"
-      print('  <tr>')
-      print('    <th>{}</th><td><div class="{}" style="width: {}%;">{:4.2f}s&nbsp;</div></td>'.format(
-          language, css_class, ratio, time))
-      print('  </tr>')
+        result = results[benchmark][language]
+        time = float(min(result["times"]))
+        ratio = int(100 * time / highest)
+        css_class = "chart-bar"
+        if language == "next":
+            css_class += " next"
+            print('  <tr>')
+            print('    <th>{}</th><td><div class="{}" style="width: {}%;">{:4.2f}s&nbsp;</div></td>'.format(
+                language, css_class, ratio, time))
+            print('  </tr>')
     print('</table>')
 
-  print_benchmark("method_call", "Method Call")
-  print_benchmark("delta_blue", "DeltaBlue")
-  print_benchmark("binary_trees", "Binary Trees")
-  print_benchmark("fib", "Recursive Fibonacci")
-
+    print_benchmark("method_call", "Method Call")
+    print_benchmark("delta_blue", "DeltaBlue")
+    print_benchmark("binary_trees", "Binary Trees")
+    print_benchmark("fib", "Recursive Fibonacci")
 
 def main():
-  global NUM_TRIALS
-  parser = argparse.ArgumentParser(description="Run the benchmarks")
-  parser.add_argument("benchmark", nargs='?',
-      default="all",
-      help="The benchmark to run")
-  parser.add_argument("--generate-baseline",
-      action="store_true",
-      help="Generate a baseline file")
-  parser.add_argument("--graph",
-      action="store_true",
-      help="Display graph results.")
-  parser.add_argument("-l", "--language",
-      action="append",
-      help="Which language(s) to run benchmarks for")
-  parser.add_argument("--output-html",
-      action="store_true",
-      help="Output the results chart as HTML")
-  parser.add_argument("-n", "--numtrials",
-                      type=int, nargs=1, default=[10])
+    global NUM_TRIALS
+    global CURRENT_BRANCH_NAME
+    parser = argparse.ArgumentParser(description="Run the benchmarks")
+    parser.add_argument("benchmark", nargs='?',
+                        default="all",
+                        help="The benchmark to run")
+    parser.add_argument("--generate-baseline",
+                        action="store_true",
+                        help="Generate a baseline file")
+    parser.add_argument("--graph",
+                        action="store_true",
+                        help="Display graph results.")
+    parser.add_argument("-l", "--language",
+                        action="append",
+                        help="Which language(s) to run benchmarks for")
+    parser.add_argument("--output-html",
+                        action="store_true",
+                        help="Output the results chart as HTML")
+    parser.add_argument("-n", "--numtrials",
+                        help="Specify the number of trials",
+                        type=int, nargs=1, default=[10])
 
-  args = parser.parse_args()
+    parser.add_argument("-b", "--branch",
+                        help="Specify the current branch name",
+                        type=str, nargs=1, default=[None])
+    args = parser.parse_args()
 
-  NUM_TRIALS = args.numtrials[0]
+    NUM_TRIALS = args.numtrials[0]
+    CURRENT_BRANCH_NAME = get_branch_name(args.branch[0])
 
-  if args.generate_baseline:
-    generate_baseline()
-    return
+    read_baseline()
 
-  read_baseline()
+    if args.generate_baseline:
+        generate_baseline()
+        return
 
-  # Run the benchmarks.
-  for benchmark in BENCHMARKS:
-    if benchmark[0] == args.benchmark or args.benchmark == "all":
-      run_benchmark(benchmark, args.language, args.graph)
+    print_header()
+    # Run the benchmarks.
+    for benchmark in BENCHMARKS:
+        if benchmark[0] == args.benchmark or args.benchmark == "all":
+            run_benchmark(benchmark, args.language, args.graph)
 
-  if args.output_html:
-    print_html()
+    if args.output_html:
+        print_html()
 
 
 main()

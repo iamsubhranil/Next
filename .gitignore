@@ -13,7 +13,7 @@ grammar_peg
 next
 perf.*
 *.patch
-tests/benchmark/baseline.txt
+tests/benchmark/baseline.*
 bench_results
 programs/
 .idea/
@@ -21,3 +21,4 @@ gc_map/
 *.profraw
 *.profdata
 cmake-build*/
+util/benchmark2.py
