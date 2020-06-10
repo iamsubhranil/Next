@@ -659,21 +659,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				DISPATCH();
 			}
 
-			CASE(call) : {
-				int frame         = next_int();
-				numberOfArguments = next_int();
-				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
-				const Class *c    = v.getClass();
-				functionToCall    = c->get_fn(frame).toFunction();
-				goto performcall;
-			}
-
-			CASE(call_method) : {
-				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				goto methodcall;
-			}
-
 			CASE(call_soft) : {
 				int sym           = next_int();
 				numberOfArguments = next_int();
@@ -734,6 +719,13 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				}
 			}
 
+			CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				// goto methodcall;
+				// fallthrough
+			}
+
 		methodcall : {
 			Value &      v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
@@ -741,7 +733,19 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			       "Method '@t' not found in class '@s'!", methodToCall,
 			       c->name);
 			functionToCall = c->get_fn(methodToCall).toFunction();
+			goto performcall;
 		}
+
+			CASE(call) : {
+				int frame         = next_int();
+				numberOfArguments = next_int();
+				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
+				const Class *c    = v.getClass();
+				functionToCall    = c->get_fn(frame).toFunction();
+				// goto performcall;
+				// fallthrough
+			}
+
 		performcall : {
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
