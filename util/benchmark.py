@@ -116,9 +116,9 @@ BENCHMARK("fib", r"""317811
 317811
 317811""")
 
-BENCHMARK("garbage_test", r"""Final object : <object of 'MyClass'> {2000000, 2000002, 2000002, 2000000}""")
+BENCHMARK("fibers", r"""4999950000""")
 
-#BENCHMARK("fibers", r"""4999950000""")
+BENCHMARK("garbage_test", r"""Final object : <object of 'MyClass'> {2000000, 2000002, 2000002, 2000000}""")
 
 BENCHMARK("map_numeric", r"""2000001000000""")
 
@@ -478,7 +478,7 @@ def main():
             idx = BASELINES["branch list"].index(rem)
             del BASELINES["branch list"][idx]
             for benchmark in BENCHMARKS:
-                if benchmark[0] in BASELINES:
+                if benchmark[0] in BASELINES and len(BASELINES[benchmark[0]]) > idx:
                     del BASELINES[benchmark[0]][idx]
             write_baseline()
             read_baseline()
