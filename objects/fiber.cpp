@@ -32,68 +32,6 @@ Fiber *Fiber::create(Fiber *parent) {
 	return f;
 }
 
-void Fiber::ensureStack(size_t e) {
-	int stackPointer = stackTop - stack_;
-	if(stackPointer + e < stackSize)
-		return;
-
-	Value *oldstack = stack_;
-	size_t newsize  = Array::powerOf2Ceil(stackPointer + e + 1);
-	stack_   = (Value *)GcObject::realloc(stack_, sizeof(Value) * stackSize,
-                                        sizeof(Value) * newsize);
-	stackTop = &stack_[stackPointer];
-	std::fill_n(stackTop, newsize - stackPointer, ValueNil);
-	stackSize = newsize;
-	if(stack_ != oldstack) {
-		// relocate the frames
-		for(size_t i = 0; i < callFramePointer; i++) {
-			callFrames[i].stack_ = stack_ + (callFrames[i].stack_ - oldstack);
-		}
-	}
-}
-
-Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
-
-	if(callFramePointer == callFrameSize) {
-		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)GcObject::realloc(
-            callFrames, sizeof(CallFrame) * callFrameSize,
-            sizeof(CallFrame) * newsize);
-		callFrameSize = newsize;
-	}
-
-	callFrames[callFramePointer].f              = f;
-	callFrames[callFramePointer].returnToCaller = returnToCaller;
-
-	switch(f->getType()) {
-		case Function::METHOD:
-			// arity number of elements is already on the stack
-			ensureStack(f->code->stackMaxSize - f->arity);
-			callFrames[callFramePointer].code = f->code->bytecodes;
-			// the 0th slot is reserved for the receiver
-			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-			// we have already managed the slot for the receiver
-			// and the arguments are already in place
-			stackTop += (f->code->numSlots - 1 - f->arity);
-			break;
-		case Function::BUILTIN:
-			// the only way a builtin_fn can be appended to the
-			// call stack is by appendBoundMethod, which
-			// manually lays down the arguments to the stack
-			// before this call. so right now, everything is
-			// present on the stack.
-			// we don't need slot for the args
-			// ensureStack(f->arity);
-			callFrames[callFramePointer].func = f->func;
-			// the 0th slot is reserved for the receiver
-			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-			// stackTop += f->arity;
-			break;
-	}
-
-	return &callFrames[callFramePointer++];
-}
-
 Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
                                                  const Value *args,
                                                  bool         returnToCaller) {
