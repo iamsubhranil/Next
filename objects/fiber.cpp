@@ -8,10 +8,10 @@
 // allocate a stack of some size by default,
 // so that initially we don't have to perform
 // many reallocs
-#define FIBER_DEFAULT_STACK_ALLOC 128
+#define FIBER_DEFAULT_STACK_ALLOC 16
 // allocate some frames by default, for the
 // same reasons
-#define FIBER_DEFAULT_FRAME_ALLOC 32
+#define FIBER_DEFAULT_FRAME_ALLOC 4
 
 Fiber *Fiber::create(Fiber *parent) {
 	Fiber *f = GcObject::allocFiber();
