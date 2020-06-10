@@ -76,7 +76,7 @@ tests: release
 next: $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o next
 
-benchmark: release
+benchmark: cgoto
 	$(V) python3 util/benchmark.py -n $(NUM_TRIALS) -l next $(suite)
 
 benchmark_baseline: release
