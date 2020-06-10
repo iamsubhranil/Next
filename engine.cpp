@@ -327,6 +327,12 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		currentRecursionDepth -= 1;
 		RERRF("Maxmimum recursion depth reached!");
 	}
+
+#define RETURN(x)                \
+	{                            \
+		currentRecursionDepth--; \
+		return (x);              \
+	}
 	currentRecursionDepth++;
 	// Next fibers has no way of saving state of builtin
 	// functions. They are handled by the native stack.
@@ -343,9 +349,9 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		fiber = currentFiber;
 		// if we have to return, we do,
 		// otherwise, we continue normal execution
-		if(ret || (fiber->callFramePointer == 0 && fiber->parent == NULL))
-			return res;
-		else if(fiber->callFramePointer == 0)
+		if(ret || (fiber->callFramePointer == 0 && fiber->parent == NULL)) {
+			RETURN(res);
+		} else if(fiber->callFramePointer == 0)
 			fiber = fiber->parent;
 		PUSH(res);
 	}
@@ -379,12 +385,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	{ continue; }
 #define DEFAULT() default
 #endif
-
-#define RETURN(x)                \
-	{                            \
-		currentRecursionDepth--; \
-		return (x);              \
-	}
 #define TOP (*(fiber->stackTop - 1))
 #define POP() (*(--fiber->stackTop))
 #define DROP() (fiber->stackTop--) // does not touch the value
