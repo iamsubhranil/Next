@@ -16,7 +16,6 @@ endif
 
 all: release
 
-cgoto: clean
 cgoto: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO
 cgoto: release
 
@@ -76,10 +75,10 @@ tests: release
 next: $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o next
 
-benchmark:
+benchmark: release
 	$(V) python3 util/benchmark.py -n $(NUM_TRIALS) -l next $(suite)
 
-benchmark_baseline:
+benchmark_baseline: release
 	$(V) python3 util/benchmark.py --generate-baseline
 
 depend: .depend
