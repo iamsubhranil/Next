@@ -228,7 +228,7 @@ def run_benchmark_language(benchmark, language, benchmark_result):
     """
 
     name = "{0} - {1}".format(benchmark[0], language[0])
-    print("{0:30s}".format(name), end='\t')
+    print("{0:20s}".format(name), end='  ')
 
     if NUM_TRIALS < 3:
         print("{:^{}}".format(" ", 3 - NUM_TRIALS - 1), end='')
@@ -247,18 +247,19 @@ def run_benchmark_language(benchmark, language, benchmark_result):
         times.append(time)
         sys.stdout.write(".")
 
-    print("\t", end='')
+    print("  ", end='')
 
     best = min(times)
     score = get_score(best)
 
     comparison = ""
-    max_width = baseline_get_max_branch_length()
     #print(max_width)
     if language[0] == "next":
         all_scores = benchmark[2]
         comparison = ""
+        i = 0
         for ascore in all_scores:
+            max_width = max(8, len(BASELINES["branch list"][i]))
             if ascore != None:
                 ratio = 100 * score / ascore
                 ratio_str =  "{:^6.2f}%".format(ratio)
@@ -270,7 +271,8 @@ def run_benchmark_language(benchmark, language, benchmark_result):
                 comparison += ratio_str
             else:
                 comparison += "{:^{}}".format("---", max_width)
-            comparison += '\t'
+            comparison += '  '
+            i += 1
     else:
         # Hack: assumes next gets run first.
         next_score = benchmark_result["next"]["score"]
@@ -281,7 +283,7 @@ def run_benchmark_language(benchmark, language, benchmark_result):
         if ratio < 95:
             comparison = red(comparison)
 
-    print("{:4.2f}s\t{:4.4f}\t{:s}".format(
+    print("{:4.2f}s   {:4.4f}   {:s}".format(
         best,
         standard_deviation(times),
         comparison))
@@ -343,7 +345,6 @@ def read_baseline():
     if os.path.exists(baseline_file):
         with open(baseline_file) as f:
             BASELINES = json.load(f)
-    #print(BASELINES)
     for benchmark in BENCHMARKS:
         if benchmark[0] in BASELINES:
             all_scores = BASELINES[benchmark[0]]
@@ -367,23 +368,27 @@ def resize(l, newsize, filling=None):
 
 def print_header():
     # print the header
-    print("{:^30s}".format("Name"), end='\t')
-    print("{:^{}s}".format("Run", NUM_TRIALS), end='\t')
-    print("{:^6s}".format("Best"), end='\t')
-    print("{:^6s}".format("SD"), end='\t')
+    print("{:^20s}".format("Name"), end='  ')
+    print("{:^{}s}".format("Run", NUM_TRIALS), end='  ')
+    print("{:^6s}".format("Best"), end='  ')
+    print("{:^6s}".format("SD"), end='  ')
     maxlen = baseline_get_max_branch_length()
-    if maxlen == 0:
-        maxlen = len(CURRENT_BRANCH_NAME)
     for i in BASELINES["branch list"]:
-        print("{:^{}s}".format(i, maxlen), end='\t')
+        print("{:^{}s}".format(i, max(8, len(i))), end='  ')
     print()
-    print("{:-^30s}".format(""), end='\t')
-    print("{:-^{}s}".format("---", NUM_TRIALS), end='\t')
-    print("{:-^6s}".format(""), end='\t')
-    print("{:-^6s}".format(""), end='\t')
+    print("{:-^20s}".format(""), end='  ')
+    print("{:-^{}s}".format("---", NUM_TRIALS), end='  ')
+    print("{:-^6s}".format(""), end='  ')
+    print("{:-^6s}".format(""), end='  ')
     for i in BASELINES["branch list"]:
-        print("{:-^{}s}".format("", maxlen), end='\t')
+        print("{:-^{}s}".format("", max([8, len(i)])), end='  ')
     print()
+
+def write_baseline():
+    # Write them to a file.
+    baseline_file = os.path.join(BENCHMARK_DIR, "baseline.json")
+    with open(baseline_file, 'w') as out:
+        json.dump(BASELINES, out)
 
 def generate_baseline():
     global BASELINES
@@ -396,12 +401,7 @@ def generate_baseline():
             BASELINES[benchmark[0]] = []
         resize(BASELINES[benchmark[0]], idx + 1)
         BASELINES[benchmark[0]][idx] = best
-
-    # Write them to a file.
-    baseline_file = os.path.join(BENCHMARK_DIR, "baseline.json")
-    with open(baseline_file, 'w') as out:
-        json.dump(BASELINES, out)
-
+    write_baseline()
 
 def print_html():
     '''Print the results as an HTML chart.'''
@@ -459,9 +459,11 @@ def main():
     parser.add_argument("-n", "--numtrials",
                         help="Specify the number of trials",
                         type=int, nargs=1, default=[10])
-
     parser.add_argument("-b", "--branch",
                         help="Specify the current branch name",
+                        type=str, nargs=1, default=[None])
+    parser.add_argument("-r", "--remove-baseline",
+                        help="Remove a baseline from results",
                         type=str, nargs=1, default=[None])
     args = parser.parse_args()
 
@@ -469,6 +471,17 @@ def main():
     CURRENT_BRANCH_NAME = get_branch_name(args.branch[0])
 
     read_baseline()
+
+    rem = args.remove_baseline[0]
+    if rem != None:
+        if rem in BASELINES["branch list"]:
+            idx = BASELINES["branch list"].index(rem)
+            del BASELINES["branch list"][idx]
+            for benchmark in BENCHMARKS:
+                if benchmark[0] in BASELINES:
+                    del BASELINES[benchmark[0]][idx]
+            write_baseline()
+            read_baseline()
 
     if args.generate_baseline:
         generate_baseline()
