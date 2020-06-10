@@ -76,10 +76,10 @@ tests: release
 next: $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o next
 
-benchmark: cgoto
+benchmark:
 	$(V) python3 util/benchmark.py -n $(NUM_TRIALS) -l next $(suite)
 
-benchmark_baseline: release
+benchmark_baseline:
 	$(V) python3 util/benchmark.py --generate-baseline
 
 depend: .depend
