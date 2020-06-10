@@ -23,7 +23,7 @@ using namespace std;
 #endif
 
 size_t    GcObject::totalAllocated  = 0;
-size_t    GcObject::next_gc         = 1024 * 1024;
+size_t    GcObject::next_gc         = 1024 * 1024 * 10;
 size_t    GcObject::max_gc          = 1024 * 1024 * 1024;
 GcObject  GcObject::DefaultGcObject = {nullptr, nullptr, GcObject::OBJ_NONE};
 GcObject *GcObject::last            = &DefaultGcObject;
@@ -158,7 +158,7 @@ void GcObject::gc(bool force) {
 			// if the ceiling is less than max but
 			// greater than our budget, that is our
 			// new budget
-			if(next_gc < c && c < max_gc)
+			if(next_gc < c /*&& c < max_gc*/)
 				next_gc = c;
 		}
 #ifdef DEBUG_GC
@@ -249,11 +249,11 @@ void GcObject::release(Value v) {
 #endif
 #include "objecttype.h"
 
-void GcObject::mark(Value v) {
+inline void GcObject::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
-	else if(v.isPointer())
-		mark(*v.toPointer());
+	else if(v.isPointer() && (*v.toPointer()).isGcObject())
+		mark(v.toPointer()->toGcObject());
 }
 
 void GcObject::mark(Value *v, size_t num) {
