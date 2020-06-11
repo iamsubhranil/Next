@@ -81,6 +81,9 @@ benchmark: release
 benchmark_baseline: release
 	$(V) python3 util/benchmark.py --generate-baseline
 
+benchmark_all: release
+	$(V) python3 util/benchmark.py -n $(NUM_TRIALS) $(suite)
+
 depend: .depend
 
 .depend: $(SRCS)

@@ -27,7 +27,7 @@ stretchDepth = maxDepth + 1
 
 start = clock()
 
-print("stretch tree of depth ", stretchDepth, " check : ", Tree(0, stretchDepth).check(), "\n")
+print("stretch tree of depth ", stretchDepth, " check: ", Tree(0, stretchDepth).check(), "\n")
 
 longLivedTree = Tree(0, maxDepth)
 
@@ -44,11 +44,11 @@ for(depth in range(minDepth, stretchDepth, 2)) {
         check = check + Tree(i, depth).check() + Tree(-i, depth).check()
     }
 
-    print(iterations * 2," trees of depth ", depth, " check : ", check, "\n")
+    print(iterations * 2," trees of depth ", depth, " check: ", check, "\n")
     iterations = iterations / 4
 }
 
-print("long lived tree of depth ", maxDepth, " check : ", longLivedTree.check())
+print("long lived tree of depth ", maxDepth, " check: ", longLivedTree.check())
 
 elapsed = (clock() - start) / clocks_per_sec
 print("\nelapsed: ", elapsed)

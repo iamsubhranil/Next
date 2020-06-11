@@ -91,13 +91,13 @@ def BENCHMARK(name, pattern):
 
 BENCHMARK("arrays", r"""500000500000""")
 
-BENCHMARK("binary_trees", r"""stretch tree of depth 13 check : -1
-8192 trees of depth 4 check : -8192
-2048 trees of depth 6 check : -2048
-512 trees of depth 8 check : -512
-128 trees of depth 10 check : -128
-32 trees of depth 12 check : -32
-long lived tree of depth 12 check : -1""")
+BENCHMARK("binary_trees", r"""stretch tree of depth 13 check: -1
+8192 trees of depth 4 check: -8192
+2048 trees of depth 6 check: -2048
+512 trees of depth 8 check: -512
+128 trees of depth 10 check: -128
+32 trees of depth 12 check: -32
+long lived tree of depth 12 check: -1""")
 
 
 #BENCHMARK("binary_trees_gc", """stretch tree of depth 13 check: -1
@@ -137,7 +137,7 @@ BENCHMARK("while", r"""12500002500003""")
 
 LANGUAGES = [
     ("next",           [os.path.join(NEXT_BIN, 'next')], ".n"),
-    ("dart",           ["fletch", "run"],                ".dart"),
+    #("dart",           ["fletch", "run"],                ".dart"),
     ("lua",            ["lua"],                          ".lua"),
     ("luajit (-joff)", ["luajit", "-joff"],              ".lua"),
     ("python",         ["python"],                       ".py"),
@@ -227,16 +227,17 @@ def run_benchmark_language(benchmark, language, benchmark_result):
   results.
     """
 
+    if not os.path.exists(os.path.join(
+            BENCHMARK_DIR, benchmark[0] + language[2])):
+        #print("No implementation for this language")
+        #print()
+        return
+
     name = "{0} - {1}".format(benchmark[0], language[0])
     print("{0:20s}".format(name), end='  ')
 
     if NUM_TRIALS < 3:
         print("{:^{}}".format(" ", 3 - NUM_TRIALS - 1), end='')
-
-    if not os.path.exists(os.path.join(
-            BENCHMARK_DIR, benchmark[0] + language[2])):
-        print("No implementation for this language")
-        return
 
     times = []
     for i in range(0, NUM_TRIALS):
