@@ -23,7 +23,6 @@ struct Object {
 		}
 	}
 
-	void release() const {
-		GcObject_free(slots, sizeof(Value) * obj.klass->numSlots);
-	}
+	// we don't need to free anything here
+	void release() const {}
 };
