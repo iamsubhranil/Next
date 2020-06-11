@@ -349,10 +349,16 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		fiber = currentFiber;
 		// if we have to return, we do,
 		// otherwise, we continue normal execution
-		if(ret || (fiber->callFramePointer == 0 && fiber->parent == NULL)) {
+		if(ret) {
 			RETURN(res);
-		} else if(fiber->callFramePointer == 0)
-			fiber = fiber->parent;
+		} else if(fiber->callFramePointer == 0) {
+			fiber->setState(Fiber::FINISHED);
+			if(fiber->parent) {
+				fiber = fiber->parent;
+			} else {
+				RETURN(res);
+			}
+		}
 		PUSH(res);
 	}
 #ifdef NEXT_USE_COMPUTED_GOTO
