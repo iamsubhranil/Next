@@ -93,12 +93,16 @@ struct Fiber {
 
 	// appends an intra-class method, whose stack is already
 	// managed by the engine
-	inline Fiber::CallFrame *appendMethod(Function *f,
-	                                      bool      returnToCaller = false) {
+	Fiber::CallFrame *appendMethod(Function *f, bool returnToCaller = false);
+	// we make a specific version of this function to be called
+	// when we're sure the argument function is a Next method, i.e.
+	// when the engine performs a method call.
+	inline Fiber::CallFrame *
+	appendMethodNoBuiltin(Function *f, bool returnToCaller = false) {
 
 		if(callFramePointer == callFrameSize) {
 			size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
-			callFrames     = (CallFrame *)GcObject::realloc(
+			callFrames     = (CallFrame *)GcObject_realloc(
                 callFrames, sizeof(CallFrame) * callFrameSize,
                 sizeof(CallFrame) * newsize);
 			callFrameSize = newsize;
@@ -107,31 +111,14 @@ struct Fiber {
 		callFrames[callFramePointer].f              = f;
 		callFrames[callFramePointer].returnToCaller = returnToCaller;
 
-		switch(f->getType()) {
-			case Function::METHOD:
-				// arity number of elements is already on the stack
-				ensureStack(f->code->stackMaxSize - f->arity);
-				callFrames[callFramePointer].code = f->code->bytecodes;
-				// the 0th slot is reserved for the receiver
-				callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-				// we have already managed the slot for the receiver
-				// and the arguments are already in place
-				stackTop += (f->code->numSlots - 1 - f->arity);
-				break;
-			case Function::BUILTIN:
-				// the only way a builtin_fn can be appended to the
-				// call stack is by appendBoundMethod, which
-				// manually lays down the arguments to the stack
-				// before this call. so right now, everything is
-				// present on the stack.
-				// we don't need slot for the args
-				// ensureStack(f->arity);
-				callFrames[callFramePointer].func = f->func;
-				// the 0th slot is reserved for the receiver
-				callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-				// stackTop += f->arity;
-				break;
-		}
+		// arity number of elements is already on the stack
+		ensureStack(f->code->stackMaxSize - f->arity);
+		callFrames[callFramePointer].code = f->code->bytecodes;
+		// the 0th slot is reserved for the receiver
+		callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
+		// we have already managed the slot for the receiver
+		// and the arguments are already in place
+		stackTop += (f->code->numSlots - 1 - f->arity);
 
 		return &callFrames[callFramePointer++];
 	}

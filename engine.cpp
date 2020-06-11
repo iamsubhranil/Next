@@ -766,7 +766,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				}
 				case Function::Type::METHOD:
 					BACKUP_FRAMEINFO();
-					fiber->appendMethod(functionToCall);
+					fiber->appendMethodNoBuiltin(functionToCall);
 					RESTORE_FRAMEINFO();
 					DISPATCH_WINC();
 					break;
