@@ -49,7 +49,7 @@ Class *ExecutionEngine::getRegisteredModule(String *name) {
 
 void ExecutionEngine::registerModule(Class *m) {
 	if(loadedModules.contains(m->name)) {
-		warn("Module already loaded : '%s'!", m->name->str);
+		warn("Module already loaded : '%s'!", m->name->str());
 	}
 	loadedModules[m->name] = m;
 }
@@ -70,7 +70,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 				std::cout << "In class '";
 			else
 				std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			std::cout << ANSI_COLOR_YELLOW << lastName->str() << ANSI_COLOR_RESET
 			          << "'\n";
 		}
 
@@ -78,7 +78,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 		   c->functions[0][SymbolTable2::const_sig_constructor_0]
 		           .toFunction() == f->f) {
 			std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			std::cout << ANSI_COLOR_YELLOW << lastName->str() << ANSI_COLOR_RESET
 			          << "'\n";
 		} else {
 			f->f->code->ctx->get_token(0).highlight(true, "In function ",
@@ -129,7 +129,7 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 			switch(message[i + 1]) {
 				case 's': {
 					String *    h   = va_arg(args, String *);
-					const char *str = h->str;
+					const char *str = h->str();
 					while(*str != '\0') ExceptionMessage[j++] = *str++;
 					i += 2;
 					break;
@@ -158,11 +158,11 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	std::cout << "\n";
 	if(c->module != NULL) {
 		err("Uncaught exception occurred of type '%s.%s': ",
-		    c->module->name->str, c->name->str);
+		    c->module->name->str(), c->name->str());
 	} else {
-		err("Uncaught exception occurred of type '%s': ", c->name->str);
+		err("Uncaught exception occurred of type '%s': ", c->name->str());
 	}
-	std::cout << String::toString(v)->str << "\n";
+	std::cout << String::toString(v)->str() << "\n";
 	printStackTrace(f);
 }
 
@@ -233,7 +233,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			if(!v.isClass()) {
 				printException(thrown, root);
 				std::cout << "Error occurred while catching an exception!\n";
-				std::cout << "The caught value '" << String::toString(v)->str
+				std::cout << "The caught value '" << String::toString(v)->str()
 				          << "' is not a valid class!\n";
 				// pop all but the matched frame
 				while(f->getCurrentFrame() != matched) {

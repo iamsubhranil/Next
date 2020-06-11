@@ -99,7 +99,7 @@ void registerParselets(Parser *p) {
 }
 
 GcObject *Loader::compile_and_load(String *fileName, bool execute) {
-	return compile_and_load(fileName->str, execute);
+	return compile_and_load(fileName->str(), execute);
 }
 
 String *generateModuleName(const char *inp) {
@@ -180,7 +180,7 @@ GcObject *Loader::compile_and_load_from_source(
 	StatementPrinter sp(cout);
 #endif
 	ExecutionEngine ex;
-	Scanner         s(source, modulectx->get_class()->name->str);
+	Scanner         s(source, modulectx->get_class()->name->str());
 	try {
 		Parser p(s);
 		registerParselets(&p);

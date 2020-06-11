@@ -229,7 +229,7 @@ Value next_number_from_str(const Value *args, int numargs) {
 	EXPECT(number, new(_), 1, String);
 	String *s      = args[1].toString();
 	char *  endptr = NULL;
-	double  d      = strtod(s->str, &endptr);
+	double  d      = strtod(s->str(), &endptr);
 	if(*endptr != 0) {
 		return RuntimeError::sete("String does not contain a valid number!");
 	}

@@ -80,7 +80,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	btx->ret();
 	popFrame();
 #ifdef DEBUG
-	cout << "Code generated for mtx " << compileIn->get_class()->name->str
+	cout << "Code generated for mtx " << compileIn->get_class()->name->str()
 	     << endl;
 	compileIn->disassemble(cout);
 #endif
@@ -383,7 +383,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			// Function is not found
 			lnerr_("No function with the specified signature found "
 			       " '%s'!",
-			       call->callee->token, mtx->get_class()->name->str);
+			       call->callee->token, mtx->get_class()->name->str());
 			// String *s = String::from(call->callee->token.start,
 			//                        call->callee->token.length);
 			// TODO: Error reporting
@@ -473,7 +473,7 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 	String *name = String::from(t.start, t.length);
 	VarInfo var  = lookForVariable(name, declare, vis);
 	if(var.position == UNDEFINED && showError) {
-		lnerr_("No such variable found : '%s'", t, name->str);
+		lnerr_("No such variable found : '%s'", t, name->str());
 
 	} else if(var.position == CLASS) {
 		// check if non static variable is used in a static method
@@ -481,7 +481,7 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 		if(ftx->f->isStatic() && !m.isStatic) {
 			lnerr_("Non-static variable '%s' cannot be accessed from static "
 			       "method '%s'!",
-			       t, name->str, ftx->f->name->str);
+			       t, name->str(), ftx->f->name->str());
 		}
 	}
 
@@ -835,7 +835,7 @@ void CodeGenerator::visit(MethodReferenceExpression *ifs) {
 			case UNDEFINED:
 				lnerr_("No such method with siganture '%s' found in present "
 				       "context!",
-				       ifs->token, sig->str);
+				       ifs->token, sig->str());
 				break;
 		}
 		// load the method
@@ -1011,7 +1011,7 @@ String *CodeGenerator::generateSignature(const String *name, int arity) {
 	String *sig = generateSignature(arity);
 	sig         = String::append(name, sig);
 #ifdef DEBUG_CODEGEN
-	cout << "Signature generated : " << sig->str_ << "\n";
+	cout << "Signature generated : " << sig->str()_ << "\n";
 #endif
 	return sig;
 }
@@ -1166,7 +1166,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	if(getState() == COMPILE_DECLARATION) {
 		if(mtx->has_class(className)) {
 			lnerr_("Class '%s' is already declared in mtx '%s'!", ifs->name,
-			       className->str, mtx->get_class()->name->str);
+			       className->str(), mtx->get_class()->name->str());
 			// TODO: Error reporting
 			// lnerr("Previously declared at : ",
 			// mtx->classes[className]->token);
@@ -1301,7 +1301,7 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 			String *name = String::from((*i).start, (*i).length);
 			if(ctx->has_mem(name)) {
 				lnerr_("Member '%s' variable already declared!", (*i),
-				       name->str);
+				       name->str());
 				/* TODO: Fix this
 				lnerr("Previously declared at : ",
 				ctx->members[name].token);
@@ -1375,7 +1375,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	VarInfo    v = lookForVariable(tname);
 	if(v.position == UNDEFINED) {
 		lnerr_("No such variable found in present scope '%s'!", ifs->token,
-		       tname->str);
+		       tname->str());
 	} else {
 		CatchBlock::SlotType st = CatchBlock::SlotType::LOCAL;
 		switch(v.position) {

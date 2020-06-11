@@ -251,6 +251,12 @@ void GcObject::release(Value v) {
 #endif
 #include "objecttype.h"
 
+String *GcObject::allocString2(int numchar) {
+	String *s = (String *)alloc(sizeof(String) + (sizeof(char) * numchar),
+	                            OBJ_String, StringClass);
+	return s;
+}
+
 inline void GcObject::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
