@@ -7,8 +7,8 @@
 Object *FiberIterator::from(Fiber *f) {
 	Object *o = GcObject::allocObject(GcObject::FiberIteratorClass);
 
-	o->slots[0] = f;
-	o->slots[1] = ValueTrue;
+	o->slots(0) = f;
+	o->slots(1) = ValueTrue;
 
 	return o;
 }
@@ -25,10 +25,10 @@ Value next_fiber_iterator_construct_1(const Value *args, int numargs) {
 Value next_fiber_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
 	Object *o   = args[0].toObject();
-	Fiber * f   = o->slots[0].toFiber();
+	Fiber * f   = o->slots(0).toFiber();
 	Value   ret = f->run(); // run will set the error if the fiber
 	                        // is finished
-	o->slots[1] = Value(f->state != Fiber::FINISHED);
+	o->slots(1) = Value(f->state != Fiber::FINISHED);
 	return ret;
 }
 

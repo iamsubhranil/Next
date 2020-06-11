@@ -201,8 +201,7 @@ Object *GcObject::allocObject(const Class *klass) {
 	// at once
 	Object *o = (Object *)alloc(
 	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
-	o->slots = (Value *)(o + 1); // slots is starting after the object
-	std::fill_n(o->slots, klass->numSlots, ValueNil);
+	std::fill_n(o->slots(), klass->numSlots, ValueNil);
 	return o;
 }
 

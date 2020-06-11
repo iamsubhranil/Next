@@ -6,9 +6,9 @@
 Object *ArrayIterator::from(Array *a) {
 	Object *ar = GcObject::allocObject(GcObject::ArrayIteratorClass);
 
-	ar->slots[0] = Value(a);
-	ar->slots[1] = Value(0.0);
-	ar->slots[2] = Value(0 < a->size);
+	ar->slots(0) = Value(a);
+	ar->slots(1) = Value(0.0);
+	ar->slots(2) = Value(0 < a->size);
 
 	return ar;
 }
@@ -21,7 +21,7 @@ Value next_array_iterator_construct_1(const Value *args, int numargs) {
 
 Value next_array_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
-	Value *slots = args[0].toObject()->slots;
+	Value *slots = args[0].toObject()->slots();
 	int    idx   = slots[1].toInteger();
 	Array *a     = slots[0].toArray();
 	// this ignores the fact that array may be shrunk
