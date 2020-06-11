@@ -49,6 +49,7 @@ Value next_core_yield_0(const Value *args, int numargs) {
 	// yield if we have somewhere to return to
 	if(f->parent) {
 		f->setState(Fiber::YIELDED);
+		f->parent->setState(Fiber::RUNNING);
 		ExecutionEngine::setCurrentFiber(f->parent);
 	} else {
 		// we don't allow calling yield on root fiber

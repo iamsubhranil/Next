@@ -23,7 +23,7 @@ using namespace std;
 #endif
 
 size_t    GcObject::totalAllocated  = 0;
-size_t    GcObject::next_gc         = 1024 * 1024;
+size_t    GcObject::next_gc         = 1024 * 1024 * 10;
 size_t    GcObject::max_gc          = 1024 * 1024 * 1024;
 GcObject  GcObject::DefaultGcObject = {nullptr, nullptr, GcObject::OBJ_NONE};
 GcObject *GcObject::last            = &DefaultGcObject;
@@ -158,7 +158,7 @@ void GcObject::gc(bool force) {
 			// if the ceiling is less than max but
 			// greater than our budget, that is our
 			// new budget
-			if(next_gc < c && c < max_gc)
+			if(next_gc < c /*&& c < max_gc*/)
 				next_gc = c;
 		}
 #ifdef DEBUG_GC
@@ -231,6 +231,8 @@ void GcObject::release(GcObject *obj) {
 void GcObject::release(Value v) {
 	if(v.isGcObject())
 		release(v.toGcObject());
+	else if(v.isPointer())
+		release(*v.toPointer());
 }
 
 #ifdef DEBUG_GC
@@ -247,15 +249,16 @@ void GcObject::release(Value v) {
 #endif
 #include "objecttype.h"
 
-void GcObject::mark(Value v) {
+inline void GcObject::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
+	else if(v.isPointer() && (*v.toPointer()).isGcObject())
+		mark(v.toPointer()->toGcObject());
 }
 
 void GcObject::mark(Value *v, size_t num) {
 	for(size_t i = 0; i < num; i++) {
-		if(v[i].isGcObject())
-			mark(v[i].toGcObject());
+		mark(v[i]);
 	}
 }
 
@@ -295,6 +298,8 @@ bool GcObject::isMarked(GcObject *p) {
 void GcObject::unmark(Value v) {
 	if(v.isGcObject())
 		unmark(v.toGcObject());
+	else if(v.isPointer())
+		unmark(v.toPointer());
 }
 
 void GcObject::unmark(GcObject *p) {

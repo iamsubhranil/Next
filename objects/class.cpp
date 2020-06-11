@@ -71,6 +71,22 @@ Value Class::get_fn(String *s) const {
 	return get_fn(SymbolTable2::insert(s));
 }
 
+Class *Class::copy() {
+	Class *s     = GcObject::allocClass();
+	s->name      = name;
+	s->type      = type;
+	s->functions = functions;
+	s->numSlots  = numSlots;
+	s->module    = module;
+	if(module) {
+		s->static_values     = static_values;
+		s->static_slot_count = static_slot_count;
+	} else {
+		s->instance = instance;
+	}
+	return s;
+}
+
 Value next_class_has_fn(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(class, has_fn, 1, String);

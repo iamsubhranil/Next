@@ -16,13 +16,15 @@ endif
 
 all: release
 
-cgoto: clean
 cgoto: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO
 cgoto: release
 
 release: CXXFLAGS += -O3
 release: LDFLAGS += -s
 release: next
+
+profile: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO -O2 -g3
+profile: next
 
 debug: CXXFLAGS += -g3 -DDEBUG
 debug: next
@@ -64,7 +66,7 @@ endif
 
 pgouse: merge_profraw
 	$(V) $(MAKE) clean
-	$(V) $(MAKE) cgoto CXXFLAGS=-fprofile-use LDFLAGS+=-fprofile-use LDFLAGS+=-flto
+	$(V) $(MAKE) cgoto CXXFLAGS=-fprofile-use CXXFLAGS+=-march=native LDFLAGS+=-fprofile-use LDFLAGS+=-flto
 	$(V) $(MAKE) benchmark
 
 tests: release
@@ -78,6 +80,9 @@ benchmark: release
 
 benchmark_baseline: release
 	$(V) python3 util/benchmark.py --generate-baseline
+
+benchmark_all: release
+	$(V) python3 util/benchmark.py -n $(NUM_TRIALS) $(suite)
 
 depend: .depend
 

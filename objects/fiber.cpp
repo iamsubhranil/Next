@@ -8,10 +8,10 @@
 // allocate a stack of some size by default,
 // so that initially we don't have to perform
 // many reallocs
-#define FIBER_DEFAULT_STACK_ALLOC 128
+#define FIBER_DEFAULT_STACK_ALLOC 16
 // allocate some frames by default, for the
 // same reasons
-#define FIBER_DEFAULT_FRAME_ALLOC 32
+#define FIBER_DEFAULT_FRAME_ALLOC 4
 
 Fiber *Fiber::create(Fiber *parent) {
 	Fiber *f = GcObject::allocFiber();
@@ -30,26 +30,6 @@ Fiber *Fiber::create(Fiber *parent) {
 	f->state         = BUILT;
 	f->fiberIterator = NULL;
 	return f;
-}
-
-void Fiber::ensureStack(size_t e) {
-	int stackPointer = stackTop - stack_;
-	if(stackPointer + e < stackSize)
-		return;
-
-	Value *oldstack = stack_;
-	size_t newsize  = Array::powerOf2Ceil(stackPointer + e + 1);
-	stack_   = (Value *)GcObject::realloc(stack_, sizeof(Value) * stackSize,
-                                        sizeof(Value) * newsize);
-	stackTop = &stack_[stackPointer];
-	std::fill_n(stackTop, newsize - stackPointer, ValueNil);
-	stackSize = newsize;
-	if(stack_ != oldstack) {
-		// relocate the frames
-		for(size_t i = 0; i < callFramePointer; i++) {
-			callFrames[i].stack_ = stack_ + (callFrames[i].stack_ - oldstack);
-		}
-	}
 }
 
 Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
@@ -145,7 +125,6 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
 Value Fiber::run() {
 	Value  result = ValueNil;
 	Fiber *bak    = ExecutionEngine::getCurrentFiber();
-	parent        = bak;
 	switch(state) {
 		case Fiber::BUILT: {
 			// if this a newly built fiber, there
@@ -164,7 +143,7 @@ Value Fiber::run() {
 			// fiber, we switch
 			if(callFramePointer == 0) {
 				setState(Fiber::FINISHED);
-				ExecutionEngine::setCurrentFiber(parent);
+				ExecutionEngine::setCurrentFiber(bak);
 				return result;
 			}
 			// otherwise, we store the result in the
@@ -183,24 +162,23 @@ Value Fiber::run() {
 		case Fiber::YIELDED: {
 			break;
 		}
+		case Fiber::RUNNING: {
+			RERR("Fiber is already running!");
+		}
 		case Fiber::FINISHED: {
 			RERR("Fiber has already finished execution!");
 		}
 	}
+	parent = bak;
 	ExecutionEngine::setCurrentFiber(this);
+	setState(Fiber::RUNNING);
 	return ValueNil;
-}
-
-void Fiber::setState(Fiber::State s) {
-	state = s;
-	if(s == FINISHED && fiberIterator)
-		fiberIterator->slots[1] = ValueFalse;
 }
 
 Value next_fiber_cancel(const Value *args, int numargs) {
 	(void)numargs;
 	Fiber *f = args[0].toFiber();
-	f->state = Fiber::FINISHED;
+	f->setState(Fiber::FINISHED);
 	return ValueNil;
 }
 

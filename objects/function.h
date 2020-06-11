@@ -35,24 +35,20 @@ struct Function {
 	// check arity at runtime due to
 	// boundmethods. so we store it directly
 	// in the function.
-	int     arity;
-	uint8_t mode; // if the method is static, then the first nibble is set to 1
-	              // next nibble stores type :
-	              // METHOD -> 0
-	              // BUILTIN -> 1
-	bool varArg;  // denotes whether the function is a vararg
+	int arity;
+	enum Type : uint8_t { METHOD = 0, BUILTIN = 1 } mode;
+	bool static_;
+	bool varArg; // denotes whether the function is a vararg
 	// in case of a vararg function, the arity stores
 	// minimum required arity
 	// i.e.
 	// fn test(a, b, ... extra) // arity -> 2
 	// fn test(... extra)       // arity -> 0
 
-	enum Type : uint8_t { METHOD = 0, BUILTIN = 1 };
+	inline Function::Type getType() const { return (Type)mode; }
 
-	Function::Type getType() const { return (Type)(mode & 0x0f); }
-
-	bool isStatic() const { return (bool)(mode & 0xf0); }
-	bool isVarArg() const { return varArg; }
+	inline bool isStatic() const { return static_; }
+	inline bool isVarArg() const { return varArg; }
 
 	// will traverse the whole exceptions array, and
 	// return an existing one if and only if it matches

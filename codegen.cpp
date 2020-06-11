@@ -62,7 +62,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	VarInfo v = lookForVariable(String::from("core"), true);
 	btx->push(Value(ExecutionEngine::CoreObject));
 	btx->store_object_slot(v.slot);
-	btx->pop();
+	btx->pop_();
 	/*
 	String* lastName = StringConstants::core;
 	if(compileIn->name != lastName) {
@@ -412,10 +412,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 				    "Cannot call a non static function from a static function!",
 				    call->token);
 			}
-			if(info.isStatic)
-				btx->call_static(info.frameIdx, argSize);
-			else
-				btx->call(info.frameIdx, argSize);
+			btx->call(info.frameIdx, argSize);
 		}
 	}
 }
@@ -766,7 +763,7 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 				onLHS = false;
 			}
 			storeVariable(variableInfo, pe->left->isMemberAccess());
-			btx->pop();
+			btx->pop_();
 			break;
 		default:
 			panic("Bad postfix operator '%s'!",
@@ -945,7 +942,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			btx->call_method(SymbolTable2::insert("next()"), 0);
 			// store the next value in the given variable
 			storeVariable(var);
-			btx->pop();
+			btx->pop_();
 			// execute the body
 			ifs->body->accept(this);
 			// jump back to iterate
@@ -966,7 +963,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			for(auto &a : ifs->init) {
 				a->accept(this);
 				// pop the result
-				btx->pop();
+				btx->pop_();
 			}
 		}
 		// evalute the condition
@@ -984,7 +981,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			for(auto &a : ifs->incr) {
 				a->accept(this);
 				// pop the result
-				btx->pop();
+				btx->pop_();
 			}
 		}
 		// come out to the parent scope
@@ -1075,7 +1072,12 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		// 0th slot of all functions will contain the bound
 		// object. which will either be a module, or a class
 		// instance
-		ftx->create_slot(String::from("this"), scopeID + 1);
+		if(ifs->isStatic) {
+			// if this is a static method, 'this' should
+			// not be accessible by the programmer
+			ftx->create_slot(String::from("this "), scopeID + 1);
+		} else
+			ftx->create_slot(String::from("this"), scopeID + 1);
 
 		/* TODO: Handle native functions
 		if(ifs->isNative) {
@@ -1151,7 +1153,7 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 		i->get()->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
-		btx->pop();
+		btx->pop_();
 	}
 }
 
@@ -1263,7 +1265,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				}
 				// store the result to the declared slot
 				storeVariable(variableInfo);
-				btx->pop();
+				btx->pop_();
 
 				break;
 			}
@@ -1284,7 +1286,7 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 		}
 		ifs->expr->accept(this);
 		storeVariable(info);
-		btx->pop();
+		btx->pop_();
 	}
 }
 
@@ -1388,7 +1390,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 		e->add_catch(v.slot, st, btx->getip());
 		// store the thrown object
 		btx->store_slot(receiver);
-		btx->pop();
+		btx->pop_();
 	}
 	ifs->block->accept(this);
 }

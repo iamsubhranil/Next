@@ -108,11 +108,6 @@ OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 // performs a call on the method with <argument>
 // receiver is stored at -arity - 1
 OPCODE2(call, 0, int, int) // <symbol> <arity>
-// performs an intraclass static
-// call. this is required because for static
-// calls, the object in the receiver slot needs
-// to be changed to a class, if it isn't already.
-OPCODE2(call_static, 0, int, int)
 // performs a call on the (-arity - 1)
 // we will provide both the signature and the
 // arity. if the (-arity - 1) is a class, we will use

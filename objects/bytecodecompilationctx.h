@@ -18,30 +18,40 @@ struct BytecodeCompilationContext {
 		Token  token;
 		size_t range_;
 	};
-	TokenRange *ranges_;
-	size_t      size;
-	size_t      capacity;
-	size_t      present_range;
+	TokenRange *     ranges_;
+	size_t           size;
+	size_t           capacity;
+	size_t           present_range;
+	Bytecode::Opcode lastOpcode;
 
 	// all methods defined in Bytecode will be
 	// redefined here with an overload that
 	// takes an extra Token as argument.
 #define OPCODE0(x, y)                             \
-	size_t x() { return code->x(); }              \
+	size_t x() {                                  \
+		lastOpcode = Bytecode::CODE_##x;          \
+		return code->x();                         \
+	}                                             \
 	size_t x(size_t pos) { return code->x(pos); } \
 	size_t x(Token t) {                           \
 		insert_token(t);                          \
 		return code->x();                         \
 	}
 #define OPCODE1(x, y, z)                                      \
-	size_t x(z arg) { return code->x(arg); }                  \
+	size_t x(z arg) {                                         \
+		lastOpcode = Bytecode::CODE_##x;                      \
+		return code->x(arg);                                  \
+	}                                                         \
 	size_t x(size_t pos, z arg) { return code->x(pos, arg); } \
 	size_t x(z arg, Token t) {                                \
 		insert_token(t);                                      \
 		return code->x(arg);                                  \
 	}
 #define OPCODE2(x, y, z, w)                                                   \
-	size_t x(z arg1, w arg2) { return code->x(arg1, arg2); }                  \
+	size_t x(z arg1, w arg2) {                                                \
+		lastOpcode = Bytecode::CODE_##x;                                      \
+		return code->x(arg1, arg2);                                           \
+	}                                                                         \
 	size_t x(size_t pos, z arg1, w arg2) { return code->x(pos, arg1, arg2); } \
 	size_t x(z arg1, w arg2, Token t) {                                       \
 		insert_token(t);                                                      \
@@ -59,14 +69,23 @@ struct BytecodeCompilationContext {
 
 	int load_slot_n(int pos, int n) { return code->load_slot_n(pos, n); }
 
+	void pop_() {
+		if(lastOpcode == Bytecode::CODE_store_slot) {
+			code->bytecodes[code->getip() -
+			                sizeof(int) / sizeof(Bytecode::Opcode) - 1] =
+			    Bytecode::CODE_store_slot_pop;
+			code->stackEffect(-1);
+		} else {
+			code->pop();
+		}
+	}
+
 	static BytecodeCompilationContext *create();
 	static void                        init();
 
-    void mark() const {
-        GcObject::mark(code);
-    }
+	void mark() const { GcObject::mark(code); }
 
-    void release() const {
-        GcObject::free(ranges_, sizeof(TokenRange) * capacity);
-    }
+	void release() const {
+		GcObject::free(ranges_, sizeof(TokenRange) * capacity);
+	}
 };

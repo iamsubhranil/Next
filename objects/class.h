@@ -41,11 +41,11 @@ struct Class {
 	// get a new slot
 	int add_slot();
 	// adds a new slot to static_values, returns index
-	int  add_static_slot();
-	void add_fn(const char *str, Function *fn);
-	void add_fn(String *s, Function *fn);
-	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
-	bool has_fn(int sym) const {
+	int         add_static_slot();
+	void        add_fn(const char *str, Function *fn);
+	void        add_fn(String *s, Function *fn);
+	void        add_builtin_fn(const char *str, int arity, next_builtin_fn fn);
+	inline bool has_fn(int sym) const {
 		return functions->capacity > sym && functions->values[sym] != ValueNil;
 	}
 	bool has_fn(const char *sig) const;
@@ -53,9 +53,12 @@ struct Class {
 	bool has_static_field(int sym) const {
 		return has_fn(sym) && get_fn(sym).isPointer();
 	}
-	Value get_fn(int sym) const { return functions->values[sym]; }
-	Value get_fn(const char *sig) const;
-	Value get_fn(String *sig) const;
+	inline Value get_fn(int sym) const { return functions->values[sym]; }
+	Value        get_fn(const char *sig) const;
+	Value        get_fn(String *sig) const;
+	// creates a copy of the class
+	// used for generating metaclasses
+	Class *copy();
 	// gc functions
 	void mark() const {
 		GcObject::mark(name);

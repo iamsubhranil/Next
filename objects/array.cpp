@@ -20,13 +20,16 @@ Value next_array_get(const Value *args, int numargs) {
 	EXPECT(array, get, 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
-	if(-i > a->size || i >= a->size) {
+	if(i >= 0) {
+		if(i < a->size)
+			return a->values[i];
 		IDXERR("Invalid array index", -a->size, a->size - 1, i);
 	}
-	if(i < 0) {
+	if(-i <= a->size) {
 		i += a->size;
+		return a->values[i];
 	}
-	return a->values[i];
+	IDXERR("Invalid array index", -a->size, a->size - 1, i);
 }
 
 Value next_array_set(const Value *args, int numargs) {
@@ -34,15 +37,22 @@ Value next_array_set(const Value *args, int numargs) {
 	EXPECT(array, set, 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
-	if(-i > a->size || i > a->size) {
-		IDXERR("Invalid array index", -a->size, a->size - 1, i);
+	if(i >= 0) {
+		if(i < a->size) {
+			return a->values[i] = args[2];
+		} else if(i == a->size) {
+			return a->insert(args[2]);
+		}
+		IDXERR("Invalid array index", -a->size, a->size, i);
 	}
-	if(i < 0) {
+	// negative indexing cannot insert an element.
+	// for an array of size 4, you can access atmost
+	// -4. accessing -5 is error.
+	if(-i <= a->size) {
 		i += a->size;
-	} else if(i == a->size) {
-		return a->insert(args[2]);
+		return a->values[i] = args[2];
 	}
-	return a->values[i] = args[2];
+	IDXERR("Invalid array index", -a->size, a->size, i);
 }
 
 Value next_array_size(const Value *args, int numargs) {
@@ -67,20 +77,6 @@ Value next_array_construct_size(const Value *args, int numargs) {
 		return RuntimeError::sete("Size of array must be > 0!");
 	}
 	return Value(Array::create(i));
-}
-
-size_t Array::powerOf2Ceil(size_t n) {
-
-	n--;
-	n |= n >> 1;
-	n |= n >> 2;
-	n |= n >> 4;
-	n |= n >> 8;
-	n |= n >> 16;
-	n |= n >> 32;
-	n++;
-
-	return n;
 }
 
 Array *Array::create(int size) {

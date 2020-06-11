@@ -298,12 +298,11 @@ Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
 	}
 
 Value ExecutionEngine::execute(Fiber *fiber) {
+	fiber->setState(Fiber::RUNNING);
+
 	// check if the fiber actually has something to exec
 	if(fiber->callFramePointer == 0) {
-		fiber->setState(Fiber::FINISHED);
-		if(fiber->parent)
-			fiber = fiber->parent;
-		else
+		if((fiber = fiber->switch_()) == NULL)
 			return ValueNil;
 	}
 
@@ -327,6 +326,12 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		currentRecursionDepth -= 1;
 		RERRF("Maxmimum recursion depth reached!");
 	}
+
+#define RETURN(x)                \
+	{                            \
+		currentRecursionDepth--; \
+		return (x);              \
+	}
 	currentRecursionDepth++;
 	// Next fibers has no way of saving state of builtin
 	// functions. They are handled by the native stack.
@@ -343,10 +348,14 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		fiber = currentFiber;
 		// if we have to return, we do,
 		// otherwise, we continue normal execution
-		if(ret || (fiber->callFramePointer == 0 && fiber->parent == NULL))
-			return res;
-		else if(fiber->callFramePointer == 0)
-			fiber = fiber->parent;
+		if(ret) {
+			RETURN(res);
+		} else if(fiber->callFramePointer == 0) {
+			if((fiber = fiber->switch_()) == NULL) {
+				RETURN(res);
+			} else
+				currentFiber = fiber;
+		}
 		PUSH(res);
 	}
 #ifdef NEXT_USE_COMPUTED_GOTO
@@ -379,14 +388,9 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	{ continue; }
 #define DEFAULT() default
 #endif
-
-#define RETURN(x)                \
-	{                            \
-		currentRecursionDepth--; \
-		return (x);              \
-	}
 #define TOP (*(fiber->stackTop - 1))
 #define POP() (*(--fiber->stackTop))
+#define DROP() (fiber->stackTop--) // does not touch the value
 
 #define JUMPTO(x)                                      \
 	{                                                  \
@@ -447,7 +451,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		if(__VA_ARGS__ is_falsey(rightOperand)) { \
 			JUMPTO_OFFSET(skipTo);                \
 		} else {                                  \
-			POP();                                \
+			DROP();                               \
 			DISPATCH();                           \
 		}                                         \
 	}
@@ -629,7 +633,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(pop) : {
-				POP();
+				DROP();
 				DISPATCH();
 			}
 
@@ -656,36 +660,6 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					JUMPTO_OFFSET(dis); // offset the relative jump address
 				}
 				DISPATCH();
-			}
-
-			CASE(call_static) : {
-				int frame         = next_int();
-				numberOfArguments = next_int();
-				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
-				const Class *c;
-				// if v is already a class, we're done
-				if(!v.isClass())
-					c = v.getClass();
-				else
-					c = v.toClass();
-				functionToCall = c->get_fn(frame).toFunction();
-				v              = Value(c);
-				goto performcall;
-			}
-
-			CASE(call) : {
-				int frame         = next_int();
-				numberOfArguments = next_int();
-				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
-				const Class *c    = v.getClass();
-				functionToCall    = c->get_fn(frame).toFunction();
-				goto performcall;
-			}
-
-			CASE(call_method) : {
-				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				goto methodcall;
 			}
 
 			CASE(call_soft) : {
@@ -748,31 +722,33 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				}
 			}
 
+			CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				// goto methodcall;
+				// fallthrough
+			}
+
 		methodcall : {
 			Value &      v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
-			if(v.isClass()) {
-				// v itself was a class
-				// so search if v has it first
-				if(v.toClass()->has_fn(methodToCall)) {
-					// it does, so it is a static call
-					// and we already have the class as
-					// receiver
-					functionToCall =
-					    v.toClass()->get_fn(methodToCall).toFunction();
-					// make sure functionToCall is static
-					if(functionToCall->isStatic())
-						goto performcall;
-				}
-			}
 			ASSERT(c->has_fn(methodToCall),
 			       "Method '@t' not found in class '@s'!", methodToCall,
 			       c->name);
 			functionToCall = c->get_fn(methodToCall).toFunction();
-			// if function is a static one, put the class in receiver
-			if(functionToCall->isStatic())
-				v = Value(c);
+			goto performcall;
 		}
+
+			CASE(call) : {
+				int frame         = next_int();
+				numberOfArguments = next_int();
+				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
+				const Class *c    = v.getClass();
+				functionToCall    = c->get_fn(frame).toFunction();
+				// goto performcall;
+				// fallthrough
+			}
+
 		performcall : {
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
@@ -793,7 +769,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				}
 				case Function::Type::METHOD:
 					BACKUP_FRAMEINFO();
-					fiber->appendMethod(functionToCall);
+					fiber->appendMethodNoBuiltin(functionToCall);
 					RESTORE_FRAMEINFO();
 					DISPATCH_WINC();
 					break;
@@ -824,8 +800,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					// if there is no callframe in present
 					// fiber, but there is a parent, return
 					// to the parent fiber
-					fiber->setState(Fiber::FINISHED);
-					currentFiber = fiber = fiber->parent;
+					currentFiber = fiber = fiber->switch_();
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
@@ -897,18 +872,10 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(load_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c;
-				// if it is a class and it has the field,
-				// we're done
-				if(v.isClass() && v.toClass()->has_static_field(field))
-					c = v.toClass();
-				else {
-					// fall back to usual check
-					c = v.getClass();
-					ASSERT(c->has_fn(field),
-					       "No public member '@t' found in class '@s'!", field,
-					       c->name);
-				}
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
 				Value slot = c->get_fn(field);
 				// check if it's an instance slot
 				// we ignore the costly isInteger
@@ -926,18 +893,11 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			CASE(store_field) : {
 				int          field = next_int();
 				Value        v     = POP();
-				const Class *c;
-				// if it is a class and it has the field,
-				// we're done
-				if(v.isClass() && v.toClass()->has_static_field(field))
-					c = v.toClass();
-				else {
-					// fall back to usual check
-					c = v.getClass();
-					ASSERT(c->has_fn(field),
-					       "No public member '@t' found in class '@s'!", field,
-					       c->name);
-				}
+				const Class *c     = v.getClass();
+				ASSERT(c->has_fn(field),
+				       "No public member '@t' found in class '@s'!", field,
+				       c->name);
+
 				Value slot = c->get_fn(field);
 				// check if it's an instance slot
 				// we ignore the costly isInteger
@@ -1063,7 +1023,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				if(v.isGcObject()) {
 					TOP = ValueNil;
 				}
-				POP();
+				DROP();
 				pendingException = v;
 				goto error;
 			}

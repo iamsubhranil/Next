@@ -17,21 +17,21 @@ pub fn test() {
     }
 
     if(type_of(a).name() != "number") {
-        print("type_of(a) != \"core.Number\") should've returned true!\n")
+        print("type_of(a) != \"number\") should've returned true!\n")
         res = false
     }
 
     a = testing()
 
     if(type_of(a).name() != "testing") {
-        print("type_of(a) == \"typetest.test\") should've returned true!\n")
+        print("type_of(a) == \"testing\") should've returned true!\n")
         res = false
     }
 
     a = array()
 
     if(type_of(a).name() != "array") {
-        print("type_of(a) == \"core.array\") should've returned true!\n")
+        print("type_of(a) == \"array\") should've returned true!\n")
         res = false
     }
 
