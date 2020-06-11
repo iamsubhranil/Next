@@ -125,7 +125,6 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
 Value Fiber::run() {
 	Value  result = ValueNil;
 	Fiber *bak    = ExecutionEngine::getCurrentFiber();
-	parent        = bak;
 	switch(state) {
 		case Fiber::BUILT: {
 			// if this a newly built fiber, there
@@ -144,7 +143,7 @@ Value Fiber::run() {
 			// fiber, we switch
 			if(callFramePointer == 0) {
 				setState(Fiber::FINISHED);
-				ExecutionEngine::setCurrentFiber(parent);
+				ExecutionEngine::setCurrentFiber(bak);
 				return result;
 			}
 			// otherwise, we store the result in the
@@ -163,24 +162,23 @@ Value Fiber::run() {
 		case Fiber::YIELDED: {
 			break;
 		}
+		case Fiber::RUNNING: {
+			RERR("Fiber is already running!");
+		}
 		case Fiber::FINISHED: {
 			RERR("Fiber has already finished execution!");
 		}
 	}
+	parent = bak;
 	ExecutionEngine::setCurrentFiber(this);
+	setState(Fiber::RUNNING);
 	return ValueNil;
-}
-
-void Fiber::setState(Fiber::State s) {
-	state = s;
-	if(s == FINISHED && fiberIterator)
-		fiberIterator->slots[1] = ValueFalse;
 }
 
 Value next_fiber_cancel(const Value *args, int numargs) {
 	(void)numargs;
 	Fiber *f = args[0].toFiber();
-	f->state = Fiber::FINISHED;
+	f->setState(Fiber::FINISHED);
 	return ValueNil;
 }
 

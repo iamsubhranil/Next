@@ -3,6 +3,7 @@
 #include "../gc.h"
 #include "bytecode.h"
 #include "function.h"
+#include "object.h"
 
 struct Fiber {
 	GcObject obj;
@@ -28,6 +29,7 @@ struct Fiber {
 
 	enum State {
 		BUILT,    // not started
+		RUNNING,  // running
 		YIELDED,  // yielded
 		FINISHED, // finished
 	};
@@ -124,20 +126,31 @@ struct Fiber {
 	}
 
 	// returns the frame on top after popping
-
-	Fiber::CallFrame *popFrame() {
+	inline Fiber::CallFrame *popFrame() {
 		CallFrame *currentFrame = getCurrentFrame();
 		stackTop                = currentFrame->stack_;
 		callFramePointer--;
 		return getCurrentFrame();
 	}
 
-	Fiber::CallFrame *getCurrentFrame() {
+	inline Fiber::CallFrame *getCurrentFrame() {
 		return &callFrames[callFramePointer - 1];
 	}
+
 	// does state = s, additionally toggles 'has_next'
 	// of the iterator
-	void setState(State s);
+	inline void setState(Fiber::State s) {
+		state = s;
+		if(s == FINISHED && fiberIterator)
+			fiberIterator->slots[1] = ValueFalse;
+	}
+
+	inline Fiber *switch_() {
+		setState(Fiber::FINISHED);
+		if(parent)
+			parent->setState(Fiber::RUNNING);
+		return parent;
+	}
 
 	static void init();
 	// most of the markings will be done

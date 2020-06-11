@@ -40,6 +40,10 @@ fn passing(x) {
     }
 }
 
+fn runrun(f) {
+    f[0].run()
+}
+
 pub fn test() {
     res = true
     f = fiber(aLongMethod@0)
@@ -128,5 +132,14 @@ pub fn test() {
             res = false
         }
     }
+
+    arr = []
+    f = fiber(runrun@1, [arr])
+    arr.insert(f)
+    try {
+        f.run()
+        print("[Error] Trying to run a running fiber should throw!")
+        res = false
+    } catch(runtime_error e) {}
     ret res
 }

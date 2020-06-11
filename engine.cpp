@@ -298,12 +298,11 @@ Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
 	}
 
 Value ExecutionEngine::execute(Fiber *fiber) {
+	fiber->setState(Fiber::RUNNING);
+
 	// check if the fiber actually has something to exec
 	if(fiber->callFramePointer == 0) {
-		fiber->setState(Fiber::FINISHED);
-		if(fiber->parent)
-			fiber = fiber->parent;
-		else
+		if((fiber = fiber->switch_()) == NULL)
 			return ValueNil;
 	}
 
@@ -352,12 +351,10 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		if(ret) {
 			RETURN(res);
 		} else if(fiber->callFramePointer == 0) {
-			fiber->setState(Fiber::FINISHED);
-			if(fiber->parent) {
-				fiber = fiber->parent;
-			} else {
+			if((fiber = fiber->switch_()) == NULL) {
 				RETURN(res);
-			}
+			} else
+				currentFiber = fiber;
 		}
 		PUSH(res);
 	}
@@ -803,8 +800,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 					// if there is no callframe in present
 					// fiber, but there is a parent, return
 					// to the parent fiber
-					fiber->setState(Fiber::FINISHED);
-					currentFiber = fiber = fiber->parent;
+					currentFiber = fiber = fiber->switch_();
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
