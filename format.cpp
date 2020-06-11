@@ -73,7 +73,7 @@ int next_int(const char **val) {
 
 Value Formatter::fmt(const Value *args, int size) {
 	EXPECT(fmt, "fmt(_)", 0, String);
-	return fmt(args[0].toString()->str, &args[1], size - 1);
+	return fmt(args[0].toString()->str(), &args[1], size - 1);
 }
 
 Value Formatter::fmt(const char *source, const Value *args, int size) {

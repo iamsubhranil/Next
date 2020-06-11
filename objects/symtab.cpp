@@ -30,7 +30,7 @@ String *SymbolTable2::getString(int id) {
 }
 
 const char *SymbolTable2::get(int id) {
-	return getString(id)->str;
+	return getString(id)->str();
 }
 
 void SymbolTable2::mark() {

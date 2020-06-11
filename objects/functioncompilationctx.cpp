@@ -54,7 +54,7 @@ int FunctionCompilationContext::get_slot(String *s) {
 void FunctionCompilationContext::disassemble(std::ostream &o) {
 	o << "Slots: ";
 	for(auto &a : slotmap[0]) {
-		o << a.first->str << "(" << a.second.slot << "), ";
+		o << a.first->str() << "(" << a.second.slot << "), ";
 	}
 	o << "\n";
 	f->disassemble(o);

@@ -197,9 +197,11 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 }
 
 Object *GcObject::allocObject(const Class *klass) {
-	Object *o = (Object *)alloc(sizeof(Object), OBJ_Object, klass);
-	o->slots  = (Value *)GcObject::malloc(sizeof(Value) * klass->numSlots);
-	std::fill_n(o->slots, klass->numSlots, ValueNil);
+	// perform the whole allocation (object + slots)
+	// at once
+	Object *o = (Object *)alloc(
+	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
+	std::fill_n(o->slots(), klass->numSlots, ValueNil);
 	return o;
 }
 
@@ -248,6 +250,12 @@ void GcObject::release(Value v) {
 	r *GcObject::alloc##n() { return (r *)alloc(sizeof(r), OBJ_##n, n##Class); }
 #endif
 #include "objecttype.h"
+
+String *GcObject::allocString2(int numchar) {
+	String *s = (String *)alloc(sizeof(String) + (sizeof(char) * numchar),
+	                            OBJ_String, StringClass);
+	return s;
+}
 
 inline void GcObject::mark(Value v) {
 	if(v.isGcObject())

@@ -120,6 +120,9 @@ struct GcObject {
 	static Class *n##Class; \
 	static r *    alloc##n();
 #include "objecttype.h"
+	// makes a contiguous allocation of a String
+	// object along with its characters
+	static String *allocString2(int numchar);
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;

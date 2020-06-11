@@ -122,7 +122,7 @@ void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
 			if(v.isString()) {
-				os << v.toString()->str;
+				os << v.toString()->str();
 				return;
 			}
 			switch(o->objType) {

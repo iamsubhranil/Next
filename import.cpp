@@ -54,12 +54,12 @@ ImportStatus Importer::import(vector<Token> &loc) {
 	else
 		paths = String::from(lastPath, lastSepLoc);
 
-	const char *path_ = paths->str;
+	const char *path_ = paths->str();
 
 	while(lastIsFolder && it != strs->size) {
 		paths = String::append(
 		    paths, String::append(kPathSeparator, strs->values[it].toString()));
-		path_ = paths->str;
+		path_ = paths->str();
 		if(!dirExists(path_)) {
 			lastIsFolder = false;
 		}
@@ -75,7 +75,7 @@ ImportStatus Importer::import(vector<Token> &loc) {
 		return ret;
 	}
 	paths   = String::append(path_, ".n");
-	path_   = paths->str;
+	path_   = paths->str();
 	FILE *f = fopen(path_, "r");
 	if(f == NULL) {
 		// cout << "Unable to open file : '" << path_ << "'!" << endl;

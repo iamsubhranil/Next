@@ -6,10 +6,10 @@
 Object *Range::create(double from, double to, double step) {
 	Object *r = GcObject::allocObject(GcObject::RangeClass);
 
-	r->slots[0].setNumber(from - step); // to start from 'from'
-	r->slots[1].setNumber(to);
-	r->slots[2].setNumber(step);
-	r->slots[3].setBoolean(from < to);
+	r->slots(0).setNumber(from - step); // to start from 'from'
+	r->slots(1).setNumber(to);
+	r->slots(2).setNumber(step);
+	r->slots(3).setBoolean(from < to);
 
 	return r;
 }
@@ -57,17 +57,17 @@ Value next_range_construct_3(const Value *args, int numargs) {
 
 Value next_range_from(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toObject()->slots[0]);
+	return Value(args[0].toObject()->slots(0));
 }
 
 Value next_range_to(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toObject()->slots[1]);
+	return Value(args[0].toObject()->slots(1));
 }
 
 Value next_range_step(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toObject()->slots[2]);
+	return Value(args[0].toObject()->slots(2));
 }
 
 Value next_range_iterate(const Value *args, int numargs) {
@@ -78,7 +78,7 @@ Value next_range_iterate(const Value *args, int numargs) {
 
 Value next_range_next(const Value *args, int numargs) {
 	(void)numargs;
-	Value *r    = args[0].toObject()->slots;
+	Value *r    = args[0].toObject()->slots();
 	double from = r[0].toNumber();
 	double to   = r[1].toNumber();
 	double step = r[2].toNumber();

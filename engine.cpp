@@ -49,7 +49,7 @@ Class *ExecutionEngine::getRegisteredModule(String *name) {
 
 void ExecutionEngine::registerModule(Class *m) {
 	if(loadedModules.contains(m->name)) {
-		warn("Module already loaded : '%s'!", m->name->str);
+		warn("Module already loaded : '%s'!", m->name->str());
 	}
 	loadedModules[m->name] = m;
 }
@@ -70,7 +70,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 				std::cout << "In class '";
 			else
 				std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			std::cout << ANSI_COLOR_YELLOW << lastName->str() << ANSI_COLOR_RESET
 			          << "'\n";
 		}
 
@@ -78,7 +78,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 		   c->functions[0][SymbolTable2::const_sig_constructor_0]
 		           .toFunction() == f->f) {
 			std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str << ANSI_COLOR_RESET
+			std::cout << ANSI_COLOR_YELLOW << lastName->str() << ANSI_COLOR_RESET
 			          << "'\n";
 		} else {
 			f->f->code->ctx->get_token(0).highlight(true, "In function ",
@@ -129,7 +129,7 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 			switch(message[i + 1]) {
 				case 's': {
 					String *    h   = va_arg(args, String *);
-					const char *str = h->str;
+					const char *str = h->str();
 					while(*str != '\0') ExceptionMessage[j++] = *str++;
 					i += 2;
 					break;
@@ -158,11 +158,11 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	std::cout << "\n";
 	if(c->module != NULL) {
 		err("Uncaught exception occurred of type '%s.%s': ",
-		    c->module->name->str, c->name->str);
+		    c->module->name->str(), c->name->str());
 	} else {
-		err("Uncaught exception occurred of type '%s': ", c->name->str);
+		err("Uncaught exception occurred of type '%s': ", c->name->str());
 	}
-	std::cout << String::toString(v)->str << "\n";
+	std::cout << String::toString(v)->str() << "\n";
 	printStackTrace(f);
 }
 
@@ -212,7 +212,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			Value      v = ValueNil;
 			switch(c.type) {
 				case CatchBlock::SlotType::CLASS:
-					v = matched->stack_[0].toObject()->slots[c.slot];
+					v = matched->stack_[0].toObject()->slots(c.slot);
 					break;
 				case CatchBlock::SlotType::LOCAL:
 					v = matched->stack_[c.slot];
@@ -221,19 +221,19 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 					// module is at 0 -> 0
 					v = matched->stack_[0]
 					        .toObject()
-					        ->slots[0]
+					        ->slots(0)
 					        .toObject()
-					        ->slots[c.slot];
+					        ->slots(c.slot);
 					break;
 				case CatchBlock::SlotType::CORE:
-					v = CoreObject->slots[c.slot];
+					v = CoreObject->slots(c.slot);
 					break;
 				default: break;
 			}
 			if(!v.isClass()) {
 				printException(thrown, root);
 				std::cout << "Error occurred while catching an exception!\n";
-				std::cout << "The caught value '" << String::toString(v)->str
+				std::cout << "The caught value '" << String::toString(v)->str()
 				          << "' is not a valid class!\n";
 				// pop all but the matched frame
 				while(f->getCurrentFrame() != matched) {
@@ -833,7 +833,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			}
 
 			CASE(load_tos_slot) : {
-				TOP = TOP.toObject()->slots[next_int()];
+				TOP = TOP.toObject()->slots(next_int());
 				DISPATCH();
 			}
 
@@ -853,19 +853,19 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			CASE(store_tos_slot) : {
 				Value v                         = POP();
-				v.toObject()->slots[next_int()] = TOP;
+				v.toObject()->slots(next_int()) = TOP;
 				DISPATCH();
 			}
 
 			CASE(load_object_slot) : {
 				int slot = next_int();
-				PUSH(Stack[0].toObject()->slots[slot]);
+				PUSH(Stack[0].toObject()->slots(slot));
 				DISPATCH();
 			}
 
 			CASE(store_object_slot) : {
 				int slot                         = next_int();
-				Stack[0].toObject()->slots[slot] = TOP;
+				Stack[0].toObject()->slots(slot) = TOP;
 				DISPATCH();
 			}
 
@@ -881,7 +881,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				// we ignore the costly isInteger
 				// check here
 				if(slot.isNumber()) {
-					PUSH(v.toObject()->slots[slot.toInteger()]);
+					PUSH(v.toObject()->slots(slot.toInteger()));
 				} else {
 					// it is a static slot
 					PUSH(*slot.toPointer());
@@ -903,7 +903,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				// we ignore the costly isInteger
 				// check here
 				if(slot.isNumber()) {
-					v.toObject()->slots[slot.toInteger()] = TOP;
+					v.toObject()->slots(slot.toInteger()) = TOP;
 				} else {
 					// it is a static slot
 					*slot.toPointer() = TOP;
@@ -1008,7 +1008,7 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				Class * c = next_value().toClass();
 				Object *o = GcObject::allocObject(c);
 				// assign the 0th slot to the 0th slot of the object
-				o->slots[0] = Stack[0];
+				o->slots(0) = Stack[0];
 				// assign the object to slot 0
 				Stack[0] = Value(o);
 				// if this is a module, store the instance to the class

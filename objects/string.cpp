@@ -35,7 +35,7 @@ Value next_string_at(const Value *args, int numargs) {
 	if(i < 0) {
 		i += s->size;
 	}
-	return String::from(&(s->str[i]));
+	return String::from(&(s->str()[i]));
 }
 
 Value next_string_contains(const Value *args, int numargs) {
@@ -56,9 +56,9 @@ Value next_string_contains(const Value *args, int numargs) {
 	// and the container string has
 	// enough space to contain the
 	// second one, so check
-	char *bak          = source->str;
-	char *c            = check->str;
-	bool  keepChecking = true;
+	const char *bak          = source->str();
+	const char *c            = check->str();
+	bool        keepChecking = true;
 	while(keepChecking) {
 		keepChecking = false;
 		while(*bak && *bak != *c) bak++;
@@ -67,7 +67,7 @@ Value next_string_contains(const Value *args, int numargs) {
 		// if the length of the remaining
 		// string is lesser than the
 		// string to check, return false
-		int rem = source->size - (bak - source->str);
+		int rem = source->size - (bak - source->str());
 		if(rem < check->size)
 			return ValueFalse;
 		// check the remaining characters
@@ -129,7 +129,7 @@ Value next_string_substr(const Value *args, int numargs) {
 		IDXERR("'from' index is greater than 'to' index", 0, to, from);
 	}
 
-	return String::from(&(s->str[from]), to - from + 1);
+	return String::from(&(s->str()[from]), to - from + 1);
 }
 
 Value next_string_str(const Value *args, int numargs) {
@@ -159,7 +159,7 @@ void String::init() {
 	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
 }
 
-Value String::fmt(FormatSpec *f, char *s, int size) {
+Value String::fmt(FormatSpec *f, const char *s, int size) {
 
 	if(f->type != 0 && f->type != 's') {
 		FERR("Invalid type specifier for string!");
@@ -242,7 +242,7 @@ Value String::fmt(FormatSpec *f, char *s, int size) {
 }
 
 Value String::fmt(FormatSpec *f, String *s) {
-	return fmt(f, s->str, s->size);
+	return fmt(f, s->str(), s->size);
 }
 
 void String::transform_lower(char *dest, const char *source, size_t size) {
@@ -275,10 +275,15 @@ int String::hash_string(const char *s, size_t size) {
 
 // val MUST be mallocated elsewhere
 String *String::insert(char *val, size_t size, int hash_) {
-	String *s = GcObject::allocString();
-	s->str    = val;
-	s->size   = size;
-	s->hash_  = hash_;
+	String *s = GcObject::allocString2(size);
+	memcpy(s->str(), val, size);
+	s->size  = size;
+	s->hash_ = hash_;
+	string_set->hset.insert(s);
+	return s;
+}
+
+String *String::insert(String *s) {
 	string_set->hset.insert(s);
 	return s;
 }
@@ -286,40 +291,36 @@ String *String::insert(char *val, size_t size, int hash_) {
 String *String::from(const char *v, size_t size, string_transform transform) {
 	// before allocating, first check whether the
 	// string already exists
-	char *val = (char *)GcObject_malloc(size + 1);
-	transform(val, v, size);
-	val[size]    = 0;
-	int    hash_ = hash_string(val, size);
-	String check = {GcObject::DefaultGcObject, val, static_cast<int>(size),
-	                hash_};
-	auto   res   = string_set->hset.find(&check);
+	String *val = GcObject::allocString2(size + 1);
+	val->size   = size;
+	transform(val->str(), v, size);
+	val->str()[size] = 0;
+	val->hash_       = hash_string(val->str(), size);
+	auto res         = string_set->hset.find(val);
 	if(res != string_set->hset.end()) {
-		// it does, so free the
-		// transformed string
-		GcObject_free(val, size + 1);
+		// the transformed string will get garbage collected when needed
 		// return the original back
 		return (*res);
 	}
 	// it doesn't, so insert
-	return insert(val, size, hash_);
+	return insert(val);
 }
 
 String *String::from(const char *val, size_t size) {
 	// before allocating, first check whether the
 	// string already exists
-	int    hash_ = hash_string(val, size);
-	String check = {GcObject::DefaultGcObject, (char *)val,
-	                static_cast<int>(size), hash_};
-	auto   res   = string_set->hset.find(&check);
+	String *check = GcObject::allocString2(size + 1);
+	memcpy(check->str(), val, size);
+	check->str()[size] = 0;
+	check->size        = size;
+	check->hash_       = hash_string(check->str(), size);
+	auto res           = string_set->hset.find(check);
 	if(res != string_set->hset.end()) {
 		// it does, so return that back
 		return (*res);
 	}
-	// it doesn't, so allocate
-	char *n = (char *)GcObject_malloc(size + 1);
-	memcpy(n, val, size);
-	n[size] = 0;
-	return insert(n, size, hash_);
+	// it doesn't, so insert
+	return insert(check);
 }
 
 String *String::from(const char *val) {
@@ -333,7 +334,7 @@ String *String::fromParser(const char *val) {
 }
 
 String *String::from(const String *s, string_transform transform) {
-	return from(s->str, s->size, transform);
+	return from(s->str(), s->size, transform);
 }
 
 // we create a separate method for append because
@@ -342,25 +343,22 @@ String *String::from(const String *s, string_transform transform) {
 String *String::append(const char *val1, size_t size1, const char *val2,
                        size_t size2) {
 	// first create the new string
-	size_t size = size1 + size2;
-	char * v    = (char *)GcObject_malloc(size + 1);
-	memcpy(v, val1, size1);
-	memcpy(&v[size1], val2, size2);
-	v[size] = 0;
+	size_t  size = size1 + size2;
+	String *ns   = GcObject::allocString2(size + 1);
+	ns->size     = size;
+	memcpy(ns->str(), val1, size1);
+	memcpy(ns->str() + size1, val2, size2);
+	ns->str()[size] = 0;
+	ns->hash_       = hash_string(ns->str(), size);
 	// now check whether this one already exists
-	int    hash_ = hash_string(v, size);
-	String check = {GcObject::DefaultGcObject, v, static_cast<int>(size),
-	                hash_};
-	auto   res   = string_set->hset.find(&check);
+	auto res = string_set->hset.find(ns);
 	if(res != string_set->hset.end()) {
 		// already one exists
-		// so free the newly allocated string
-		GcObject_free(v, size + 1);
 		// return the old one back
 		return (*res);
 	}
 	// insert the new one
-	return insert(v, size, hash_);
+	return insert(ns);
 }
 
 String *String::append(const char *val1, const char *val2) {
@@ -368,19 +366,19 @@ String *String::append(const char *val1, const char *val2) {
 }
 
 String *String::append(const char *val1, const String *val2) {
-	return append(val1, strlen(val1), val2->str, val2->size);
+	return append(val1, strlen(val1), val2->str(), val2->size);
 }
 
 String *String::append(const String *val1, const char *val2) {
-	return append(val1->str, val1->size, val2, strlen(val2));
+	return append(val1->str(), val1->size, val2, strlen(val2));
 }
 
 String *String::append(const String *s1, const String *s2) {
-	return append(s1->str, s1->size, s2->str, s2->size);
+	return append(s1->str(), s1->size, s2->str(), s2->size);
 }
 
 String *String::append(const String *s1, const char *val2, size_t size2) {
-	return append(s1->str, s1->size, val2, size2);
+	return append(s1->str(), s1->size, val2, size2);
 }
 
 String *String::toString(Value v) {
@@ -411,7 +409,6 @@ String *String::toString(Value v) {
 
 void String::release() {
 	string_set->hset.erase(this);
-	GcObject_free(str, size + 1);
 }
 
 StringSet *StringSet::create() {

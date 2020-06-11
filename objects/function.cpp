@@ -90,7 +90,7 @@ void Function::init() {
 
 #ifdef DEBUG
 void Function::disassemble(std::ostream &o) {
-	o << "Name: " << name->str << "\n";
+	o << "Name: " << name->str() << "\n";
 	o << "Arity: " << arity << "\n";
 	Type t = getType();
 	o << "Type: ";

@@ -142,7 +142,7 @@ struct Fiber {
 	inline void setState(Fiber::State s) {
 		state = s;
 		if(s == FINISHED && fiberIterator)
-			fiberIterator->slots[1] = ValueFalse;
+			fiberIterator->slots(1) = ValueFalse;
 	}
 
 	inline Fiber *switch_() {

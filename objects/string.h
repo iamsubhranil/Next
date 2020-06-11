@@ -16,9 +16,10 @@ typedef void(string_transform)(char *dest, const char *source, size_t size);
 
 struct String {
 	GcObject obj;
-	char *   str;
 	int      size; // excluding the \0
 	int      hash_;
+
+	inline char *str() const { return (char *)(this + 1); }
 
 	// gc functions
 	void release();
@@ -55,7 +56,8 @@ struct String {
 	// converts a value to a string
 	static String *toString(Value v);
 	// applies f on val
-	static Value fmt(FormatSpec *f, char *val, int size);
+	// creates a new string to return
+	static Value fmt(FormatSpec *f, const char *val, int size);
 	static Value fmt(FormatSpec *f, String *s);
 
 	// release all
@@ -69,6 +71,7 @@ struct String {
 
   private:
 	static String *insert(char *val, size_t size, int hash_);
+	static String *insert(String *val);
 };
 
 struct StringHash {
@@ -78,7 +81,7 @@ struct StringHash {
 struct StringEquals {
 	bool operator()(const String *a, const String *b) const {
 		return a->hash_ == b->hash_ && a->size == b->size &&
-		       strncmp(a->str, b->str, a->size) == 0;
+		       strncmp(a->str(), b->str(), a->size) == 0;
 	}
 };
 
