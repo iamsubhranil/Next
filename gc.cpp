@@ -152,18 +152,17 @@ void GcObject::gc(bool force) {
 		std::cout << "[GC] Sweeping..\n";
 #endif
 		sweep();
-		if(next_gc < max_gc) {
-			// check the ceiling of where the program
-			// has already hit
-			size_t c = Utils::powerOf2Ceil(totalAllocated);
-			// this is our budget
+		// check the ceiling of where the program
+		// has already hit
+		size_t c = Utils::powerOf2Ceil(totalAllocated);
+		// this is our budget
+		if(!force)
 			next_gc *= 2;
-			// if the ceiling is less than max but
-			// greater than our budget, that is our
-			// new budget
-			if(next_gc < c /*&& c < max_gc*/)
-				next_gc = c;
-		}
+		// if the ceiling is
+		// greater than our budget, that is our
+		// new budget
+		if(next_gc < c)
+			next_gc = c;
 #ifdef DEBUG_GC
 		std::cout << "[GC] Finished GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
