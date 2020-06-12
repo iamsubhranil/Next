@@ -26,5 +26,12 @@ struct Object {
 	inline Value &slots(int idx) const { return ((Value *)(this + 1))[idx]; }
 
 	// we don't need to free anything here
-	void release() const {}
+	// just reduce the counter since slots
+	// are allocated right after the struct.
+	//
+	// what happens when obj.klass is already
+	// collected?
+	void release() const {
+		GcObject::totalAllocated -= sizeof(Value) * (obj.klass->numSlots);
+	}
 };
