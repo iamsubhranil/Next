@@ -17,6 +17,10 @@ class MyClass {
         fn display() {
             ret fmt("x is {}", x)
         }
+
+        static fn cbound(x) {
+            ret x
+        }
 }
 
 fn lamba(func, arg) {
@@ -71,6 +75,16 @@ pub fn test() {
     }
     if(amethod@0() != "hello") {
         print("[Error] Direct softcalls on module method references not working!\n")
+        res = false
+    }
+    f = MyClass.cbound@1
+    if(f(2) != 2) {
+        print("[Error] Static method reference from class is not working!")
+        res = false
+    }
+    f = MyClass(2).cbound@1
+    if(f(2) != 2) {
+        print("[Error] Static method reference from object is not working!")
         res = false
     }
     ret res

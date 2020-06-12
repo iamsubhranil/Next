@@ -993,9 +993,17 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 				// peek the binder
 				Value             v = TOP;
 				BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
-				// if the top is a class, it is going to be class bound
-				if(v.isClass())
-					t = BoundMethod::CLASS_BOUND;
+				// if f is a static method, it is essentially an
+				// object bound method, bound to the class object
+				if(f->isStatic()) {
+					if(!v.isClass())
+						v = v.getClass();
+				} else {
+					// it is a non static method
+					// if the top is a class, it is going to be class bound
+					if(v.isClass())
+						t = BoundMethod::CLASS_BOUND;
+				}
 				BoundMethod *b = BoundMethod::from(f, v, t);
 				TOP            = Value(b);
 				DISPATCH();
