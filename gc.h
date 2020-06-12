@@ -123,6 +123,8 @@ struct GcObject {
 	// makes a contiguous allocation of a String
 	// object along with its characters
 	static String *allocString2(int numchar);
+	// tuple is a contiguous array of fixed size
+	static Tuple *allocTuple2(int numobj);
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;

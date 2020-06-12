@@ -23,6 +23,8 @@ OBJTYPE(ValueSet, ValueSet)
 OBJTYPE(Range, Range)
 OBJTYPE(ArrayIterator, ArrayIterator)
 OBJTYPE(FormatSpec, FormatSpec)
+OBJTYPE(Tuple, Tuple)
+OBJTYPE(TupleIterator, TupleIterator)
 // Exceptions
 OBJTYPE(TypeError, TypeError)
 OBJTYPE(RuntimeError, RuntimeError)

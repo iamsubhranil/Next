@@ -1,0 +1,53 @@
+fn oniterator(arr, size) {
+    start = clock()
+    for(i in range(size)) {
+        arr[i] = i + 1
+    }
+
+    sum = 0
+    for(i in arr) {
+        sum = sum + i
+    }
+
+    end = (clock() - start)/clocks_per_sec
+
+    print("Elapsed: ", end, "\n")
+}
+
+fn onindex(arr, size) {
+    start = clock()
+    for(i in range(size)) {
+        arr[i] = i + 1
+    }
+    i = 0
+    sum = 0
+    while(i < size) {
+        sum = sum + i++
+    }
+
+    end = (clock() - start)/clocks_per_sec
+
+    print("Elapsed: ", end, "\n")
+}
+
+fn test() {
+    size = 100000000
+    print("Array: Iterator\n")
+    oniterator([], size)
+    gc()
+    print("Tuple: Iterator\n")
+    oniterator(tuple(size), size)
+    gc()
+    print("Array (Fixed Size): Iterator\n")
+    oniterator(array(size), size)
+    gc()
+    print("Tuple: Index Access\n")
+    onindex(tuple(size), size)
+    gc()
+    print("Array: Index Access\n")
+    onindex([], size)
+    gc()
+    print("Array (Fixed Size): Index Access\n")
+    onindex(array(size), size)
+}
+test()

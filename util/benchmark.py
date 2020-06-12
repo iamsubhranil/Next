@@ -133,6 +133,8 @@ BENCHMARK("map_string", r"""12799920000""")
 
 BENCHMARK("string_equals", r"""3000000""")
 
+BENCHMARK("tuples", r"""500000500000""")
+
 BENCHMARK("while", r"""12500002500003""")
 
 LANGUAGES = [

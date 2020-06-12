@@ -1,0 +1,16 @@
+size = 1000000
+arr = tuple(size)
+start = clock()
+for(i in range(size)) {
+    arr[i] = i + 1
+}
+
+sum = 0
+for(i in arr) {
+    sum = sum + i
+}
+
+end = (clock() - start)/clocks_per_sec
+
+print(sum, "\n")
+print("elapsed: ", end)
