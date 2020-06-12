@@ -1,4 +1,5 @@
 #include "array.h"
+#include "../utils.h"
 #include "array_iterator.h"
 #include "class.h"
 #include "errors.h"
@@ -81,10 +82,10 @@ Value next_array_construct_size(const Value *args, int numargs) {
 
 Array *Array::create(int size) {
 	Array *arr    = GcObject::allocArray();
-	arr->capacity = powerOf2Ceil(size);
+	arr->capacity = Utils::powerOf2Ceil(size);
 	arr->size     = 0;
 	arr->values   = (Value *)GcObject_malloc(sizeof(Value) * arr->capacity);
-	std::fill_n(arr->values, arr->capacity, ValueNil);
+	Utils::fillNil(arr->values, arr->capacity);
 	return arr;
 }
 
@@ -104,11 +105,11 @@ Value &Array::insert(Value v) {
 }
 
 void Array::resize(int newsize) {
-	int newcapacity = powerOf2Ceil(newsize + 1);
+	int newcapacity = Utils::powerOf2Ceil(newsize + 1);
 	values = (Value *)GcObject_realloc(values, sizeof(Value) * capacity,
 	                                   sizeof(Value) * newcapacity);
 	if(newcapacity > capacity) {
-		std::fill_n(&values[capacity], newcapacity - capacity, ValueNil);
+		Utils::fillNil(&values[capacity], newcapacity - capacity);
 	}
 
 	capacity = newcapacity;

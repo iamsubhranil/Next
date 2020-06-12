@@ -1,4 +1,5 @@
 #include "bytecodecompilationctx.h"
+#include "../utils.h"
 #include "class.h"
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
@@ -25,7 +26,7 @@ void BytecodeCompilationContext::init() {
 
 void BytecodeCompilationContext::insert_token(Token t) {
 	if(size == capacity) {
-		size_t n = Array::powerOf2Ceil(size + 1);
+		size_t n = Utils::powerOf2Ceil(size + 1);
 		ranges_  = (TokenRange *)GcObject::realloc(
             ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * n);
 		std::fill_n(&ranges_[capacity], n - capacity,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../gc.h"
+#include "../utils.h"
 #include "bytecode.h"
 #include "function.h"
 #include "object.h"
@@ -82,11 +83,11 @@ struct Fiber {
 			return;
 
 		Value *oldstack = stack_;
-		size_t newsize  = Array::powerOf2Ceil(stackPointer + e + 1);
+		size_t newsize  = Utils::powerOf2Ceil(stackPointer + e + 1);
 		stack_   = (Value *)GcObject::realloc(stack_, sizeof(Value) * stackSize,
                                             sizeof(Value) * newsize);
 		stackTop = &stack_[stackPointer];
-		std::fill_n(stackTop, newsize - stackPointer, ValueNil);
+		Utils::fillNil(stackTop, newsize - stackPointer);
 		stackSize = newsize;
 		if(stack_ != oldstack) {
 			// relocate the frames
@@ -100,7 +101,7 @@ struct Fiber {
 	inline void ensureFrame() {
 		if(callFramePointer < callFrameSize)
 			return;
-		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
+		size_t newsize = Utils::powerOf2Ceil(callFramePointer + 1);
 		callFrames     = (CallFrame *)GcObject_realloc(
             callFrames, sizeof(CallFrame) * callFrameSize,
             sizeof(CallFrame) * newsize);
@@ -125,8 +126,8 @@ struct Fiber {
 		// will try to disassemble the stack of the function, which
 		// may contain pointer to objects which have already been
 		// garbage collected. so clear that up.
-		std::fill_n(&callFrames[callFramePointer].stack_[f->arity + 1],
-		            f->code->numSlots - 1 - f->arity, ValueNil);
+		Utils::fillNil(&callFrames[callFramePointer].stack_[f->arity + 1],
+		               f->code->numSlots - 1 - f->arity);
 #endif
 	}
 

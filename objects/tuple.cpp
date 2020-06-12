@@ -1,4 +1,5 @@
 #include "tuple.h"
+#include "../utils.h"
 #include "class.h"
 #include "errors.h"
 #include "tuple_iterator.h"
@@ -6,7 +7,7 @@
 Tuple *Tuple::create(int size) {
 	Tuple *t = GcObject::allocTuple2(size);
 	t->size  = size;
-	std::fill_n(t->values(), size, ValueNil);
+	Utils::fillNil(t->values(), size);
 	return t;
 }
 

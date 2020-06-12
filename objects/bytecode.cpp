@@ -1,4 +1,5 @@
 #include "bytecode.h"
+#include "../utils.h"
 #include "class.h"
 #include "string.h"
 
@@ -13,7 +14,7 @@ const char *Bytecode::OpcodeNames[] = {
 
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
-		size_t newcap = Array::powerOf2Ceil(size + 1);
+		size_t newcap = Utils::powerOf2Ceil(size + 1);
 		bytecodes     = (Opcode *)GcObject::realloc(
             bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * newcap);
 		capacity = newcap;

@@ -8,11 +8,6 @@
 
 struct Value {
   private:
-	union {
-		uint64_t value;
-		double   dvalue;
-	};
-
 	/*
 	constexpr uint64_t generateMask(size_t s) {
 	    uint64_t mask = 0, shift = 1;
@@ -43,6 +38,10 @@ struct Value {
 	}
 
   public:
+	union {
+		uint64_t value;
+		double   dvalue;
+	};
 	enum Type : int {
 		VAL_Number = 0,
 		VAL_NIL    = 1,

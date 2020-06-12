@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../gc.h"
-#include "array.h"
+#include "../utils.h"
 #include <cstdint>
 
 // a scope managed buffer
@@ -19,7 +19,7 @@ template <typename T> class Buffer {
 
 	void reserve(std::size_t res) {
 		if(res > cap) {
-			size_t ns = Array::powerOf2Ceil(res);
+			size_t ns = Utils::powerOf2Ceil(res);
 			buf = (T *)GcObject_realloc(buf, sizeof(T) * cap, sizeof(T) * ns);
 			cap = ns;
 		}

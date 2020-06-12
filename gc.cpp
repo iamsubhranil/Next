@@ -17,6 +17,7 @@
 #include "objects/symtab.h"
 #include "objects/tuple.h"
 #include "objects/tuple_iterator.h"
+#include "utils.h"
 
 #ifdef DEBUG
 #include <iomanip>
@@ -154,7 +155,7 @@ void GcObject::gc(bool force) {
 		if(next_gc < max_gc) {
 			// check the ceiling of where the program
 			// has already hit
-			size_t c = Array::powerOf2Ceil(totalAllocated);
+			size_t c = Utils::powerOf2Ceil(totalAllocated);
 			// this is our budget
 			next_gc *= 2;
 			// if the ceiling is less than max but
@@ -203,7 +204,7 @@ Object *GcObject::allocObject(const Class *klass) {
 	// at once
 	Object *o = (Object *)alloc(
 	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
-	std::fill_n(o->slots(), klass->numSlots, ValueNil);
+	Utils::fillNil(o->slots(), klass->numSlots);
 	return o;
 }
 
