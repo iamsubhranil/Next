@@ -7,7 +7,6 @@
 #include <functional>
 
 struct Value {
-  private:
 	/*
 	constexpr uint64_t generateMask(size_t s) {
 	    uint64_t mask = 0, shift = 1;
@@ -37,7 +36,6 @@ struct Value {
 		value = QNAN_Pointer | ((uintptr_t)g & VAL_MASK);
 	}
 
-  public:
 	union {
 		uint64_t value;
 		double   dvalue;
