@@ -72,7 +72,7 @@ Value next_array_construct_empty(const Value *args, int numargs) {
 Value next_array_construct_size(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(array, new(_), 1, Integer);
-	int i = args[0].toInteger();
+	int i = args[1].toInteger();
 	if(i < 1) {
 		return RuntimeError::sete("Size of array must be > 0!");
 	}
