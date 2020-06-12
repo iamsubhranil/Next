@@ -5,6 +5,10 @@
 #include "function.h"
 #include "object.h"
 
+#ifdef DEBUG_INS
+#include <algorithm>
+#endif
+
 struct Fiber {
 	GcObject obj;
 
@@ -93,22 +97,17 @@ struct Fiber {
 		}
 	}
 
-	// appends an intra-class method, whose stack is already
-	// managed by the engine
-	Fiber::CallFrame *appendMethod(Function *f, bool returnToCaller = false);
-	// we make a specific version of this function to be called
-	// when we're sure the argument function is a Next method, i.e.
-	// when the engine performs a method call.
-	inline Fiber::CallFrame *
-	appendMethodNoBuiltin(Function *f, bool returnToCaller = false) {
+	inline void ensureFrame() {
+		if(callFramePointer < callFrameSize)
+			return;
+		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
+		callFrames     = (CallFrame *)GcObject_realloc(
+            callFrames, sizeof(CallFrame) * callFrameSize,
+            sizeof(CallFrame) * newsize);
+		callFrameSize = newsize;
+	}
 
-		if(callFramePointer == callFrameSize) {
-			size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
-			callFrames     = (CallFrame *)GcObject_realloc(
-                callFrames, sizeof(CallFrame) * callFrameSize,
-                sizeof(CallFrame) * newsize);
-			callFrameSize = newsize;
-		}
+	inline void appendMethodInternal(Function *f, bool returnToCaller) {
 
 		callFrames[callFramePointer].f              = f;
 		callFrames[callFramePointer].returnToCaller = returnToCaller;
@@ -121,7 +120,26 @@ struct Fiber {
 		// we have already managed the slot for the receiver
 		// and the arguments are already in place
 		stackTop += (f->code->numSlots - 1 - f->arity);
+#ifdef DEBUG_INS
+		// if we're stepping instructions, the bytecode disassembler
+		// will try to disassemble the stack of the function, which
+		// may contain pointer to objects which have already been
+		// garbage collected. so clear that up.
+		std::fill_n(&callFrames[callFramePointer].stack_[f->arity + 1],
+		            f->code->numSlots - 1 - f->arity, ValueNil);
+#endif
+	}
 
+	// appends an intra-class method, whose stack is already
+	// managed by the engine
+	Fiber::CallFrame *appendMethod(Function *f, bool returnToCaller = false);
+	// we make a specific version of this function to be called
+	// when we're sure the argument function is a Next method, i.e.
+	// when the engine performs a method call.
+	inline Fiber::CallFrame *
+	appendMethodNoBuiltin(Function *f, bool returnToCaller = false) {
+		ensureFrame();
+		appendMethodInternal(f, returnToCaller);
 		return &callFrames[callFramePointer++];
 	}
 

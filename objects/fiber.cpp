@@ -33,30 +33,12 @@ Fiber *Fiber::create(Fiber *parent) {
 }
 
 Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
-
-	if(callFramePointer == callFrameSize) {
-		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)GcObject::realloc(
-            callFrames, sizeof(CallFrame) * callFrameSize,
-            sizeof(CallFrame) * newsize);
-		callFrameSize = newsize;
-	}
-
-	callFrames[callFramePointer].f              = f;
-	callFrames[callFramePointer].returnToCaller = returnToCaller;
-
 	switch(f->getType()) {
-		case Function::METHOD:
-			// arity number of elements is already on the stack
-			ensureStack(f->code->stackMaxSize - f->arity);
-			callFrames[callFramePointer].code = f->code->bytecodes;
-			// the 0th slot is reserved for the receiver
-			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-			// we have already managed the slot for the receiver
-			// and the arguments are already in place
-			stackTop += (f->code->numSlots - 1 - f->arity);
-			break;
+		case Function::METHOD: return appendMethodNoBuiltin(f, returnToCaller);
 		case Function::BUILTIN:
+			ensureFrame();
+			callFrames[callFramePointer].f              = f;
+			callFrames[callFramePointer].returnToCaller = returnToCaller;
 			// the only way a builtin_fn can be appended to the
 			// call stack is by appendBoundMethod, which
 			// manually lays down the arguments to the stack

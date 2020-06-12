@@ -492,11 +492,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			          << presentFrame->f->code->stackMaxSize
 			          << " IP: " << std::setw(4) << instructionPointer
 			          << " SP: " << stackPointer << " " << std::flush;
-			for(int i = 0; i < presentFrame->f->code->stackMaxSize; i++) {
-				if(i == stackPointer)
-					std::cout << " |> ";
-				else
-					std::cout << " | ";
+			for(int i = 0; i < stackPointer; i++) {
+				std::cout << " | ";
 				Bytecode::disassemble_Value(
 				    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
 			}
