@@ -90,7 +90,13 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
 	if(bm->type == BoundMethod::OBJECT_BOUND)
 		*stackTop++ = bm->binder;
 	// now we lay down the arguments
-	if(effective_arity > 0) {
+	// BoundMethod::verify will already have
+	// thrown an error if there is mismatch
+	// between arity and args, but gcc is still
+	// complaining about passing null to memcpy
+	// when it is inlining this at construct_1.
+	// so we add the check here.
+	if(effective_arity > 0 && args) {
 		memcpy(stackTop, args, sizeof(Value) * effective_arity);
 	}
 	stackTop += effective_arity;
