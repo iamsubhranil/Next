@@ -1,0 +1,14 @@
+fn test() {
+    a = array(10)
+    a = nil
+    gc()
+    a = tuple(20)
+    a = nil
+    gc()
+    a = array(10)
+    gc()
+    a = nil
+    gc()
+}
+
+test()

@@ -70,16 +70,16 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 				std::cout << "In class '";
 			else
 				std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str() << ANSI_COLOR_RESET
-			          << "'\n";
+			std::cout << ANSI_COLOR_YELLOW << lastName->str()
+			          << ANSI_COLOR_RESET << "'\n";
 		}
 
 		if(c->module == NULL &&
 		   c->functions[0][SymbolTable2::const_sig_constructor_0]
 		           .toFunction() == f->f) {
 			std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str() << ANSI_COLOR_RESET
-			          << "'\n";
+			std::cout << ANSI_COLOR_YELLOW << lastName->str()
+			          << ANSI_COLOR_RESET << "'\n";
 		} else {
 			f->f->code->ctx->get_token(0).highlight(true, "In function ",
 			                                        Token::WARN);
@@ -492,11 +492,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			          << presentFrame->f->code->stackMaxSize
 			          << " IP: " << std::setw(4) << instructionPointer
 			          << " SP: " << stackPointer << " " << std::flush;
-			for(int i = 0; i < presentFrame->f->code->stackMaxSize; i++) {
-				if(i == stackPointer)
-					std::cout << " |> ";
-				else
-					std::cout << " | ";
+			for(int i = 0; i < stackPointer; i++) {
+				std::cout << " | ";
 				Bytecode::disassemble_Value(
 				    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
 			}
@@ -752,20 +749,20 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		performcall : {
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
-					BACKUP_FRAMEINFO();
 					Value res = functionToCall->func(
-					    &fiber->stackTop[-numberOfArguments - 1],
+					    fiber->stackTop -= (numberOfArguments + 1),
 					    numberOfArguments + 1); // include the receiver
-					fiber->stackTop -= (numberOfArguments + 1);
 					// it may have caused a fiber switch
-					fiber = currentFiber;
-					RESTORE_FRAMEINFO();
-					if(pendingException != ValueNil) {
-						goto error;
+					if(fiber != currentFiber) {
+						BACKUP_FRAMEINFO();
+						fiber = currentFiber;
+						RESTORE_FRAMEINFO();
 					}
-					PUSH(res);
-					DISPATCH();
-					break;
+					if(pendingException == ValueNil) {
+						PUSH(res);
+						DISPATCH();
+					}
+					goto error;
 				}
 				case Function::Type::METHOD:
 					BACKUP_FRAMEINFO();

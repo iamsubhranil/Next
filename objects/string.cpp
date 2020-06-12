@@ -409,6 +409,7 @@ String *String::toString(Value v) {
 
 void String::release() {
 	string_set->hset.erase(this);
+	GcObject::totalAllocated -= (size + 1);
 }
 
 StringSet *StringSet::create() {

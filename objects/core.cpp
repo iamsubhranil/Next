@@ -63,6 +63,13 @@ Value next_core_yield_1(const Value *args, int numargs) {
 	return args[1];
 }
 
+Value next_core_gc(const Value *args, int numargs) {
+	(void)args;
+	(void)numargs;
+	GcObject::gc(true);
+	return ValueNil;
+}
+
 void addBoundMethodVa(const char *name, int arity, next_builtin_fn builtin_fn) {
 	String *                 n  = String::from(name);
 	Function *               fn = Function::from(n, arity, builtin_fn, true);
@@ -88,6 +95,7 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("is_same_type(_,_)", 2, next_core_is_same_type);
 	add_builtin_fn("yield()", 0, next_core_yield_0);
 	add_builtin_fn("yield(_)", 1, next_core_yield_1);
+	add_builtin_fn("gc()", 0, next_core_gc);
 
 	addBoundMethodVa("print", 0, next_core_print);
 	addBoundMethodVa("fmt", 1, next_core_format);

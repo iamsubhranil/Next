@@ -15,6 +15,8 @@
 #include "objects/number.h"
 #include "objects/range.h"
 #include "objects/symtab.h"
+#include "objects/tuple.h"
+#include "objects/tuple_iterator.h"
 
 #ifdef DEBUG
 #include <iomanip>
@@ -255,6 +257,12 @@ String *GcObject::allocString2(int numchar) {
 	String *s = (String *)alloc(sizeof(String) + (sizeof(char) * numchar),
 	                            OBJ_String, StringClass);
 	return s;
+}
+
+Tuple *GcObject::allocTuple2(int numobj) {
+	Tuple *t = (Tuple *)alloc(sizeof(Tuple) + (sizeof(Value) * numobj),
+	                          OBJ_Tuple, TupleClass);
+	return t;
 }
 
 inline void GcObject::mark(Value v) {

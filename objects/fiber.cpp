@@ -33,30 +33,12 @@ Fiber *Fiber::create(Fiber *parent) {
 }
 
 Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
-
-	if(callFramePointer == callFrameSize) {
-		size_t newsize = Array::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)GcObject::realloc(
-            callFrames, sizeof(CallFrame) * callFrameSize,
-            sizeof(CallFrame) * newsize);
-		callFrameSize = newsize;
-	}
-
-	callFrames[callFramePointer].f              = f;
-	callFrames[callFramePointer].returnToCaller = returnToCaller;
-
 	switch(f->getType()) {
-		case Function::METHOD:
-			// arity number of elements is already on the stack
-			ensureStack(f->code->stackMaxSize - f->arity);
-			callFrames[callFramePointer].code = f->code->bytecodes;
-			// the 0th slot is reserved for the receiver
-			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
-			// we have already managed the slot for the receiver
-			// and the arguments are already in place
-			stackTop += (f->code->numSlots - 1 - f->arity);
-			break;
+		case Function::METHOD: return appendMethodNoBuiltin(f, returnToCaller);
 		case Function::BUILTIN:
+			ensureFrame();
+			callFrames[callFramePointer].f              = f;
+			callFrames[callFramePointer].returnToCaller = returnToCaller;
 			// the only way a builtin_fn can be appended to the
 			// call stack is by appendBoundMethod, which
 			// manually lays down the arguments to the stack
@@ -108,7 +90,13 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
 	if(bm->type == BoundMethod::OBJECT_BOUND)
 		*stackTop++ = bm->binder;
 	// now we lay down the arguments
-	if(effective_arity > 0) {
+	// BoundMethod::verify will already have
+	// thrown an error if there is mismatch
+	// between arity and args, but gcc is still
+	// complaining about passing null to memcpy
+	// when it is inlining this at construct_1.
+	// so we add the check here.
+	if(effective_arity > 0 && args) {
 		memcpy(stackTop, args, sizeof(Value) * effective_arity);
 	}
 	stackTop += effective_arity;
