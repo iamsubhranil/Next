@@ -366,7 +366,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	}
 	onRefer = bak;
 	btx->insert_token(call->callee->token);
-	btx->stackEffect(-argSize + 1);
+	// argsize + 1 arguments including the receiver
+	// 1 return value
+	btx->stackEffect(-argSize);
 	// if this is a force soft call, we don't care
 	if(force_soft) {
 		// generate the no name signature
@@ -399,7 +401,6 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			}*/
 			return;
 		}
-		btx->stackEffect(-argSize + 1);
 		if(info.soft) {
 			// generate the no name signature
 			int sig = SymbolTable2::insert(generateSignature(argSize));
@@ -556,7 +557,7 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	// expressions to the array, and leave
 	// the array at the top of the stack
 	btx->array_build(al->exprs.size());
-	btx->stackEffect(-(int)al->exprs.size());
+	btx->stackEffect(-(int)al->exprs.size() + 1);
 }
 
 void CodeGenerator::visit(HashmapLiteralExpression *al) {
@@ -574,6 +575,7 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 		}
 	}
 	btx->map_build(al->keys.size());
+	btx->stackEffect(-(int)al->keys.size() + 1);
 }
 
 void CodeGenerator::visit(LiteralExpression *lit) {
@@ -1011,7 +1013,7 @@ String *CodeGenerator::generateSignature(const String *name, int arity) {
 	String *sig = generateSignature(arity);
 	sig         = String::append(name, sig);
 #ifdef DEBUG_CODEGEN
-	cout << "Signature generated : " << sig->str()_ << "\n";
+	cout << "Signature generated : " << sig->str() << "\n";
 #endif
 	return sig;
 }
@@ -1140,7 +1142,9 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
 	    i++)
 		(*i)->accept(this);
-	btx->code->stackSize = present;
+	// we keep the largest size as present
+	if(present > btx->code->stackSize)
+		btx->code->stackSize = present;
 	popScope();
 }
 
@@ -1344,7 +1348,7 @@ void CodeGenerator::visit(TryStatement *ifs) {
 	tryBlockEnd   = to;
 	// there will be a value pushed on to the stack
 	// if an exception occurs, so count for it
-	btx->code->insertSlot();
+	btx->code->stackEffect(1);
 	// after one catch block is executed, the control
 	// should get out of remaining catch blocks
 	vector<int> jumpAddresses;
@@ -1389,8 +1393,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 		    String::from(ifs->varName.start, ifs->varName.length), scopeID + 1);
 		e->add_catch(v.slot, st, btx->getip());
 		// store the thrown object
-		btx->store_slot(receiver);
-		btx->pop_();
+		btx->store_slot_pop(receiver);
 	}
 	ifs->block->accept(this);
 }

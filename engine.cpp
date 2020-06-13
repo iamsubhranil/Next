@@ -194,12 +194,14 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				break;
 			}
 		}
-		searching = &f->callFrames[--num];
-		if(num < 0 && f->parent != NULL) {
+		if(--num > 0) {
+			searching = &f->callFrames[num];
+		} else if(f->parent != NULL) {
 			f         = f->parent;
 			num       = f->callFramePointer - 1;
 			searching = &f->callFrames[num];
-		}
+		} else
+			break;
 	}
 	if(matched == NULL) {
 		printException(thrown, root);
@@ -501,7 +503,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 			Bytecode::disassemble(
 			    std::cout,
 			    &presentFrame->f->code->bytecodes[instructionPointer]);
-			if(stackPointer > presentFrame->f->code->stackMaxSize) {
+			// +1 to adjust for fiber switch
+			if(stackPointer > presentFrame->f->code->stackMaxSize + 1) {
 				RERRF("Invalid stack access!");
 			}
 			std::cout << "\n\n";
@@ -688,6 +691,8 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 						if(b->verify(&fiber->stackTop[-numberOfArguments],
 						             numberOfArguments) !=
 						   BoundMethod::Status::OK) {
+							// pop the arguments
+							fiber->stackTop -= numberOfArguments;
 							goto error;
 						}
 						// we have already allocated one slot for the

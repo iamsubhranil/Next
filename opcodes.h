@@ -120,7 +120,7 @@ OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
 OPCODE2(call_method, 0, int, int) // <symbol> <args>
 
 // return
-OPCODE0(ret, 0)
+OPCODE0(ret, -1)
 
 OPCODE1(construct, 0, Value) // <class>
 // OPCODE0(construct_ret, 0)

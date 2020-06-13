@@ -63,7 +63,17 @@ struct BytecodeCompilationContext {
 	void   insert_token(Token t);
 	void   finalize();
 	Token  get_token(size_t ip);
-	void   stackEffect(int effect) { code->stackEffect(effect); }
+
+#ifdef DEBUG
+#define btx_stackEffect(x)                                           \
+	{                                                                \
+		std::cout << ANSI_COLOR_GREEN << __PRETTY_FUNCTION__ << ": " \
+		          << ANSI_COLOR_RESET << __FILE__ << ":" << __LINE__ \
+		          << ": StackEffect -> " << x << "\n";               \
+		btx->stackEffect(x);                                         \
+	}
+#endif
+	void stackEffect(int effect) { code->stackEffect(effect); }
 
 	int load_slot_n(int n) { return code->load_slot_n(n); }
 
@@ -75,8 +85,10 @@ struct BytecodeCompilationContext {
 			                sizeof(int) / sizeof(Bytecode::Opcode) - 1] =
 			    Bytecode::CODE_store_slot_pop;
 			code->stackEffect(-1);
+			lastOpcode = Bytecode::CODE_store_slot_pop;
 		} else {
 			code->pop();
+			lastOpcode = Bytecode::CODE_pop;
 		}
 	}
 
