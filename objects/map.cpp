@@ -3,20 +3,27 @@
 #include "boundmethod.h"
 #include "symtab.h"
 
-Value next_map_get_hash(const Value &v) {
-	if(!v.isObject())
-		return v;
+bool next_map_get_hash(const Value &v, Value *generatedHash) {
+	if(!v.isObject()) {
+		*generatedHash = v;
+		return true;
+	}
 	Value h = v;
 	while(h.isObject()) { // this is an user made object,
 		// so there is a chance of a hash method to exist
 		const Class *c = h.getClass();
 		if(c->has_fn(SymbolTable2::const_sig_hash)) {
-			h = ExecutionEngine::execute(
-			    h, c->get_fn(SymbolTable2::const_sig_hash).toFunction(), true);
-		} else
-			return h;
+			if(!ExecutionEngine::execute(
+			       h, c->get_fn(SymbolTable2::const_sig_hash).toFunction(), &h,
+			       true))
+				return false;
+		} else {
+			*generatedHash = h;
+			return true;
+		}
 	}
-	return h;
+	*generatedHash = h;
+	return true;
 }
 
 Value next_map_clear(const Value *args, int numargs) {
@@ -27,7 +34,9 @@ Value next_map_clear(const Value *args, int numargs) {
 
 Value next_map_has(const Value *args, int numargs) {
 	(void)numargs;
-	Value h = next_map_get_hash(args[1]);
+	Value h;
+	if(!next_map_get_hash(args[1], &h))
+		return ValueNil;
 	return Value(args[0].toValueMap()->vv.contains(h));
 }
 
@@ -50,7 +59,10 @@ Value next_map_size(const Value *args, int numargs) {
 
 Value next_map_remove(const Value *args, int numargs) {
 	(void)numargs;
-	args[0].toValueMap()->vv.erase(next_map_get_hash(args[1]));
+	Value h;
+	if(!next_map_get_hash(args[1], &h))
+		return ValueNil;
+	args[0].toValueMap()->vv.erase(h);
 	return ValueNil;
 }
 
@@ -68,7 +80,9 @@ Value next_map_values(const Value *args, int numargs) {
 
 Value next_map_get(const Value *args, int numargs) {
 	(void)numargs;
-	Value  h     = next_map_get_hash(args[1]);
+	Value h;
+	if(!next_map_get_hash(args[1], &h))
+		return ValueNil;
 	size_t count = args[0].toValueMap()->vv.count(h);
 	if(count > 0)
 		return args[0].toValueMap()->vv[h];
@@ -77,7 +91,9 @@ Value next_map_get(const Value *args, int numargs) {
 
 Value next_map_set(const Value *args, int numargs) {
 	(void)numargs;
-	Value h                            = next_map_get_hash(args[1]);
+	Value h;
+	if(!next_map_get_hash(args[1], &h))
+		return ValueNil;
 	return args[0].toValueMap()->vv[h] = args[2];
 }
 
@@ -105,7 +121,7 @@ void ValueMap::init() {
 
 ValueMap *ValueMap::create() {
 	ValueMap *vvm = GcObject::allocValueMap();
-	::new(&vvm->vv) ValueMapType ();
+	::new(&vvm->vv) ValueMapType();
 	return vvm;
 }
 
@@ -114,7 +130,8 @@ ValueMap *ValueMap::from(const Value *args, int numArg) {
 	for(int i = 0; i < numArg * 2; i += 2) {
 		Value key   = args[i];
 		Value value = args[i + 1];
-		key         = next_map_get_hash(key);
+		if(!next_map_get_hash(key, &key))
+			return vm;
 		vm->vv[key] = value;
 	}
 	return vm;

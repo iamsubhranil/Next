@@ -397,7 +397,8 @@ String *String::toString(Value v) {
 		const Class *c = v.getClass();
 		if(c->has_fn(SymbolTable2::const_sig_str)) {
 			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
-			v           = ExecutionEngine::execute(v, f, true);
+			if(!ExecutionEngine::execute(v, f, &v, true))
+				return nullptr;
 		} else {
 			String *s = append("<object of '", c->name);
 			s         = append(s, "'>");

@@ -157,7 +157,10 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 			// add CoreObject in slot 0
 			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
 			                           ctx->get_default_constructor()->f, NULL);
-			return ex.execute(f).toGcObject();
+			Value v;
+			if(ex.execute(f, &v))
+				return v.toGcObject();
+			return NULL;
 		}
 		return (GcObject *)ctx->get_class();
 	} catch(ParseException &pe) {
@@ -200,7 +203,10 @@ GcObject *Loader::compile_and_load_from_source(
 			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
 			                           modulectx->get_default_constructor()->f,
 			                           NULL);
-			return ex.execute(f).toGcObject();
+			Value v;
+			if(ex.execute(f, &v))
+				return v.toGcObject();
+			return NULL;
 		}
 	} catch(ParseException &pe) {
 		if(pe.getToken().source != NULL) {

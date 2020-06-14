@@ -54,6 +54,8 @@ struct String {
 	static void transform_upper(char *dest, const char *source, size_t size);
 
 	// converts a value to a string
+	// will return null if an unhandled
+	// exception occurs while conversion
 	static String *toString(Value v);
 	// applies f on val
 	// creates a new string to return

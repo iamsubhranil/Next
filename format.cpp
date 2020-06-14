@@ -337,7 +337,8 @@ Value Formatter::fmt(const char *source, const Value *args, int size) {
 				                     precision, type);
 				Value fspecv = Value(fspec);
 				// execute that fmt(_)
-				v = ExecutionEngine::execute(v, f, &fspecv, 1, true);
+				if(!ExecutionEngine::execute(v, f, &fspecv, 1, &v, true))
+					return ValueNil;
 				// whatever fmt(_) returned, convert it to a string
 				String *val = String::toString(v);
 				// append it to the result
@@ -351,10 +352,15 @@ Value Formatter::fmt(const char *source, const Value *args, int size) {
 				// else if, it provides an str(), call it, and repeat
 				Function *f =
 				    c->get_fn(SymbolTable2::const_sig_str).toFunction();
-				v = ExecutionEngine::execute(v, f, true);
+				if(!ExecutionEngine::execute(v, f, &v, true))
+					return ValueNil;
 			} else {
 				// convert it to default string, and format
-				v = String::toString(v);
+				String *s = String::toString(v);
+				// if that conversion fails, bail out
+				if(s == NULL)
+					return ValueNil;
+				v = Value(s);
 			}
 		}
 	}

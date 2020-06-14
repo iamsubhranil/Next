@@ -20,14 +20,16 @@
 char                       ExecutionEngine::ExceptionMessage[1024] = {0};
 HashMap<String *, Class *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
-Value   ExecutionEngine::pendingException      = ValueNil;
+Array * ExecutionEngine::pendingExceptions     = nullptr;
+Array * ExecutionEngine::pendingFibers         = nullptr;
 Fiber * ExecutionEngine::currentFiber          = nullptr;
 Object *ExecutionEngine::CoreObject            = nullptr;
 size_t  ExecutionEngine::maxRecursionLimit     = 1024;
 size_t  ExecutionEngine::currentRecursionDepth = 0;
 
 void ExecutionEngine::init() {
-	pendingException = ValueNil;
+	pendingExceptions = Array::create(1);
+	pendingFibers     = Array::create(1);
 	// create a new fiber
 	Fiber *f = Fiber::create();
 	// make slot for core
@@ -36,7 +38,12 @@ void ExecutionEngine::init() {
 	f->appendMethod(
 	    GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
 	        .toFunction());
-	CoreObject = execute(f).toObject();
+	Value v;
+	if(execute(f, &v)) {
+		CoreObject = v.toObject();
+	} else {
+		panic("Initialization of core module failed");
+	}
 }
 
 bool ExecutionEngine::isModuleRegistered(String *name) {
@@ -61,15 +68,17 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 	Fiber::CallFrame *f        = root;
 	String *          lastName = 0;
 	while(i >= 0) {
-		Token t;
-
-		const Class *c = f->stack_[0].getClass();
+		Token        t;
+		bool         moduleAlreadyPrinted = false;
+		const Class *c                    = f->stack_[0].getClass();
 		if(lastName != c->name) {
 			lastName = c->name;
 			if(c->module != NULL)
 				std::cout << "In class '";
-			else
+			else {
 				std::cout << "In module '";
+				moduleAlreadyPrinted = true;
+			}
 			std::cout << ANSI_COLOR_YELLOW << lastName->str()
 			          << ANSI_COLOR_RESET << "'\n";
 		}
@@ -77,9 +86,11 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 		if(c->module == NULL &&
 		   c->functions[0][SymbolTable2::const_sig_constructor_0]
 		           .toFunction() == f->f) {
-			std::cout << "In module '";
-			std::cout << ANSI_COLOR_YELLOW << lastName->str()
-			          << ANSI_COLOR_RESET << "'\n";
+			if(!moduleAlreadyPrinted) {
+				std::cout << "In module '";
+				std::cout << ANSI_COLOR_YELLOW << lastName->str()
+				          << ANSI_COLOR_RESET << "'\n";
+			}
 		} else {
 			f->f->code->ctx->get_token(0).highlight(true, "In function ",
 			                                        Token::WARN);
@@ -99,7 +110,8 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 }
 
 void ExecutionEngine::setPendingException(Value v) {
-	pendingException = v;
+	pendingExceptions->insert(v);
+	pendingFibers->insert(currentFiber);
 }
 
 void ExecutionEngine::mark() {
@@ -109,6 +121,9 @@ void ExecutionEngine::mark() {
 	GcObject::mark(currentFiber);
 	// mark the core object
 	GcObject::mark(CoreObject);
+	// mark the pending exceptions and fibers
+	GcObject::mark(pendingExceptions);
+	GcObject::mark(pendingFibers);
 	// the modules which are not marked, remove them
 	for(auto &a : loadedModules) {
 		if(!GcObject::isMarked((GcObject *)a.second)) {
@@ -154,16 +169,31 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 
 void ExecutionEngine::printException(Value v, Fiber *f) {
 	const Class *c = v.getClass();
-
 	std::cout << "\n";
 	if(c->module != NULL) {
-		err("Uncaught exception occurred of type '%s.%s': ",
+		err("Uncaught exception occurred of type '%s.%s'!",
 		    c->module->name->str(), c->name->str());
 	} else {
-		err("Uncaught exception occurred of type '%s': ", c->name->str());
+		err("Uncaught exception occurred of type '%s'!", c->name->str());
 	}
-	std::cout << String::toString(v)->str() << "\n";
 	printStackTrace(f);
+	std::cout << "<Exception> " << c->name->str() << ": ";
+	String *s = String::toString(v);
+	if(s == NULL)
+		std::cout << "<error>\nAn exception occurred while converting the "
+		             "exception to string!\n";
+	else
+		std::cout << s->str() << "\n";
+}
+
+void ExecutionEngine::printRemainingExceptions() {
+	while(pendingExceptions->size > 0) {
+		Value  ex = pendingExceptions->values[--pendingExceptions->size];
+		Fiber *f  = pendingFibers->values[--pendingFibers->size].toFiber();
+		std::cout << "Above exception occurred while handling the following:\n";
+		printException(ex, f);
+		printStackTrace(f);
+	}
 }
 
 #define PUSH(x) *fiber->stackTop++ = (x);
@@ -187,8 +217,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			Exception e = searching->f->exceptions[i];
 			instructionPointer =
 			    searching->code - searching->f->code->bytecodes;
-			if(e.from <= (instructionPointer - 1) &&
-			   e.to >= (instructionPointer - 1)) {
+			if(e.from <= instructionPointer && e.to >= instructionPointer) {
 				matched = searching;
 				block   = e;
 				break;
@@ -235,13 +264,18 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			if(!v.isClass()) {
 				printException(thrown, root);
 				std::cout << "Error occurred while catching an exception!\n";
-				std::cout << "The caught value '" << String::toString(v)->str()
-				          << "' is not a valid class!\n";
+				String *s = String::toString(v);
+				if(s == NULL)
+					std::cout << "The caught value is not a valid class!";
+				else
+					std::cout << "The caught value '" << s->str()
+					          << "' is not a valid class!\n";
 				// pop all but the matched frame
 				while(f->getCurrentFrame() != matched) {
 					f->popFrame();
 				}
 				printStackTrace(f);
+				printRemainingExceptions();
 				exit(1);
 			}
 			caughtClass = v.toClass();
@@ -259,6 +293,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 		if(caughtClass == NULL) {
 			printException(thrown, root);
 			printStackTrace(f);
+			printRemainingExceptions();
 			exit(1);
 		}
 		Fiber *fiber = f;
@@ -268,52 +303,53 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	}
 }
 
-Value ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
-                               bool returnToCaller) {
+bool ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
+                              Value *ret, bool returnToCaller) {
 	(void)numarg;
 	Fiber *fiber = currentFiber;
 	fiber->appendBoundMethodDirect(v, f, args, returnToCaller);
-	return execute(currentFiber);
+	return execute(currentFiber, ret);
 }
 
-Value ExecutionEngine::execute(Value v, Function *f, bool returnToCaller) {
-	return execute(v, f, NULL, 0, returnToCaller);
+bool ExecutionEngine::execute(Value v, Function *f, Value *ret,
+                              bool returnToCaller) {
+	return execute(v, f, NULL, 0, ret, returnToCaller);
 }
 
-Value ExecutionEngine::execute(BoundMethod *b, bool returnToCaller) {
+bool ExecutionEngine::execute(BoundMethod *b, Value *ret, bool returnToCaller) {
 	currentFiber->appendBoundMethod(b, returnToCaller);
-	return execute(currentFiber);
+	return execute(currentFiber, ret);
 }
 
-Value ExecutionEngine::execute(Fiber *f, BoundMethod *b, bool returnToCaller) {
+bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
+                              bool returnToCaller) {
 	Fiber *bak = currentFiber;
 	f->appendBoundMethod(b, returnToCaller);
-	Value v      = execute(f);
+	bool v       = execute(f, ret);
 	currentFiber = bak;
 	return v;
 }
 
-#define RERRF(x, ...)                             \
-	{                                             \
-		formatExceptionMessage(x, ##__VA_ARGS__); \
-		goto error;                               \
-	}
-
-Value ExecutionEngine::execute(Fiber *fiber) {
+bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	fiber->setState(Fiber::RUNNING);
 
 	// check if the fiber actually has something to exec
 	if(fiber->callFramePointer == 0) {
-		if((fiber = fiber->switch_()) == NULL)
-			return ValueNil;
+		if((fiber = fiber->switch_()) == NULL) {
+			*returnValue = ValueNil;
+			return true;
+		}
 	}
 
 	currentFiber = fiber;
+
+	int numberOfExceptions = pendingExceptions->size;
 
 	int       numberOfArguments;
 	Value     rightOperand;
 	int       methodToCall;
 	Function *functionToCall;
+	bool      pendingRuntimeException = false;
 
 	// variable to denote the relocation of instruction
 	// pointer after extracting an argument
@@ -323,43 +359,30 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
 
+#define GOTOERROR()                     \
+	{                                   \
+		pendingRuntimeException = true; \
+		goto error;                     \
+	}
+
+#define RERRF(x, ...)                             \
+	{                                             \
+		formatExceptionMessage(x, ##__VA_ARGS__); \
+		GOTOERROR();                              \
+	}
 	if(currentRecursionDepth == maxRecursionLimit) {
 		// reduce the depth so that we can print the message
 		currentRecursionDepth -= 1;
 		RERRF("Maxmimum recursion depth reached!");
 	}
 
-#define RETURN(x)                \
-	{                            \
-		currentRecursionDepth--; \
-		return (x);              \
+#define RETURN(x)                                             \
+	{                                                         \
+		currentRecursionDepth--;                              \
+		*returnValue = x;                                     \
+		return numberOfExceptions == pendingExceptions->size; \
 	}
 	currentRecursionDepth++;
-	// Next fibers has no way of saving state of builtin
-	// functions. They are handled by the native stack.
-	// So, they must always appear at the top of the
-	// Next callframe so that they can be immediately
-	// executed, before proceeding with further execution.
-	// So we check that here
-	if(presentFrame->f->getType() == Function::BUILTIN) {
-		Value res =
-		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
-		bool ret = presentFrame->returnToCaller;
-		fiber->popFrame();
-		// it may have caused a fiber switch
-		fiber = currentFiber;
-		// if we have to return, we do,
-		// otherwise, we continue normal execution
-		if(ret) {
-			RETURN(res);
-		} else if(fiber->callFramePointer == 0) {
-			if((fiber = fiber->switch_()) == NULL) {
-				RETURN(res);
-			} else
-				currentFiber = fiber;
-		}
-		PUSH(res);
-	}
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
@@ -472,12 +495,49 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 #define UNREACHABLE()                                     \
 	{                                                     \
 		panic("This path should have never been taken!"); \
-		return ValueNil;                                  \
+		return false;                                     \
 	}
 
-	// the top may have been occupied by a builtin,
-	// so we restore the state just to be safe
-	RESTORE_FRAMEINFO();
+	// Next fibers has no way of saving state of builtin
+	// functions. They are handled by the native stack.
+	// So, they must always appear at the top of the
+	// Next callframe so that they can be immediately
+	// executed, before proceeding with further execution.
+	// So we check that here
+	if(presentFrame->f->getType() == Function::BUILTIN) {
+		Value res =
+		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
+		// we purposefully ignore any exception here,
+		// because that would trigger an unlimited
+		// recursion in case this function was executed
+		// as a result of an exception itself.
+		bool ret = presentFrame->returnToCaller;
+		fiber->popFrame();
+		// it may have caused a fiber switch
+		if(fiber != currentFiber) {
+			BACKUP_FRAMEINFO();
+			fiber = currentFiber;
+		}
+		RESTORE_FRAMEINFO();
+		if(pendingExceptions->size > numberOfExceptions) {
+			// we unwind this stack to let the caller handle
+			// the exception
+			RETURN(res);
+		}
+		// if we have to return, we do,
+		// otherwise, we continue normal execution
+		if(ret) {
+			RETURN(res);
+		} else if(fiber->callFramePointer == 0) {
+			if((fiber = fiber->switch_()) == NULL) {
+				RETURN(res);
+			} else {
+				currentFiber = fiber;
+				RESTORE_FRAMEINFO();
+			}
+		}
+		PUSH(res);
+	}
 
 	LOOP() {
 #ifdef DEBUG_INS
@@ -754,16 +814,17 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		performcall : {
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
+					BACKUP_FRAMEINFO();
 					Value res = functionToCall->func(
 					    fiber->stackTop -= (numberOfArguments + 1),
 					    numberOfArguments + 1); // include the receiver
 					// it may have caused a fiber switch
 					if(fiber != currentFiber) {
-						BACKUP_FRAMEINFO();
 						fiber = currentFiber;
-						RESTORE_FRAMEINFO();
 					}
-					if(pendingException == ValueNil) {
+					// present frame may be reallocated elsewhere
+					RESTORE_FRAMEINFO();
+					if(pendingExceptions->size == 0) {
 						PUSH(res);
 						DISPATCH();
 					}
@@ -1029,12 +1090,9 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 
 			CASE(throw_) : {
 				// POP the thrown object
-				Value v = TOP;
-				if(v.isGcObject()) {
-					TOP = ValueNil;
-				}
-				DROP();
-				pendingException = v;
+				Value v = POP();
+				pendingExceptions->insert(v);
+				pendingFibers->insert(currentFiber);
 				goto error;
 			}
 
@@ -1059,14 +1117,21 @@ Value ExecutionEngine::execute(Fiber *fiber) {
 		// the ExceptionMessage to create a
 		// RuntimeException, and set pendingException
 		// to the same.
-		if(pendingException == ValueNil) {
-			pendingException =
-			    RuntimeError::create(String::from(ExceptionMessage));
+		if(pendingRuntimeException) {
+			pendingExceptions->insert(
+			    RuntimeError::create(String::from(ExceptionMessage)));
+			pendingRuntimeException = false;
+			pendingFibers->insert(fiber);
 		}
 		BACKUP_FRAMEINFO();
-		currentFiber = fiber = throwException(pendingException, fiber);
+		// pop the last exception
+		Value pendingException =
+		    pendingExceptions->values[--pendingExceptions->size];
+		// pop the last location
+		Value thrownFiber = pendingFibers->values[--pendingFibers->size];
+		currentFiber      = fiber =
+		    throwException(pendingException, thrownFiber.toFiber());
 		RESTORE_FRAMEINFO();
-		pendingException = ValueNil;
 		DISPATCH_WINC();
 	}
 }

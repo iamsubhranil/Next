@@ -31,7 +31,12 @@ Value next_core_is_same_type(const Value *args, int numargs) {
 
 Value next_core_print(const Value *args, int numargs) {
 	for(int i = 1; i < numargs; i++) {
-		std::cout << String::toString(args[i])->str();
+		String *s = String::toString(args[i]);
+		// if we're unable to convert the value,
+		// bail
+		if(s == NULL)
+			return ValueNil;
+		std::cout << s->str();
 	}
 	return ValueNil;
 }

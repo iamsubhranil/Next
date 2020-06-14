@@ -1,0 +1,24 @@
+class NestClass {
+    priv:
+        x
+    pub:
+        new(a) { x = a }
+
+        fn str() {
+            throw x
+        }
+}
+
+class MyClass {
+    priv:
+        x
+    pub:
+        new(a) { x = a }
+
+        fn str() {
+            throw NestClass(x)
+        }
+}
+
+obj = MyClass(3)
+throw obj

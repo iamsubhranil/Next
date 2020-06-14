@@ -13,8 +13,11 @@ class ExecutionEngine {
 
 	static HashMap<String *, Class *> loadedModules;
 
-	static Value pendingException;
-	static void  formatExceptionMessage(const char *message, ...);
+	// stack of unhandled exceptions
+	static Array *pendingExceptions;
+	// state of fibers when that exception occurred
+	static Array *pendingFibers;
+	static void   formatExceptionMessage(const char *message, ...);
 
 	// current fiber on execution
 	static Fiber *currentFiber;
@@ -22,6 +25,8 @@ class ExecutionEngine {
 	// max recursion limit for execute()
 	static size_t maxRecursionLimit;
 	static size_t currentRecursionDepth;
+
+	static void printRemainingExceptions();
 
   public:
 	static void   mark();
@@ -37,16 +42,28 @@ class ExecutionEngine {
 	// print v, and print stack trace, and exit
 	static void printException(Value v, Fiber *f);
 	static void printStackTrace(Fiber *f);
+	// all these methods return bool to denote whether
+	// or not an exception occurred while executing the
+	// given frame, and hence whether or not to continue
+	// with the rest of the execution.
+	// the engine assumes a new exception has occurred when
+	// the number of exceptions generated before
+	// executing the function is greater than
+	// number of exceptions generated after.
+
 	// executes a bound method on v in current fiber
-	static Value execute(Value v, Function *f, Value *args, int numargs,
-	                     bool returnToCaller = false);
-	static Value execute(Value v, Function *f, bool returnToCaller = false);
+	static bool execute(Value v, Function *f, Value *args, int numargs,
+	                    Value *ret, bool returnToCaller = false);
+	static bool execute(Value v, Function *f, Value *ret,
+	                    bool returnToCaller = false);
 	// executes the boundmethod in current fiber
-	static Value execute(BoundMethod *b, bool returnToCaller = false);
+	static bool execute(BoundMethod *b, Value *ret,
+	                    bool returnToCaller = false);
 	// executes the boundmethod in the given fiber
-	static Value execute(Fiber *f, BoundMethod *b, bool returnToCaller = false);
+	static bool execute(Fiber *f, BoundMethod *b, Value *ret,
+	                    bool returnToCaller = false);
 	// executes the fiber
-	static Value execute(Fiber *f);
+	static bool execute(Fiber *f, Value *ret);
 	// singleton instance of core
 	static Object *CoreObject;
 
