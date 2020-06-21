@@ -1,0 +1,38 @@
+class CollectionAssign {
+    priv:
+        t
+    pub:
+        sum
+        new(x) { 
+            t = x 
+            sum = 0
+        }
+
+        fn assignfn(idx, i) {
+            t[idx] =  idx + 1
+        }
+
+        fn sumfn(idx, i) {
+            sum = sum + i
+        }
+}
+
+fn oneach(arr) {
+    t = CollectionAssign(arr)
+    start = clock()
+    arr.each(t.assignfn@2)
+    arr.each(t.sumfn@2)
+    //arr.each(print)
+
+    end = (clock() - start)/clocks_per_sec
+
+    print("Elapsed: ", end, "\n")
+}
+
+size = 100000000
+oneach(tuple(size))
+arr = []
+for(i in range(size)) {
+    arr[i] = i + 1
+}
+oneach(arr)

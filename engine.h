@@ -64,6 +64,10 @@ class ExecutionEngine {
 	                    bool returnToCaller = false);
 	// executes the fiber
 	static bool execute(Fiber *f, Value *ret);
+	static bool executeNoBuiltin(Value *ret);
+	static bool executeLoop(Value *source, int count, BoundMethod *bm);
+	// different from executeLoop because array is mutable
+	static bool executeArrayLoop(Array *arr, BoundMethod *bm);
 	// singleton instance of core
 	static Object *CoreObject;
 

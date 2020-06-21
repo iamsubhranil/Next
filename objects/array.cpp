@@ -1,10 +1,20 @@
 #include "array.h"
+#include "../engine.h"
 #include "../utils.h"
 #include "array_iterator.h"
 #include "class.h"
 #include "errors.h"
 
 using namespace std;
+
+Value next_array_each(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(array, "each(_)", 1, BoundMethod);
+	BoundMethod *bm = args[1].toBoundMethod();
+	Array *      a  = args[0].toArray();
+	ExecutionEngine::executeArrayLoop(a, bm);
+	return ValueNil;
+}
 
 Value next_array_insert(const Value *args, int numargs) {
 	(void)numargs;
@@ -123,7 +133,8 @@ void Array::init() {
 	// constructors : empty, and predefined size
 	ArrayClass->add_builtin_fn("()", 0, next_array_construct_empty);
 	ArrayClass->add_builtin_fn("(_)", 1, next_array_construct_size);
-	// insert, iterate, get, set, size
+	// each, insert, iterate, get, set, size
+	ArrayClass->add_builtin_fn("each(_)", 1, &next_array_each);
 	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert);
 	ArrayClass->add_builtin_fn("iterate()", 0, &next_array_iterate);
 	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get);

@@ -1,4 +1,5 @@
 #include "tuple.h"
+#include "../engine.h"
 #include "../utils.h"
 #include "class.h"
 #include "errors.h"
@@ -64,11 +65,21 @@ Value next_tuple_set(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_tuple_each(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(tuple, "each(_)", 1, BoundMethod);
+	BoundMethod *bm = args[1].toBoundMethod();
+	Tuple *      t  = args[0].toTuple();
+	ExecutionEngine::executeLoop(t->values(), t->size, bm);
+	return ValueNil;
+}
+
 void Tuple::init() {
 	Class *TupleClass = GcObject::TupleClass;
 
 	TupleClass->init("tuple", Class::ClassType::BUILTIN);
 	TupleClass->add_builtin_fn("(_)", 1, next_tuple_construct_1);
+	TupleClass->add_builtin_fn("each(_)", 1, next_tuple_each);
 	TupleClass->add_builtin_fn("iterate()", 0, next_tuple_iterate);
 	TupleClass->add_builtin_fn("size()", 0, next_tuple_size);
 	TupleClass->add_builtin_fn("[](_)", 1, next_tuple_get);

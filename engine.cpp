@@ -330,6 +330,13 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 	return v;
 }
 
+#define RESTORE_FRAMEINFO()                        \
+	presentFrame       = fiber->getCurrentFrame(); \
+	InstructionPointer = presentFrame->code;       \
+	Stack              = presentFrame->stack_;
+
+#define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
+
 bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	fiber->setState(Fiber::RUNNING);
 
@@ -341,7 +348,71 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		}
 	}
 
+	if(currentRecursionDepth == maxRecursionLimit) {
+		*returnValue = RuntimeError::sete("Maximum recursion depth reached!");
+		return false;
+	}
+
+#define RETURN(x)                                             \
+	{                                                         \
+		currentRecursionDepth--;                              \
+		*returnValue = x;                                     \
+		return numberOfExceptions == pendingExceptions->size; \
+	}
+	currentRecursionDepth++;
 	currentFiber = fiber;
+
+	int numberOfExceptions = pendingExceptions->size;
+
+	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
+	Bytecode::Opcode *InstructionPointer = presentFrame->code;
+	Value *           Stack              = presentFrame->stack_;
+
+	// Next fibers has no way of saving state of builtin
+	// functions. They are handled by the native stack.
+	// So, they must always appear at the top of the
+	// Next callframe so that they can be immediately
+	// executed, before proceeding with further execution.
+	// So we check that here
+	if(presentFrame->f->getType() == Function::BUILTIN) {
+		Value res =
+		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
+		// we purposefully ignore any exception here,
+		// because that would trigger an unlimited
+		// recursion in case this function was executed
+		// as a result of an exception itself.
+		bool ret = presentFrame->returnToCaller;
+		fiber->popFrame();
+		// it may have caused a fiber switch
+		if(fiber != currentFiber) {
+			BACKUP_FRAMEINFO();
+			fiber = currentFiber;
+		}
+		RESTORE_FRAMEINFO();
+		if(pendingExceptions->size > numberOfExceptions) {
+			// we unwind this stack to let the caller handle
+			// the exception
+			RETURN(res);
+		}
+		// if we have to return, we do,
+		// otherwise, we continue normal execution
+		if(ret) {
+			RETURN(res);
+		} else if(fiber->callFramePointer == 0) {
+			if((fiber = fiber->switch_()) == NULL) {
+				RETURN(res);
+			} else {
+				currentFiber = fiber;
+				RESTORE_FRAMEINFO();
+			}
+		}
+		PUSH(res);
+	}
+	return executeNoBuiltin(returnValue);
+}
+
+bool ExecutionEngine::executeNoBuiltin(Value *returnValue) {
+	Fiber *fiber = currentFiber;
 
 	int numberOfExceptions = pendingExceptions->size;
 
@@ -370,19 +441,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		formatExceptionMessage(x, ##__VA_ARGS__); \
 		GOTOERROR();                              \
 	}
-	if(currentRecursionDepth == maxRecursionLimit) {
-		// reduce the depth so that we can print the message
-		currentRecursionDepth -= 1;
-		RERRF("Maxmimum recursion depth reached!");
-	}
-
-#define RETURN(x)                                             \
-	{                                                         \
-		currentRecursionDepth--;                              \
-		*returnValue = x;                                     \
-		return numberOfExceptions == pendingExceptions->size; \
-	}
-	currentRecursionDepth++;
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
@@ -425,13 +483,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 #define JUMPTO_OFFSET(x) \
 	{ JUMPTO((x) - (sizeof(int) / sizeof(Bytecode::Opcode))); }
-
-#define RESTORE_FRAMEINFO()                        \
-	presentFrame       = fiber->getCurrentFrame(); \
-	InstructionPointer = presentFrame->code;       \
-	Stack              = presentFrame->stack_;
-
-#define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
 #define relocip(x)                                 \
 	(reloc = sizeof(x) / sizeof(Bytecode::Opcode), \
@@ -496,47 +547,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	{                                                     \
 		panic("This path should have never been taken!"); \
 		return false;                                     \
-	}
-
-	// Next fibers has no way of saving state of builtin
-	// functions. They are handled by the native stack.
-	// So, they must always appear at the top of the
-	// Next callframe so that they can be immediately
-	// executed, before proceeding with further execution.
-	// So we check that here
-	if(presentFrame->f->getType() == Function::BUILTIN) {
-		Value res =
-		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
-		// we purposefully ignore any exception here,
-		// because that would trigger an unlimited
-		// recursion in case this function was executed
-		// as a result of an exception itself.
-		bool ret = presentFrame->returnToCaller;
-		fiber->popFrame();
-		// it may have caused a fiber switch
-		if(fiber != currentFiber) {
-			BACKUP_FRAMEINFO();
-			fiber = currentFiber;
-		}
-		RESTORE_FRAMEINFO();
-		if(pendingExceptions->size > numberOfExceptions) {
-			// we unwind this stack to let the caller handle
-			// the exception
-			RETURN(res);
-		}
-		// if we have to return, we do,
-		// otherwise, we continue normal execution
-		if(ret) {
-			RETURN(res);
-		} else if(fiber->callFramePointer == 0) {
-			if((fiber = fiber->switch_()) == NULL) {
-				RETURN(res);
-			} else {
-				currentFiber = fiber;
-				RESTORE_FRAMEINFO();
-			}
-		}
-		PUSH(res);
 	}
 
 	LOOP() {
@@ -1134,4 +1144,152 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		RESTORE_FRAMEINFO();
 		DISPATCH_WINC();
 	}
+}
+
+bool ExecutionEngine::executeLoop(Value *source, int count, BoundMethod *bm) {
+	if(count == 0)
+		return true;
+
+	// first, verify the boundmethod
+	Value args[3] = {Value(0), source[0], ValueNil};
+	if(bm->verify(args, 2) != BoundMethod::OK) {
+		return false;
+	}
+
+	// the bound method has to be an object bound
+	// method to pass the argument check.
+	// so extract the object
+	args[0] = bm->binder;
+	// extract the function
+	Function *f = bm->func;
+	// we'll explicitly run the function based on its
+	// type, so check that
+	switch(f->getType()) {
+		case Function::BUILTIN: {
+			int excount = pendingExceptions->size;
+			// directly run the function
+			for(int i = 0; i < count; i++) {
+				args[1] = Value(i);
+				args[2] = source[i];
+				f->func(args, 3);
+				// if it generated new exception,
+				// bail
+				if(excount != pendingExceptions->size)
+					return false;
+			}
+			return true;
+		}
+		case Function::METHOD: {
+			// count for 3 arguments
+			currentFiber->ensureStack(f->code->stackMaxSize);
+			Fiber *fiber = currentFiber;
+			fiber->ensureFrame();
+			// for this function in this fiber, the callframe
+			// pointer should stay constant
+			size_t clfp                            = fiber->callFramePointer;
+			fiber->callFrames[clfp].f              = f;
+			fiber->callFrames[clfp].returnToCaller = true;
+			Bytecode::Opcode *codes                = f->code->bytecodes;
+			int               numSlots             = f->code->numSlots;
+			int               topIncrement         = f->code->numSlots - 3;
+			for(int i = 0; i < count; i++) {
+				// set up the frame
+				fiber->callFrames[clfp].stack_ = fiber->stackTop;
+				fiber->callFrames[clfp].code   = codes;
+				// set up the stack
+				PUSH(args[0]);
+				PUSH(Value(i));
+				PUSH(source[i]);
+				fiber->stackTop += topIncrement;
+				// increment the call frame pointer
+				fiber->callFramePointer++;
+				// clear the slots if we have to
+				fiber->clearCurrentFrameSlots(numSlots, 3);
+				// increase the recursion depth manually
+				// the engine will decrease it on return
+				currentRecursionDepth++;
+				Value ret;
+				// if the execution fails, bail
+				if(!executeNoBuiltin(&ret)) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ExecutionEngine::executeArrayLoop(Array *arr, BoundMethod *bm) {
+	if(arr->size == 0)
+		return true;
+
+	// first, verify the boundmethod
+	Value args[3] = {Value(0), arr->values[0], ValueNil};
+	if(bm->verify(args, 2) != BoundMethod::OK) {
+		return false;
+	}
+
+	// the bound method has to be an object bound
+	// method to pass the argument check.
+	// so extract the object
+	args[0] = bm->binder;
+	// extract the function
+	Function *f = bm->func;
+	// we'll explicitly run the function based on its
+	// type, so check that
+	switch(f->getType()) {
+		case Function::BUILTIN: {
+			int excount = pendingExceptions->size;
+			// directly run the function
+			for(int i = 0; i < arr->size; i++) {
+				args[1] = Value(i);
+				args[2] = arr->values[i];
+				f->func(args, 3);
+				// if it generated new exception,
+				// bail
+				if(excount != pendingExceptions->size)
+					return false;
+			}
+			return true;
+		}
+		case Function::METHOD: {
+			// count for 3 arguments
+			currentFiber->ensureStack(f->code->stackMaxSize);
+			Fiber *fiber = currentFiber;
+			fiber->ensureFrame();
+			// for this function in this fiber, the callframe
+			// pointer should stay constant
+			size_t clfp                            = fiber->callFramePointer;
+			fiber->callFrames[clfp].f              = f;
+			fiber->callFrames[clfp].returnToCaller = true;
+			Bytecode::Opcode *codes                = f->code->bytecodes;
+			int               numSlots             = f->code->numSlots;
+			int               topIncrement         = f->code->numSlots - 3;
+			for(int i = 0; i < arr->size; i++) {
+				// set up the frame
+				fiber->callFrames[clfp].stack_ = fiber->stackTop;
+				fiber->callFrames[clfp].code   = codes;
+				// set up the stack
+				PUSH(args[0]);
+				PUSH(Value(i));
+				PUSH(arr->values[i]);
+				fiber->stackTop += topIncrement;
+				// increment the call frame pointer
+				fiber->callFramePointer++;
+				// clear the slots if we have to
+				fiber->clearCurrentFrameSlots(numSlots, 3);
+				// increase the recursion depth manually
+				// the engine will decrease it on return
+				currentRecursionDepth++;
+				Value ret;
+				// if the execution fails, bail
+				if(!executeNoBuiltin(&ret)) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
 }

@@ -1,5 +1,4 @@
 fn oniterator(arr, size) {
-    start = clock()
     for(i in range(size)) {
         arr[i] = i + 1
     }
@@ -8,46 +7,70 @@ fn oniterator(arr, size) {
     for(i in arr) {
         sum = sum + i
     }
-
-    end = (clock() - start)/clocks_per_sec
-
-    print("Elapsed: ", end, "\n")
 }
 
 fn onindex(arr, size) {
-    start = clock()
     for(i in range(size)) {
         arr[i] = i + 1
     }
     i = 0
     sum = 0
     while(i < size) {
-        sum = sum + i++
+        sum = sum + arr[i++]
     }
+}
 
-    end = (clock() - start)/clocks_per_sec
+class CollectionAssign {
+    priv:
+        t
+    pub:
+        sum
+        new(x) {
+            t = x
+            sum = 0
+        }
 
-    print("Elapsed: ", end, "\n")
+        fn assignfn(idx, val) {
+            t[idx] =  idx + 1
+        }
+
+        fn sumfn(idx, val) {
+            sum = sum + val
+        }
+}
+
+fn oneach(arr, size) {
+    t = CollectionAssign(arr)
+    if(type_of(arr) == "array" and arr.size() == 0) {
+        for(i in range(size)) {
+            arr[i] = i + 1
+        }
+    } else {
+        arr.each(t.assignfn@2)
+    }
+    arr.each(t.sumfn@2)
+}
+
+fn combo(collections, methods, size) {
+    for(i in collections.keys()) {
+        col = collections[i]
+        for(j in methods.keys()) {
+            m = methods[j]
+            print(i, ": ", j, "\n")
+            start = clock()
+            m(col, size)
+            end = (clock() - start)/clocks_per_sec
+            print("Elapsed: ", end, "\n")
+        }
+    }
 }
 
 fn test() {
     size = 100000000
-    print("Array: Iterator\n")
-    oniterator([], size)
-    gc()
-    print("Tuple: Iterator\n")
-    oniterator(tuple(size), size)
-    gc()
-    print("Array (Fixed Size): Iterator\n")
-    oniterator(array(size), size)
-    gc()
-    print("Tuple: Index Access\n")
-    onindex(tuple(size), size)
-    gc()
-    print("Array: Index Access\n")
-    onindex([], size)
-    gc()
-    print("Array (Fixed Size): Index Access\n")
-    onindex(array(size), size)
+    collections = {"Array": [],
+                    "Array (Fixed Size)": array(size),
+                    "Tuple": tuple(size)}
+    methods = {"Iterator": oniterator@2, "Index": onindex@2, "Each": oneach@2}
+    combo(collections, methods, size)
 }
 test()
