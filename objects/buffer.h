@@ -30,6 +30,11 @@ template <typename T> class Buffer {
 		s = res;
 	}
 
+	void insert(T value) {
+		resize(s + 1);
+		buf[s - 1] = value;
+	}
+
 	T *data() { return buf; }
 
 	size_t capacity() { return cap; }

@@ -1,6 +1,7 @@
 #include "core.h"
 #include "../engine.h"
 #include "../format.h"
+#include "buffer.h"
 #include "bytecodecompilationctx.h"
 #include "classcompilationctx.h"
 #include "errors.h"
@@ -75,6 +76,23 @@ Value next_core_gc(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_core_input0(const Value *args, int numargs) {
+	(void)args;
+	(void)numargs;
+	Buffer<char> buffer;
+	char         c;
+	while((c = getchar()) != '\n' && c != 0) {
+		buffer.insert(c);
+	}
+	return String::from(buffer.data(), buffer.size());
+}
+
+Value next_core_input1(const Value *args, int numargs) {
+	EXPECT(core, "input(_)", 1, String);
+	next_core_print(args, numargs);
+	return next_core_input0(args, numargs);
+}
+
 void addBoundMethodVa(const char *name, int arity, next_builtin_fn builtin_fn) {
 	String *                 n  = String::from(name);
 	Function *               fn = Function::from(n, arity, builtin_fn, true);
@@ -101,6 +119,8 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("yield()", 0, next_core_yield_0);
 	add_builtin_fn("yield(_)", 1, next_core_yield_1);
 	add_builtin_fn("gc()", 0, next_core_gc);
+	add_builtin_fn("input()", 0, next_core_input0);
+	add_builtin_fn("input(_)", 1, next_core_input1);
 
 	addBoundMethodVa("print", 0, next_core_print);
 	addBoundMethodVa("fmt", 1, next_core_format);
