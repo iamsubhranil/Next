@@ -26,7 +26,7 @@ Value next_tuple_iterator_next(const Value *args, int numargs) {
 	Value *arr   = slots[1].toPointer();
 	Tuple *a     = slots[0].toTuple();
 	slots[1]     = Value(arr + 1);
-	slots[2]     = Value(arr - a->values() < a->size);
+	slots[2]     = Value((arr + 1 - a->values()) < a->size);
 	return *arr;
 }
 

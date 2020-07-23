@@ -8,7 +8,10 @@ using namespace std;
 
 Value next_array_insert(const Value *args, int numargs) {
 	(void)numargs;
-	return args[0].toArray()->insert(args[1]);
+	for(int i = 1; i < numargs; i++) {
+		args[0].toArray()->insert(args[i]);
+	}
+	return ValueNil;
 }
 
 Value next_array_iterate(const Value *args, int numargs) {
@@ -18,24 +21,30 @@ Value next_array_iterate(const Value *args, int numargs) {
 
 Value next_array_get(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(array, get, 1, Integer);
+	EXPECT(array, "[](_)", 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
 	if(i >= 0) {
 		if(i < a->size)
 			return a->values[i];
-		IDXERR("Invalid array index", -a->size, a->size - 1, i);
+		if(a->size == 0) {
+			IDXERR("Array is empty!", 0, 0, i);
+		}
+		IDXERR("Invalid array index!", -a->size, a->size - 1, i);
 	}
 	if(-i <= a->size) {
 		i += a->size;
 		return a->values[i];
 	}
-	IDXERR("Invalid array index", -a->size, a->size - 1, i);
+	if(a->size == 0) {
+		IDXERR("Array is empty!", 0, 0, i);
+	}
+	IDXERR("Invalid array index!", -a->size, a->size - 1, i);
 }
 
 Value next_array_set(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(array, set, 1, Integer);
+	EXPECT(array, "[](_,_)", 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
 	if(i >= 0) {
@@ -44,7 +53,7 @@ Value next_array_set(const Value *args, int numargs) {
 		} else if(i == a->size) {
 			return a->insert(args[2]);
 		}
-		IDXERR("Invalid array index", -a->size, a->size, i);
+		IDXERR("Invalid array index!", -a->size, a->size, i);
 	}
 	// negative indexing cannot insert an element.
 	// for an array of size 4, you can access atmost
@@ -53,7 +62,10 @@ Value next_array_set(const Value *args, int numargs) {
 		i += a->size;
 		return a->values[i] = args[2];
 	}
-	IDXERR("Invalid array index", -a->size, a->size, i);
+	if(a->size == 0) {
+		IDXERR("Array is empty!", 0, 0, i);
+	}
+	IDXERR("Invalid array index!", -a->size, a->size, i);
 }
 
 Value next_array_size(const Value *args, int numargs) {
@@ -72,7 +84,7 @@ Value next_array_construct_empty(const Value *args, int numargs) {
 
 Value next_array_construct_size(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(array, new(_), 1, Integer);
+	EXPECT(array, "new(_)", 1, Integer);
 	int i = args[1].toInteger();
 	if(i < 1) {
 		return RuntimeError::sete("Size of array must be > 0!");
@@ -124,7 +136,7 @@ void Array::init() {
 	ArrayClass->add_builtin_fn("()", 0, next_array_construct_empty);
 	ArrayClass->add_builtin_fn("(_)", 1, next_array_construct_size);
 	// insert, iterate, get, set, size
-	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert);
+	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert, true);
 	ArrayClass->add_builtin_fn("iterate()", 0, &next_array_iterate);
 	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get);
 	ArrayClass->add_builtin_fn("[](_,_)", 2, &next_array_set);

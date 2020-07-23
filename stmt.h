@@ -108,9 +108,10 @@ class FnBodyStatement : public Statement {
   public:
 	std::vector<Token> args;
 	StmtPtr            body;
-	FnBodyStatement(Token t, std::vector<Token> &ar, StmtPtr &b)
+	bool               isva;
+	FnBodyStatement(Token t, std::vector<Token> &ar, StmtPtr &b, bool isv)
 	    : Statement(t, FNBODY), args(ar.begin(), ar.end()),
-	      body(b == nullptr ? nullptr : b.release()) {}
+	      body(b == nullptr ? nullptr : b.release()), isva(isv) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
@@ -125,7 +126,7 @@ class FnStatement : public Statement {
 	            bool ism, bool iss, bool isn, bool isc, Visibility vis)
 	    : Statement(fn, FN), name(n), body(fnBody.release()), isMethod(ism),
 	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
-	      arity(body->args.size()) {}
+	      arity(body->args.size() - body->isva) {}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 

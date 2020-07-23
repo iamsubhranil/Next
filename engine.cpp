@@ -37,7 +37,8 @@ void ExecutionEngine::init() {
 	// create core instance
 	f->appendMethod(
 	    GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
-	        .toFunction());
+	        .toFunction(),
+	    0, false);
 	Value v;
 	if(execute(f, &v)) {
 		CoreObject = v.toObject();
@@ -92,8 +93,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 				          << ANSI_COLOR_RESET << "'\n";
 			}
 		} else {
-			f->f->code->ctx->get_token(0).highlight(true, "In function ",
-			                                        Token::WARN);
+			f->f->code->ctx->get_token(0).highlight(true, "In ", Token::WARN);
 		}
 		t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
 		t.highlight(true, "At ", Token::ERROR);
@@ -176,7 +176,6 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	} else {
 		err("Uncaught exception occurred of type '%s'!", c->name->str());
 	}
-	printStackTrace(f);
 	std::cout << "<Exception> " << c->name->str() << ": ";
 	String *s = String::toString(v);
 	if(s == NULL)
@@ -184,6 +183,7 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 		             "exception to string!\n";
 	else
 		std::cout << s->str() << "\n";
+	printStackTrace(f);
 }
 
 void ExecutionEngine::printRemainingExceptions() {
@@ -305,9 +305,8 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 
 bool ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
                               Value *ret, bool returnToCaller) {
-	(void)numarg;
 	Fiber *fiber = currentFiber;
-	fiber->appendBoundMethodDirect(v, f, args, returnToCaller);
+	fiber->appendBoundMethodDirect(v, f, args, numarg, returnToCaller);
 	return execute(currentFiber, ret);
 }
 
@@ -832,7 +831,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				}
 				case Function::Type::METHOD:
 					BACKUP_FRAMEINFO();
-					fiber->appendMethodNoBuiltin(functionToCall);
+					fiber->appendMethodNoBuiltin(functionToCall,
+					                             numberOfArguments, false);
 					RESTORE_FRAMEINFO();
 					DISPATCH_WINC();
 					break;
@@ -891,7 +891,11 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			LOAD_SLOT(7)
 
 			CASE(load_module) : {
-				PUSH(Stack[0].toClass()->module->instance);
+				Value klass = Stack[0];
+				// the 0th slot may also contain an object
+				if(!klass.isClass())
+					klass = klass.getClass();
+				PUSH(klass.toClass()->module->instance);
 				DISPATCH();
 			}
 
@@ -1096,9 +1100,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				goto error;
 			}
 
-			DEFAULT() : {
+			CASE(end) : DEFAULT() : {
 				uint8_t code = *InstructionPointer;
-				if(code > Bytecode::CODE_search_method) {
+				if(code >= Bytecode::CODE_end) {
 					panic("Invalid bytecode %d!", code);
 				} else {
 					panic("Bytecode not implemented : '%s'!",

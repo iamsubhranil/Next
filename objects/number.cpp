@@ -166,7 +166,7 @@ Value next_number_fmt_(FormatSpec *f, F fn, T val) {
 	if(f->align == '^') {
 		// find out how much space we have on the left
 		char * data = b.data();
-		size_t i = 0, j;
+		size_t i    = 0, j;
 		for(; i < b.size(); i++) {
 			if(data[i] != ' ')
 				break;
@@ -226,7 +226,9 @@ Value next_number_toint(const Value *args, int numargs) {
 
 Value next_number_from_str(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(number, new(_), 1, String);
+	if(args[1].isNumber())
+		return args[1];
+	EXPECT(number, "to(_)", 1, String);
 	String *s      = args[1].toString();
 	char *  endptr = NULL;
 	double  d      = strtod(s->str(), &endptr);

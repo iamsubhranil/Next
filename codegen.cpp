@@ -1057,7 +1057,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			FunctionCompilationContext *fctx =
 			    FunctionCompilationContext::create(
 			        String::from(ifs->name.start, ifs->name.length), ifs->arity,
-			        ifs->isStatic);
+			        ifs->isStatic, ifs->body->isva);
 			Visibility consider = currentVisibility;
 			if(ifs->visibility != VIS_DEFAULT)
 				consider = ifs->visibility;
@@ -1113,8 +1113,6 @@ void CodeGenerator::visit(FnStatement *ifs) {
 
 		popFrame();
 	}
-
-	// panic("Not yet implemented!");
 }
 
 void CodeGenerator::visit(FnBodyStatement *ifs) {
@@ -1122,11 +1120,11 @@ void CodeGenerator::visit(FnBodyStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	for(auto i = ifs->args.begin(), j = ifs->args.end(); i != j; i++) {
+	for(auto &i : ifs->args) {
 		// body will automatically contain a block statement,
 		// which will obviously push a new scope.
 		// So we speculatively do that here.
-		ftx->create_slot(String::from((*i).start, (*i).length), scopeID + 1);
+		ftx->create_slot(String::from(i.start, i.length), scopeID + 1);
 	}
 	ifs->body->accept(this);
 }

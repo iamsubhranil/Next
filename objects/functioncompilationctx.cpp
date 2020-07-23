@@ -10,11 +10,13 @@ void FunctionCompilationContext::init() {
 	                                      Class::ClassType::BUILTIN);
 }
 
-FunctionCompilationContext *
-FunctionCompilationContext::create(String *name, int arity, bool isStatic) {
+FunctionCompilationContext *FunctionCompilationContext::create(String *name,
+                                                               int     arity,
+                                                               bool    isStatic,
+                                                               bool    isva) {
 	FunctionCompilationContext *fcc =
 	    GcObject::allocFunctionCompilationContext();
-	fcc->f       = Function::create(name, arity, false, isStatic);
+	fcc->f       = Function::create(name, arity, isva, isStatic);
 	fcc->slotmap = (SlotMap *)GcObject::malloc(sizeof(SlotMap));
 	::new(fcc->slotmap) SlotMap();
 	fcc->bcc       = BytecodeCompilationContext::create();

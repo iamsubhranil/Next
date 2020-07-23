@@ -211,14 +211,32 @@ std::unique_ptr<FnBodyStatement>
 FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative, int numArgs) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after function name!");
 	std::vector<Token> args;
+	bool               isva = false;
 	if(numArgs == -1 || t.type == TOKEN_SUBSCRIPT) {
 		if(!p->match(TOKEN_RIGHT_PAREN)) {
 			do {
 				args.push_back(
 				    p->consume(TOKEN_IDENTIFIER, "Expected argument name!"));
 			} while(p->match(TOKEN_COMMA));
-			p->consume(TOKEN_RIGHT_PAREN,
-			           "Expected ')' after argument declaration!");
+			if(p->lookAhead(0).type == TOKEN_DOT_DOT) {
+				Token dotdot = p->consume();
+				if(args.size() == 0) {
+					throw ParseException(dotdot,
+					                     "Expected argument name before '..'!");
+				}
+				if(p->match(TOKEN_RIGHT_PAREN)) {
+					isva = true;
+				} else {
+					if(p->match(TOKEN_COMMA)) {
+						throw ParseException(dotdot,
+						                     "Variadic argument must be last "
+						                     "one in argument list!");
+					}
+				}
+			}
+			if(!isva)
+				p->consume(TOKEN_RIGHT_PAREN,
+				           "Expected ')' after argument declaration!");
 		}
 	} else {
 		while(numArgs--) {
@@ -238,7 +256,7 @@ FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative, int numArgs) {
 			p->consume(TOKEN_fn, "Native functions should not have a body!");
 		}
 	}
-	return unq(FnBodyStatement, t, args, block);
+	return unq(FnBodyStatement, t, args, block, isva);
 }
 
 StmtPtr FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism, bool iss,

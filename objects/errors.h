@@ -23,13 +23,13 @@ struct TypeError {
 
 	static void init();
 
-    void mark() const {
-        GcObject::mark(ontype);
-        GcObject::mark(method);
-        GcObject::mark(expected);
-        GcObject::mark(received);
-    }
-	void        release() {}
+	void mark() const {
+		GcObject::mark(ontype);
+		GcObject::mark(method);
+		GcObject::mark(expected);
+		GcObject::mark(received);
+	}
+	void release() {}
 };
 
 struct RuntimeError {
@@ -43,11 +43,9 @@ struct RuntimeError {
 
 	static void init();
 
-    void mark() const {
-        GcObject::mark(message);
-    }
+	void mark() const { GcObject::mark(message); }
 
-	void        release() {}
+	void release() {}
 };
 
 struct IndexError {
@@ -62,11 +60,9 @@ struct IndexError {
 
 	static void init();
 
-    void mark() const {
-        GcObject::mark(message);
-    }
+	void mark() const { GcObject::mark(message); }
 
-	void        release() {}
+	void release() {}
 };
 
 struct FormatError {
@@ -80,19 +76,17 @@ struct FormatError {
 
 	static void init();
 
-    void mark() const {
-        GcObject::mark(message);
-    }
+	void mark() const { GcObject::mark(message); }
 
-	void        release() {}
+	void release() {}
 };
 
 #define RERR(x) return RuntimeError::sete(x);
 #define IDXERR(m, l, h, r) return IndexError::sete(m, l, h, r);
 
-#define EXPECT(obj, name, idx, type)                                \
-	if(!args[idx].is##type()) {                                     \
-		return TypeError::sete(#obj, #name, #type, args[idx], idx); \
+#define EXPECT(obj, name, idx, type)                               \
+	if(!args[idx].is##type()) {                                    \
+		return TypeError::sete(#obj, name, #type, args[idx], idx); \
 	}
 
 #define FERR(x) return FormatError::sete(x);

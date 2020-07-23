@@ -123,7 +123,7 @@ const char *Token::TokenNames[] = {
     "TOKEN_RIGHT_BRACE",   "TOKEN_LEFT_SQUARE", "TOKEN_RIGHT_SQUARE",
 
     "TOKEN_BANG",          "TOKEN_BANG_EQUAL",  "TOKEN_COMMA",
-    "TOKEN_DOT",           "TOKEN_COLON",
+    "TOKEN_DOT",           "TOKEN_DOT_DOT",     "TOKEN_COLON",
 
     "TOKEN_EQUAL",         "TOKEN_EQUAL_EQUAL", "TOKEN_GREATER",
     "TOKEN_GREATER_EQUAL", "TOKEN_LESS",        "TOKEN_LESS_EQUAL",
@@ -141,11 +141,11 @@ const char *Token::TokenNames[] = {
     "TOKEN_ERROR",         "TOKEN_EOF"};
 
 const char *Token::FormalNames[] = {
-    "(",      ")",          "{",     "}",      "[", "]",          "[]",
-    "!",      "!=",         ",",     ".",      ":", "=",          "==",
-    ">",      ">=",         "<",     "<=",     "-", "+",          ";",
-    "/",      "*",          "%",     "^",      "@", "identifier", "string",
-    "number", "hexdecimal", "octal", "binary",
+    "(",      ")",          "{",          "}",     "[",      "]", "[]",
+    "!",      "!=",         ",",          ".",     "..",     ":", "=",
+    "==",     ">",          ">=",         "<",     "<=",     "-", "+",
+    ";",      "/",          "*",          "%",     "^",      "@", "identifier",
+    "string", "number",     "hexdecimal", "octal", "binary",
 #define KEYWORD(x, y) #x,
 #include "keywords.h"
 #undef KEYWORD
@@ -464,7 +464,12 @@ Token Scanner::scanNextToken() {
 		case ';': return Token::from(TOKEN_SEMICOLON, this);
 		case ':': return Token::from(TOKEN_COLON, this);
 		case ',': return Token::from(TOKEN_COMMA, this);
-		case '.': return Token::from(TOKEN_DOT, this);
+		case '.':
+			if(peek() == '.') {
+				advance();
+				return Token::from(TOKEN_DOT_DOT, this);
+			}
+			return Token::from(TOKEN_DOT, this);
 		case '-':
 			if(peek() == '-') {
 				advance();

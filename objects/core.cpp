@@ -42,6 +42,12 @@ Value next_core_print(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_core_println(const Value *args, int numargs) {
+	next_core_print(args, numargs);
+	std::cout << std::endl;
+	return ValueNil;
+}
+
 Value next_core_format(const Value *args, int numargs) {
 	// format is used everywhere in Next, and it does
 	// expect the very first argument to be a string
@@ -93,22 +99,10 @@ Value next_core_input1(const Value *args, int numargs) {
 	return next_core_input0(args, numargs);
 }
 
-void addBoundMethodVa(const char *name, int arity, next_builtin_fn builtin_fn) {
-	String *                 n  = String::from(name);
-	Function *               fn = Function::from(n, arity, builtin_fn, true);
-	ClassCompilationContext *CoreCtx = GcObject::CoreContext;
-	CoreCtx->defaultConstructor->bcc->load_slot(0);
-	CoreCtx->defaultConstructor->bcc->push(Value(fn));
-	CoreCtx->defaultConstructor->bcc->bind_method();
-	CoreCtx->add_public_mem(n);
-	CoreCtx->defaultConstructor->bcc->store_object_slot(
-	    CoreCtx->get_mem_slot(n));
-	CoreCtx->defaultConstructor->bcc->pop();
-}
-
-void add_builtin_fn(const char *n, int arity, next_builtin_fn fn) {
+void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
+                    bool isva = false) {
 	String *  s = String::from(n);
-	Function *f = Function::from(s, arity, fn);
+	Function *f = Function::from(s, arity, fn, isva);
 	GcObject::CoreContext->add_public_fn(s, f);
 }
 
@@ -122,8 +116,9 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("input()", 0, next_core_input0);
 	add_builtin_fn("input(_)", 1, next_core_input1);
 
-	addBoundMethodVa("print", 0, next_core_print);
-	addBoundMethodVa("fmt", 1, next_core_format);
+	add_builtin_fn("print()", 0, next_core_print, true);
+	add_builtin_fn("println()", 0, next_core_println, true);
+	add_builtin_fn("fmt(_)", 1, next_core_format, true);
 }
 
 void addClocksPerSec() {

@@ -117,10 +117,9 @@ bool ClassCompilationContext::is_static_slot(String *name) {
 	return get_mem_info(name).isStatic;
 }
 
-bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
-                                            FunctionCompilationContext *fctx) {
-	if(has_fn(sig))
-		return false;
+void ClassCompilationContext::add_public_signature(
+    String *sig, Function *f, FunctionCompilationContext *fctx) {
+
 	// TODO: insert token here
 	public_signatures->vv[Value(sig)] = Value(f);
 	klass->add_fn(sig, f);
@@ -129,13 +128,36 @@ bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
 	if(f->isStatic() && metaclass) {
 		metaclass->add_fn(sig, f);
 	}
+}
+
+bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
+                                            FunctionCompilationContext *fctx) {
+	if(has_fn(sig))
+		return false;
+	add_public_signature(sig, f, fctx);
+	if(f->isVarArg()) {
+		// sig contains the base signature, without
+		// the vararg. so get the base without ')'
+		String *base = String::from(sig->str(), sig->size - 1);
+		// now starting from 1 upto MAX_VARARG_COUNT, generate
+		// a signature and register
+		for(int i = 0; i < MAX_VARARG_COUNT; i++) {
+			// if base contains only (, i.e. the function
+			// does not have any necessary arguments, initially
+			// append it with _
+			if(i == 0 && base->str()[base->size - 1] == '(') {
+				base = String::append(base, "_");
+			} else {
+				base = String::append(base, ",_");
+			}
+			add_public_signature(String::append(base, ")"), f, fctx);
+		}
+	}
 	return true;
 }
 
-bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
-                                             FunctionCompilationContext *fctx) {
-	if(has_fn(sig))
-		return false;
+void ClassCompilationContext::add_private_signature(
+    String *sig, Function *f, FunctionCompilationContext *fctx) {
 	// TODO: insert token here
 	private_signatures->vv[Value(sig)] = Value(f);
 	// append the signature with "p " so that it cannot
@@ -145,6 +167,31 @@ bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
 	if(fctx)
 		fctxMap->vv[Value(sig)] = Value(fctx);
 	// we don't need to add anything to the metaclass
+}
+
+bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
+                                             FunctionCompilationContext *fctx) {
+	if(has_fn(sig))
+		return false;
+	add_private_signature(sig, f, fctx);
+	if(f->isVarArg()) {
+		// sig contains the base signature, without
+		// the vararg. so get the base without ')'
+		String *base = String::from(sig->str(), sig->size - 1);
+		// now starting from 1 upto MAX_VARARG_COUNT, generate
+		// a signature and register
+		for(int i = 0; i < MAX_VARARG_COUNT; i++) {
+			// if base contains only (, i.e. the function
+			// does not have any necessary arguments, initially
+			// append it with _
+			if(i == 0 && base->str()[base->size - 1] == '(') {
+				base = String::append(base, "_");
+			} else {
+				base = String::append(base, ",_");
+			}
+			add_private_signature(String::append(base, ")"), f, fctx);
+		}
+	}
 	return true;
 }
 
@@ -240,16 +287,39 @@ void ClassCompilationContext::disassemble(std::ostream &o) {
 	}
 	o << "\n";
 	o << "Functions: " << fctxMap->vv.size() << "\n";
-	size_t i = 0;
+	HashSet<FunctionCompilationContext *> vaFuncs;
+	size_t                                i = 0;
 	for(auto &a : fctxMap->vv) {
-		o << "\nFunction #" << i++ << ": " << a.first.toString()->str() << "\n";
-		a.second.toFunctionCompilationContext()->disassemble(o);
+		FunctionCompilationContext *f = a.second.toFunctionCompilationContext();
+		if(!vaFuncs.contains(f)) {
+			o << "\nFunction #" << i++ << ": ";
+			String *name = a.first.toString();
+			// if this is a vararg function, print the minimum
+			// signature
+			if(f->get_fn()->isVarArg()) {
+				int         idx = 0;
+				const char *str = name->str();
+				while(str[idx] != '(') o << str[idx++];
+				o << "(";
+				if(f->get_fn()->arity > 0)
+					o << "_,";
+				for(int i = 1; i < f->get_fn()->arity; i++) o << "_,";
+				o << "..)\n";
+			} else {
+				o << name->str() << "\n";
+			}
+			f->disassemble(o);
+		}
+		if(f->get_fn()->isVarArg()) {
+			vaFuncs.insert(f);
+		}
 	}
 	if(cctxMap != NULL) {
 		o << "\nClasses: " << cctxMap->vv.size() << "\n";
 		i = 0;
 		for(auto &a : cctxMap->vv) {
-			o << "\nClass #" << i++ << ": " << a.first.toString()->str() << "\n";
+			o << "\nClass #" << i++ << ": " << a.first.toString()->str()
+			  << "\n";
 			a.second.toClassCompilationContext()->disassemble(o);
 		}
 	}

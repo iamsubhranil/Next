@@ -22,6 +22,7 @@ import formattest
 import boundmethods
 import fibers
 import static_members
+import vatest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -42,7 +43,8 @@ modules = {prepost: "Pre and post increment/decrements",
         formattest: "String formatting",
         boundmethods: "Bound methods",
         fibers: "Fibers",
-        static_members: "Static member and methods"}
+        static_members: "Static member and methods",
+        vatest: "Variadic arguments"}
 
 // find the maximum length
 len = 0

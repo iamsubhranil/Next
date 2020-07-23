@@ -51,8 +51,28 @@ void Class::add_fn(const char *str, Function *f) {
 	add_fn(String::from(str), f);
 }
 
-void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn) {
-	add_fn(str, Function::from(str, arity, fn));
+void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
+                           bool isva) {
+	Function *f = Function::from(str, arity, fn, isva);
+	add_fn(str, f);
+	if(isva) {
+		// sig contains the base signature, without
+		// the vararg. so get the base without ')'
+		String *base = String::from(str, strlen(str) - 1);
+		// now starting from 1 upto MAX_VARARG_COUNT, generate
+		// a signature and register
+		for(int i = 0; i < MAX_VARARG_COUNT; i++) {
+			// if base contains only (, i.e. the function
+			// does not have any necessary arguments, initially
+			// append it with _
+			if(i == 0 && base->str()[base->size - 1] == '(') {
+				base = String::append(base, "_");
+			} else {
+				base = String::append(base, ",_");
+			}
+			add_fn(String::append(base, ")"), f);
+		}
+	}
 }
 
 bool Class::has_fn(const char *sig) const {
@@ -89,7 +109,7 @@ Class *Class::copy() {
 
 Value next_class_has_fn(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(class, has_fn, 1, String);
+	EXPECT(class, "has_fn(_)", 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
 	// do not allow access to getters and
@@ -106,7 +126,7 @@ Value next_class_get_class(const Value *args, int numargs) {
 
 Value next_class_get_fn(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(class, get_fn, 1, String);
+	EXPECT(class, "get_fn(_)", 1, String);
 	Class * c = args[0].toClass();
 	String *s = args[1].toString();
 	if(next_class_has_fn(args, 1).toBoolean()) {

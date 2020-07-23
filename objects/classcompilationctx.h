@@ -50,8 +50,12 @@ struct ClassCompilationContext {
 
 	bool add_public_fn(String *sig, Function *f,
 	                   FunctionCompilationContext *fctx = NULL);
+	void add_public_signature(String *sig, Function *f,
+	                          FunctionCompilationContext *fctx);
 	bool add_private_fn(String *sig, Function *f,
 	                    FunctionCompilationContext *fctx = NULL);
+	void add_private_signature(String *sig, Function *f,
+	                           FunctionCompilationContext *fctx);
 	bool has_fn(String *sig);
 	// retrieve the ctx for a function
 	FunctionCompilationContext *get_func_ctx(String *sig);

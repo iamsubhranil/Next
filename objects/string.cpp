@@ -20,13 +20,17 @@ void String::init0() {
 
 Value next_string_append(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, append, 1, String);
-	return String::append(args[0].toString(), args[1].toString());
+	String *res = args[0].toString();
+	for(int i = 1; i < numargs; i++) {
+		EXPECT(string, "append(_,...)", i, String);
+		res = String::append(res, args[i].toString());
+	}
+	return res;
 }
 
 Value next_string_at(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, at, 1, Integer);
+	EXPECT(string, "at(_)", 1, Integer);
 	String *s = args[0].toString();
 	long    i = args[1].toInteger();
 	if(-i > s->size || i >= s->size) {
@@ -40,7 +44,7 @@ Value next_string_at(const Value *args, int numargs) {
 
 Value next_string_contains(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, contains, 1, String);
+	EXPECT(string, "contains(_)", 1, String);
 	String *source = args[0].toString();
 	String *check  = args[1].toString();
 	// if the container string is a
@@ -87,7 +91,7 @@ Value next_string_contains(const Value *args, int numargs) {
 
 Value next_string_fmt(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, fmt, 1, FormatSpec);
+	EXPECT(string, "fmt(_)", 1, FormatSpec);
 	String *    s = args[0].toString();
 	FormatSpec *f = args[1].toFormatSpec();
 	return String::fmt(f, s);
@@ -112,8 +116,8 @@ Value next_string_lower(const Value *args, int numargs) {
 
 Value next_string_substr(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, substr, 1, Integer);
-	EXPECT(string, substr, 2, Integer);
+	EXPECT(string, "substr(_,_)", 1, Integer);
+	EXPECT(string, "substr(_,_)", 2, Integer);
 	// range can be [0, size - 1]
 	// arg2 must be greater than arg1
 	long    from = args[1].toInteger();
@@ -146,7 +150,7 @@ void String::init() {
 	Class *StringClass = GcObject::StringClass;
 
 	StringClass->init("string", Class::BUILTIN);
-	StringClass->add_builtin_fn("append(_)", 1, &next_string_append);
+	StringClass->add_builtin_fn("append(_)", 1, &next_string_append, true);
 	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
 	StringClass->add_builtin_fn("fmt(_)", 1, &next_string_fmt);
 	StringClass->add_builtin_fn("hash()", 0, &next_string_hash);

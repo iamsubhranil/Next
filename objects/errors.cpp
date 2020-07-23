@@ -147,9 +147,12 @@ Value next_indexerror_received(const Value *args, int numargs) {
 Value next_indexerror_str(const Value *args, int numargs) {
 	(void)numargs;
 	IndexError *ie = args[0].toIndexError();
-	return Formatter::fmt(
-	    "Expected 'index' in the range {} <= index <= {}, received {}!",
-	    Value(ie->low), Value(ie->hi), Value(ie->received));
+	if(ie->hi == 0 && ie->low == 0) {
+		return Value(ie->message);
+	}
+	return Formatter::fmt("{} (expected {} <= index <= {}, received {})",
+	                      Value(ie->message), Value(ie->low), Value(ie->hi),
+	                      Value(ie->received));
 }
 
 void IndexError::init() {

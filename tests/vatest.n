@@ -1,0 +1,105 @@
+fn vasum(arg..) {
+    sum = 0
+    for(a in arg) {
+        sum = sum + a
+    }
+    ret sum
+}
+
+fn vaappend(arg..) {
+    res = ""
+    for(a in arg) {
+        res = res.append(a.str())
+    }
+    ret res
+}
+
+fn vareturn(arg..) {
+    ret arg
+}
+
+class Unicorn {
+    priv:
+        x
+    pub:
+        new(y) {
+            x = y
+        }
+
+        fn vasum(arg..) {
+            sum = x
+            for(a in arg) {
+                sum = sum + a
+            }
+            ret sum
+        }
+
+        fn vaappend(arg..) {
+            res = x.str()
+            for(a in arg) {
+                res = res.append(a.str())
+            }
+            ret res
+        }
+
+        fn vareturn(arg..) {
+            ret arg
+        }
+
+        static fn vasumstatic(b, arg..) {
+            sum = b
+            for(a in arg) {
+                sum = sum + a
+            }
+            ret sum
+        }
+
+        static fn vaappendstatic(b, arg..) {
+            res = b.str()
+            for(a in arg) {
+                res = res.append(a.str())
+            }
+            ret res
+        }
+
+        static fn vareturnstatic(a, arg..) {
+            ret arg
+        }
+}
+
+res = true
+
+fn expect(expr, val, msg) {
+    if(expr != val) {
+        print("[Error] ", msg, "!\n")
+        res = false
+    }
+}
+
+pub fn test() {
+    expect(vasum(2, 3, 4), 9, "Variadic argument passing not working (sum)")
+    expect(vaappend(2, "cool", true), "2cooltrue", "Variadic argument passing not working (append)")
+    expect(vareturn("cool", nil, false, Unicorn)[3], Unicorn, "Variadic argument passing not working (return)")
+
+    u = Unicorn(9)
+    expect(u.vasum(2, 3, 4), 18, "Variadic call on object instance not working (sum)")
+    expect(u.vaappend(2, 3, 4), "9234", "Variadic call on object instance not working (append)")
+    expect(u.vareturn(u)[0], u, "Variadic call on object instance not working (return)")
+ 
+    expect(Unicorn.vasumstatic(2, 3, 4), 9, "Variadic call on static method not working (sum)")
+    expect(Unicorn.vaappendstatic(2, 3, 4), "234", "Variadic call on static method not working (append)")
+    expect(Unicorn.vareturnstatic(u, u)[0], u, "Variadic call on static method not working (return)")
+    
+    a = [2, 3, 4]
+    a.insert(5, 6, 7)
+    sum = 0
+    for(i in a) {
+        sum = sum + i
+    }
+    expect(sum, 27, "array.insert(_,...) not working")
+
+    s = "".append("a", "b", "c")
+    expect(s, "abc", "string.append(_,...) not working")
+    
+    ret res
+}

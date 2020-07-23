@@ -25,7 +25,7 @@ struct Bytecode {
 	BytecodeCompilationContext *ctx; // debug info
 	size_t                      size;
 	size_t                      capacity;
-	size_t                      numSlots;
+	int                         numSlots;
 	int                         stackSize;
 	int                         stackMaxSize;
 

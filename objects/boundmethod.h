@@ -20,14 +20,17 @@ struct BoundMethod {
 	static BoundMethod *from(Function *f, Object *obj, Type t);
 	static BoundMethod *from(Function *f, Value v, Type t);
 
+	bool isClassBound() { return type == CLASS_BOUND; }
+	bool isObjectBound() { return type == OBJECT_BOUND; }
+
 	// class loader
 	static void init();
 
 	// gc functions
 	void mark() const {
-        GcObject::mark(func);
-        GcObject::mark(binder);
-    }
+		GcObject::mark(func);
+		GcObject::mark(binder);
+	}
 
-    void release() {}
+	void release() {}
 };

@@ -32,9 +32,11 @@ Fiber *Fiber::create(Fiber *parent) {
 	return f;
 }
 
-Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
+Fiber::CallFrame *Fiber::appendMethod(Function *f, int numArgs,
+                                      bool returnToCaller) {
 	switch(f->getType()) {
-		case Function::METHOD: return appendMethodNoBuiltin(f, returnToCaller);
+		case Function::METHOD:
+			return appendMethodNoBuiltin(f, numArgs, returnToCaller);
 		case Function::BUILTIN:
 			ensureFrame();
 			callFrames[callFramePointer].f              = f;
@@ -48,7 +50,7 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
 			// ensureStack(f->arity);
 			callFrames[callFramePointer].func = f->func;
 			// the 0th slot is reserved for the receiver
-			callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
+			callFrames[callFramePointer].stack_ = &stackTop[-numArgs - 1];
 			// stackTop += f->arity;
 			break;
 	}
@@ -57,12 +59,12 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, bool returnToCaller) {
 }
 
 Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
-                                                 const Value *args,
-                                                 bool         returnToCaller) {
+                                                 const Value *args, int numArgs,
+                                                 bool returnToCaller) {
 	// same as appendBoundMethod, we just don't need
 	// a boundmethod struct here, saving us one
 	// allocation
-	int effective_arity = f->arity;
+	int effective_arity = numArgs;
 	// ensure there is required slots
 	// +1 for the receiver
 	ensureStack(effective_arity + 1);
@@ -74,20 +76,19 @@ Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
 	}
 	stackTop += effective_arity;
 	// finally, append the method
-	Fiber::CallFrame *frame = appendMethod(f, returnToCaller);
+	Fiber::CallFrame *frame = appendMethod(f, numArgs, returnToCaller);
 	return frame;
 }
 
 Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
-                                           bool returnToCaller) {
-	int effective_arity =
-	    bm->func->arity + (bm->type == BoundMethod::CLASS_BOUND);
+                                           int numArgs, bool returnToCaller) {
+	int effective_arity = numArgs + bm->isClassBound();
 	// ensure there is required slots
 	// +1 for the receiver
 	ensureStack(effective_arity + 1);
 	// if this is a class bound method, we don't put the class
 	// here
-	if(bm->type == BoundMethod::OBJECT_BOUND)
+	if(bm->isObjectBound())
 		*stackTop++ = bm->binder;
 	// now we lay down the arguments
 	// BoundMethod::verify will already have
@@ -101,13 +102,15 @@ Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm, const Value *args,
 	}
 	stackTop += effective_arity;
 	// finally, append the method
-	Fiber::CallFrame *f = appendMethod(bm->func, returnToCaller);
+	// pass only the explicit argument count to appendMethod,
+	// because we have already laid down the receiver
+	Fiber::CallFrame *f = appendMethod(bm->func, numArgs, returnToCaller);
 	return f;
 }
 
 Fiber::CallFrame *Fiber::appendBoundMethod(BoundMethod *bm,
                                            bool         returnToCaller) {
-	return appendBoundMethod(bm, NULL, returnToCaller);
+	return appendBoundMethod(bm, NULL, 0, returnToCaller);
 }
 
 Value Fiber::run() {
@@ -216,21 +219,21 @@ Value next_fiber_iterate(const Value *args, int numargs) {
 
 Value next_fiber_construct_0(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(fiber, new(method), 1, BoundMethod);
+	EXPECT(fiber, "new(method)", 1, BoundMethod);
 	BoundMethod *b = args[1].toBoundMethod();
 	// verify the function with given arguments
 	BoundMethod::Status s = b->verify(NULL, 0);
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
 	Fiber *f = Fiber::create();
-	f->appendBoundMethod(b);
+	f->appendBoundMethod(b, false);
 	return Value(f);
 }
 
 Value next_fiber_construct_x(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(fiber, new(method, args), 1, BoundMethod);
-	EXPECT(fiber, new(method, args), 2, Array);
+	EXPECT(fiber, "new(method, args)", 1, BoundMethod);
+	EXPECT(fiber, "new(method, args)", 2, Array);
 	BoundMethod *b = args[1].toBoundMethod();
 	Array *      a = args[2].toArray();
 	// verify the function with the given arguments
@@ -238,7 +241,10 @@ Value next_fiber_construct_x(const Value *args, int numargs) {
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
 	Fiber *f = Fiber::create();
-	f->appendBoundMethod(b, a->values);
+	// in case this is a class bound method, we send the
+	// count without the receiver object, since
+	// appendBoundMethod already makes room for it
+	f->appendBoundMethod(b, a->values, a->size - b->isClassBound(), false);
 	return Value(f);
 }
 

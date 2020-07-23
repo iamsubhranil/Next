@@ -92,6 +92,8 @@ void Function::init() {
 void Function::disassemble(std::ostream &o) {
 	o << "Name: " << name->str() << "\n";
 	o << "Arity: " << arity << "\n";
+	o << "VarArg: " << isVarArg() << "\n";
+
 	Type t = getType();
 	o << "Type: ";
 	switch(t) {

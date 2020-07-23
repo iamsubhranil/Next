@@ -168,13 +168,8 @@ OPCODE1(load_method, 1, int) // <sym>
 // Function*, and leaves it for
 // the following 'bind_method'
 OPCODE1(search_method, 1, int) // <sym>
-// Yields, i.e. pauses and returns
-// from the present fiber. returns
-// the TOS
-// Not need.
-// Use yield() or yield(_)
-// OPCODE0(yield, -1)
-
+// sentinel for the engine
+OPCODE0(end, 0)
 #undef OPCODE0
 #undef OPCODE1
 #undef OPCODE2

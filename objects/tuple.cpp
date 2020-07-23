@@ -13,7 +13,7 @@ Tuple *Tuple::create(int size) {
 
 Value next_tuple_construct_1(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(tuple, "(_)", 1, Integer);
+	EXPECT(tuple, "new(_)", 1, Integer);
 	long num = args[1].toInteger();
 	if(num < 1) {
 		return RuntimeError::sete("Tuple size must be > 0!");
@@ -44,6 +44,9 @@ Value next_tuple_get(const Value *args, int numargs) {
 	if(effective_idx < t->size) {
 		return t->values()[effective_idx];
 	}
+	if(t->size == 0) {
+		IDXERR("Tuple is empty!", 0, 0, idx);
+	}
 	IDXERR("Invalid tuple index!", -t->size, t->size - 1, idx);
 	return ValueNil;
 }
@@ -59,6 +62,9 @@ Value next_tuple_set(const Value *args, int numargs) {
 	}
 	if(effective_idx < t->size) {
 		return t->values()[effective_idx] = args[2];
+	}
+	if(t->size == 0) {
+		IDXERR("Tuple is empty!", 0, 0, idx);
 	}
 	IDXERR("Invalid tuple index!", -t->size, t->size - 1, idx);
 	return ValueNil;

@@ -5,6 +5,7 @@
 #include "bytecode.h"
 #include "function.h"
 #include "object.h"
+#include "tuple.h"
 
 #ifdef DEBUG_INS
 #include <algorithm>
@@ -42,7 +43,7 @@ struct Fiber {
 	// the callstack
 	Value *stack_;
 	Value *stackTop;
-	size_t stackSize;
+	int    stackSize;
 
 	// the frame stack
 	Fiber::CallFrame *callFrames;
@@ -65,19 +66,19 @@ struct Fiber {
 	// prepares the fiber for execution of a bound method,
 	// validation must be performed before
 	// noarg
-	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm,
-	                                    bool         returnToCaller = false);
+	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm, bool returnToCaller);
 	// narg
 	Fiber::CallFrame *appendBoundMethod(BoundMethod *bm, const Value *args,
-	                                    bool returnToCaller = false);
+	                                    int numArgs, bool returnToCaller);
 	// this performs the same task as appendBoundMethod,
 	// just avoids one BoundMethod allocation when called
 	// internally
 	Fiber::CallFrame *appendBoundMethodDirect(Value v, Function *f,
-	                                          const Value *args,
-	                                          bool returnToCaller = false);
+	                                          const Value *args, int numArgs,
+	                                          bool returnToCaller);
 
-	inline void ensureStack(size_t e) /* stackSize > stackPointer + el */ {
+	// even if e is -ve, this will work
+	inline void ensureStack(int e) {
 		int stackPointer = stackTop - stack_;
 		if(stackPointer + e < stackSize)
 			return;
@@ -108,39 +109,52 @@ struct Fiber {
 		callFrameSize = newsize;
 	}
 
-	inline void appendMethodInternal(Function *f, bool returnToCaller) {
+	inline void appendMethodInternal(Function *f, int numArgs,
+	                                 bool returnToCaller) {
 
 		callFrames[callFramePointer].f              = f;
 		callFrames[callFramePointer].returnToCaller = returnToCaller;
 
-		// arity number of elements is already on the stack
-		ensureStack(f->code->stackMaxSize - f->arity);
+		// numArgs number of elements are already on the stack
+		ensureStack(f->code->stackMaxSize - numArgs);
 		callFrames[callFramePointer].code = f->code->bytecodes;
 		// the 0th slot is reserved for the receiver
-		callFrames[callFramePointer].stack_ = &stackTop[-f->arity - 1];
+		Value *bakStack = callFrames[callFramePointer].stack_ =
+		    &stackTop[-numArgs - 1];
+
+		// if f is vararg, contract the extra args in a tuple
+		if(f->isVarArg()) {
+			int    vaSlot    = f->arity + 1; // 0th slot stores the receiver
+			int    numVaargs = stackTop - (bakStack + vaSlot);
+			Tuple *t         = GcObject::allocTuple2(numVaargs);
+			t->size          = numVaargs;
+			memcpy(t->values(), &bakStack[vaSlot], sizeof(Value) * numVaargs);
+			bakStack[vaSlot] = t;
+		}
 		// we have already managed the slot for the receiver
-		// and the arguments are already in place
-		stackTop += (f->code->numSlots - 1 - f->arity);
+		// and the arguments are already in place.
+		stackTop = bakStack + f->code->numSlots;
 #ifdef DEBUG_INS
 		// if we're stepping instructions, the bytecode disassembler
 		// will try to disassemble the stack of the function, which
 		// may contain pointer to objects which have already been
 		// garbage collected. so clear that up.
-		Utils::fillNil(&callFrames[callFramePointer].stack_[f->arity + 1],
-		               f->code->numSlots - 1 - f->arity);
+		Utils::fillNil(bakStack + f->arity + f->isVarArg() + 1,
+		               f->code->numSlots - 1 - (f->arity + f->isVarArg()));
 #endif
 	}
 
 	// appends an intra-class method, whose stack is already
 	// managed by the engine
-	Fiber::CallFrame *appendMethod(Function *f, bool returnToCaller = false);
+	Fiber::CallFrame *appendMethod(Function *f, int numArgs,
+	                               bool returnToCaller);
 	// we make a specific version of this function to be called
 	// when we're sure the argument function is a Next method, i.e.
 	// when the engine performs a method call.
-	inline Fiber::CallFrame *
-	appendMethodNoBuiltin(Function *f, bool returnToCaller = false) {
+	inline Fiber::CallFrame *appendMethodNoBuiltin(Function *f, int numArgs,
+	                                               bool returnToCaller) {
 		ensureFrame();
-		appendMethodInternal(f, returnToCaller);
+		appendMethodInternal(f, numArgs, returnToCaller);
 		return &callFrames[callFramePointer++];
 	}
 

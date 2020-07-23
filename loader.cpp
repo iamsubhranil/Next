@@ -156,7 +156,8 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 			Fiber *f = Fiber::create();
 			// add CoreObject in slot 0
 			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
-			                           ctx->get_default_constructor()->f, NULL);
+			                           ctx->get_default_constructor()->f, NULL,
+			                           0, false);
 			Value v;
 			if(ex.execute(f, &v))
 				return v.toGcObject();
@@ -202,7 +203,7 @@ GcObject *Loader::compile_and_load_from_source(
 			// add CoreObject in slot 0
 			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
 			                           modulectx->get_default_constructor()->f,
-			                           NULL);
+			                           NULL, 0, false);
 			Value v;
 			if(ex.execute(f, &v))
 				return v.toGcObject();
