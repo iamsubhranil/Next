@@ -79,7 +79,8 @@ void TypeError::init() {
 	                               next_typeerror_received_value);
 	TypeErrorClass->add_builtin_fn("argument_number()", 0,
 	                               next_typeerror_argument_number);
-	TypeErrorClass->add_builtin_fn("str()", 0, next_typeerror_str);
+	TypeErrorClass->add_builtin_fn_nest("str()", 0, next_typeerror_str,
+	                                    false); // can nest
 }
 
 RuntimeError *RuntimeError::create(String *m) {
@@ -181,7 +182,8 @@ void IndexError::init() {
 	IndexErrorClass->add_builtin_fn("from()", 0, next_indexerror_from);
 	IndexErrorClass->add_builtin_fn("to()", 0, next_indexerror_to);
 	IndexErrorClass->add_builtin_fn("received()", 0, next_indexerror_received);
-	IndexErrorClass->add_builtin_fn("str()", 0, next_indexerror_str);
+	IndexErrorClass->add_builtin_fn_nest("str()", 0, next_indexerror_str,
+	                                     false); // can nest
 }
 
 FormatError *FormatError::create(String *m) {

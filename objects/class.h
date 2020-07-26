@@ -50,9 +50,17 @@ struct Class {
 	// arity is the count of necessary arguments only.
 	// we necessarily duplicate the signature creation
 	// logic here because builtin classes do not have
-	// a compilationcontext (yet)
-	void        add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
-	                           bool isvarg = false);
+	// a compilationcontext (yet).
+	// the nest version specifies that the function can
+	// perform a nested call inside Next engine. So it
+	// has to perform some extra checks before and after
+	// the builtin is executed.
+	void add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
+	                     bool isvarg, bool cannest);
+	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
+	                    bool isvarg = false);
+	void add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
+	                         bool isvarg = false);
 	inline bool has_fn(int sym) const {
 		return functions->capacity > sym && functions->values[sym] != ValueNil;
 	}

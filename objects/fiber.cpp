@@ -343,6 +343,6 @@ void Fiber::init() {
 	FiberClass->add_builtin_fn("is_yielded()", 0, next_fiber_is_yielded);
 	FiberClass->add_builtin_fn("is_finished()", 0, next_fiber_is_finished);
 	FiberClass->add_builtin_fn("iterate()", 0, next_fiber_iterate);
-	FiberClass->add_builtin_fn("run()", 0, next_fiber_run);
-	FiberClass->add_builtin_fn("run(_)", 1, next_fiber_run_1);
+	FiberClass->add_builtin_fn_nest("run()", 0, next_fiber_run);    // can nest
+	FiberClass->add_builtin_fn_nest("run(_)", 1, next_fiber_run_1); // can nest
 }

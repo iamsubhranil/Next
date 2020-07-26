@@ -51,9 +51,10 @@ void Class::add_fn(const char *str, Function *f) {
 	add_fn(String::from(str), f);
 }
 
-void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
-                           bool isva) {
+void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
+                            bool isva, bool cannest) {
 	Function *f = Function::from(str, arity, fn, isva);
+	f->cannest  = cannest;
 	add_fn(str, f);
 	if(isva) {
 		// sig contains the base signature, without
@@ -73,6 +74,16 @@ void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
 			add_fn(String::append(base, ")"), f);
 		}
 	}
+}
+
+void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
+                           bool isva) {
+	add_builtin_fn2(str, arity, fn, isva, false);
+}
+
+void Class::add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
+                                bool isva) {
+	add_builtin_fn2(str, arity, fn, isva, true);
 }
 
 bool Class::has_fn(const char *sig) const {

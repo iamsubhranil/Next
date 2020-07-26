@@ -100,9 +100,10 @@ Value next_core_input1(const Value *args, int numargs) {
 }
 
 void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
-                    bool isva = false) {
+                    bool isva = false, bool cannest = false) {
 	String *  s = String::from(n);
 	Function *f = Function::from(s, arity, fn, isva);
+	f->cannest  = cannest;
 	GcObject::CoreContext->add_public_fn(s, f);
 }
 
@@ -110,15 +111,16 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("clock()", 0, next_core_clock);
 	add_builtin_fn("type_of(_)", 1, next_core_type_of);
 	add_builtin_fn("is_same_type(_,_)", 2, next_core_is_same_type);
-	add_builtin_fn("yield()", 0, next_core_yield_0);
-	add_builtin_fn("yield(_)", 1, next_core_yield_1);
+	add_builtin_fn("yield()", 0, next_core_yield_0, false, true);  // can switch
+	add_builtin_fn("yield(_)", 1, next_core_yield_1, false, true); // can switch
 	add_builtin_fn("gc()", 0, next_core_gc);
 	add_builtin_fn("input()", 0, next_core_input0);
-	add_builtin_fn("input(_)", 1, next_core_input1);
+	add_builtin_fn("input(_)", 1, next_core_input1, false, true); // can nest
 
-	add_builtin_fn("print()", 0, next_core_print, true);
-	add_builtin_fn("println()", 0, next_core_println, true);
-	add_builtin_fn("fmt(_)", 1, next_core_format, true);
+	// all of these can nest
+	add_builtin_fn("print()", 0, next_core_print, true, true);
+	add_builtin_fn("println()", 0, next_core_println, true, true);
+	add_builtin_fn("fmt(_)", 1, next_core_format, true, true);
 }
 
 void addClocksPerSec() {

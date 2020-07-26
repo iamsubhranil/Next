@@ -110,13 +110,14 @@ void ValueMap::init() {
 	ValueMapClass->init("map", Class::BUILTIN);
 	ValueMapClass->add_builtin_fn("()", 0, next_map_construct);
 	ValueMapClass->add_builtin_fn("clear()", 0, next_map_clear);
-	ValueMapClass->add_builtin_fn("has(_)", 1, next_map_has);
+	ValueMapClass->add_builtin_fn_nest("has(_)", 1, next_map_has); // can nest
 	ValueMapClass->add_builtin_fn("keys()", 0, next_map_keys);
 	ValueMapClass->add_builtin_fn("size()", 0, next_map_size);
-	ValueMapClass->add_builtin_fn("remove(_)", 1, next_map_remove);
+	ValueMapClass->add_builtin_fn_nest("remove(_)", 1,
+	                                   next_map_remove); // can nest
 	ValueMapClass->add_builtin_fn("values()", 0, next_map_values);
-	ValueMapClass->add_builtin_fn("[](_)", 1, next_map_get);
-	ValueMapClass->add_builtin_fn("[](_,_)", 2, next_map_set);
+	ValueMapClass->add_builtin_fn_nest("[](_)", 1, next_map_get);   // can nest
+	ValueMapClass->add_builtin_fn_nest("[](_,_)", 2, next_map_set); // can nest
 }
 
 ValueMap *ValueMap::create() {

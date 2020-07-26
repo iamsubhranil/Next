@@ -4,15 +4,9 @@
 
 Function *Function::from(String *str, int arity, next_builtin_fn fn, bool isva,
                          bool isStatic) {
-	Function *f      = GcObject::allocFunction();
-	f->name          = str;
-	f->func          = fn;
-	f->mode          = BUILTIN;
-	f->static_       = isStatic;
-	f->arity         = arity;
-	f->numExceptions = 0;
-	f->exceptions    = NULL;
-	f->varArg        = isva;
+	Function *f = create(str, arity, isva, isStatic);
+	f->mode     = Function::Type::BUILTIN;
+	f->func     = fn;
 	return f;
 }
 
@@ -31,6 +25,7 @@ Function *Function::create(String *str, int arity, bool isva, bool isStatic) {
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
 	f->varArg        = isva;
+	f->cannest = true; // by default, the function is assumed to be nesting
 	return f;
 }
 

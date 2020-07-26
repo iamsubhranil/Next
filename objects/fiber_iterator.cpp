@@ -42,5 +42,7 @@ void FiberIterator::init() {
 
 	FiberIteratorClass->add_builtin_fn("(_)", 1,
 	                                   next_fiber_iterator_construct_1);
-	FiberIteratorClass->add_builtin_fn("next()", 0, next_fiber_iterator_next);
+	FiberIteratorClass->add_builtin_fn_nest(
+	    "next()", 0,
+	    next_fiber_iterator_next); // can switch
 }

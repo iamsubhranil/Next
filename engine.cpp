@@ -813,16 +813,27 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		performcall : {
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
-					BACKUP_FRAMEINFO();
-					Value res = functionToCall->func(
-					    fiber->stackTop -= (numberOfArguments + 1),
-					    numberOfArguments + 1); // include the receiver
-					// it may have caused a fiber switch
-					if(fiber != currentFiber) {
-						fiber = currentFiber;
+					Value res;
+					// if we know that the callee will not
+					// trigger a nested call to the engine,
+					// we can omit all guards
+					if(!functionToCall->canNest()) {
+						res = functionToCall->func(
+						    fiber->stackTop -= (numberOfArguments + 1),
+						    numberOfArguments + 1); // include the receiver
+					} else {
+						// backup present frame
+						BACKUP_FRAMEINFO();
+						res = functionToCall->func(
+						    fiber->stackTop -= (numberOfArguments + 1),
+						    numberOfArguments + 1); // include the receiver
+						// it may have caused a fiber switch
+						if(fiber != currentFiber) {
+							fiber = currentFiber;
+						}
+						// present frame may be reallocated elsewhere
+						RESTORE_FRAMEINFO();
 					}
-					// present frame may be reallocated elsewhere
-					RESTORE_FRAMEINFO();
 					if(pendingExceptions->size == 0) {
 						PUSH(res);
 						DISPATCH();

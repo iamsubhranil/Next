@@ -46,8 +46,10 @@ void ValueSet::init() {
 	ValueSetClass->init("set", Class::BUILTIN);
 	ValueSetClass->add_builtin_fn("()", 0, next_set_construct);
 	ValueSetClass->add_builtin_fn("clear()", 0, next_set_clear);
-	ValueSetClass->add_builtin_fn("insert(_)", 1, next_set_insert);
-	ValueSetClass->add_builtin_fn("has(_)", 1, next_set_has);
+	ValueSetClass->add_builtin_fn_nest("insert(_)", 1,
+	                                   next_set_insert);           // can nest
+	ValueSetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
 	ValueSetClass->add_builtin_fn("size()", 0, next_set_size);
-	ValueSetClass->add_builtin_fn("remove(_)", 1, next_set_remove);
+	ValueSetClass->add_builtin_fn_nest("remove(_)", 1,
+	                                   next_set_remove); // can nest
 }
