@@ -34,14 +34,14 @@ GcObject *GcObject::root            = &DefaultGcObject;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
-#define OBJTYPE(n, r) 0,
+#define OBJTYPE(n) 0,
 #include "objecttype.h"
 };
 static size_t counterCounter = 0;
-#define OBJTYPE(n, r) size_t n##Counter = counterCounter++;
+#define OBJTYPE(n) size_t n##Counter = counterCounter++;
 #include "objecttype.h"
 #endif
-#define OBJTYPE(n, r) Class *GcObject::n##Class = nullptr;
+#define OBJTYPE(n) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
 Class *GcObject::NumberClass  = nullptr;
 Class *GcObject::BooleanClass = nullptr;
@@ -213,19 +213,19 @@ void GcObject::release(GcObject *obj) {
 			err("Object type NONE should not be present in the list!");
 			break;
 #ifdef DEBUG_GC
-#define OBJTYPE(name, type)                                                 \
+#define OBJTYPE(name)                                                       \
 	case OBJ_##name:                                                        \
-		((type *)obj)->release();                                           \
-		GcObject::free(obj, sizeof(type));                                  \
+		((name *)obj)->release();                                           \
+		GcObject::free(obj, sizeof(name));                                  \
 		GcCounters[name##Counter]--;                                        \
 		std::cout << "[GC] TA: " << totalAllocated << " release: " << #name \
-		          << " (" << sizeof(type) << ")\n";                         \
+		          << " (" << sizeof(name) << ")\n";                         \
 		break;
 #else
-#define OBJTYPE(name, type)                \
+#define OBJTYPE(name)                      \
 	case OBJ_##name:                       \
-		((type *)obj)->release();          \
-		GcObject::free(obj, sizeof(type)); \
+		((name *)obj)->release();          \
+		GcObject::free(obj, sizeof(name)); \
 		break;
 #endif
 #include "objecttype.h"
@@ -240,16 +240,16 @@ void GcObject::release(Value v) {
 }
 
 #ifdef DEBUG_GC
-#define OBJTYPE(n, r)                                                          \
-	r *GcObject::alloc##n() {                                                  \
+#define OBJTYPE(n)                                                             \
+	n *GcObject::alloc##n() {                                                  \
 		return (std::cout << "[GC] TA: " << totalAllocated << " alloc: " << #n \
-		                  << " (" << sizeof(r) << ")\n",                       \
+		                  << " (" << sizeof(n) << ")\n",                       \
 		        GcCounters[n##Counter]++,                                      \
-		        (r *)alloc(sizeof(r), OBJ_##n, n##Class));                     \
+		        (n *)alloc(sizeof(n), OBJ_##n, n##Class));                     \
 	}
 #else
-#define OBJTYPE(n, r) \
-	r *GcObject::alloc##n() { return (r *)alloc(sizeof(r), OBJ_##n, n##Class); }
+#define OBJTYPE(n) \
+	n *GcObject::alloc##n() { return (n *)alloc(sizeof(n), OBJ_##n, n##Class); }
 #endif
 #include "objecttype.h"
 
@@ -298,9 +298,9 @@ void GcObject::mark(GcObject *p) {
 		case OBJ_NONE:
 			err("Object type NONE should not be present in the list!");
 			break;
-#define OBJTYPE(name, type)  \
+#define OBJTYPE(name)        \
 	case OBJ_##name:         \
-		((type *)p)->mark(); \
+		((name *)p)->mark(); \
 		break;
 #include "objecttype.h"
 	}
@@ -345,7 +345,7 @@ void GcObject::sweep() {
 
 void GcObject::init() {
 	// allocate the core classes
-#define OBJTYPE(n, r) n##Class = GcObject::allocClass();
+#define OBJTYPE(n) n##Class = GcObject::allocClass();
 #include "objecttype.h"
 	NumberClass  = GcObject::allocClass();
 	BooleanClass = GcObject::allocClass();
@@ -358,18 +358,18 @@ void GcObject::init() {
 	Boolean::init();
 	// initialize the core classes
 #ifdef DEBUG_GC
-#define OBJTYPE(n, r)                                  \
+#define OBJTYPE(n)                                     \
 	std::cout << "[GC] Initializing " << #n << "..\n"; \
 	n::init();                                         \
 	std::cout << "[GC] Initialized " << #n << "..\n";
 #else
-#define OBJTYPE(n, r) n::init();
+#define OBJTYPE(n) n::init();
 #endif
 #include "objecttype.h"
 
 	CoreContext = ClassCompilationContext::create(NULL, String::const_core);
 	// register all the classes to core
-#define OBJTYPE(n, r) CoreContext->add_public_class(n##Class);
+#define OBJTYPE(n) CoreContext->add_public_class(n##Class);
 #include "objecttype.h"
 	CoreContext->add_public_class(NumberClass);
 	CoreContext->add_public_class(BooleanClass);
@@ -386,8 +386,8 @@ void GcObject::init() {
 void GcObject::print_stat() {
 	cout << "[GC] Object allocation counters\n";
 	size_t i = 0;
-#define OBJTYPE(n, r)                                                  \
-	cout << setw(26) << #n << setw(0) << "\t" << setw(3) << sizeof(r)  \
+#define OBJTYPE(r)                                                     \
+	cout << setw(26) << #r << setw(0) << "\t" << setw(3) << sizeof(r)  \
 	     << setw(0) << "  *  " << setw(3) << GcCounters[i] << setw(0)  \
 	     << "  =  " << setw(5) << sizeof(r) * GcCounters[i] << setw(0) \
 	     << " bytes" << endl;                                          \

@@ -10,7 +10,7 @@ using size_t = std::size_t;
 
 struct Value;
 
-#define OBJTYPE(name, raw) struct raw;
+#define OBJTYPE(name) struct name;
 #include "objecttype.h"
 
 struct GcObject {
@@ -18,12 +18,12 @@ struct GcObject {
 	const Class *klass;
 	enum GcObjectType {
 		OBJ_NONE,
-#define OBJTYPE(n, r) OBJ_##n,
+#define OBJTYPE(n) OBJ_##n,
 #include "objecttype.h"
 	} objType;
 
 	// basic type check
-#define OBJTYPE(n, r) \
+#define OBJTYPE(n) \
 	bool is##n() { return objType == OBJ_##n; }
 #include "objecttype.h"
 
@@ -85,8 +85,8 @@ struct GcObject {
 	// marking and unmarking functions
 	static void mark(Value v);
 	static void mark(GcObject *p);
-#define OBJTYPE(r, n) \
-	static void mark(r *val) { mark((GcObject *)val); };
+#define OBJTYPE(n) \
+	static void mark(n *val) { mark((GcObject *)val); };
 #include "objecttype.h"
 	static void mark(Value *v, size_t num);
 	static bool isMarked(GcObject *p);
@@ -116,9 +116,9 @@ struct GcObject {
 
 	// memory management functions
 	static void *alloc(size_t s, GcObjectType type, const Class *klass);
-#define OBJTYPE(n, r)       \
+#define OBJTYPE(n)          \
 	static Class *n##Class; \
-	static r *    alloc##n();
+	static n *    alloc##n();
 #include "objecttype.h"
 	// makes a contiguous allocation of a String
 	// object along with its characters

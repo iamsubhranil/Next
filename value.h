@@ -59,7 +59,7 @@ struct Value {
 		          << " (Magic : " << QNAN_##n << ")\n"                         \
 		          << std::dec;*/                                               \
 	}
-#define OBJTYPE(r, n)                                                          \
+#define OBJTYPE(r)                                                             \
 	Value(const r *s) {                                                        \
 		encodeGcObject((GcObject *)s);                                         \
 		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
@@ -69,7 +69,7 @@ struct Value {
 #else
 #define TYPE(r, n) \
 	Value(const r s) { encode##n(s); }
-#define OBJTYPE(r, n) \
+#define OBJTYPE(r) \
 	Value(const r *s) { encodeGcObject((GcObject *)s); }
 #endif
 #include "objecttype.h"
@@ -87,7 +87,7 @@ struct Value {
 #define TYPE(r, n) \
 	inline bool is##n() const { return VAL_TAG(value) == QNAN_##n; }
 #include "valuetypes.h"
-#define OBJTYPE(r, n) \
+#define OBJTYPE(n) \
 	inline bool is##n() const { return isGcObject() && toGcObject()->is##n(); }
 #include "objecttype.h"
 	inline bool isNil() const { return value == QNAN_NIL; }
@@ -98,8 +98,8 @@ struct Value {
 #define TYPE(r, n) \
 	inline r to##n() const { return (r)(VAL_MASK & value); }
 #include "valuetypes.h"
-#define OBJTYPE(r, n) \
-	inline r *to##n() const { return (r *)toGcObject(); }
+#define OBJTYPE(r) \
+	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
 	inline double   toNumber() const { return dvalue; }
 	inline long     toInteger() const { return (long)toNumber(); }
@@ -114,7 +114,7 @@ struct Value {
 		encode##n(d);                     \
 		return *this;                     \
 	}
-#define OBJTYPE(r, n)                     \
+#define OBJTYPE(r)                        \
 	inline Value &operator=(const r *d) { \
 		encodeGcObject((GcObject *)d);    \
 		return *this;                     \

@@ -127,7 +127,7 @@ void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
 				return;
 			}
 			switch(o->objType) {
-#define OBJTYPE(n, r)                       \
+#define OBJTYPE(n)                          \
 	case GcObject::OBJ_##n:                 \
 		os << "<" << #n << "@" << o << ">"; \
 		break;
