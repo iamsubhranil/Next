@@ -24,16 +24,10 @@ Value next_array_get(const Value *args, int numargs) {
 	EXPECT(array, "[](_)", 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
-	if(i >= 0) {
-		if(i < a->size)
-			return a->values[i];
-		if(a->size == 0) {
-			IDXERR("Array is empty!", 0, 0, i);
-		}
-		IDXERR("Invalid array index!", -a->size, a->size - 1, i);
-	}
-	if(-i <= a->size) {
+	if(i < 0) {
 		i += a->size;
+	}
+	if(i >= 0 && i < a->size) {
 		return a->values[i];
 	}
 	if(a->size == 0) {
@@ -47,20 +41,14 @@ Value next_array_set(const Value *args, int numargs) {
 	EXPECT(array, "[](_,_)", 1, Integer);
 	Array *a = args[0].toArray();
 	long   i = args[1].toInteger();
-	if(i >= 0) {
-		if(i < a->size) {
-			return a->values[i] = args[2];
-		} else if(i == a->size) {
-			return a->insert(args[2]);
-		}
-		IDXERR("Invalid array index!", -a->size, a->size, i);
-	}
-	// negative indexing cannot insert an element.
-	// for an array of size 4, you can access atmost
-	// -4. accessing -5 is error.
-	if(-i <= a->size) {
+	if(i < 0) {
 		i += a->size;
-		return a->values[i] = args[2];
+	}
+	if(i >= 0 && i <= a->size) {
+		if(i < a->size)
+			return a->values[i] = args[2];
+		else
+			return a->insert(args[2]);
 	}
 	if(a->size == 0) {
 		IDXERR("Array is empty!", 0, 0, i);
