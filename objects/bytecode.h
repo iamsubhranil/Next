@@ -143,4 +143,7 @@ struct Bytecode {
 	                        size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];
+#ifdef DEBUG_GC
+	const char *gc_repr() { return "bytecode"; }
+#endif
 };

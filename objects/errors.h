@@ -30,6 +30,9 @@ struct TypeError {
 		GcObject::mark(received);
 	}
 	void release() {}
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };
 
 struct RuntimeError {
@@ -46,6 +49,9 @@ struct RuntimeError {
 	void mark() const { GcObject::mark(message); }
 
 	void release() {}
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };
 
 struct IndexError {
@@ -63,6 +69,9 @@ struct IndexError {
 	void mark() const { GcObject::mark(message); }
 
 	void release() {}
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };
 
 struct FormatError {
@@ -79,6 +88,10 @@ struct FormatError {
 	void mark() const { GcObject::mark(message); }
 
 	void release() {}
+
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };
 
 #define RERR(x) return RuntimeError::sete(x);

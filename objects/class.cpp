@@ -27,7 +27,7 @@ void Class::add_sym(int sym, Value v) {
 	// we change the size of the array manually
 	// so that all functions can be marked in
 	// case of a gc
-	if(sym > functions->size)
+	if(sym >= functions->size)
 		functions->size = sym + 1;
 }
 
@@ -158,3 +158,9 @@ void Class::init() {
 	ClassClass->add_builtin_fn("get_fn(_)", 1, next_class_get_fn);
 	ClassClass->add_builtin_fn("name()", 0, next_class_name);
 }
+
+#ifdef DEBUG_GC
+const char *Class::gc_repr() {
+	return name->str();
+}
+#endif

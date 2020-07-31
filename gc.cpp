@@ -132,6 +132,9 @@ void GcObject::gc(bool force) {
 		std::cout << "[GC] Marking core classes..\n";
 #endif
 		mark((GcObject *)CoreModule);
+		mark(ExecutionEngine::CoreObject);
+		mark(NumberClass);
+		mark(BooleanClass);
 #ifdef DEBUG_GC
 		std::cout << "[GC] Marking Engine..\n";
 #endif
@@ -213,13 +216,13 @@ void GcObject::release(GcObject *obj) {
 			err("Object type NONE should not be present in the list!");
 			break;
 #ifdef DEBUG_GC
-#define OBJTYPE(name)                                                       \
-	case OBJ_##name:                                                        \
-		((name *)obj)->release();                                           \
-		GcObject::free(obj, sizeof(name));                                  \
-		GcCounters[name##Counter]--;                                        \
-		std::cout << "[GC] TA: " << totalAllocated << " release: " << #name \
-		          << " (" << sizeof(name) << ")\n";                         \
+#define OBJTYPE(name)                                                   \
+	case OBJ_##name:                                                    \
+		std::cout << "[GC] [Release] " << #name << " (" << sizeof(name) \
+		          << ") -> " << ((name *)obj)->gc_repr() << "\n";       \
+		((name *)obj)->release();                                       \
+		GcObject::free(obj, sizeof(name));                              \
+		GcCounters[name##Counter]--;                                    \
 		break;
 #else
 #define OBJTYPE(name)                      \

@@ -62,3 +62,9 @@ void FunctionCompilationContext::disassemble(std::ostream &o) {
 	f->disassemble(o);
 }
 #endif
+
+#ifdef DEBUG_GC
+const char *FunctionCompilationContext::gc_repr() {
+	return f->name->str();
+}
+#endif

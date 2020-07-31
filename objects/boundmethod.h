@@ -33,4 +33,8 @@ struct BoundMethod {
 	}
 
 	void release() {}
+
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };

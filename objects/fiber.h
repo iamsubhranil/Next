@@ -134,14 +134,11 @@ struct Fiber {
 		// we have already managed the slot for the receiver
 		// and the arguments are already in place.
 		stackTop = bakStack + f->code->numSlots;
-#ifdef DEBUG_INS
-		// if we're stepping instructions, the bytecode disassembler
-		// will try to disassemble the stack of the function, which
+		// explicitly clear empty slots of the function, which
 		// may contain pointer to objects which have already been
-		// garbage collected. so clear that up.
+		// garbage collected.
 		Utils::fillNil(bakStack + f->arity + f->isVarArg() + 1,
 		               f->code->numSlots - 1 - (f->arity + f->isVarArg()));
-#endif
 	}
 
 	// appends an intra-class method, whose stack is already
@@ -211,4 +208,7 @@ struct Fiber {
 
 	// runs the fiber until it returns somehow
 	Value run();
+#ifdef DEBUG_GC
+	const char *gc_repr() { return "fiber"; }
+#endif
 };

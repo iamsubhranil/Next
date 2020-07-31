@@ -34,4 +34,8 @@ struct Object {
 	void release() const {
 		GcObject::totalAllocated -= sizeof(Value) * (obj.klass->numSlots);
 	}
+
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };

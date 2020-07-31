@@ -85,4 +85,8 @@ struct Class {
 			GcObject_free(static_values, sizeof(Value) * static_slot_count);
 		}
 	}
+
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };

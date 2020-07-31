@@ -71,6 +71,10 @@ struct String {
 	// mark the keep set
 	static void keep();
 
+#ifdef DEBUG_GC
+	const char *gc_repr() { return str(); }
+#endif
+
   private:
 	static String *insert(char *val, size_t size, int hash_);
 	static String *insert(String *val);

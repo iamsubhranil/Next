@@ -24,6 +24,12 @@ Value TypeError::sete(const char *o, const char *m, const char *e, Value r,
 	return sete(String::from(o), String::from(m), String::from(e), r, arg);
 }
 
+#ifdef DEBUG_GC
+const char *TypeError::gc_repr() {
+	return method->str();
+}
+#endif
+
 Value next_typeerror_object_type(const Value *args, int numargs) {
 	(void)numargs;
 	return Value(args[0].toTypeError()->ontype);
@@ -91,6 +97,12 @@ Value RuntimeError::sete(const char *m) {
 	return sete(String::from(m));
 }
 
+#ifdef DEBUG_GC
+const char *RuntimeError::gc_repr() {
+	return message->str();
+}
+#endif
+
 Value next_runtimerror_str(const Value *args, int numargs) {
 	(void)numargs;
 	return Value(args[0].toRuntimeError()->message);
@@ -128,6 +140,12 @@ Value IndexError::sete(String *m, long l, long h, long r) {
 Value IndexError::sete(const char *m, long l, long h, long r) {
 	return sete(String::from(m), l, h, r);
 }
+
+#ifdef DEBUG_GC
+const char *IndexError::gc_repr() {
+	return message->str();
+}
+#endif
 
 Value next_indexerror_from(const Value *args, int numargs) {
 	(void)numargs;
@@ -176,6 +194,12 @@ Value FormatError::sete(String *m) {
 	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }
+
+#ifdef DEBUG_GC
+const char *FormatError::gc_repr() {
+	return message->str();
+}
+#endif
 
 Value FormatError::sete(const char *m) {
 	return sete(String::from(m));

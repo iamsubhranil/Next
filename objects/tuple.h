@@ -21,4 +21,8 @@ struct Tuple {
 	}
 
 	void release() { GcObject::totalAllocated -= sizeof(Value) * size; }
+
+#ifdef DEBUG_GC
+	const char *gc_repr() { return "tuple"; }
+#endif
 };

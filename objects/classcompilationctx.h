@@ -98,4 +98,7 @@ struct ClassCompilationContext {
 #ifdef DEBUG
 	void disassemble(std::ostream &o);
 #endif
+#ifdef DEBUG_GC
+	const char *gc_repr() { return klass->name->str(); }
+#endif
 };

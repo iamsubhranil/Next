@@ -76,3 +76,9 @@ BoundMethod *BoundMethod::from(Function *f, Value v, Type t) {
 	b->type        = t;
 	return b;
 }
+
+#ifdef DEBUG_GC
+const char *BoundMethod::gc_repr() {
+	return func->name->str();
+}
+#endif

@@ -84,4 +84,8 @@ struct Function {
 #ifdef DEBUG
 	void disassemble(std::ostream &o);
 #endif
+
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };

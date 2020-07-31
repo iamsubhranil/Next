@@ -10,4 +10,8 @@ struct ArrayIterator {
 	static void init();
 	void        mark() {}
 	void        release() {}
+
+#ifdef DEBUG_GC
+	const char *gc_repr() { return "array_iterator"; }
+#endif
 };

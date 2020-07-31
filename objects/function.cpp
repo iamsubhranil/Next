@@ -128,3 +128,9 @@ void Function::disassemble(std::ostream &o) {
 	}
 }
 #endif
+
+#ifdef DEBUG_GC
+const char *Function::gc_repr() {
+	return name->str();
+}
+#endif

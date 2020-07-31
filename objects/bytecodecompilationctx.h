@@ -100,4 +100,8 @@ struct BytecodeCompilationContext {
 	void release() const {
 		GcObject::free(ranges_, sizeof(TokenRange) * capacity);
 	}
+
+#ifdef DEBUG_GC
+	const char *gc_repr() { return "bytecodecompilationctx"; }
+#endif
 };

@@ -23,4 +23,8 @@ struct Array {
 	void mark() const { GcObject::mark(values, size); }
 
 	void release() const { GcObject_free(values, sizeof(Value) * capacity); }
+
+#ifdef DEBUG_GC
+	const char *gc_repr() { return "array"; }
+#endif
 };
