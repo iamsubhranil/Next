@@ -25,12 +25,13 @@
 using namespace std;
 #endif
 
-size_t    GcObject::totalAllocated  = 0;
-size_t    GcObject::next_gc         = 1024 * 1024 * 10;
-size_t    GcObject::max_gc          = 1024 * 1024 * 1024;
-GcObject  GcObject::DefaultGcObject = {nullptr, nullptr, GcObject::OBJ_NONE};
-GcObject *GcObject::last            = &DefaultGcObject;
-GcObject *GcObject::root            = &DefaultGcObject;
+size_t     GcObject::totalAllocated        = 0;
+size_t     GcObject::next_gc               = 1024 * 1024 * 10;
+size_t     GcObject::max_gc                = 1024 * 1024 * 1024;
+size_t     GcObject::trackedObjectCount    = 0;
+size_t     GcObject::trackedObjectCapacity = 0;
+GcObject   GcObject::DefaultGcObject       = {nullptr, GcObject::OBJ_NONE};
+GcObject **GcObject::tracker               = nullptr;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
@@ -183,6 +184,36 @@ void GcObject::setMaxGC(size_t v) {
 	max_gc = v;
 }
 
+void GcObject::tracker_init() {
+	trackedObjectCapacity = 32;
+	trackedObjectCount    = 0;
+	tracker               = (GcObject **)GcObject_malloc(sizeof(GcObject *) *
+                                           trackedObjectCapacity);
+}
+
+void GcObject::tracker_insert(GcObject *g) {
+	if(trackedObjectCount == trackedObjectCapacity) {
+		size_t oldCap = trackedObjectCapacity;
+		trackedObjectCapacity *= 2;
+		tracker = (GcObject **)GcObject_realloc(
+		    tracker, sizeof(GcObject *) * oldCap,
+		    sizeof(GcObject *) * trackedObjectCapacity);
+	}
+	tracker[trackedObjectCount++] = g;
+}
+
+void GcObject::tracker_shrink() {
+	// if there are less than half the capacity number of objects in the array,
+	// shrink to reduce memory usage
+	if(trackedObjectCount < trackedObjectCapacity / 2) {
+		size_t newCap = Utils::powerOf2Ceil(trackedObjectCount);
+		tracker       = (GcObject **)GcObject_realloc(
+            tracker, sizeof(GcObject *) * trackedObjectCapacity,
+            sizeof(GcObject *) * newCap);
+		trackedObjectCapacity = newCap;
+	}
+}
+
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
                       const Class *klass) {
 	// try for gc before allocation
@@ -193,10 +224,8 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	GcObject *obj = (GcObject *)GcObject::malloc(s);
 	obj->objType  = type;
 	obj->klass    = klass;
-	obj->next     = nullptr;
 
-	last->next = obj;
-	last       = obj;
+	tracker_insert(obj);
 
 	return obj;
 }
@@ -331,22 +360,27 @@ Class *GcObject::getMarkedClass(const Object *o) {
 }
 
 void GcObject::sweep() {
-	GcObject **head = &(root->next);
-	while(*head) {
-		if(!isMarked(*head)) {
-			GcObject *bak = *head;
-			*head         = (*head)->next;
-			release(bak);
-		} else {
-			unmark(*head);
-			last = *head;
-			head = &((*head)->next);
+	size_t lastFilledAt = 0;
+	for(size_t i = 0; i < trackedObjectCount; i++) {
+		GcObject *v = tracker[i];
+		// if it is not marked, release
+		if(!isMarked(v)) {
+			release(v);
+		}
+		// it is marked, shift it left to the
+		// first non empty slot
+		else {
+			unmark(v);
+			tracker[lastFilledAt++] = v;
 		}
 	}
-	last->next = NULL;
+	trackedObjectCount = lastFilledAt;
+	tracker_shrink();
 }
 
 void GcObject::init() {
+	// initialize the object tracker
+	tracker_init();
 	// allocate the core classes
 #define OBJTYPE(n) n##Class = GcObject::allocClass();
 #include "objecttype.h"

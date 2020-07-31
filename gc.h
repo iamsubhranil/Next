@@ -14,7 +14,6 @@ struct Value;
 #include "objecttype.h"
 
 struct GcObject {
-	GcObject *   next;
 	const Class *klass;
 	enum GcObjectType {
 		OBJ_NONE,
@@ -34,11 +33,18 @@ struct GcObject {
 	static void init();
 
 	// State of the garbage collector
-	static size_t    totalAllocated;
-	static size_t    next_gc;
-	static size_t    max_gc;
-	static GcObject *root;
-	static GcObject *last;
+	static size_t totalAllocated;
+	static size_t next_gc;
+	static size_t max_gc;
+	// an array to track the allocated
+	// objects
+	static GcObject **tracker;
+	static size_t     trackedObjectCount;
+	static size_t     trackedObjectCapacity;
+
+	static void tracker_init();
+	static void tracker_insert(GcObject *g);
+	static void tracker_shrink();
 
 	// replacement for manual allocations
 	// to keep track of allocated bytes
