@@ -50,11 +50,11 @@ endif
 
 pgobuild: CXXFLAGS+=-fprofile-generate -march=native
 pgobuild: LDFLAGS+=-fprofile-generate -flto
+ifeq ($(CXX),clang++)
+pgobuild: CXXFLAGS+=-mllvm -vp-counters-per-site=5
+endif
 pgobuild: | clean_pgodata cgoto
 
-ifeq ($(CXX),clang++)
-pgorun: NUM_TRIALS=2
-endif
 pgorun: | pgobuild benchmark tests
 
 ifeq ($(CXX),clang++)
