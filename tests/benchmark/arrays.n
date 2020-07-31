@@ -1,14 +1,19 @@
-arr = []
+fn test() {
+    arr = []
+    limit = 1000000
+    for(i = 0; i < limit; ++i) {
+        arr[i] = i + 1
+    }
+
+    sum = 0
+    for(i in arr) {
+        sum = sum + i
+    }
+    ret sum
+}
+
 start = clock()
-for(i in range(1000000)) {
-    arr[i] = i + 1
-}
-
-sum = 0
-for(i in arr) {
-    sum = sum + i
-}
-
+sum = test()
 end = (clock() - start)/clocks_per_sec
 
 print(sum, "\n")

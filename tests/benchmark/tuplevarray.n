@@ -1,5 +1,4 @@
 fn oniterator(arr, size) {
-    start = clock()
     for(i in range(size)) {
         arr[i] = i + 1
     }
@@ -8,46 +7,40 @@ fn oniterator(arr, size) {
     for(i in arr) {
         sum = sum + i
     }
-
-    end = (clock() - start)/clocks_per_sec
-
-    print("Elapsed: ", end, "\n")
 }
 
 fn onindex(arr, size) {
-    start = clock()
-    for(i in range(size)) {
-        arr[i] = i + 1
+    if(arr.size() != size) {
+        for(i in range(size)) {
+            arr[i] = i + 1
+        }
+    } else {
+        for(i = 0; i < size; ++i) {
+            arr[i] = i + 1
+        }
     }
-    i = 0
     sum = 0
-    while(i < size) {
-        sum = sum + i++
+    for(i = 0; i < size; ++i){
+        sum = sum + arr[i]
     }
+}
 
+fn measure(str, func, arr, size) {
+    println(str)
+    start = clock()
+    func(arr, size)
     end = (clock() - start)/clocks_per_sec
-
-    print("Elapsed: ", end, "\n")
+    println("Elapsed: ", end)
+    gc()
 }
 
 fn test() {
     size = 100000000
-    print("Array: Iterator\n")
-    oniterator([], size)
-    gc()
-    print("Tuple: Iterator\n")
-    oniterator(tuple(size), size)
-    gc()
-    print("Array (Fixed Size): Iterator\n")
-    oniterator(array(size), size)
-    gc()
-    print("Tuple: Index Access\n")
-    onindex(tuple(size), size)
-    gc()
-    print("Array: Index Access\n")
-    onindex([], size)
-    gc()
-    print("Array (Fixed Size): Index Access\n")
-    onindex(array(size), size)
+    measure("Array: Iterator", oniterator@2, [], size)
+    measure("Tuple: Iterator", oniterator@2, tuple(size), size)
+    measure("Array (Fixed Size): Iterator", oniterator@2, array(size), size)
+    measure("Tuple: Index Access", onindex@2, tuple(size), size)
+    measure("Array: Index Access", onindex@2, [], size)
+    measure("Array (Fixed Size): Index Access", onindex@2, array(size), size)
 }
 test()
