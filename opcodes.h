@@ -146,12 +146,16 @@ OPCODE0(subscript_set, -2)
 OPCODE0(subscript_get, -1)
 
 // Assigns the N elements from the TOP to the
-// array at [TOP - N]
+// array
 OPCODE1(array_build, 0, int)
 
 // Assigns N*2 key-value pairs from the TOP
 // to the map
 OPCODE1(map_build, 0, int)
+
+// Assigns N elements from the TOP to the
+// tuple
+OPCODE1(tuple_build, 0, int)
 
 // TOP - 1 contains objects/class*
 // TOP contains function*

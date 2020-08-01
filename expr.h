@@ -134,9 +134,14 @@ class GetExpression : public Expr {
 
 class GroupingExpression : public Expr {
   public:
-	ExpPtr exp;
-	GroupingExpression(Token brace, ExpPtr &expr)
-	    : Expr(brace, GROUPING), exp(expr.release()) {}
+	std::vector<ExpPtr> exprs;
+	bool                istuple;
+	GroupingExpression(Token brace, std::vector<ExpPtr> &e, bool ist)
+	    : Expr(brace, GROUPING), istuple(ist) {
+		for(auto &i : e) {
+			exprs.push_back(ExpPtr(i.release()));
+		}
+	}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 

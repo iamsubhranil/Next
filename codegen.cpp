@@ -226,20 +226,15 @@ void CodeGenerator::visit(GroupingExpression *g) {
 	dinfo("");
 	g->token.highlight();
 #endif
-	g->exp->accept(this);
+	for(auto &i : g->exprs) {
+		i->accept(this);
+	}
+	if(g->istuple) {
+		btx->tuple_build(g->exprs.size());
+		btx->stackEffect(-g->exprs.size() + 1);
+	}
 }
 
-/*
-int CodeGenerator::getFrameIndex(vector<Frame *> &frames, Frame *searching) {
-    int k = 0;
-    for(auto i = frames.begin(), j = frames.end(); i != j; i++, k++) {
-        if(*i == searching) {
-            return k;
-        }
-    }
-    return -1;
-}
-*/
 CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
                                                    String *signature) {
 	CallInfo info = {UNDEFINED, 0, true, false};
