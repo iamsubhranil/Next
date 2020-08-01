@@ -60,7 +60,11 @@ void ExpressionPrinter::visit(GetExpression *ge) {
 
 void ExpressionPrinter::visit(GroupingExpression *ge) {
 	out << "(";
-	ge->exp->accept(this);
+	for(auto &i : ge->exprs) {
+		i->accept(this);
+		if(ge->istuple)
+			out << ", ";
+	}
 	out << ")";
 }
 

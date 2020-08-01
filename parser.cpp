@@ -556,10 +556,23 @@ ExpPtr PrefixOperatorParselet::parse(Parser *parser, Token t) {
 }
 
 ExpPtr GroupParselet::parse(Parser *parser, Token t) {
-	ExpPtr expr = parser->parseExpression();
-	parser->consume(TOKEN_RIGHT_PAREN,
-	                "Expected ')' at the end of the group expression!");
-	return unq(GroupingExpression, t, expr);
+	std::vector<ExpPtr> exprs;
+	exprs.push_back(parser->parseExpression());
+	bool ist = false;
+	if(parser->match(TOKEN_COMMA)) {
+		ist = true;
+		while(!parser->match(TOKEN_RIGHT_PAREN)) {
+			exprs.push_back(parser->parseExpression());
+			if(!parser->match(TOKEN_RIGHT_PAREN)) {
+				parser->consume(TOKEN_COMMA, "Expected ',' after expression!");
+			} else
+				break; // we matched a ')'
+		}
+	} else {
+		parser->consume(TOKEN_RIGHT_PAREN,
+		                "Expected ')' at the end of the group expression!");
+	}
+	return unq(GroupingExpression, t, exprs, ist);
 }
 
 ExpPtr BinaryOperatorParselet::parse(Parser *parser, ExpPtr &left, Token t) {

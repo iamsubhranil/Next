@@ -1024,10 +1024,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// manually adjust the size
 				a->size = numArg;
 				// insert all the elements
-				while(numArg--) {
-					a->values[numArg] = POP();
-					// v           = ValueNil;
-				}
+				memcpy(a->values, &fiber->stackTop[-numArg],
+				       sizeof(Value) * numArg);
+				fiber->stackTop -= numArg;
 				PUSH(Value(a));
 				DISPATCH();
 			}
@@ -1038,6 +1037,16 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				    ValueMap::from(&fiber->stackTop[-(numArg * 2)], numArg);
 				fiber->stackTop -= (numArg * 2);
 				PUSH(Value(v));
+				DISPATCH();
+			}
+
+			CASE(tuple_build) : {
+				int    numArg = next_int();
+				Tuple *t      = Tuple::create(numArg);
+				memcpy(t->values(), &fiber->stackTop[-numArg],
+				       sizeof(Value) * numArg);
+				fiber->stackTop -= numArg;
+				PUSH(Value(t));
 				DISPATCH();
 			}
 

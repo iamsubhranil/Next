@@ -1,0 +1,16 @@
+pub fn test() {
+    res = true
+    if((2) != 2) {
+        println("[Error] (2) should not be considered as a tuple!")
+        res = false
+    }
+    if((2,)[0] != 2) {
+        println("[Error] (2,) should be considered as a tuple!")
+        res = false
+    }
+    if((2, 3, false, 2.6, nil)[3] != 2.6) {
+        println("[Error] Tuple index access not working!")
+        res = false
+    }
+    ret res
+}
