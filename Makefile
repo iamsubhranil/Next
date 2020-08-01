@@ -35,7 +35,7 @@ debug_ins: debug
 debug_gc: CXXFLAGS += -DDEBUG_GC
 debug_gc: debug
 
-debug_all: CXXFLAGS += -DDEBUG_INS -DDEBUG_GC
+debug_all: CXXFLAGS += -DDEBUG_INS -DDEBUG_GC -DDEBUG_CODEGEN
 debug_all: debug
 
 pgo: merge_profraw pgouse
