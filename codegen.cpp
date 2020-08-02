@@ -59,20 +59,10 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	// but it is still stored at slot 0
 	// of each compiled mtx
 	btx->insert_token(Token::PlaceholderToken);
-	VarInfo v = lookForVariable(String::from("core"), true);
+	VarInfo v = lookForVariable2(String::from("core"), true);
 	btx->push(Value(ExecutionEngine::CoreObject));
 	btx->store_object_slot(v.slot);
 	btx->pop_();
-	/*
-	String* lastName = StringConstants::core;
-	if(compileIn->name != lastName) {
-	    mtx->importedmtxs[lastName] = Coremtx::core;
-	    VarInfo v                         = lookForVariable(lastName, true);
-	    btx->push(Value(mtx->importedmtxs[lastName]));
-	    btx->store_slot(v.slot);
-	    btx->pop2();
-	}
-	*/
 	compileAll(stmts);
 	// after everything is done, load the instance,
 	// and return it
@@ -105,10 +95,10 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 	CompilationState bak = state;
 	// First compile all declarations
 	state = COMPILE_DECLARATION;
-	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
+	for(auto &i : stmts) {
 		// Pass only declaration statements
-		if((*i)->isDeclaration())
-			(*i)->accept(this);
+		if(i->isDeclaration())
+			i->accept(this);
 	}
 	// Mark this mtx as already compiled, so that even if a
 	// cyclic import occures, this mtx is not recompiled
@@ -116,14 +106,14 @@ void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
 	// mtx->isCompiled = true;
 	// Then compile all imports
 	state = COMPILE_IMPORTS;
-	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
-		if((*i)->isImport())
-			(*i)->accept(this);
+	for(auto &i : stmts) {
+		if(i->isImport())
+			i->accept(this);
 	}
 	// Then compile all bodies
 	state = COMPILE_BODY;
-	for(auto i = stmts.begin(), j = stmts.end(); i != j; i++) {
-		(*i)->accept(this);
+	for(auto &i : stmts) {
+		i->accept(this);
 	}
 	state = bak;
 }
@@ -418,7 +408,7 @@ void CodeGenerator::visit(CallExpression *call) {
 }
 
 CodeGenerator::VarInfo
-CodeGenerator::lookForVariable(String *name, bool declare, Visibility vis) {
+CodeGenerator::lookForVariable2(String *name, bool declare, Visibility vis) {
 	int slot = 0;
 	// first check the present context
 	if(ftx->has_slot(name, scopeID)) {
@@ -467,7 +457,7 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
                                                       bool       showError,
                                                       Visibility vis) {
 	String *name = String::from(t.start, t.length);
-	VarInfo var  = lookForVariable(name, declare, vis);
+	VarInfo var  = lookForVariable2(name, declare, vis);
 	if(var.position == UNDEFINED && showError) {
 		lnerr_("No such variable found : '%s'", t, name->str());
 
@@ -498,40 +488,32 @@ void CodeGenerator::visit(AssignExpression *as) {
 		// target first, then the value to avoid
 		// stack manipulation in case we need to
 		// call op method [](_,_)
-		if(state == COMPILE_BODY) {
-			btx->insert_token(as->target->token);
-			bool b = onLHS;
-			onLHS  = true;
-			as->target->accept(this);
-			onLHS = b;
-			btx->insert_token(as->val->token);
-			as->val->accept(this);
-			btx->insert_token(as->token);
-			btx->subscript_set();
-		}
+		btx->insert_token(as->target->token);
+		bool b = onLHS;
+		onLHS  = true;
+		as->target->accept(this);
+		onLHS = b;
+		btx->insert_token(as->val->token);
+		as->val->accept(this);
+		btx->insert_token(as->token);
+		btx->subscript_set();
 	} else {
-
-		//
-		if(state == COMPILE_BODY) {
-			// Resolve the expression
-			btx->insert_token(as->val->token);
-			as->val->accept(this);
-		}
+		// Resolve the expression
+		btx->insert_token(as->val->token);
+		as->val->accept(this);
 
 		variableInfo = lookForVariable(as->target->token, true);
 
-		if(state == COMPILE_BODY) {
-			btx->insert_token(as->token);
-			// target of an assignment expression cannot be a
-			// builtin constant
-			if(variableInfo.position == CORE) {
-				lnerr_("Built-in variable '%.*s' cannot be "
-				       "reassigned!",
-				       as->target->token, as->target->token.length,
-				       as->target->token.start);
-			} else {
-				storeVariable(variableInfo);
-			}
+		btx->insert_token(as->token);
+		// target of an assignment expression cannot be a
+		// builtin constant
+		if(variableInfo.position == CORE) {
+			lnerr_("Built-in variable '%.*s' cannot be "
+			       "reassigned!",
+			       as->target->token, as->target->token.length,
+			       as->target->token.start);
+		} else {
+			storeVariable(variableInfo);
 		}
 	}
 }
@@ -1132,9 +1114,7 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 	pushScope();
 	// Back up the previous stack specifications
 	int present = btx->code->stackSize;
-	for(auto i = ifs->statements.begin(), j = ifs->statements.end(); i != j;
-	    i++)
-		(*i)->accept(this);
+	for(auto &i : ifs->statements) i->accept(this);
 	// we keep the largest size as present
 	if(present > btx->code->stackSize)
 		btx->code->stackSize = present;
@@ -1146,8 +1126,8 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	for(auto i = ifs->exprs.begin(), j = ifs->exprs.end(); i != j; i++) {
-		i->get()->accept(this);
+	for(auto &i : ifs->exprs) {
+		i->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
 		btx->pop_();
@@ -1180,9 +1160,8 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		// 0th slot of the class will contain the module
 		ctx->add_private_mem(String::from("mod "));
 		pushScope();
-		for(auto i = ifs->declarations.begin(), j = ifs->declarations.end();
-		    i != j; i++) {
-			(*i)->accept(this);
+		for(auto &i : ifs->declarations) {
+			i->accept(this);
 		}
 		popScope();
 		inClass = false;
@@ -1192,9 +1171,8 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	} else {
 		inClass = true;
 		ctx     = mtx->get_class_ctx(className);
-		for(auto i = ifs->declarations.begin(), j = ifs->declarations.end();
-		    i != j; i++) {
-			(*i)->accept(this);
+		for(auto &i : ifs->declarations) {
+			i->accept(this);
 		}
 		inClass = false;
 		ctx     = mtx;
@@ -1209,9 +1187,8 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_IMPORTS) {
-		Token        last     = *(ifs->import.end() - 1);
-		String *     lastName = String::from(last.start, last.length);
-		ImportStatus is       = Importer::import(ifs->import);
+		Token        last = *(ifs->import.end() - 1);
+		ImportStatus is   = Importer::import(ifs->import);
 		Token        t =
 		    ifs->import[is.toHighlight ? is.toHighlight - 1 : is.toHighlight];
 		switch(is.res) {
@@ -1245,7 +1222,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 				// Also, if the import is a success, we know
 				// the returned value is the instance of the
 				// module
-				variableInfo = lookForVariable(lastName, true);
+				variableInfo = lookForVariable(last, true);
 				btx->push(Value(m));
 				// if it is a partial import, load the rest
 				// of the parts
@@ -1275,16 +1252,14 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
+	ifs->expr->accept(this);
 	VarInfo info = lookForVariable(ifs->token, true, false, ifs->vis);
-	if(getState() == COMPILE_BODY) {
-		if(info.position == CORE) {
-			lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
-			       ifs->token.length, ifs->token.start);
-		}
-		ifs->expr->accept(this);
-		storeVariable(info);
-		btx->pop_();
+	if(info.position == CORE) {
+		lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
+		       ifs->token.length, ifs->token.start);
 	}
+	storeVariable(info);
+	btx->pop_();
 }
 
 void CodeGenerator::visit(MemberVariableStatement *ifs) {
@@ -1293,11 +1268,10 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_DECLARATION) {
-		for(auto i = ifs->members.begin(), j = ifs->members.end(); i != j;
-		    i++) {
-			String *name = String::from((*i).start, (*i).length);
+		for(auto &i : ifs->members) {
+			String *name = String::from(i.start, i.length);
 			if(ctx->has_mem(name)) {
-				lnerr_("Member '%s' variable already declared!", (*i),
+				lnerr_("Member '%s' variable already declared!", i,
 				       name->str());
 				/* TODO: Fix this
 				lnerr("Previously declared at : ",
@@ -1345,15 +1319,14 @@ void CodeGenerator::visit(TryStatement *ifs) {
 	// after one catch block is executed, the control
 	// should get out of remaining catch blocks
 	vector<int> jumpAddresses;
-	for(auto i = ifs->catchBlocks.begin(), j = ifs->catchBlocks.end(); i != j;
-	    i++) {
-		(*i)->accept(this);
+	for(auto &i : ifs->catchBlocks) {
+		i->accept(this);
 		// keep a backup of the jump opcode address
 		jumpAddresses.push_back(btx->jump(0));
 	}
-	for(auto i = jumpAddresses.begin(), j = jumpAddresses.end(); i != j; i++) {
+	for(auto &i : jumpAddresses) {
 		// patch the jump addresses
-		btx->jump((*i), btx->getip() - (*i));
+		btx->jump(i, btx->getip() - i);
 	}
 	// patch the try jump
 	btx->jump(skipAll, btx->getip() - skipAll);
@@ -1366,14 +1339,9 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	String *tname = String::from(ifs->typeName.start, ifs->typeName.length);
-
 	Exception *e = ftx->f->create_exception_block(tryBlockStart, tryBlockEnd);
-	VarInfo    v = lookForVariable(tname);
-	if(v.position == UNDEFINED) {
-		lnerr_("No such variable found in present scope '%s'!", ifs->token,
-		       tname->str());
-	} else {
+	VarInfo    v = lookForVariable(ifs->typeName);
+	if(v.position != UNDEFINED) {
 		CatchBlock::SlotType st = CatchBlock::SlotType::LOCAL;
 		switch(v.position) {
 			case LOCAL: st = CatchBlock::SlotType::LOCAL; break;

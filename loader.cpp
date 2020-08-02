@@ -76,6 +76,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_fn, new FnDeclaration());
 	p->registerParselet(TOKEN_import, new ImportDeclaration());
 	p->registerParselet(TOKEN_IDENTIFIER, new VarDeclaration());
+	p->registerParselet(TOKEN_class, new ClassDeclaration());
 
 	// Statements
 	p->registerParselet(TOKEN_if, new IfStatementParselet());
@@ -86,6 +87,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
 	p->registerParselet(TOKEN_for, new ForStatementParselet());
 
+	// intraclass declarations
 	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_priv, new VisibilityDeclaration());
@@ -94,8 +96,6 @@ void registerParselets(Parser *p) {
 	ClassDeclaration::registerParselet(TOKEN_op, new OpMethodDeclaration());
 	ClassDeclaration::registerParselet(TOKEN_IDENTIFIER,
 	                                   new MemberDeclaration());
-
-	p->registerParselet(TOKEN_class, new ClassDeclaration());
 }
 
 GcObject *Loader::compile_and_load(String *fileName, bool execute) {

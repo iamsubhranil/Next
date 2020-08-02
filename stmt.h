@@ -69,7 +69,6 @@ class Statement {
 	bool isDeclaration() {
 		switch(type) {
 			case FN:
-			case VARDECL:
 			case CLASS: return true;
 			default: return false;
 		};

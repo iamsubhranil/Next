@@ -119,8 +119,8 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	VarInfo          lookForVariable(Token t, bool declare = false,
 	                                 bool       showError = true,
 	                                 Visibility vis       = VIS_DEFAULT);
-	VarInfo          lookForVariable(String *name, bool declare = false,
-	                                 Visibility vis = VIS_DEFAULT);
+	VarInfo          lookForVariable2(String *name, bool declare = false,
+	                                  Visibility vis = VIS_DEFAULT);
 	void             compileAll(const std::vector<StmtPtr> &statements);
 	void             initFtx(FunctionCompilationContext *f, Token t);
 	void             popFrame();

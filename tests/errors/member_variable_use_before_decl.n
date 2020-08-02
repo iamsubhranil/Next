@@ -1,0 +1,7 @@
+class MyClass {
+    pub:
+        new() { x = MemberVariable }
+
+}
+
+MemberVariable = 2
