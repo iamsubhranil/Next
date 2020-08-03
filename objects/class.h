@@ -16,7 +16,8 @@ struct Class {
 	// top level code.
 	Array * functions;
 	String *name;
-	Class * module; // a module is eventually a class
+	Class * module; // a module is eventually an instance of a class
+	Class * metaclass;
 
 	// in case of a module, it will store the module instance
 	// in case of a class, it will store the static members
@@ -33,8 +34,8 @@ struct Class {
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 
 	static void init();
-	void        init(const char *name, ClassType typ);
-	void        init(String *s, ClassType typ);
+	void        init(const char *name, ClassType typ, Class *metaclass = NULL);
+	void        init(String *s, ClassType typ, Class *metaclass = NULL);
 	// add_sym adds a symbol to the method buffer
 	// which holds a particular value, typically,
 	// the slot number.
@@ -81,6 +82,8 @@ struct Class {
 		GcObject::mark(functions);
 		if(module != NULL) {
 			GcObject::mark(module);
+			if(metaclass)
+				GcObject::mark(metaclass);
 			if(static_slot_count > 0)
 				GcObject::mark(static_values, static_slot_count);
 		} else if(instance != NULL) {

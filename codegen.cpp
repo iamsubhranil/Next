@@ -156,12 +156,7 @@ int CodeGenerator::createTempSlot() {
 void CodeGenerator::loadPresentModule() {
 	// check if we're in a class
 	if(ctx != mtx) {
-		// check if we're in a static method
-		if(ftx->f->isStatic())
-			btx->load_module();
-		else
-			// module is in the 0th slot of the class
-			btx->load_object_slot(0);
+		btx->load_module();
 	} else {
 		// if we're not inside of any class, then
 		// the 0th slot is the present module
@@ -1157,8 +1152,6 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		}
 		inClass = true;
 		ctx     = c;
-		// 0th slot of the class will contain the module
-		ctx->add_private_mem(String::from("mod "));
 		pushScope();
 		for(auto &i : ifs->declarations) {
 			i->accept(this);

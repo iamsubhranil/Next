@@ -4,7 +4,7 @@
 #include "function.h"
 #include "symtab.h"
 
-void Class::init(String *s, ClassType typ) {
+void Class::init(String *s, ClassType typ, Class *mc) {
 	name              = s;
 	type              = typ;
 	functions         = Array::create(1);
@@ -13,10 +13,11 @@ void Class::init(String *s, ClassType typ) {
 	instance          = NULL;
 	static_slot_count = 0;
 	static_values     = NULL;
+	metaclass         = mc;
 }
 
-void Class::init(const char *n, ClassType typ) {
-	init(String::from(n), typ);
+void Class::init(const char *n, ClassType typ, Class *mc) {
+	init(String::from(n), typ, mc);
 }
 
 void Class::add_sym(int sym, Value v) {

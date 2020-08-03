@@ -8,7 +8,6 @@ ClassCompilationContext *
 ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ClassCompilationContext *ctx = GcObject::allocClassCompilationContext();
 	ctx->klass                   = GcObject::allocClass();
-	ctx->klass->init(n, Class::ClassType::NORMAL);
 	ctx->members = (MemberMap *)GcObject_malloc(sizeof(MemberMap));
 	::new(ctx->members) MemberMap();
 	ctx->public_signatures  = ValueMap::create();
@@ -22,6 +21,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->fctxMap            = ValueMap::create();
 	if(s == NULL) {
 		// it's a module.
+		// init the module
+		ctx->klass->init(n, Class::ClassType::NORMAL);
 		// so add a default constructor to initialize
 		// the class variables
 		ctx->defaultConstructor = FunctionCompilationContext::create(
@@ -51,6 +52,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		// garbage collected
 		ctx->klass->obj.klass = ctx->metaclass;
 		ctx->metaclass->name  = String::append(n, " metaclass");
+		// init the class with the metaclass
+		ctx->klass->init(n, Class::ClassType::NORMAL, ctx->metaclass);
 	}
 	return ctx;
 }

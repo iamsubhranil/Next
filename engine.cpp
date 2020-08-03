@@ -1102,8 +1102,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			CASE(construct) : {
 				Class * c = next_value().toClass();
 				Object *o = GcObject::allocObject(c);
-				// assign the 0th slot to the 0th slot of the object
-				o->slots(0) = Stack[0];
 				// assign the object to slot 0
 				Stack[0] = Value(o);
 				// if this is a module, store the instance to the class
