@@ -250,7 +250,7 @@ fn longJob(x) {
     }
 }
 
-f = fiber(longJob@1, [10000])
+f = fiber(longJob@1, 10000) // 10000 is passed as argument to longJob
 // fibers support iterator protocol
 for(value in f) {
     print(value, " ")   // 9999 9998 9997

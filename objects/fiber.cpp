@@ -217,34 +217,27 @@ Value next_fiber_iterate(const Value *args, int numargs) {
 	return Value(o);
 }
 
-Value next_fiber_construct_0(const Value *args, int numargs) {
-	(void)numargs;
-	EXPECT(fiber, "new(method)", 1, BoundMethod);
-	BoundMethod *b = args[1].toBoundMethod();
-	// verify the function with given arguments
-	BoundMethod::Status s = b->verify(NULL, 0);
-	if(s != BoundMethod::Status::OK)
-		return ValueNil;
-	Fiber *f = Fiber::create();
-	f->appendBoundMethod(b, false);
-	return Value(f);
-}
-
 Value next_fiber_construct_x(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(fiber, "new(method, args)", 1, BoundMethod);
-	EXPECT(fiber, "new(method, args)", 2, Array);
+	EXPECT(fiber, "new(method,...)", 1, BoundMethod);
 	BoundMethod *b = args[1].toBoundMethod();
-	Array *      a = args[2].toArray();
-	// verify the function with the given arguments
-	BoundMethod::Status s = b->verify(a->values, a->size);
+	// verify the function with given arguments
+	int          na  = numargs - 2;
+	const Value *val = NULL;
+	if(na > 0)
+		val = &args[2];
+	BoundMethod::Status s = b->verify(val, na);
 	if(s != BoundMethod::Status::OK)
 		return ValueNil;
 	Fiber *f = Fiber::create();
-	// in case this is a class bound method, we send the
-	// count without the receiver object, since
-	// appendBoundMethod already makes room for it
-	f->appendBoundMethod(b, a->values, a->size - b->isClassBound(), false);
+	if(na == 0)
+		f->appendBoundMethod(b, false);
+	else
+		// in case this is a class bound method, we send the
+		// count without the receiver object, since
+		// appendBoundMethod already makes room for it
+		f->appendBoundMethod(b, val, na - b->isClassBound(), false);
+
 	return Value(f);
 }
 
@@ -255,18 +248,17 @@ void Fiber::init() {
 
 	/*
 	 *  So the fiber api should look like the following
-	 *  f = fiber(someMethod@2, [1, 2])
+	 *  f = fiber(someMethod@2, 1, 2)
 	 *  or
 	 *  f = fiber(someMethod@0)
 	 *
 	 *  the fiber will know the arity of the method is 2.
-	 *  to pass arguments to the method, pack them in an array, and pass
-	 *  array to fiber(x, y). the fiber will unpack the arguments, and pass
+	 *  to pass arguments to the method, pass them to them to
+	 *  the fiber constructor. the fiber will unpack the arguments, and pass
 	 *  them as arguments to someMethod. if the counts do not
 	 *  match, it will be reported as an error.
 	 *
-	 *  fiber also provides a no argument fiber(x) constructor to run
-	 *  methods with zero arguments.
+	 *  use fiber(x) constructor to run methods with zero arguments.
 	 *
 	 *  the fiber provides methods to check whether the fiber is
 	 *  started, is on yield, is finished.
@@ -336,8 +328,7 @@ void Fiber::init() {
 	 *
 	 */
 
-	FiberClass->add_builtin_fn("(_)", 1, next_fiber_construct_0);
-	FiberClass->add_builtin_fn("(_,_)", 2, next_fiber_construct_x);
+	FiberClass->add_builtin_fn("(_)", 1, next_fiber_construct_x, true);
 	FiberClass->add_builtin_fn("cancel()", 0, next_fiber_cancel);
 	FiberClass->add_builtin_fn("is_started()", 0, next_fiber_is_started);
 	FiberClass->add_builtin_fn("is_yielded()", 0, next_fiber_is_yielded);

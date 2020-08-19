@@ -54,7 +54,7 @@ pub fn test() {
             res = false
         }
     }
-    f = fiber(array.size@0, [[2]])
+    f = fiber(array.size@0, [2])
     if(f.run() != 1) {
         print("[Error] Fiber running builtin class bound method is broken!\n")
         res = false
@@ -69,11 +69,11 @@ pub fn test() {
         print("[Error] Fiber running builtin object bound method is broken!\n")
         res = false
     }
-    if(fiber(map.has@1, [{"cool": "af"}, "cool"]).run() != true) {
+    if(fiber(map.has@1, {"cool": "af"}, "cool").run() != true) {
         print("[Error] Fiber running in place method reference is broken!\n")
         res = false
     }
-    f = fiber(recurse@1, [0])
+    f = fiber(recurse@1, 0)
     if(f.run() != 10) {
         print("[Error] Fiber running object bound method is broken!\n")
         res = false
@@ -100,16 +100,16 @@ pub fn test() {
         print("[Error] Fiber.is_finished() is broken!\n")
     }
     try { 
-        fiber(SomeClass.someMethod@1, [])
+        fiber(SomeClass.someMethod@1)
         print("[Error] Running a fiber with invalid arguments should produce an error!\n")
         res = false
     } catch(runtime_error e) {}
     try { 
-        fiber(SomeClass.someMethod@1, [2, 3])
+        fiber(SomeClass.someMethod@1, 2, 3)
         print("[Error] Running a fiber with invalid arguments should produce an error!\n")
         res = false
     } catch(type_error e) {}
-    if(fiber(SomeClass.someMethod@1, [SomeClass(), 2]).run() != 2) {
+    if(fiber(SomeClass.someMethod@1, SomeClass(), 2).run() != 2) {
         print("[Error] Fiber running class bound method is broken!\n")
         res = false
     }
@@ -120,7 +120,7 @@ pub fn test() {
         res = false
     } catch(runtime_error e) {}
     arg = range(5)
-    f = fiber(passing@1, [arg])
+    f = fiber(passing@1, arg)
     // make the first run
     if(f.run(0) != 0) {
         print("[Error] Error passing value to yield!\n")
@@ -134,7 +134,7 @@ pub fn test() {
     }
 
     arr = []
-    f = fiber(runrun@1, [arr])
+    f = fiber(runrun@1, arr)
     arr.insert(f)
     try {
         f.run()

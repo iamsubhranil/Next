@@ -1,23 +1,22 @@
 fibers = []
-counter = 0
 max = 100000
 
 sum = 0
 
-fn callnext() {
-    sum = sum + counter
-    if(counter < 99999) {
-        counter++
-        fibers[counter].run()
+fn callnext(i) {
+    sum = sum + i
+    if(i < 99999) {
+        i++
+        fibers[i].run()
     }
 }
 
-s = callnext@0
+s = callnext@1
 
 start = clock()
 
 for(i in range(max)) {
-    fibers[i] = fiber(s)
+    fibers[i] = fiber(s, i)
 }
 
 fibers[0].run()
