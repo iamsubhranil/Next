@@ -483,7 +483,9 @@ ExpPtr NameParselet::parse(Parser *parser, Token t) {
 ExpPtr ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	// if there is a dot, okay
 	if(parser->match(TOKEN_DOT)) {
-		ExpPtr refer = parser->parseExpression(Precedence::REFERENCE);
+		Token name =
+		    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
+		ExpPtr refer = parser->parseExpression(Precedence::REFERENCE, name);
 		return unq(GetThisOrSuperExpression, t, refer);
 	}
 
@@ -641,7 +643,9 @@ ExpPtr CallParselet::parse(Parser *parser, ExpPtr &left, Token t) {
 }
 
 ExpPtr ReferenceParselet::parse(Parser *parser, ExpPtr &obj, Token t) {
-	ExpPtr member = parser->parseExpression(Precedence::REFERENCE);
+	Token name =
+	    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
+	ExpPtr member = parser->parseExpression(Precedence::REFERENCE, name);
 	return unq(GetExpression, obj, t, member);
 }
 

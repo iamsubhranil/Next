@@ -667,10 +667,6 @@ void CodeGenerator::validateThisOrSuper(Token tos) {
 		lnerr_("Cannot use 'super' inside class '%s' which is not derived "
 		       "from anything!",
 		       tos, ctx->klass->name->str());
-	} else if(onRefer) {
-		if((tos.type == TOKEN_super && !inSuper) ||
-		   (tos.type == TOKEN_this && !inThis))
-			lnerr_("Cannot use this/super inside a reference expression!", tos);
 	}
 }
 
