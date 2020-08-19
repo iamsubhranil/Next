@@ -7,87 +7,71 @@
 // new struct and sets it as pendingException
 // in the engine. they always return nil.
 
-struct TypeError {
+// the base class for all Next generated exceptions.
+// we use cpp inheritance to avoid copying the header,
+// but each struct definitely needs its own create and
+// sete methods, since those methods distinctly allocs
+// objects with different tags for the Next runtime
+// to distinguish.
+// for the same reason, each class will also definitely
+// need its own constructor.
+struct Error {
 	GcObject obj;
 
-	String *ontype;
-	String *method;
-	String *expected;
-	Value   received;
-	int     argumentNumber;
+	String *message;
 
+	static Error *create(String *message);
+	static Value  sete(String *message);
+	static Value  sete(const char *message);
+
+	static void init();
+	void        mark() { GcObject::mark(message); }
+	void        release() {}
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
+};
+
+struct TypeError : public Error {
 	static TypeError *create(String *o, String *m, String *e, Value r, int arg);
 	static Value      sete(String *o, String *m, String *e, Value r, int arg);
 	static Value      sete(const char *o, const char *m, const char *e, Value r,
 	                       int arg);
 
 	static void init();
-
-	void mark() const {
-		GcObject::mark(ontype);
-		GcObject::mark(method);
-		GcObject::mark(expected);
-		GcObject::mark(received);
-	}
-	void release() {}
 #ifdef DEBUG_GC
 	const char *gc_repr();
 #endif
 };
 
-struct RuntimeError {
-	GcObject obj;
-
-	String *message;
-
+struct RuntimeError : public Error {
 	static RuntimeError *create(String *msg);
-	static Value         sete(String *msg);
 	static Value         sete(const char *msg);
+	static Value         sete(String *msg);
 
 	static void init();
-
-	void mark() const { GcObject::mark(message); }
-
-	void release() {}
 #ifdef DEBUG_GC
 	const char *gc_repr();
 #endif
 };
 
-struct IndexError {
-	GcObject obj;
-
-	String *message;
-	long    low, hi, received;
-
+struct IndexError : public Error {
 	static IndexError *create(String *m, long lo, long hi, long received);
 	static Value       sete(String *m, long l, long h, long r);
 	static Value       sete(const char *m, long l, long h, long r);
 
 	static void init();
-
-	void mark() const { GcObject::mark(message); }
-
-	void release() {}
 #ifdef DEBUG_GC
 	const char *gc_repr();
 #endif
 };
 
-struct FormatError {
-	GcObject obj;
-
-	String *message;
-
+struct FormatError : public Error {
 	static FormatError *create(String *msg);
 	static Value        sete(String *msg);
 	static Value        sete(const char *msg);
 
 	static void init();
-
-	void mark() const { GcObject::mark(message); }
-
-	void release() {}
 
 #ifdef DEBUG_GC
 	const char *gc_repr();

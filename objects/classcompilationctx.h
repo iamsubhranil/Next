@@ -15,6 +15,7 @@ struct ClassCompilationContext {
 	struct MemberInfo {
 		int  slot;
 		bool isStatic;
+		bool isDeclared;
 	};
 	typedef HashMap<String *, ClassCompilationContext::MemberInfo> MemberMap;
 
@@ -34,14 +35,17 @@ struct ClassCompilationContext {
 	int  slotCount;
 	int  staticSlotCount;
 	bool isCompiled;
+	bool isDerived;
 
 	static ClassCompilationContext *
 	create(struct ClassCompilationContext *superContext, String *name);
 
 	void add_public_class(Class *c, ClassCompilationContext *ctx = NULL);
 	void add_private_class(Class *c, ClassCompilationContext *ctx = NULL);
-	int  add_public_mem(String *name, bool isStatic = false);
-	int  add_private_mem(String *name, bool isStatic = false);
+	int  add_public_mem(String *name, bool isStatic = false,
+	                    bool declare = true);
+	int  add_private_mem(String *name, bool isStatic = false,
+	                     bool declare = true);
 	bool has_mem(String *name);
 	// unchecked. use has_mem before
 	int        get_mem_slot(String *name);

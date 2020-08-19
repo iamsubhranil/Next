@@ -26,6 +26,7 @@ OBJTYPE(FormatSpec)
 OBJTYPE(Tuple)
 OBJTYPE(TupleIterator)
 // Exceptions
+OBJTYPE(Error) // base class of all errors
 OBJTYPE(TypeError)
 OBJTYPE(RuntimeError)
 OBJTYPE(IndexError)

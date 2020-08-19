@@ -142,12 +142,20 @@ class ClassStatement : public Statement {
   public:
 	Token                name;
 	Visibility           vis;
+	bool                 isDerived;
+	Token                derived;
 	std::vector<StmtPtr> declarations;
 	ClassStatement(Token c, Token n, std::vector<StmtPtr> &decl, Visibility v)
-	    : Statement(c, CLASS), name(n), vis(v) {
+	    : Statement(c, CLASS), name(n), vis(v), isDerived(false) {
 		for(auto i = decl.begin(), j = decl.end(); i != j; i++) {
 			declarations.push_back(StmtPtr(i->release()));
 		}
+	}
+	ClassStatement(Token c, Token n, std::vector<StmtPtr> &decl, Visibility v,
+	               bool isd, Token d)
+	    : ClassStatement(c, n, decl, v) {
+		isDerived = isd;
+		derived   = d;
 	}
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };

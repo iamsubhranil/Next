@@ -19,6 +19,7 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->defaultConstructor = nullptr;
 	ctx->cctxMap            = nullptr;
 	ctx->fctxMap            = ValueMap::create();
+	ctx->isDerived          = false;
 	if(s == NULL) {
 		// it's a module.
 		// init the module
@@ -58,7 +59,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	return ctx;
 }
 
-int ClassCompilationContext::add_public_mem(String *name, bool isStatic) {
+int ClassCompilationContext::add_public_mem(String *name, bool isStatic,
+                                            bool declare) {
 	if(has_mem(name))
 		return get_mem_slot(name);
 	// add the slot to the method buffer which will
@@ -73,10 +75,10 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic) {
 	// stored.
 	int sym = SymbolTable2::insert(name);
 	if(!isStatic) {
-		members[0][name] = (MemberInfo){slotCount++, false};
+		members[0][name] = (MemberInfo){slotCount++, false, declare};
 		klass->add_sym(sym, Value(klass->add_slot()));
 	} else {
-		members[0][name] = (MemberInfo){staticSlotCount++, true};
+		members[0][name] = (MemberInfo){staticSlotCount++, true, declare};
 		int slot         = klass->add_static_slot();
 		klass->add_sym(sym, Value(&klass->static_values[slot]));
 		if(metaclass) {
@@ -88,14 +90,15 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic) {
 	return true;
 }
 
-int ClassCompilationContext::add_private_mem(String *name, bool isStatic) {
+int ClassCompilationContext::add_private_mem(String *name, bool isStatic,
+                                             bool declare) {
 	if(has_mem(name))
 		return get_mem_slot(name);
 	if(!isStatic) {
-		members[0][name] = (MemberInfo){slotCount++, false};
+		members[0][name] = (MemberInfo){slotCount++, false, declare};
 		klass->add_slot();
 	} else {
-		members[0][name] = (MemberInfo){staticSlotCount++, true};
+		members[0][name] = (MemberInfo){staticSlotCount++, true, declare};
 		klass->add_static_slot();
 		// this is a private static variable, so we don't
 		// need to add anything to the metaclass
@@ -104,7 +107,7 @@ int ClassCompilationContext::add_private_mem(String *name, bool isStatic) {
 }
 
 bool ClassCompilationContext::has_mem(String *name) {
-	return members->contains(name);
+	return members->contains(name) && members[0][name].isDeclared;
 }
 
 int ClassCompilationContext::get_mem_slot(String *name) {
@@ -221,7 +224,8 @@ FunctionCompilationContext *ClassCompilationContext::get_func_ctx(String *sig) {
 
 void ClassCompilationContext::add_public_class(Class *                  c,
                                                ClassCompilationContext *ctx) {
-	add_public_mem(c->name);
+	// mark it as not declared if the class is not builtin
+	add_public_mem(c->name, false, c->type == Class::ClassType::BUILTIN);
 	int modSlot = get_mem_slot(c->name);
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
@@ -235,7 +239,8 @@ void ClassCompilationContext::add_public_class(Class *                  c,
 
 void ClassCompilationContext::add_private_class(Class *                  c,
                                                 ClassCompilationContext *ctx) {
-	add_private_mem(c->name);
+	// mark it as not declared if the class is not builtin
+	add_private_mem(c->name, false, c->type == Class::ClassType::BUILTIN);
 	int modSlot = get_mem_slot(c->name);
 	defaultConstructor->bcc->push(Value(c));
 	defaultConstructor->bcc->store_object_slot(modSlot);
@@ -249,6 +254,8 @@ bool ClassCompilationContext::has_class(String *name) {
 }
 
 ClassCompilationContext *ClassCompilationContext::get_class_ctx(String *name) {
+	// mark the member as declared
+	members[0][name].isDeclared = true;
 	return cctxMap->vv[Value(name)].toClassCompilationContext();
 }
 

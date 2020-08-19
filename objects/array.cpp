@@ -115,6 +115,13 @@ void Array::resize(int newsize) {
 	capacity = newcapacity;
 }
 
+Array *Array::copy() {
+	Array *a = Array::create(capacity);
+	a->size  = size;
+	memcpy(a->values, values, sizeof(Value) * capacity);
+	return a;
+}
+
 void Array::init() {
 	Class *ArrayClass = GcObject::ArrayClass;
 

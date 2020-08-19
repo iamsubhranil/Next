@@ -16,6 +16,7 @@ struct Array {
 	Value &       insert(Value v);
 	void          resize(int newsize);
 
+	Array *copy();
 	// class loader
 	static void init();
 

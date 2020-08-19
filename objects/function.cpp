@@ -29,6 +29,34 @@ Function *Function::create(String *str, int arity, bool isva, bool isStatic) {
 	return f;
 }
 
+Function *Function::create_derived(int offset) {
+	Function *df = Function::create(name, arity, varArg, static_);
+	df->mode     = mode;
+	df->cannest  = cannest;
+	if(mode == Function::BUILTIN) {
+		df->numExceptions = 0;
+		df->exceptions    = NULL;
+		df->func          = func;
+		return df;
+	}
+	df->numExceptions = numExceptions;
+	df->exceptions =
+	    (Exception *)GcObject_malloc(sizeof(Exception) * numExceptions);
+	for(size_t i = 0; i < numExceptions; i++) {
+		df->exceptions[i]         = exceptions[i];
+		df->exceptions[i].catches = (CatchBlock *)GcObject_malloc(
+		    sizeof(CatchBlock) * exceptions[i].numCatches);
+		memcpy(df->exceptions[i].catches, exceptions[i].catches,
+		       sizeof(CatchBlock) * exceptions[i].numCatches);
+		for(size_t j = 0; j < exceptions[i].numCatches; j++) {
+			if(df->exceptions[i].catches[j].type == CatchBlock::MODULE)
+				df->exceptions[i].catches[j].type = CatchBlock::MODULE_SUPER;
+		}
+	}
+	df->code = code->create_derived(offset);
+	return df;
+}
+
 Exception *Function::create_exception_block(int from, int to) {
 	for(size_t i = 0; i < numExceptions; i++) {
 		if(exceptions[i].from == from && exceptions[i].to == to)
@@ -109,6 +137,9 @@ void Function::disassemble(std::ostream &o) {
 				case CatchBlock::LOCAL: o << "Local"; break;
 				case CatchBlock::CLASS: o << "Class"; break;
 				case CatchBlock::MODULE: o << "Module"; break;
+				case CatchBlock::MODULE_SUPER:
+					o << "Module of superclass";
+					break;
 			}
 			o << " Jump -> " << c.jump << "\n";
 		}

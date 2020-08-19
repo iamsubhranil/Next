@@ -2,6 +2,7 @@
 #include "../utils.h"
 #include "class.h"
 #include "string.h"
+#include "symtab.h"
 
 #include <iomanip>
 
@@ -95,6 +96,72 @@ Bytecode *Bytecode::create() {
 	code->values       = Array::create(1);
 	code->numSlots     = 0;
 	return code;
+}
+
+#define relocip(x)                                              \
+	(reloc = sizeof(x) / sizeof(Bytecode::Opcode), ip += reloc, \
+	 *(x *)((ip - reloc)))
+#define next_int() relocip(int)
+#define next_Value() relocip(Value)
+Bytecode *Bytecode::create_derived(int offset) {
+	Bytecode *b     = Bytecode::create();
+	b->numSlots     = numSlots;
+	b->stackSize    = numSlots;
+	b->stackMaxSize = numSlots;
+	b->ctx          = ctx;
+	size_t reloc    = 0;
+	for(Opcode *ip = bytecodes; ip - bytecodes < (long)size;) {
+		Opcode o = *(ip++);
+		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
+		   o == CODE_load_module || o == CODE_construct ||
+		   o == CODE_call_intra || o == CODE_call_method_super) {
+			switch(o) {
+				case CODE_load_object_slot:
+					b->load_object_slot(next_int() + offset);
+					break;
+				case CODE_store_object_slot:
+					b->store_object_slot(next_int() + offset);
+					break;
+				case CODE_load_module: b->load_module_super(); break;
+				case CODE_construct: next_Value(); break;
+				case CODE_call_intra:
+				case CODE_call_method_super: {
+					String *sym   = SymbolTable2::getString(next_int());
+					int     arity = next_int();
+					sym           = String::append("s ", sym);
+					if(o == CODE_call_intra)
+						b->call_intra(SymbolTable2::insert(sym), arity);
+					else
+						b->call_method_super(SymbolTable2::insert(sym), arity);
+					break;
+				}
+
+				default: break;
+			}
+			continue;
+		}
+#define OPCODE0(w, x) \
+	case CODE_##w:    \
+		b->w();       \
+		break;
+#define OPCODE1(w, x, y)  \
+	case CODE_##w:        \
+		b->w(next_##y()); \
+		break;
+#define OPCODE2(w, x, y, z) \
+	case CODE_##w: {        \
+		y Y = next_##y();   \
+		z Z = next_##z();   \
+		b->w(Y, Z);         \
+	} break;
+		switch(o) {
+#include "../opcodes.h"
+		}
+	}
+#undef relocip
+#undef next_int
+#undef next_Value
+	return b;
 }
 
 #ifdef DEBUG

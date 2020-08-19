@@ -6,7 +6,7 @@
 
 struct CatchBlock {
 	int slot, jump;
-	enum SlotType { LOCAL, CLASS, MODULE, CORE } type;
+	enum SlotType { LOCAL, CLASS, MODULE, MODULE_SUPER, CORE } type;
 };
 
 struct Exception {
@@ -70,6 +70,13 @@ struct Function {
 	                      bool isva = false, bool isStatic = false);
 	static Function *from(String *str, int arity, next_builtin_fn fn,
 	                      bool isva = false, bool isStatic = false);
+
+	// creates a copy of the function to use in the subclass.
+	// 1) allocates a new Function*, copies everything over
+	// 2) calls bytecode->create_derived(offset) and assigns
+	//    it as the code of the new function
+	// 3) changes all exception slot type MODULE to MODULE_SUPER
+	Function *create_derived(int slotoffset);
 
 	// gc functions
 	void mark() const {

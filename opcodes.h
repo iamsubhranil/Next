@@ -85,11 +85,20 @@ OPCODE1(load_tos_slot, 0, int)
 OPCODE1(load_object_slot, 1, int)
 // Loads from the static slot of
 // the receiver
-OPCODE1(load_static_slot, 1, int)
-// Loads the module instance from
-// a static method
+// Since static slots are bound to the
+// class directly, and subclasses can
+// access the public variables of a
+// superclass, this opcode directly
+// carries the class with itself.
+OPCODE2(load_static_slot, 1, int, Value) // <slot> <class>
+// Loads the module instance
 OPCODE0(load_module, 1)
+// Loads the superclass module instance
+OPCODE0(load_module_super, 1)
+// Loads the core module
+OPCODE0(load_module_core, 1)
 
+// Stores the TOS to <slot>
 OPCODE1(store_slot, 0, int)      // <slot_number>
 OPCODE1(store_slot_pop, -1, int) // <slot_number>
 // Store to TOS <slot>
@@ -97,7 +106,12 @@ OPCODE1(store_tos_slot, -1, int)
 // Store TOS to <slot> of slot 0
 OPCODE1(store_object_slot, 0, int)
 // Stores in the static slot of the receiver
-OPCODE1(store_static_slot, 0, int)
+// Since static slots are bound to the
+// class directly, and subclasses can
+// access the public variables of a
+// superclass, this opcode directly
+// carries the class with itself.
+OPCODE2(store_static_slot, 1, int, Value) // <slot> <class>
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
@@ -107,7 +121,12 @@ OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 
 // performs a call on the method with <argument>
 // receiver is stored at -arity - 1
-OPCODE2(call, 0, int, int) // <symbol> <arity>
+// both of these does the exact same thing, the
+// second one clearly marks that it is an intraclass
+// call, so that the target can be modified in case
+// of an inherited class
+OPCODE2(call, 0, int, int)       // <symbol> <arity>
+OPCODE2(call_intra, 0, int, int) // <symbol> <arity>
 // performs a call on the (-arity - 1)
 // we will provide both the signature and the
 // arity. if the (-arity - 1) is a class, we will use
@@ -117,7 +136,10 @@ OPCODE2(call, 0, int, int) // <symbol> <arity>
 OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
 // performs obj.method(...), also checks for boundcalls
 // on member 'method' in obj.
-OPCODE2(call_method, 0, int, int) // <symbol> <args>
+// second one just marks an unbound super call explicitly
+// so that it can be modified
+OPCODE2(call_method, 0, int, int)       // <symbol> <args>
+OPCODE2(call_method_super, 0, int, int) // <symbol> <args>
 
 // return
 OPCODE0(ret, -1)

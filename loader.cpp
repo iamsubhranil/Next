@@ -40,6 +40,9 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
 	p->registerParselet(TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
 
+	p->registerParselet(TOKEN_this, new ThisOrSuperParselet());
+	p->registerParselet(TOKEN_super, new ThisOrSuperParselet());
+
 	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());
 	p->registerParselet(TOKEN_LEFT_PAREN, new CallParselet());
@@ -154,10 +157,8 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		currentGenerator = c.parentGenerator;
 		if(execute) {
 			Fiber *f = Fiber::create();
-			// add CoreObject in slot 0
-			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
-			                           ctx->get_default_constructor()->f, NULL,
-			                           0, false);
+			f->appendBoundMethodDirect(
+			    ValueNil, ctx->get_default_constructor()->f, NULL, 0, false);
 			Value v;
 			if(ex.execute(f, &v))
 				return v.toGcObject();
@@ -200,8 +201,7 @@ GcObject *Loader::compile_and_load_from_source(
 		currentGenerator = c.parentGenerator;
 		if(execute) {
 			Fiber *f = Fiber::create();
-			// add CoreObject in slot 0
-			f->appendBoundMethodDirect(ExecutionEngine::CoreObject,
+			f->appendBoundMethodDirect(ValueNil,
 			                           modulectx->get_default_constructor()->f,
 			                           NULL, 0, false);
 			Value v;

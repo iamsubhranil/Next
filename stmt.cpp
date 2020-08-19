@@ -140,7 +140,11 @@ void StatementPrinter::visit(ClassStatement *ifs) {
 	printTabs();
 	os << (ifs->vis == VIS_PUB ? "pub " : "priv ");
 	os << "class ";
-	os << ifs->name << " {\n";
+	os << ifs->name;
+	if(ifs->isDerived) {
+		os << " is " << ifs->derived;
+	}
+	os << " {\n";
 	tabCount++;
 	for(auto i = ifs->declarations.begin(), j = ifs->declarations.end(); i != j;
 	    i++) {

@@ -125,6 +125,14 @@ struct Bytecode {
 	static void      init();
 	static Bytecode *create();
 
+	// creates a copy of this bytecode for a derived class
+	// 1) replaces all load/store_object_slot n with
+	//                 load/store_object_slot (n + offset)
+	// 2) replaces all load_module with load_module_super
+	// 3) omits construct
+	// 4) btx points to the same context
+	Bytecode *create_derived(int offset);
+
 	void mark() const {
 		GcObject::mark(values);
 		GcObject::mark(ctx);

@@ -281,7 +281,14 @@ void ClassDeclaration::registerParselet(TokenType t, StatementParselet *p) {
 }
 
 StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
-	Token name = p->consume(TOKEN_IDENTIFIER, "Expected name of the class!");
+	Token name    = p->consume(TOKEN_IDENTIFIER, "Expected name of the class!");
+	Token derived = Token::PlaceholderToken;
+	bool  isd     = false;
+	if(p->match(TOKEN_is)) {
+		isd     = true;
+		derived = p->consume(TOKEN_IDENTIFIER, "Expected derived object name!");
+	}
+
 	p->consume(TOKEN_LEFT_BRACE, "Expected '{' after class name!");
 
 	std::vector<StmtPtr> classDecl;
@@ -290,7 +297,7 @@ StmtPtr ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
 		classDecl.push_back(parseClassBody(p));
 	}
 
-	return unq(ClassStatement, t, name, classDecl, vis);
+	return unq(ClassStatement, t, name, classDecl, vis, isd, derived);
 }
 
 HashMap<TokenType, StatementParselet *> ClassDeclaration::classBodyParselets =
@@ -471,6 +478,29 @@ ExpPtr NameParselet::parse(Parser *parser, Token t) {
 		return unq(MethodReferenceExpression, t, count);
 	}
 	return unq(VariableExpression, t);
+}
+
+ExpPtr ThisOrSuperParselet::parse(Parser *parser, Token t) {
+	// if there is a dot, okay
+	if(parser->match(TOKEN_DOT)) {
+		ExpPtr refer = parser->parseExpression(Precedence::REFERENCE);
+		return unq(GetThisOrSuperExpression, t, refer);
+	}
+
+	// mark the expression as THIS so that it cannot be assigned to
+	ExpPtr thisOrSuper = unq(VariableExpression, Expr::THIS, t);
+	// 'this' can be referred all alone, but 'super'
+	// however, must follow a refer or a call.
+	if(t.type == TOKEN_super) {
+		parser->consume(TOKEN_LEFT_PAREN, "Expected '.' or '(' after super!");
+		return (new CallParselet())->parse(parser, thisOrSuper, t);
+	}
+	// if the token is 'this' and there is a '(', make it a call
+	if(parser->match(TOKEN_LEFT_PAREN)) {
+		return (new CallParselet())->parse(parser, thisOrSuper, t);
+	}
+	// otherwise, return the 'this' token as it is
+	return thisOrSuper;
 }
 
 std::string Parser::buildNextString(Token &t) {

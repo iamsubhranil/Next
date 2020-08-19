@@ -32,8 +32,11 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	tryBlockStart        = 0;
 	tryBlockEnd          = 0;
 	lastMemberReferenced = 0;
+	variableInfo         = {0, VariablePosition::UNDEFINED, false};
 	errorsOccurred       = 0;
 	parentGenerator      = parent;
+	inThis               = false;
+	inSuper              = false;
 
 	mtx     = NULL;
 	ctx     = NULL;
@@ -55,14 +58,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn,
 	mtx = compileIn;
 	initFtx(compileIn->get_default_constructor(),
 	        stmts.size() > 0 ? stmts[0]->token : Token::PlaceholderToken);
-	// core mtx is not compiled any more
-	// but it is still stored at slot 0
-	// of each compiled mtx
 	btx->insert_token(Token::PlaceholderToken);
-	VarInfo v = lookForVariable2(String::from("core"), true);
-	btx->push(Value(ExecutionEngine::CoreObject));
-	btx->store_object_slot(v.slot);
-	btx->pop_();
 	compileAll(stmts);
 	// after everything is done, load the instance,
 	// and return it
@@ -165,9 +161,7 @@ void CodeGenerator::loadPresentModule() {
 }
 
 void CodeGenerator::loadCoreModule() {
-	loadPresentModule();
-	// core is in the 0th slot of the module
-	btx->load_tos_slot(0);
+	btx->load_module_core();
 }
 
 void CodeGenerator::visit(BinaryExpression *bin) {
@@ -301,6 +295,15 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	String *name =
 	    String::from(call->callee->token.start, call->callee->token.length);
 
+	// 0 denotes no super or this call
+	// 1 denotes its a 'this(_,..)' call
+	// 2 denotes its a 'super(,..)' call
+	int thisOrSuper = 0;
+	if(call->callee->token.type == TOKEN_this)
+		thisOrSuper = 1;
+	else if(call->callee->token.type == TOKEN_super)
+		thisOrSuper = 2;
+
 	// if callee is a method reference, we force a soft
 	// call
 	bool force_soft = false;
@@ -310,11 +313,30 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	if(call->callee->type == Expr::METHOD_REFERENCE) {
 		call->callee->accept(this);
 		force_soft = true;
-	}
-
-	// if this is a force soft call, we don't
-	// need to resolve anything
-	if(!onRefer && !force_soft) {
+	} else if(thisOrSuper > 0) {
+		validateThisOrSuper(call->callee->token);
+		// if its a 'this' call, make sure we resolve it in present class
+		if(thisOrSuper == 1) {
+			if(!ctx->has_fn(signature)) {
+				lnerr_("Constructor '%s' not found in present class!",
+				       call->callee->token, signature->str());
+			} else {
+				info.isStatic = false;
+				info.frameIdx = SymbolTable2::insert(signature);
+				info.type     = CLASS;
+				info.soft     = false;
+				btx->load_slot(0);
+			}
+			// make it a intraclass call
+			onRefer = false;
+		} else {
+			// prepare the call, but make it a method call by toggling
+			// onRefer
+			btx->load_slot(0);
+			onRefer = true;
+		}
+	} else if(!onRefer) { // if this is a method call, we
+		                  // don't need to resolve anything
 		info = resolveCall(name, signature);
 		if(!info.soft) {
 			// not undefined, and not a soft call
@@ -336,6 +358,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			    info.type == CLASS && ctx->get_mem_info(name).isStatic;
 			loadVariable(variableInfo);
 		}
+	} else if(inSuper || inThis) {
+		// if this is a super/this call, load the object first
+		btx->load_slot_0();
 	}
 
 	// Reset the referral status for arguments
@@ -357,14 +382,35 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	}
 	// If this a reference expression, dynamic dispatch will be used
 	else if(onRefer) {
-		btx->call_method(SymbolTable2::insert(signature), argSize);
-		return;
+		if(inThis) {
+			// if its a 'this.' call, make sure we have resolved the
+			// method in the present class itself
+			if(!ctx->has_fn(signature)) {
+				lnerr_("Method '%s' not found in present class!",
+				       call->callee->token, signature->str());
+			} else {
+				btx->call_intra(SymbolTable2::insert(signature), argSize);
+			}
+			inThis = false;
+		} else {
+			if(inSuper) {
+				btx->call_method_super(SymbolTable2::insert(signature),
+				                       argSize);
+				inSuper = false;
+			} else if(thisOrSuper > 0) {
+				onRefer = false;
+				btx->call_method_super(SymbolTable2::insert(signature),
+				                       argSize);
+			} else {
+				btx->call_method(SymbolTable2::insert(signature), argSize);
+			}
+		}
 	} else {
 		// this call can be resolved compile time
 		if(info.type == UNDEFINED) {
 			// Function is not found
 			lnerr_("No function with the specified signature found "
-			       " '%s'!",
+			       "in module '%s'!",
 			       call->callee->token, mtx->get_class()->name->str());
 			// String *s = String::from(call->callee->token.start,
 			//                        call->callee->token.length);
@@ -388,12 +434,16 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		} else {
 			// function call
 			// the receiver is already loaded
-			if(ftx->get_fn()->isStatic() && !info.isStatic) {
-				lnerr_(
-				    "Cannot call a non static function from a static function!",
-				    call->token);
+			if(ftx->get_fn()->isStatic() && !info.isStatic &&
+			   info.type == CLASS) {
+				lnerr_("Cannot call a non static function from a static "
+				       "function!",
+				       call->token);
 			}
-			btx->call(info.frameIdx, argSize);
+			if(info.type == CLASS)
+				btx->call_intra(info.frameIdx, argSize);
+			else
+				btx->call(info.frameIdx, argSize);
 		}
 	}
 }
@@ -580,7 +630,12 @@ void CodeGenerator::visit(SetExpression *sete) {
 		bool b = onLHS;
 		onLHS  = true;
 		sete->object->accept(this);
-		btx->store_field(lastMemberReferenced);
+		// we may be setting to a 'this.' slot
+		if(lastMemberReferenced != -1) {
+			btx->store_field(lastMemberReferenced);
+		} else {
+			storeVariable(variableInfo);
+		}
 		onLHS = b;
 	}
 }
@@ -598,6 +653,52 @@ void CodeGenerator::visit(GetExpression *get) {
 	onLHS   = lb;
 	get->refer->accept(this);
 	onRefer = b;
+}
+
+void CodeGenerator::validateThisOrSuper(Token tos) {
+	// at top level, neither this nor super can be used
+	if(mtx == ctx) {
+		lnerr_("Cannot use this/super in the module scope!", tos);
+	} else if(ftx->f->isStatic()) {
+		// if we're inside a static method, we cannot use this/super
+		lnerr_("Cannot use this/super inside a static method!", tos);
+	} else if(!ctx->isDerived && tos.type == TOKEN_super) {
+		// we cannot use super inside a class which is not derived
+		lnerr_("Cannot use 'super' inside class '%s' which is not derived "
+		       "from anything!",
+		       tos, ctx->klass->name->str());
+	} else if(onRefer) {
+		if((tos.type == TOKEN_super && !inSuper) ||
+		   (tos.type == TOKEN_this && !inThis))
+			lnerr_("Cannot use this/super inside a reference expression!", tos);
+	}
+}
+
+void CodeGenerator::visit(GetThisOrSuperExpression *get) {
+#ifdef DEBUG_CODEGEN
+	dinfo("");
+	get->token.highlight();
+#endif
+	// right side can be either one of
+	// 1) reference expression
+	// 2) method call
+	// 3) literal expression
+	// also, neither one of this can be part of
+	// another expression, so we are free to
+	// toggle onRefer on and off
+	onRefer = true;
+	if(get->token.type == TOKEN_this) {
+		inThis = true;
+		validateThisOrSuper(get->token);
+		get->refer->accept(this);
+		inThis = false;
+	} else {
+		inSuper = true;
+		validateThisOrSuper(get->token);
+		get->refer->accept(this);
+		inSuper = false;
+	}
+	onRefer = false;
 }
 
 void CodeGenerator::visit(SubscriptExpression *sube) {
@@ -626,7 +727,7 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->load_static_slot(variableInfo.slot);
+					btx->load_static_slot(variableInfo.slot, ctx->klass);
 				else
 					btx->load_object_slot(variableInfo.slot);
 				break;
@@ -652,7 +753,7 @@ void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->store_static_slot(variableInfo.slot);
+					btx->store_static_slot(variableInfo.slot, ctx->klass);
 				else
 					btx->store_object_slot(variableInfo.slot);
 				break;
@@ -750,6 +851,15 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	dinfo("");
 	vis->token.highlight();
 #endif
+	if(vis->token.type == TOKEN_this) {
+		// it cannot come as a part of another expression or
+		// in the lhs. so it must have come as only 'this'.
+		// so load it, and we're done
+		validateThisOrSuper(vis->token);
+		// the object is stored in the 0th slot
+		btx->load_slot(0);
+		return;
+	}
 	String *name = String::from(vis->token.start, vis->token.length);
 	btx->insert_token(vis->token);
 	if(!onRefer) {
@@ -760,10 +870,40 @@ void CodeGenerator::visit(VariableExpression *vis) {
 			loadVariable(variableInfo);
 		}
 	} else {
-		if(onLHS)
-			lastMemberReferenced = SymbolTable2::insert(name);
-		else
-			btx->load_field(SymbolTable2::insert(name));
+		if(inThis) {
+			// the field needs to be resolved on the present class
+			if(!ctx->has_mem(name)) {
+				lnerr_("Variable not found in present class!", vis->token);
+			} else {
+				ClassCompilationContext::MemberInfo slot =
+				    ctx->get_mem_info(name);
+				variableInfo.isStatic = slot.isStatic;
+				variableInfo.slot     = slot.slot;
+				variableInfo.position = VariablePosition::CLASS;
+				if(onLHS) {
+					// reset this to denote it needs special care
+					// to SetExpression
+					lastMemberReferenced = -1;
+				} else {
+					loadVariable(variableInfo);
+				}
+			}
+			inThis = false;
+		} else {
+			if(inSuper) {
+				// append "s " in the name
+				name = String::append("s ", name);
+				// we want the name resolution to happen at runtime.
+				// but even if we are setting to a field, we need to load
+				// the object for runtime resolution.
+				btx->load_slot_0();
+				inSuper = false;
+			}
+			if(onLHS)
+				lastMemberReferenced = SymbolTable2::insert(name);
+			else
+				btx->load_field(SymbolTable2::insert(name));
+		}
 	}
 }
 
@@ -773,13 +913,35 @@ void CodeGenerator::visit(MethodReferenceExpression *ifs) {
 	ifs->token.highlight();
 #endif
 	String *sig = generateSignature(ifs->token, ifs->args);
+	btx->insert_token(ifs->token);
 	if(onRefer) {
-		// if we're on reference,
-		// emit code for search
-		int sym = SymbolTable2::insert(sig);
-		btx->search_method(sym);
-		// if successful, bind it too
-		btx->bind_method();
+		// if we're on a 'this.' reference, we need
+		// to resolve the signature in present class
+		if(inThis) {
+			if(!ctx->has_fn(sig)) {
+				lnerr_("Method '%s' not found in present class!", ifs->token,
+				       sig->str());
+			} else {
+				btx->load_slot_0();
+				btx->load_method(SymbolTable2::insert(sig));
+				btx->bind_method();
+			}
+			inThis = false;
+		} else {
+			// otherwise if we're in a 'super.' reference,
+			// load the object before search
+			if(inSuper) {
+				btx->load_slot_0();
+				inSuper = false;
+			}
+			// if we're on reference,
+			// emit code for search
+			//
+			int sym = SymbolTable2::insert(sig);
+			btx->search_method(sym);
+			// if successful, bind it too
+			btx->bind_method();
+		}
 	} else {
 		// we necessarily don't want this lookup to be
 		// a softcall. so we pass NULL as name to
@@ -983,7 +1145,12 @@ String *CodeGenerator::generateSignature(int arity) {
 
 String *CodeGenerator::generateSignature(const String *name, int arity) {
 	String *sig = generateSignature(arity);
-	sig         = String::append(name, sig);
+	if(name) {
+		sig = String::append(name, sig);
+		if(inSuper) {
+			sig = String::append("s ", sig);
+		}
+	}
 #ifdef DEBUG_CODEGEN
 	cout << "Signature generated : " << sig->str() << "\n";
 #endif
@@ -991,6 +1158,16 @@ String *CodeGenerator::generateSignature(const String *name, int arity) {
 }
 
 String *CodeGenerator::generateSignature(const Token &name, int arity) {
+	// this(a, b, c) is parsed like "(_,_,_)"
+	// super(a, b, c) is parsed like "s (_,_,_)"
+	if(name.type == TOKEN_this || name.type == TOKEN_super) {
+		validateThisOrSuper(name);
+	}
+	if(name.type == TOKEN_new || name.type == TOKEN_this) {
+		return generateSignature(NULL, arity);
+	} else if(name.type == TOKEN_super) {
+		return generateSignature(String::from("s "), arity);
+	}
 	return generateSignature(String::from(name.start, name.length), arity);
 }
 
@@ -1025,21 +1202,29 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			      mtx->.find(signature)->second->token);
 			mtx->functions.find(signature)->second->token.highlight();
 		*/
-		} else {
-			FunctionCompilationContext *fctx =
-			    FunctionCompilationContext::create(
-			        String::from(ifs->name.start, ifs->name.length), ifs->arity,
-			        ifs->isStatic, ifs->body->isva);
-			Visibility consider = currentVisibility;
-			if(ifs->visibility != VIS_DEFAULT)
-				consider = ifs->visibility;
-			switch(consider) {
-				case VIS_PUB:
-					ctx->add_public_fn(signature, fctx->get_fn(), fctx);
-					break;
-				default: ctx->add_private_fn(signature, fctx->get_fn(), fctx);
+		} else if(inConstructor) {
+			String *cdecl = String::append(ctx->klass->name, signature);
+			if(mtx->has_fn(cdecl)) {
+				lnerr_("Constructor declaration collides with a previously "
+				       "declared function in same module!",
+				       ifs->name);
 			}
 		}
+		FunctionCompilationContext *fctx = FunctionCompilationContext::create(
+		    String::from(ifs->name.start, ifs->name.length), ifs->arity,
+		    ifs->isStatic, ifs->body->isva);
+		Visibility consider = currentVisibility;
+		if(ifs->visibility != VIS_DEFAULT)
+			consider = ifs->visibility;
+		switch(consider) {
+			case VIS_PUB:
+				ctx->add_public_fn(signature, fctx->get_fn(), fctx);
+				break;
+			default:
+				ctx->add_private_fn(signature, fctx->get_fn(), fctx);
+				break;
+		}
+
 	} else {
 		initFtx(ctx->get_func_ctx(signature), ifs->token);
 
@@ -1146,6 +1331,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		}
 		ClassCompilationContext *c =
 		    ClassCompilationContext::create(mtx, className);
+		c->isDerived = ifs->isDerived;
 		switch(ifs->vis) {
 			case VIS_PUB: mtx->add_public_class(c->get_class(), c); break;
 			default: mtx->add_private_class(c->get_class(), c); break;
@@ -1162,8 +1348,22 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		ftx     = mtx->get_default_constructor();
 		btx     = ftx->get_codectx();
 	} else {
+		// if this class is derived, look for the
+		// variable it is derived from, and call
+		// " derive()"
+		ClassCompilationContext *classctx = mtx->get_class_ctx(className);
+		if(ifs->isDerived) {
+			VarInfo d = lookForVariable(ifs->derived);
+			VarInfo k = lookForVariable(ifs->name);
+			if(d.position != VariablePosition::UNDEFINED) {
+				loadVariable(k);
+				loadVariable(d);
+				btx->insert_token(ifs->token);
+				btx->call_method(SymbolTable2::const_sig_derive, 1);
+			}
+		}
 		inClass = true;
-		ctx     = mtx->get_class_ctx(className);
+		ctx     = classctx;
 		for(auto &i : ifs->declarations) {
 			i->accept(this);
 		}

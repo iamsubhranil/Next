@@ -1,4 +1,5 @@
 #include "class.h"
+#include "../format.h"
 #include "boundmethod.h"
 #include "errors.h"
 #include "function.h"
@@ -14,6 +15,10 @@ void Class::init(String *s, ClassType typ, Class *mc) {
 	static_slot_count = 0;
 	static_values     = NULL;
 	metaclass         = mc;
+	isMetaClass       = false;
+	superclass        = NULL;
+	if(mc)
+		mc->isMetaClass = true;
 }
 
 void Class::init(const char *n, ClassType typ, Class *mc) {
@@ -103,11 +108,23 @@ Value Class::get_fn(String *s) const {
 	return get_fn(SymbolTable2::insert(s));
 }
 
+bool Class::is_child_of(Class *parent) const {
+	if(superclass == NULL)
+		return false;
+	if(superclass == parent)
+		return true;
+	return superclass->is_child_of(parent);
+}
+
 Class *Class::copy() {
-	Class *s     = GcObject::allocClass();
-	s->name      = name;
-	s->type      = type;
-	s->functions = functions;
+	Class *s = GcObject::allocClass();
+	s->name  = name;
+	s->type  = type;
+	// create a copy
+	// we want to inherit all functions that
+	// are already added, and then add new
+	// functions to this class.
+	s->functions = functions->copy();
 	s->numSlots  = numSlots;
 	s->module    = module;
 	if(module) {
@@ -117,6 +134,94 @@ Class *Class::copy() {
 		s->instance = instance;
 	}
 	return s;
+}
+
+void Class::derive(Class *superclass) {
+	// copy the symbols
+	for(int i = 0; i < superclass->functions->size; i++) {
+		Value v = superclass->functions->values[i];
+		if(v.isNil()) // it is not a valid symbol, skip
+			continue;
+		// if it is a slot, offset it with numslots
+		if(v.isInteger()) {
+			v.setNumber(v.toInteger() + numSlots);
+		} else if(v.isFunction()) {
+			// if it is a function, create a modified function
+			Function *f = v.toFunction()->create_derived(numSlots);
+			v           = Value(f);
+		}
+		// pointers to static slots will point to the original class
+
+		// get the name of the symbol from the symbol table
+		String *s = SymbolTable2::getString(i);
+		// append an 's '
+		String *modified = String::append("s ", s);
+		// insert the new string to the table
+		int ns = SymbolTable2::insert(modified);
+		// insert the symbol to present class
+		add_sym(ns, v);
+		// now check if present class already had a symbol
+		// named 's' in its table or not
+		if(!has_fn(i)) {
+			// it did not, so register it as the original symbol too
+			add_sym(i, v);
+		}
+	}
+	// finally, increase the number of slots in the present class
+	numSlots += superclass->numSlots;
+	// and link the two
+	this->superclass = superclass;
+	// copy the static symbols over to the metaclass,
+	// only if they are not already present
+	Class *mc  = metaclass;
+	Class *smc = superclass->metaclass;
+	if(mc && smc) {
+		for(int i = 0; i < smc->functions->size; i++) {
+			if(smc->has_fn(i) && !mc->has_fn(i)) {
+				mc->add_sym(i, smc->get_fn(i));
+			}
+		}
+	}
+}
+
+Value next_class_derive(const Value *args, int numargs) {
+	(void)numargs;
+	Class *present = args[0].toClass();
+	if(!args[1].isClass()) {
+		RERR(Formatter::fmt(
+		         "Class '{}' cannot be derived from the given object!",
+		         present->name)
+		         .toString());
+	}
+	Class *superclass = args[1].toClass();
+	if(superclass->type == Class::ClassType::BUILTIN) {
+		RERR(Formatter::fmt(
+		         "Class '{}' cannot be derived from builtin class '{}'!",
+		         present->name, superclass->name)
+		         .toString());
+	}
+	if(superclass->isMetaClass) {
+		RERR(Formatter::fmt("Class '{}' cannot be derived from metaclass '{}'!",
+		                    present->name, superclass->name)
+		         .toString());
+	}
+	if(present == superclass) {
+		RERR(Formatter::fmt("Class '{}' cannot be derived from itself!",
+		                    present->name)
+		         .toString());
+	}
+	if(superclass->is_child_of(present)) {
+		RERR(Formatter::fmt(
+		         "Class '{}' cannot be derived from its child class '{}'!",
+		         present->name, superclass->name)
+		         .toString());
+	}
+
+	// now we can start derivation
+	present->derive(superclass);
+	// and we're done
+
+	return ValueNil;
 }
 
 Value next_class_has_fn(const Value *args, int numargs) {
@@ -162,6 +267,8 @@ void Class::init() {
 	// initialize
 	ClassClass->init("class", BUILTIN);
 
+	// make this class a subclass of the argument class
+	ClassClass->add_builtin_fn(" derive(_)", 1, next_class_derive);
 	// only returns true if sig is available and public
 	ClassClass->add_builtin_fn("has_fn(_)", 1, next_class_has_fn);
 	ClassClass->add_builtin_fn("get_class()", 0, next_class_get_class);

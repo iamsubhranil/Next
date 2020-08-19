@@ -1,11 +1,3 @@
-fn badfn(x) {
-    if(x < 4) {
-        throw 2
-    } else {
-        throw Exception("This is an exception")
-    }
-}
-
 class Exception {
     priv:
         msg
@@ -17,6 +9,14 @@ class Exception {
         fn str() {
             ret msg
         }
+}
+
+fn badfn(x) {
+    if(x < 4) {
+        throw 2
+    } else {
+        throw Exception("This is an exception")
+    }
 }
 
 fn recur(x) {
