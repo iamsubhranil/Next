@@ -16,8 +16,9 @@ struct Class {
 	// top level code.
 	Array * functions;
 	String *name;
-	Class * module; // a module is eventually a class
-
+	Class * module; // a module is eventually an instance of a class
+	Class * metaclass;
+	Class * superclass; // pointer to the superclass
 	// in case of a module, it will store the module instance
 	// in case of a class, it will store the static members
 	union {
@@ -31,10 +32,11 @@ struct Class {
 	};
 	int numSlots;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
+	bool isMetaClass; // marks if this class is a metaclass
 
 	static void init();
-	void        init(const char *name, ClassType typ);
-	void        init(String *s, ClassType typ);
+	void        init(const char *name, ClassType typ, Class *metaclass = NULL);
+	void        init(String *s, ClassType typ, Class *metaclass = NULL);
 	// add_sym adds a symbol to the method buffer
 	// which holds a particular value, typically,
 	// the slot number.
@@ -75,12 +77,24 @@ struct Class {
 	// creates a copy of the class
 	// used for generating metaclasses
 	Class *copy();
+	// makes this class a derived class of the parent.
+	// this one does not perform any safety checks, so
+	// while extending builtin classes, make sure they
+	// have the exact same header.
+	void derive(Class *parent);
+	// verifies if the argument class is present in the parent
+	// chain of present class
+	bool is_child_of(Class *parent) const;
 	// gc functions
 	void mark() const {
 		GcObject::mark(name);
 		GcObject::mark(functions);
 		if(module != NULL) {
 			GcObject::mark(module);
+			if(metaclass)
+				GcObject::mark(metaclass);
+			if(superclass)
+				GcObject::mark(superclass);
 			if(static_slot_count > 0)
 				GcObject::mark(static_values, static_slot_count);
 		} else if(instance != NULL) {

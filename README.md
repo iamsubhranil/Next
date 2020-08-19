@@ -262,7 +262,30 @@ import mymodule     // mymodule.n must be present in current directory
 
 mymodule.hello("2")
 ```
+11. Inheritance
+```
+class foo {
+    pub:
+        new() {}
 
+        fn hello() {
+            print("hello from foo!")
+        }
+}
+
+class bar is foo {
+    pub:
+        new() {}
+
+        fn hello() {
+            super.hello()
+            println("hello from bar!")
+        }
+}
+
+o = bar()
+o.hello() // hello from foo! hello from bar!
+```
 Building
 --------
 $ `git clone https://github.com/iamsubhranil/Next`

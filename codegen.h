@@ -62,6 +62,11 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// expression
 	int lastMemberReferenced;
 
+	// denotes whether the reference expression is part of a 'this.' expression
+	bool inThis;
+	// denotes whether the reference expression is part of a 'super.' expression
+	bool inSuper;
+
 	// Denotes whether we are in a class
 	bool inClass;
 	// Current visibility when we are in a class
@@ -76,6 +81,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(BinaryExpression *bin);
 	void visit(CallExpression *cal);
 	void visit(GetExpression *get);
+	void visit(GetThisOrSuperExpression *get);
 	void visit(GroupingExpression *group);
 	void visit(HashmapLiteralExpression *as);
 	void visit(LiteralExpression *lit);
@@ -112,7 +118,10 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void     loadPresentModule();
 	CallInfo resolveCall(String *name, String *signature);
 	void     emitCall(CallExpression *call);
-	// int              getFrameIndex(std::vector<Frame *> &col, Frame *f);
+	// validates whether the present lexical scope is
+	// an appropriate place to refer this/super
+	void validateThisOrSuper(Token tos);
+
 	String *         generateSignature(const Token &name, int arity);
 	String *         generateSignature(const String *name, int arity);
 	String *         generateSignature(int arity);

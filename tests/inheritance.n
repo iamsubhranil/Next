@@ -1,0 +1,141 @@
+class foo {
+    priv:
+        fn hidden() {
+            ret 4
+        }
+
+    pub:
+        mem
+        static value
+
+        new(x, y) {
+            mem = 0
+            value = 0
+            setMem(x, y)
+        }
+
+        new() {
+            this(100, 50)
+            if(mem != 100 or value != 50) {
+                throw error("this(100, 50) not working!")
+            }
+        }
+        
+        fn a() {
+            ret 1
+        }
+
+        fn b() {
+            ret 2
+        }
+
+        fn c() {
+            ret 3
+        }
+
+        fn trigger() {
+            ret a() +
+                b() +
+                c() +
+                hidden()
+        }
+
+        fn getMem() {
+            ret (mem, value)
+        } 
+
+        fn setMem(x, y) {
+            mem = mem + x
+            value = value + y
+        }
+
+        static fn bark() {
+            ret 8
+        }
+}
+
+class bar is foo {
+    priv:
+        fn hidden() {
+            ret 9
+        }
+    pub:
+        new() {
+            super()
+            res = super.getMem()
+            if(res[0] != 100 or res[1] != 50) {
+                throw error("Super constructor call is not working!")
+            }
+            super.setMem(1, 2)
+            res = super.getMem()
+            if(res[0] != 101 or res[1] != 52) {
+                throw error("Super method call is not working!")
+            }
+        }
+
+        fn b() {
+            if(super.b() != 2) {
+                throw error("Super method call not working!")
+            }
+            if(hidden() != 9) {
+                throw error("private hidden() should have been overridden!")
+            }
+            try {
+                x = super.hidden()
+                println("private hidden() should not be accessible by subclass!")
+            } catch(error e) {}
+            ret 10
+        }
+
+        static fn bark() {
+            if(foo.bark() != 8) {
+                throw error("Super static method calls not working!")
+            }
+            ret 15
+        }
+}
+
+class baz is bar {
+    pub:
+
+        new() {
+            super()
+        }
+
+        fn c() {
+            ret 12
+        }
+
+}
+
+fn test() {
+    o = baz()
+    if(o.trigger() != 10) {
+        throw error("foo.bar should be accessible from baz!")
+    }
+    a = o.getMem()
+    if(a[0] != 101 or a[1] != 52) {
+        throw error("expected mem to be 50 and value to be 52")
+    }
+    if(o.bark() != 15) {
+        throw error("static inherited methods not working!")
+    }
+    if(foo.value != 52 or bar.value != 52 or baz.value != 52) {
+        throw error("static inherited fields not working")
+    }
+    bar.value = 690
+    if(foo.value != 690 or bar.value != 690 or baz.value != 690) {
+        throw error("static inherited fields setting not working")
+    }
+    if(o.a() != 1) {
+        throw error("expected 1 from foo.a!")
+    }
+    if(o.b() != 10) {
+        throw error("expected 10 from bar.b!")
+    }
+    if(o.c() != 12) {
+        throw error("expected 12 from baz.c!")
+    }
+
+    ret true
+}

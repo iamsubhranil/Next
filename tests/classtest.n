@@ -21,6 +21,12 @@ pub class LinkedList {
         fn loop(x) {
             while(mem++ < x) {}
         }
+
+        fn testthis(mem, mem2) {
+            this.mem = mem * 2
+            this.mem2 = mem2 * 2
+            ret (this.mem, this.mem2)
+        }
 }
 
 pub fn test() {
@@ -72,6 +78,12 @@ pub fn test() {
     
     if(temp != 8) {
         print("[Error] x.mem = LinkedList(3) failed!\n")
+        res = false
+    }
+
+    thisres = LinkedList(0).testthis(2, 3)
+    if(thisres[0] != 4 or thisres[1] != 6) {
+        print("[Error] this expressions are not working!")
         res = false
     }
     ret res

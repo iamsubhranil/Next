@@ -58,6 +58,16 @@ void ExpressionPrinter::visit(GetExpression *ge) {
 	ge->refer->accept(this);
 }
 
+void ExpressionPrinter::visit(GetThisOrSuperExpression *ge) {
+	if(ge->token.type == TOKEN_this) {
+		out << "this";
+	} else {
+		out << "super";
+	}
+	out << ".";
+	ge->refer->accept(this);
+}
+
 void ExpressionPrinter::visit(GroupingExpression *ge) {
 	out << "(";
 	for(auto &i : ge->exprs) {

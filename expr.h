@@ -10,6 +10,7 @@ class AssignExpression;
 class BinaryExpression;
 class CallExpression;
 class GetExpression;
+class GetThisOrSuperExpression;
 class GroupingExpression;
 class HashmapLiteralExpression;
 class LiteralExpression;
@@ -27,6 +28,7 @@ class ExpressionVisitor {
 	virtual void visit(BinaryExpression *bin)         = 0;
 	virtual void visit(CallExpression *cal)           = 0;
 	virtual void visit(GetExpression *get)            = 0;
+	virtual void visit(GetThisOrSuperExpression *get) = 0;
 	virtual void visit(GroupingExpression *group)     = 0;
 	virtual void visit(HashmapLiteralExpression *al)  = 0;
 	virtual void visit(LiteralExpression *lit)        = 0;
@@ -47,6 +49,7 @@ class Expr {
 		CALL,
 		VARIABLE,
 		GET,
+		GETTHISORSUPER,
 		GROUPING,
 		HASHMAP_LITERAL,
 		LITERAL,
@@ -54,6 +57,7 @@ class Expr {
 		PREFIX,
 		POSTFIX,
 		SUBSCRIPT,
+		THIS,
 		METHOD_REFERENCE
 	};
 	Token token;
@@ -64,10 +68,11 @@ class Expr {
 	Type         getType() { return type; }
 	bool         isAssignable() {
         return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
-               (type == SET) || (type == SUBSCRIPT);
+               (type == SET) || (type == SUBSCRIPT) || (type == GETTHISORSUPER);
 	}
-	bool isMemberAccess() { return (type == GET) || (type == SET); }
-	bool isVariable() { return (type == VARIABLE); }
+	bool isMemberAccess() {
+		return (type == GET) || (type == SET) || (type == GETTHISORSUPER);
+	}
 	friend class ExpressionVisitor;
 };
 
@@ -119,6 +124,9 @@ class CallExpression : public Expr {
 class VariableExpression : public Expr {
   public:
 	VariableExpression(Token t) : Expr(t, VARIABLE) {}
+	// special variable expression to denote the type,
+	// and mark it as non assignable
+	VariableExpression(Expr::Type typ, Token t) : Expr(t, typ) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 	bool isVariable() { return true; }
 };
@@ -129,6 +137,14 @@ class GetExpression : public Expr {
 	ExpPtr refer;
 	GetExpression(ExpPtr &obj, Token name, ExpPtr &r)
 	    : Expr(name, GET), object(obj.release()), refer(r.release()) {}
+	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+};
+
+class GetThisOrSuperExpression : public Expr {
+  public:
+	ExpPtr refer;
+	GetThisOrSuperExpression(Token tos, ExpPtr &r)
+	    : Expr(tos, GETTHISORSUPER), refer(r.release()) {}
 	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -223,6 +239,7 @@ class ExpressionPrinter : public ExpressionVisitor {
 	void visit(BinaryExpression *bin);
 	void visit(CallExpression *cal);
 	void visit(GetExpression *get);
+	void visit(GetThisOrSuperExpression *get);
 	void visit(GroupingExpression *group);
 	void visit(HashmapLiteralExpression *al);
 	void visit(LiteralExpression *lit);

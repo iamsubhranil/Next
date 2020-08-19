@@ -24,6 +24,7 @@ import fibers
 import static_members
 import vatest
 import tupletest
+import inheritance
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -46,7 +47,8 @@ modules = {prepost: "Pre and post increment/decrements",
         fibers: "Fibers",
         static_members: "Static member and methods",
         vatest: "Variadic arguments",
-        tupletest: "Tuple expressions"}
+        tupletest: "Tuple expressions",
+        inheritance: "Inheritance"}
 
 // find the maximum length
 len = 0

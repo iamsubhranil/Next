@@ -48,6 +48,7 @@ SCONSTANT(sig_decr, "--(_)")
 SCONSTANT(sig_hash, "hash()")
 SCONSTANT(sig_str, "str()")
 SCONSTANT(sig_fmt, "fmt(_)")
+SCONSTANT(sig_derive, " derive(_)")
 
 SYMCONSTANT(sig_add)
 SYMCONSTANT(sig_sub)
@@ -71,5 +72,6 @@ SYMCONSTANT(str)
 SYMCONSTANT(sig_hash)
 SYMCONSTANT(sig_str)
 SYMCONSTANT(sig_fmt)
+SYMCONSTANT(sig_derive)
 #undef SCONSTANT
 #undef SYMCONSTANT

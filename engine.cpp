@@ -132,7 +132,8 @@ void ExecutionEngine::mark() {
 	}
 }
 
-// @s   <-- StringLibrary hash
+// @p   <-- char *
+// @s   <-- String *
 // @t   <-- SymbolTable no
 void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 	int     i = 0, j = 0;
@@ -152,6 +153,12 @@ void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
 				case 't': {
 					int         s   = va_arg(args, int);
 					const char *str = SymbolTable2::get(s);
+					while(*str != '\0') ExceptionMessage[j++] = *str++;
+					i += 2;
+					break;
+				}
+				case 'p': {
+					const char *str = va_arg(args, char *);
 					while(*str != '\0') ExceptionMessage[j++] = *str++;
 					i += 2;
 					break;
@@ -176,7 +183,7 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	} else {
 		err("Uncaught exception occurred of type '%s'!", c->name->str());
 	}
-	std::cout << "<Exception> " << c->name->str() << ": ";
+	std::cout << c->name->str() << ": ";
 	String *s = String::toString(v);
 	if(s == NULL)
 		std::cout << "<error>\nAn exception occurred while converting the "
@@ -251,13 +258,17 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				case CatchBlock::SlotType::MODULE:
 					// module is at 0 -> 0
 					v = matched->stack_[0]
-					        .toObject()
-					        ->slots(0)
-					        .toObject()
-					        ->slots(c.slot);
+					        .toGcObject()
+					        ->klass->module->instance->slots(c.slot);
 					break;
 				case CatchBlock::SlotType::CORE:
 					v = CoreObject->slots(c.slot);
+					break;
+				case CatchBlock::SlotType::MODULE_SUPER:
+					v = matched->stack_[0]
+					        .toGcObject()
+					        ->klass->superclass->module->instance->slots(
+					            c.slot);
 					break;
 				default: break;
 			}
@@ -279,7 +290,8 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				exit(1);
 			}
 			caughtClass = v.toClass();
-			if(caughtClass == klass) {
+			// allow direct matches, as well as subclass matches
+			if(caughtClass == klass || klass->is_child_of(caughtClass)) {
 				// pop all but the matched frame
 				while(f->getCurrentFrame() != matched) {
 					f->popFrame();
@@ -490,6 +502,26 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	if(!(x)) {                    \
 		RERRF(str, ##__VA_ARGS__) \
 	}
+
+#define ASSERT_ACCESS(field, c, type)                                         \
+	{                                                                         \
+		if(!c->has_fn(field)) {                                               \
+			String *name = SymbolTable2::getString(field);                    \
+			if(name->size > 2 && name->str()[0] == 's' &&                     \
+			   name->str()[1] == ' ') {                                       \
+				ASSERT(false,                                                 \
+				       "No public " type " '@p' found in superclass '@s' "    \
+				       "of class '@s'!",                                      \
+				       &(name->str()[2]), c->superclass->name, c->name);      \
+			} else {                                                          \
+				ASSERT(false, "No public " type " '@t' found in class '@s'!", \
+				       field, c->name);                                       \
+			}                                                                 \
+		}                                                                     \
+	}
+
+#define ASSERT_FIELD() ASSERT_ACCESS(field, c, "member")
+#define ASSERT_METHOD(field, c) ASSERT_ACCESS(field, c, "method")
 
 #define UNREACHABLE()                                     \
 	{                                                     \
@@ -735,11 +767,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						ASSERT(c->has_fn(sym),
 						       "Constructor '@t' not found in class '@s'!", sym,
 						       c->name);
-						// Assign the module instance to the receiver slot
-						// If the receiver is a module, then that slot will
-						// store core
-						Value v = c->module ? c->module->instance : CoreObject;
-						fiber->stackTop[-numberOfArguments - 1] = v;
+						// set the receiver to nil so that construct
+						// knows to create a new receiver
+						fiber->stackTop[-numberOfArguments - 1] = ValueNil;
 						// call the constructor
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
@@ -783,7 +813,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				}
 			}
 
-			CASE(call_method) : {
+			CASE(call_method_super) : CASE(call_method) : {
 				methodToCall      = next_int();
 				numberOfArguments = next_int();
 				// goto methodcall;
@@ -793,14 +823,12 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		methodcall : {
 			Value &      v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
-			ASSERT(c->has_fn(methodToCall),
-			       "Method '@t' not found in class '@s'!", methodToCall,
-			       c->name);
+			ASSERT_METHOD(methodToCall, c);
 			functionToCall = c->get_fn(methodToCall).toFunction();
 			goto performcall;
 		}
 
-			CASE(call) : {
+			CASE(call_intra) : CASE(call) : {
 				int frame         = next_int();
 				numberOfArguments = next_int();
 				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
@@ -910,6 +938,20 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+			CASE(load_module_super) : {
+				Value klass = Stack[0];
+				// the 0th slot may also contain an object
+				if(!klass.isClass())
+					klass = klass.getClass();
+				PUSH(klass.toClass()->superclass->module->instance);
+				DISPATCH();
+			}
+
+			CASE(load_module_core) : {
+				PUSH(CoreObject);
+				DISPATCH();
+			}
+
 			CASE(load_tos_slot) : {
 				TOP = TOP.toObject()->slots(next_int());
 				DISPATCH();
@@ -951,9 +993,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				int          field = next_int();
 				Value        v     = POP();
 				const Class *c     = v.getClass();
-				ASSERT(c->has_fn(field),
-				       "No public member '@t' found in class '@s'!", field,
-				       c->name);
+				ASSERT_FIELD();
 				Value slot = c->get_fn(field);
 				// check if it's an instance slot
 				// we ignore the costly isInteger
@@ -972,10 +1012,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				int          field = next_int();
 				Value        v     = POP();
 				const Class *c     = v.getClass();
-				ASSERT(c->has_fn(field),
-				       "No public member '@t' found in class '@s'!", field,
-				       c->name);
-
+				ASSERT_FIELD();
 				Value slot = c->get_fn(field);
 				// check if it's an instance slot
 				// we ignore the costly isInteger
@@ -991,28 +1028,14 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 			CASE(load_static_slot) : {
 				int          slot = next_int();
-				const Class *c;
-				// if the 0th slot is a class, we good
-				if(Stack[0].isClass()) {
-					c = Stack[0].toClass();
-				} else {
-					// extract the class from the object
-					c = Stack[0].getClass();
-				}
+				const Class *c    = (next_value()).toClass();
 				PUSH(c->static_values[slot]);
 				DISPATCH();
 			}
 
 			CASE(store_static_slot) : {
-				int          slot = next_int();
-				const Class *c;
-				// if the 0th slot is a class, we good
-				if(Stack[0].isClass()) {
-					c = Stack[0].toClass();
-				} else {
-					// extract the class from the object
-					c = Stack[0].getClass();
-				}
+				int          slot      = next_int();
+				const Class *c         = (next_value()).toClass();
 				c->static_values[slot] = TOP;
 				DISPATCH();
 			}
@@ -1060,9 +1083,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				else {
 					// otherwise, search in its class
 					const Class *c = TOP.getClass();
-					ASSERT(c->has_fn(sym),
-					       "Method '@t' not found in class '@s'!", sym,
-					       c->name);
+					ASSERT_METHOD(sym, c);
 					classToSearch = c;
 				}
 				// push the fn, and we're done
@@ -1100,15 +1121,23 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 			CASE(construct) : {
-				Class * c = next_value().toClass();
-				Object *o = GcObject::allocObject(c);
-				// assign the 0th slot to the 0th slot of the object
-				o->slots(0) = Stack[0];
-				// assign the object to slot 0
-				Stack[0] = Value(o);
-				// if this is a module, store the instance to the class
-				if(c->module == NULL)
-					c->instance = o;
+				Class *c = next_value().toClass();
+				// if the 0th slot does not have a
+				// receiver yet, create it.
+				// otherwise, it might be the result
+				// of a nested constructor or
+				// super constructor call, in both
+				// cases, we already have an object
+				// allocated for us in the invoking
+				// constructor.
+				if(Stack[0].isNil()) {
+					Object *o = GcObject::allocObject(c);
+					// assign the object to slot 0
+					Stack[0] = Value(o);
+					// if this is a module, store the instance to the class
+					if(c->module == NULL)
+						c->instance = o;
+				}
 				DISPATCH();
 			}
 
