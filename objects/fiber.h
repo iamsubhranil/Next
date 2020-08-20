@@ -3,6 +3,7 @@
 #include "../gc.h"
 #include "../utils.h"
 #include "bytecode.h"
+#include "fiber_iterator.h"
 #include "function.h"
 #include "object.h"
 #include "tuple.h"
@@ -56,7 +57,7 @@ struct Fiber {
 	// if this fiber is created at runtime,
 	// this will hold the iterator which
 	// iterate() will return
-	Object *fiberIterator;
+	FiberIterator *fiberIterator;
 
 	// state of the fiber
 	State state;
@@ -172,7 +173,7 @@ struct Fiber {
 	inline void setState(Fiber::State s) {
 		state = s;
 		if(s == FINISHED && fiberIterator)
-			fiberIterator->slots(1) = ValueFalse;
+			fiberIterator->hasNext = ValueFalse;
 	}
 
 	inline Fiber *switch_() {

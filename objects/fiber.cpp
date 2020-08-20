@@ -212,7 +212,7 @@ Value next_fiber_iterate(const Value *args, int numargs) {
 		return Value(f->fiberIterator);
 	// otherwise, create an iterator, and return
 	// that
-	Object *o        = FiberIterator::from(f);
+	FiberIterator *o = FiberIterator::from(f);
 	f->fiberIterator = o;
 	return Value(o);
 }

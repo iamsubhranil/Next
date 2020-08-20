@@ -1,13 +1,18 @@
 #pragma once
 
-#include "fiber.h"
+#include "../gc.h"
+#include "../value.h"
 
 struct FiberIterator {
+	GcObject obj;
 
-	static Object *from(Fiber *f);
+	Fiber *fiber;
+	Value  hasNext;
+
+	static FiberIterator *from(Fiber *f);
 
 	static void init();
-	void        mark() {}
+	void        mark() { GcObject::mark(fiber); }
 	void        release() {}
 #ifdef DEBUG_GC
 	const char *gc_repr() { return "fiber_iterator"; }

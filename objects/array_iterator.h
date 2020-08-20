@@ -4,11 +4,16 @@
 #include "object.h"
 
 struct ArrayIterator {
+	GcObject obj;
 
-	static Object *from(Array *a);
+	Array *arr;
+	int    idx;
+	Value  hasNext;
+
+	static ArrayIterator *from(Array *a);
 
 	static void init();
-	void        mark() {}
+	void        mark() { GcObject::mark(arr); }
 	void        release() {}
 
 #ifdef DEBUG_GC
