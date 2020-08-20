@@ -1210,7 +1210,8 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		    String::from(ifs->name.start, ifs->name.length), ifs->arity,
 		    ifs->isStatic, ifs->body->isva);
 		Visibility consider = currentVisibility;
-		if(ifs->visibility != VIS_DEFAULT)
+		// if we're at module level, don't consider the global visibility
+		if(ctx == mtx || ifs->visibility != VIS_DEFAULT)
 			consider = ifs->visibility;
 		switch(consider) {
 			case VIS_PUB:

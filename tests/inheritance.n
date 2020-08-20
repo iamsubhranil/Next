@@ -97,7 +97,6 @@ class bar is foo {
 
 class baz is bar {
     pub:
-
         new() {
             super()
         }
@@ -108,7 +107,7 @@ class baz is bar {
 
 }
 
-fn test() {
+pub fn test() {
     o = baz()
     if(o.trigger() != 10) {
         throw error("foo.bar should be accessible from baz!")
