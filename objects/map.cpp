@@ -3,29 +3,6 @@
 #include "boundmethod.h"
 #include "symtab.h"
 
-bool next_map_get_hash(const Value &v, Value *generatedHash) {
-	if(!v.isObject()) {
-		*generatedHash = v;
-		return true;
-	}
-	Value h = v;
-	while(h.isObject()) { // this is an user made object,
-		// so there is a chance of a hash method to exist
-		const Class *c = h.getClass();
-		if(c->has_fn(SymbolTable2::const_sig_hash)) {
-			if(!ExecutionEngine::execute(
-			       h, c->get_fn(SymbolTable2::const_sig_hash).toFunction(), &h,
-			       true))
-				return false;
-		} else {
-			*generatedHash = h;
-			return true;
-		}
-	}
-	*generatedHash = h;
-	return true;
-}
-
 Value next_map_clear(const Value *args, int numargs) {
 	(void)numargs;
 	args[0].toValueMap()->vv.clear();
@@ -35,7 +12,7 @@ Value next_map_clear(const Value *args, int numargs) {
 Value next_map_has(const Value *args, int numargs) {
 	(void)numargs;
 	Value h;
-	if(!next_map_get_hash(args[1], &h))
+	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
 	return Value(args[0].toValueMap()->vv.contains(h));
 }
@@ -60,7 +37,7 @@ Value next_map_size(const Value *args, int numargs) {
 Value next_map_remove(const Value *args, int numargs) {
 	(void)numargs;
 	Value h;
-	if(!next_map_get_hash(args[1], &h))
+	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
 	args[0].toValueMap()->vv.erase(h);
 	return ValueNil;
@@ -81,7 +58,7 @@ Value next_map_values(const Value *args, int numargs) {
 Value next_map_get(const Value *args, int numargs) {
 	(void)numargs;
 	Value h;
-	if(!next_map_get_hash(args[1], &h))
+	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
 	size_t count = args[0].toValueMap()->vv.count(h);
 	if(count > 0)
@@ -92,7 +69,7 @@ Value next_map_get(const Value *args, int numargs) {
 Value next_map_set(const Value *args, int numargs) {
 	(void)numargs;
 	Value h;
-	if(!next_map_get_hash(args[1], &h))
+	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
 	return args[0].toValueMap()->vv[h] = args[2];
 }
@@ -131,7 +108,7 @@ ValueMap *ValueMap::from(const Value *args, int numArg) {
 	for(int i = 0; i < numArg * 2; i += 2) {
 		Value key   = args[i];
 		Value value = args[i + 1];
-		if(!next_map_get_hash(key, &key))
+		if(!ExecutionEngine::getHash(key, &key))
 			return vm;
 		vm->vv[key] = value;
 	}

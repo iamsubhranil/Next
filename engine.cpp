@@ -315,6 +315,29 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	}
 }
 
+bool ExecutionEngine::getHash(const Value &v, Value *generatedHash) {
+	if(!v.isObject()) {
+		*generatedHash = v;
+		return true;
+	}
+	Value h = v;
+	while(h.isObject()) { // this is an user made object,
+		// so there is a chance of a hash method to exist
+		const Class *c = h.getClass();
+		if(c->has_fn(SymbolTable2::const_sig_hash)) {
+			if(!ExecutionEngine::execute(
+			       h, c->get_fn(SymbolTable2::const_sig_hash).toFunction(), &h,
+			       true))
+				return false;
+		} else {
+			*generatedHash = h;
+			return true;
+		}
+	}
+	*generatedHash = h;
+	return true;
+}
+
 bool ExecutionEngine::execute(Value v, Function *f, Value *args, int numarg,
                               Value *ret, bool returnToCaller) {
 	Fiber *fiber = currentFiber;
@@ -847,14 +870,21 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 					// we can omit all guards
 					if(!functionToCall->canNest()) {
 						res = functionToCall->func(
-						    fiber->stackTop -= (numberOfArguments + 1),
+						    fiber->stackTop - numberOfArguments - 1,
 						    numberOfArguments + 1); // include the receiver
+						// decrease the top _after_ the function
+						// finishes execution, to mark the arguments
+						// as active objects, as well as mark the
+						// stack correctly in case any nested call
+						// occurs.
+						fiber->stackTop -= (numberOfArguments + 1);
 					} else {
 						// backup present frame
 						BACKUP_FRAMEINFO();
 						res = functionToCall->func(
-						    fiber->stackTop -= (numberOfArguments + 1),
+						    fiber->stackTop - numberOfArguments - 1,
 						    numberOfArguments + 1); // include the receiver
+						fiber->stackTop -= (numberOfArguments + 1);
 						// it may have caused a fiber switch
 						if(fiber != currentFiber) {
 							fiber = currentFiber;

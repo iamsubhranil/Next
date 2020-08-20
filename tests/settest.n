@@ -1,0 +1,73 @@
+res = true
+
+class Object {
+    pub:
+        val
+        new(v) {
+            val = v
+        }
+
+        fn hash() {
+            ret val - 10
+        }
+}
+
+class ObjectWrapper {
+    pub:
+        obj
+        new(x) {
+            obj = x
+        }
+
+        fn hash() {
+            ret obj
+        }
+}
+
+fn expect(s, val, res) {
+    if(s.has(val) != res) {
+        print("[Error] Expected set.has(", val, ") to be ", res, "!\n")
+        res = false
+    }
+}
+
+pub fn test() {
+    s = set()
+    s.insert("Hello")
+    s.insert("World!")
+    s.insert(29932.3290012)
+    s.insert(2909023)
+    s.insert(0)
+    s.insert(ObjectWrapper(Object(10)))
+    s.insert(true)
+
+    expect(s, "Hello", true)
+    expect(s, 29932.3290012, true)
+    expect(s, 29932, false)
+    expect(s, 1, false)
+    expect(s, 0, true)
+    expect(s, true, true)
+
+    if(s.size() != 6) {
+        print("[Error] Set size expected to be 6!\n")
+        res = false
+    }
+
+    s.remove(ObjectWrapper(Object(10)))
+    expect(s, 0, false)
+    if(s.size() != 5) {
+        println("[Error] Set size expected to be 5!")
+        res = false
+    }
+
+    v = s.values()
+
+    for(i in v) {
+        if(!s.has(i)) {
+            println("[Error] Set expected to contain ", i, "!")
+            res = false
+        }
+    }
+
+    ret res
+}

@@ -73,4 +73,8 @@ class ExecutionEngine {
 	static size_t getMaxRecursionLimit() { return maxRecursionLimit; }
 	static void   setMaxRecursionLimit(size_t n) { maxRecursionLimit = n; }
 	static size_t getCurrentRecursionDepth() { return currentRecursionDepth; }
+
+	// returns false if the hash extraction fails
+	// if succeeds, assigns the pointer to the generated hash
+	static bool getHash(const Value &v, Value *generatedHash);
 };

@@ -1,4 +1,5 @@
 #include "set.h"
+#include "../engine.h"
 #include "class.h"
 
 ValueSet *ValueSet::create() {
@@ -15,22 +16,42 @@ Value next_set_clear(const Value *args, int numargs) {
 
 Value next_set_insert(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toValueSet()->hset.insert(args[1]).second);
+	Value h;
+	if(!ExecutionEngine::getHash(args[1], &h))
+		return ValueNil;
+	auto res = args[0].toValueSet()->hset.insert(h);
+	return Value(res.second);
 }
 
 Value next_set_has(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toValueSet()->hset.count(args[1]));
+	Value h;
+	if(!ExecutionEngine::getHash(args[1], &h))
+		return ValueNil;
+	return Value(args[0].toValueSet()->hset.count(h) > 0);
 }
 
 Value next_set_size(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toValueSet()->hset.size());
+	return Value((double)args[0].toValueSet()->hset.size());
 }
 
 Value next_set_remove(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toValueSet()->hset.erase(args[1]) == 1);
+	Value h;
+	if(!ExecutionEngine::getHash(args[1], &h))
+		return ValueNil;
+	return Value(args[0].toValueSet()->hset.erase(h) == 1);
+}
+
+Value next_set_values(const Value *args, int numargs) {
+	(void)numargs;
+	ValueSet *vs = args[0].toValueSet();
+	Array *   a  = Array::create(vs->hset.size());
+	for(auto &v : vs->hset) {
+		a->insert(v);
+	}
+	return Value(a);
 }
 
 Value next_set_construct(const Value *args, int numargs) {
@@ -52,4 +73,5 @@ void ValueSet::init() {
 	ValueSetClass->add_builtin_fn("size()", 0, next_set_size);
 	ValueSetClass->add_builtin_fn_nest("remove(_)", 1,
 	                                   next_set_remove); // can nest
+	ValueSetClass->add_builtin_fn("values()", 0, next_set_values);
 }
