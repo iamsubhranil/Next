@@ -3,7 +3,22 @@
 #include "boundmethod.h"
 #include "errors.h"
 #include "function.h"
+#include "object.h"
 #include "symtab.h"
+
+// this is the default object access function
+Value &FieldAccessFunction(const Class *c, Value v, int field) {
+	Value slot = c->get_fn(field);
+	// check if it's an instance slot
+	// we ignore the costly isInteger
+	// check here
+	if(slot.isNumber()) {
+		return v.toObject()->slots(slot.toInteger());
+	} else {
+		// it is a static slot
+		return *slot.toPointer();
+	}
+}
 
 void Class::init(String *s, ClassType typ, Class *mc) {
 	name              = s;
@@ -17,6 +32,7 @@ void Class::init(String *s, ClassType typ, Class *mc) {
 	metaclass         = mc;
 	isMetaClass       = false;
 	superclass        = NULL;
+	accessFn          = FieldAccessFunction;
 	if(mc)
 		mc->isMetaClass = true;
 }
@@ -127,6 +143,7 @@ Class *Class::copy() {
 	s->functions = functions->copy();
 	s->numSlots  = numSlots;
 	s->module    = module;
+	s->accessFn  = accessFn;
 	if(module) {
 		s->static_values     = static_values;
 		s->static_slot_count = static_slot_count;

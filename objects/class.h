@@ -19,6 +19,13 @@ struct Class {
 	Class * module; // a module is eventually an instance of a class
 	Class * metaclass;
 	Class * superclass; // pointer to the superclass
+
+	// given an object and a field, this function returns
+	// the specific field for the object. since various builtin
+	// classes have various object types, this method takes a Value
+	typedef Value &(*AccessFunction)(const Class *c, Value v, int slot);
+	AccessFunction accessFn;
+
 	// in case of a module, it will store the module instance
 	// in case of a class, it will store the static members
 	union {
@@ -30,6 +37,7 @@ struct Class {
 			int static_slot_count;
 		};
 	};
+
 	int numSlots;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 	bool isMetaClass; // marks if this class is a metaclass
