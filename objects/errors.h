@@ -57,9 +57,9 @@ struct RuntimeError : public Error {
 };
 
 struct IndexError : public Error {
-	static IndexError *create(String *m, long lo, long hi, long received);
-	static Value       sete(String *m, long l, long h, long r);
-	static Value       sete(const char *m, long l, long h, long r);
+	static IndexError *create(String *m, int64_t lo, int64_t hi, int64_t received);
+	static Value       sete(String *m, int64_t l, int64_t h, int64_t r);
+	static Value       sete(const char *m, int64_t l, int64_t h, int64_t r);
 
 	static void init();
 #ifdef DEBUG_GC

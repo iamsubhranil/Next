@@ -72,7 +72,7 @@ void RuntimeError::init() {
 	RuntimeErrorClass->add_builtin_fn("(_)", 1, next_runtimeerror_construct_1);
 }
 
-IndexError *IndexError::create(String *m, long l, long h, long r) {
+IndexError *IndexError::create(String *m, int64_t l, int64_t h, int64_t r) {
 	IndexError *ie = GcObject::allocIndexError();
 	ie->message = Formatter::fmt("{} (expected {} <= index <= {}, received {})",
 	                             Value(m), l, h, r)
@@ -80,12 +80,12 @@ IndexError *IndexError::create(String *m, long l, long h, long r) {
 	return ie;
 }
 
-Value IndexError::sete(String *m, long l, long h, long r) {
+Value IndexError::sete(String *m, int64_t l, int64_t h, int64_t r) {
 	ExecutionEngine::setPendingException(Value(create(m, l, h, r)));
 	return ValueNil;
 }
 
-Value IndexError::sete(const char *m, long l, long h, long r) {
+Value IndexError::sete(const char *m, int64_t l, int64_t h, int64_t r) {
 	return sete(String::from(m), l, h, r);
 }
 

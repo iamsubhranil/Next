@@ -16,7 +16,7 @@ Value next_core_clock(const Value *args, int numargs) {
 	// TODO: clock_t is 64bits long, casting it to 32bits will reset the time
 	// every 36 mins or so. Casting it to double will probably result losing
 	// some precision.
-	return Value(clock());
+	return Value((double)clock());
 }
 
 Value next_core_type_of(const Value *args, int numargs) {

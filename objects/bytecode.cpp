@@ -110,7 +110,7 @@ Bytecode *Bytecode::create_derived(int offset) {
 	b->stackMaxSize = numSlots;
 	b->ctx          = ctx;
 	size_t reloc    = 0;
-	for(Opcode *ip = bytecodes; ip - bytecodes < (long)size;) {
+	for(Opcode *ip = bytecodes; ip - bytecodes < (int64_t)size;) {
 		Opcode o = *(ip++);
 		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
 		   o == CODE_load_module || o == CODE_construct ||

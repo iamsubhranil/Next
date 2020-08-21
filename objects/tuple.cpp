@@ -15,7 +15,7 @@ Tuple *Tuple::create(int size) {
 Value next_tuple_construct_1(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(tuple, "new(_)", 1, Integer);
-	long num = args[1].toInteger();
+	int64_t num = args[1].toInteger();
 	if(num < 1) {
 		return RuntimeError::sete("Tuple size must be > 0!");
 	}
@@ -36,8 +36,8 @@ Value next_tuple_iterate(const Value *args, int numargs) {
 Value next_tuple_get(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(tuple, "[](_)", 1, Integer);
-	long   idx           = args[1].toInteger();
-	long   effective_idx = idx;
+	int64_t   idx           = args[1].toInteger();
+	int64_t   effective_idx = idx;
 	Tuple *t             = args[0].toTuple();
 	if(idx < 0) {
 		effective_idx += t->size;
@@ -55,8 +55,8 @@ Value next_tuple_get(const Value *args, int numargs) {
 Value next_tuple_set(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(tuple, "[](_,_)", 1, Integer);
-	long   idx           = args[1].toInteger();
-	long   effective_idx = idx;
+	int64_t   idx           = args[1].toInteger();
+	int64_t   effective_idx = idx;
 	Tuple *t             = args[0].toTuple();
 	if(idx < 0) {
 		effective_idx += t->size;

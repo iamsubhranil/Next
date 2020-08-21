@@ -49,7 +49,7 @@ struct Value {
 	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
 	constexpr Value() : value(QNAN_NIL) {}
 	constexpr Value(double d) : dvalue(d) {}
-	constexpr Value(long l) : dvalue((double)l) {}
+	constexpr Value(int64_t l) : dvalue((double)l) {}
 	constexpr Value(int i) : dvalue((double)i) {}
 #ifdef DEBUG
 #define TYPE(r, n)                                                             \
@@ -102,7 +102,7 @@ struct Value {
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
 	inline double   toNumber() const { return dvalue; }
-	inline long     toInteger() const { return (long)toNumber(); }
+	inline int64_t     toInteger() const { return (int64_t)toNumber(); }
 	inline uint64_t toBits() const { return value; }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }

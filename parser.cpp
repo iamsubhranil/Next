@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "display.h"
 #include "objects/string.h"
 
 Parser::Parser(Scanner &s) : scanner(s) {
@@ -549,7 +550,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			char *end = NULL;
 			// start after 0x
 			const char *start = &t.start[2];
-			long        val   = strtol(start, &end, 16);
+			int64_t     val   = strtoll(start, &end, 16);
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid hexadecimal literal!");
 			}
@@ -559,7 +560,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			char *end = NULL;
 			// start after 0b
 			const char *start = &t.start[2];
-			long        val   = strtol(start, &end, 2);
+			int64_t     val   = strtoll(start, &end, 2);
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid binary literal!");
 			}
@@ -569,7 +570,7 @@ ExpPtr LiteralParselet::parse(Parser *parser, Token t) {
 			char *end = NULL;
 			// start after 0x
 			const char *start = &t.start[2];
-			long        val   = strtol(start, &end, 8);
+			int64_t     val   = strtoll(start, &end, 8);
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid octal literal!");
 			}

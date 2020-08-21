@@ -32,7 +32,7 @@ size_t to_unsigned(int a) {
 	return (size_t)a;
 }
 
-void format_bin(FormatSpec *fs, Buffer<char> &buf, long value) {
+void format_bin(FormatSpec *fs, Buffer<char> &buf, int64_t value) {
 	bool isminus = value < 0;
 	if(isminus)
 		value = -value;
@@ -308,7 +308,7 @@ Value Number::fmt(FormatSpec *f, double dval) {
 		if(f->type == 'b' || f->type == 'B')
 			return next_number_fmt_(f, format_bin, lval);
 		else
-			return next_number_fmt_(f, format_snprintf<long>, lval);
+			return next_number_fmt_(f, format_snprintf<int64_t>, lval);
 	} else
 		return next_number_fmt_(f, format_snprintf<double>, dval);
 }

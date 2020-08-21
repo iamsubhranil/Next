@@ -22,7 +22,7 @@ Value next_array_get(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(array, "[](_)", 1, Integer);
 	Array *a = args[0].toArray();
-	long   i = args[1].toInteger();
+	int64_t   i = args[1].toInteger();
 	if(i < 0) {
 		i += a->size;
 	}
@@ -39,7 +39,7 @@ Value next_array_set(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(array, "[](_,_)", 1, Integer);
 	Array *a = args[0].toArray();
-	long   i = args[1].toInteger();
+	int64_t   i = args[1].toInteger();
 	if(i < 0) {
 		i += a->size;
 	}
