@@ -4,14 +4,13 @@
 #include "object.h"
 #include "symtab.h"
 
-Object *TupleIterator::from(Tuple *a) {
-	Object *ar = GcObject::allocObject(GcObject::TupleIteratorClass);
+TupleIterator *TupleIterator::from(Tuple *a) {
+	TupleIterator *ti = GcObject::allocTupleIterator();
+	ti->tup           = a;
+	ti->idx           = 0;
+	ti->hasNext       = Value(0 < a->size);
 
-	ar->slots(0) = Value(a);
-	ar->slots(1) = Value(a->values());
-	ar->slots(2) = Value(0 < a->size);
-
-	return ar;
+	return ti;
 }
 
 Value next_tuple_iterator_construct_1(const Value *args, int numargs) {
@@ -22,21 +21,28 @@ Value next_tuple_iterator_construct_1(const Value *args, int numargs) {
 
 Value next_tuple_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
-	Value *slots = args[0].toObject()->slots();
-	Value *arr   = slots[1].toPointer();
-	Tuple *a     = slots[0].toTuple();
-	slots[1]     = Value(arr + 1);
-	slots[2]     = Value((arr + 1 - a->values()) < a->size);
-	return *arr;
+	TupleIterator *ti  = args[0].toTupleIterator();
+	Value          ret = ValueNil;
+	if(ti->idx < ti->tup->size) {
+		ret = ti->tup->values()[ti->idx++];
+	}
+	ti->hasNext = Value(ti->idx < ti->tup->size);
+	return ret;
+}
+
+Value &TupleIteratorHasNext(const Class *c, Value v, int field) {
+	(void)c;
+	(void)field;
+	return v.toTupleIterator()->hasNext;
 }
 
 void TupleIterator::init() {
 	Class *TupleIteratorClass = GcObject::TupleIteratorClass;
 
 	TupleIteratorClass->init("tuple_iterator", Class::ClassType::BUILTIN);
-	TupleIteratorClass->numSlots = 3; // tuple, pointer, has_next
 	// has_next
-	TupleIteratorClass->add_sym(SymbolTable2::insert("has_next"), Value(2));
+	TupleIteratorClass->add_sym(SymbolTable2::insert("has_next"), ValueTrue);
+	TupleIteratorClass->accessFn = TupleIteratorHasNext;
 
 	TupleIteratorClass->add_builtin_fn("(_)", 1,
 	                                   next_tuple_iterator_construct_1);

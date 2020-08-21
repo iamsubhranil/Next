@@ -1024,17 +1024,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				Value        v     = POP();
 				const Class *c     = v.getClass();
 				ASSERT_FIELD();
-				Value slot = c->get_fn(field);
-				// check if it's an instance slot
-				// we ignore the costly isInteger
-				// check here
-				if(slot.isNumber()) {
-					PUSH(v.toObject()->slots(slot.toInteger()));
-				} else {
-					// it is a static slot
-					PUSH(*slot.toPointer());
-				}
-
+				PUSH(c->accessFn(c, v, field));
 				DISPATCH();
 			}
 
@@ -1043,16 +1033,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				Value        v     = POP();
 				const Class *c     = v.getClass();
 				ASSERT_FIELD();
-				Value slot = c->get_fn(field);
-				// check if it's an instance slot
-				// we ignore the costly isInteger
-				// check here
-				if(slot.isNumber()) {
-					v.toObject()->slots(slot.toInteger()) = TOP;
-				} else {
-					// it is a static slot
-					*slot.toPointer() = TOP;
-				}
+				c->accessFn(c, v, field) = TOP;
 				DISPATCH();
 			}
 

@@ -60,14 +60,20 @@ pub fn test() {
         res = false
     }
 
-    v = s.values()
-
-    for(i in v) {
+    for(i in s) {
         if(!s.has(i)) {
             println("[Error] Set expected to contain ", i, "!")
             res = false
         }
     }
+
+    try {
+        for(i in s) {
+            s.insert("cool")
+        }
+        println("[Error] Expected error when trying to modify a set while iterating!")
+        res = false
+    } catch(runtime_error e) {}
 
     ret res
 }

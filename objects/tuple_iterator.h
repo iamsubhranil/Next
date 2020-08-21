@@ -3,11 +3,16 @@
 #include "tuple.h"
 
 struct TupleIterator {
+	GcObject obj;
 
-	static Object *from(Tuple *a);
+	Tuple *tup;
+	int    idx;
+	Value  hasNext;
+
+	static TupleIterator *from(Tuple *a);
 
 	static void init();
-	void        mark() {}
+	void        mark() { GcObject::mark(tup); }
 	void        release() {}
 
 #ifdef DEBUG_GC

@@ -87,7 +87,7 @@ for (key in keys) {
 }
 
 sum = 0
-for (key in keys) {
+for (key in map_) {
     sum = sum + map_[key]
 }
 
