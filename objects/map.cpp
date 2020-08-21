@@ -1,6 +1,7 @@
 #include "map.h"
 #include "../engine.h"
 #include "boundmethod.h"
+#include "map_iterator.h"
 #include "symtab.h"
 
 Value next_map_clear(const Value *args, int numargs) {
@@ -15,6 +16,11 @@ Value next_map_has(const Value *args, int numargs) {
 	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
 	return Value(args[0].toValueMap()->vv.contains(h));
+}
+
+Value next_map_iterate(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(MapIterator::from(args[0].toValueMap()));
 }
 
 Value next_map_keys(const Value *args, int numargs) {
@@ -88,6 +94,7 @@ void ValueMap::init() {
 	ValueMapClass->add_builtin_fn("()", 0, next_map_construct);
 	ValueMapClass->add_builtin_fn("clear()", 0, next_map_clear);
 	ValueMapClass->add_builtin_fn_nest("has(_)", 1, next_map_has); // can nest
+	ValueMapClass->add_builtin_fn("iterate()", 0, next_map_iterate);
 	ValueMapClass->add_builtin_fn("keys()", 0, next_map_keys);
 	ValueMapClass->add_builtin_fn("size()", 0, next_map_size);
 	ValueMapClass->add_builtin_fn_nest("remove(_)", 1,

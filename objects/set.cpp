@@ -1,6 +1,7 @@
 #include "set.h"
 #include "../engine.h"
 #include "class.h"
+#include "set_iterator.h"
 
 ValueSet *ValueSet::create() {
 	ValueSet *v = GcObject::allocValueSet();
@@ -21,6 +22,11 @@ Value next_set_insert(const Value *args, int numargs) {
 		return ValueNil;
 	auto res = args[0].toValueSet()->hset.insert(h);
 	return Value(res.second);
+}
+
+Value next_set_iterate(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(SetIterator::from(args[0].toValueSet()));
 }
 
 Value next_set_has(const Value *args, int numargs) {
@@ -68,7 +74,8 @@ void ValueSet::init() {
 	ValueSetClass->add_builtin_fn("()", 0, next_set_construct);
 	ValueSetClass->add_builtin_fn("clear()", 0, next_set_clear);
 	ValueSetClass->add_builtin_fn_nest("insert(_)", 1,
-	                                   next_set_insert);           // can nest
+	                                   next_set_insert); // can nest
+	ValueSetClass->add_builtin_fn("iterate()", 0, next_set_iterate);
 	ValueSetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
 	ValueSetClass->add_builtin_fn("size()", 0, next_set_size);
 	ValueSetClass->add_builtin_fn_nest("remove(_)", 1,

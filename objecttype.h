@@ -36,4 +36,7 @@ OBJTYPE(FormatError)
 // the gc is free to collect it.
 OBJTYPE(Fiber)
 OBJTYPE(FiberIterator)
+// Map and set iterators
+OBJTYPE(MapIterator)
+OBJTYPE(SetIterator)
 #undef OBJTYPE
