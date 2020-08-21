@@ -25,8 +25,9 @@ struct Error {
 	static Value  sete(const char *message);
 
 	static void init();
-	void        mark() { GcObject::mark(message); }
-	void        release() {}
+
+	void mark() { GcObject::mark(message); }
+	void release() {}
 #ifdef DEBUG_GC
 	const char *gc_repr();
 #endif

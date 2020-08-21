@@ -126,6 +126,10 @@ struct GcObject {
 	static Class *n##Class; \
 	static n *    alloc##n();
 #include "objecttype.h"
+	// if any user class extends 'error', this
+	// is the class that it actually extends
+	// instead of builtin Error.
+	static Class *ErrorObjectClass;
 	// makes a contiguous allocation of a String
 	// object along with its characters
 	static String *allocString2(int numchar);

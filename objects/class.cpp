@@ -211,7 +211,9 @@ Value next_class_derive(const Value *args, int numargs) {
 		         .toString());
 	}
 	Class *superclass = args[1].toClass();
-	if(superclass->type == Class::ClassType::BUILTIN) {
+	// allow extension of the error class
+	if(superclass->type == Class::ClassType::BUILTIN &&
+	   superclass != GcObject::ErrorClass) {
 		RERR(Formatter::fmt(
 		         "Class '{}' cannot be derived from builtin class '{}'!",
 		         present->name, superclass->name)
@@ -234,10 +236,18 @@ Value next_class_derive(const Value *args, int numargs) {
 		         .toString());
 	}
 
+	if(superclass == GcObject::ErrorClass) {
+		superclass = GcObject::ErrorObjectClass;
+	}
+
 	// now we can start derivation
 	present->derive(superclass);
 	// and we're done
 
+	// if we're extending 'error' make it look like so
+	if(superclass == GcObject::ErrorObjectClass) {
+		present->superclass = GcObject::ErrorClass;
+	}
 	return ValueNil;
 }
 

@@ -1,13 +1,7 @@
-class Exception {
-    priv:
-        msg
+class Exception is error {
     pub:
         new(x) {
-           msg = x 
-        }
-
-        fn str() {
-            ret msg
+           super(x)
         }
 }
 
@@ -54,6 +48,18 @@ pub fn test() {
             print("[Error] Expected exception message 'Too many recurs'!\nReceived '", f.str(), "'!\n")
             res = false
         }
+    }
+
+    try {
+        throw Exception("Should have caught by type 'error!'")
+    } catch(error e) {
+        if(e.str() != "Should have caught by type 'error!'") {
+            println("[Error] Expected exception message 'Should have caught by type 'error!'!\nReceived '",
+                    e.str(), "'!")
+        }
+    } catch(Exception e) {
+        println("[Error] The exception should have caught by the catch(error e) block!")
+        res = false
     }
 
     ret res

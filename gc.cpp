@@ -46,9 +46,10 @@ static size_t counterCounter = 0;
 #endif
 #define OBJTYPE(n) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
-Class *GcObject::NumberClass  = nullptr;
-Class *GcObject::BooleanClass = nullptr;
-Class *GcObject::CoreModule   = nullptr;
+Class *GcObject::NumberClass      = nullptr;
+Class *GcObject::BooleanClass     = nullptr;
+Class *GcObject::ErrorObjectClass = nullptr;
+Class *GcObject::CoreModule       = nullptr;
 
 ClassCompilationContext *GcObject::CoreContext = nullptr;
 // when enabled, the garbage collector allocates
@@ -138,6 +139,8 @@ void GcObject::gc(bool force) {
 		mark(ExecutionEngine::CoreObject);
 		mark(NumberClass);
 		mark(BooleanClass);
+		// mark error object class
+		mark(ErrorObjectClass);
 #ifdef DEBUG_GC
 		std::cout << "[GC] Marking Engine..\n";
 #endif
@@ -386,8 +389,9 @@ void GcObject::init() {
 	// allocate the core classes
 #define OBJTYPE(n) n##Class = GcObject::allocClass();
 #include "objecttype.h"
-	NumberClass  = GcObject::allocClass();
-	BooleanClass = GcObject::allocClass();
+	NumberClass      = GcObject::allocClass();
+	BooleanClass     = GcObject::allocClass();
+	ErrorObjectClass = GcObject::allocClass();
 	// initialize the string set and symbol table
 	String::init0();
 	SymbolTable2::init();

@@ -1,6 +1,7 @@
 #include "errors.h"
 #include "../engine.h"
 #include "../format.h"
+#include "function.h"
 
 TypeError *TypeError::create(String *o, String *m, String *e, Value r,
                              int arg) {
@@ -168,10 +169,42 @@ Value next_error_construct_1(const Value *args, int numargs) {
 	return Error::create(args[1].toString());
 }
 
+Function *ErrorObjectClassConstructor(Class *c) {
+	Function *f = Function::create(String::from("new"), 1);
+	f->code     = Bytecode::create();
+	// new(x) { message = x }
+	f->code->insertSlot(); // this
+	f->code->insertSlot(); // x
+	f->code->construct(c);
+	f->code->load_slot_n(1);
+	f->code->store_object_slot(0);
+	f->code->pop();
+	f->code->load_slot_n(0);
+	f->code->ret();
+	return f;
+}
+
+Function *ErrorObjectClassStr() {
+	Function *f = Function::create(String::from("str"), 0);
+	f->code     = Bytecode::create();
+	// str() { ret message }
+	f->code->insertSlot(); // this
+	f->code->load_object_slot(0);
+	f->code->ret();
+	return f;
+}
+
 void Error::init() {
 	Class *ErrorClass = GcObject::ErrorClass;
 
 	ErrorClass->init("error", Class::ClassType::BUILTIN);
 	ErrorClass->add_builtin_fn("(_)", 1, next_error_construct_1);
 	ErrorClass->add_builtin_fn("str()", 0, next_error_str);
+
+	Class *ErrorObjectClass = GcObject::ErrorObjectClass;
+	ErrorObjectClass->init("error", Class::ClassType::NORMAL);
+	ErrorObjectClass->numSlots = 1; // message
+	ErrorObjectClass->add_fn("(_)",
+	                         ErrorObjectClassConstructor(ErrorObjectClass));
+	ErrorObjectClass->add_fn("str()", ErrorObjectClassStr());
 }
