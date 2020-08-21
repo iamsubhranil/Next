@@ -325,14 +325,14 @@ void CodeGenerator::emitCall(CallExpression *call) {
 				info.frameIdx = SymbolTable2::insert(signature);
 				info.type     = CLASS;
 				info.soft     = false;
-				btx->load_slot(0);
+				btx->load_slot_n(0);
 			}
 			// make it a intraclass call
 			onRefer = false;
 		} else {
 			// prepare the call, but make it a method call by toggling
 			// onRefer
-			btx->load_slot(0);
+			btx->load_slot_n(0);
 			onRefer = true;
 		}
 	} else if(!onRefer) { // if this is a method call, we
@@ -853,7 +853,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 		// so load it, and we're done
 		validateThisOrSuper(vis->token);
 		// the object is stored in the 0th slot
-		btx->load_slot(0);
+		btx->load_slot_n(0);
 		return;
 	}
 	String *name = String::from(vis->token.start, vis->token.length);
@@ -954,7 +954,7 @@ void CodeGenerator::visit(MethodReferenceExpression *ifs) {
 				break;
 			case CLASS:
 				// load the object
-				btx->load_slot(0);
+				btx->load_slot_n(0);
 				break;
 			case MODULE:
 				// load the module
