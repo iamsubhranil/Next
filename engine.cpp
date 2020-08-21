@@ -599,7 +599,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			int instructionPointer =
 			    InstructionPointer - presentFrame->f->code->bytecodes;
 			int   stackPointer = fiber->stackTop - presentFrame->stack_;
-			Token t = presentFrame->f->code->ctx->get_token(instructionPointer);
+			Token t            = Token::PlaceholderToken;
+			if(presentFrame->f->code->ctx)
+				t = presentFrame->f->code->ctx->get_token(instructionPointer);
 			if(t.type != TOKEN_ERROR)
 				t.highlight();
 			else

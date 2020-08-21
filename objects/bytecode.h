@@ -135,7 +135,8 @@ struct Bytecode {
 
 	void mark() const {
 		GcObject::mark(values);
-		GcObject::mark(ctx);
+		if(ctx != NULL)
+			GcObject::mark(ctx);
 	}
 
 	void release() const {
