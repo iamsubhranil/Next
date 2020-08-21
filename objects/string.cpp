@@ -412,6 +412,43 @@ String *String::toString(Value v) {
 	return v.toString();
 }
 
+String *performQuote(Value v, bool quote) {
+	if(quote) {
+		return String::append(String::append("\"", v.toString()), "\"");
+	}
+	return v.toString();
+}
+
+String *String::toStringValue(Value v) {
+	bool quote = true;
+	while(true) {
+		if(v.isString())
+			return performQuote(v, quote);
+		switch(v.getType()) {
+			case Value::VAL_NIL: return const_nil;
+			case Value::VAL_Boolean:
+				if(v.toBoolean())
+					return const_true_;
+				return const_false_;
+			default: break;
+		}
+		// only quote if the present object is not a builtin
+		// type, but the result of str() is still a string
+		quote = v.isGcObject() && v.isObject();
+		// run str() if it does have, otherwise return default string
+		const Class *c = v.getClass();
+		if(c->has_fn(SymbolTable2::const_sig_str)) {
+			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
+			if(!ExecutionEngine::execute(v, f, &v, true))
+				return nullptr;
+		} else {
+			String *s = append("<object of '", c->name);
+			s         = append(s, "'>");
+			return s;
+		}
+	}
+}
+
 void String::release() {
 	string_set->hset.erase(this);
 	GcObject::totalAllocated -= (size + 1);

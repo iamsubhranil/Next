@@ -12,5 +12,9 @@ pub fn test() {
         println("[Error] Tuple index access not working!")
         res = false
     }
+    if((2, 3, false, 2.6, "nil").str() != "(2, 3, false, 2.6, \"nil\")") {
+        println("[Error] tuple.str() not working!")
+        res = false
+    }
     ret res
 }

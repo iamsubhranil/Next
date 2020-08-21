@@ -2,6 +2,7 @@
 #include "../utils.h"
 #include "class.h"
 #include "errors.h"
+#include "string.h"
 #include "tuple_iterator.h"
 
 Tuple *Tuple::create(int size) {
@@ -70,6 +71,29 @@ Value next_tuple_set(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_tuple_str(const Value *args, int numargs) {
+	(void)numargs;
+	String *str = String::from("(");
+	Tuple * a   = args[0].toTuple();
+	if(a->size > 0) {
+		String *s = String::toStringValue(a->values()[0]);
+		// if there was an error, return
+		if(s == nullptr)
+			return ValueNil;
+		str = String::append(str, s);
+		for(int i = 1; i < a->size; i++) {
+			String *s = String::toStringValue(a->values()[i]);
+			// if there was an error, return
+			if(s == nullptr)
+				return ValueNil;
+			str = String::append(str, ", ");
+			str = String::append(str, s);
+		}
+	}
+	str = String::append(str, ")");
+	return str;
+}
+
 void Tuple::init() {
 	Class *TupleClass = GcObject::TupleClass;
 
@@ -77,6 +101,7 @@ void Tuple::init() {
 	TupleClass->add_builtin_fn("(_)", 1, next_tuple_construct_1);
 	TupleClass->add_builtin_fn("iterate()", 0, next_tuple_iterate);
 	TupleClass->add_builtin_fn("size()", 0, next_tuple_size);
+	TupleClass->add_builtin_fn_nest("str()", 0, next_tuple_str);
 	TupleClass->add_builtin_fn("[](_)", 1, next_tuple_get);
 	TupleClass->add_builtin_fn("[](_,_)", 2, next_tuple_set);
 }

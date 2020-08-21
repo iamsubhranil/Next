@@ -10,6 +10,10 @@ class Object {
         fn hash() {
             ret val - 10
         }
+
+        fn str() {
+            ret fmt("object {}", val)
+        }
 }
 
 class ObjectWrapper {
@@ -20,6 +24,10 @@ class ObjectWrapper {
         }
 
         fn hash() {
+            ret obj
+        }
+
+        fn str() {
             ret obj
         }
 }

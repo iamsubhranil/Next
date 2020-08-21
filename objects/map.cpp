@@ -80,6 +80,43 @@ Value next_map_set(const Value *args, int numargs) {
 	return args[0].toValueMap()->vv[h] = args[2];
 }
 
+Value next_map_str(const Value *args, int numargs) {
+	(void)numargs;
+	String *  str = String::from("{");
+	ValueMap *a   = args[0].toValueMap();
+	if(a->vv.size() > 0) {
+		auto    v = a->vv.begin();
+		String *s = String::toStringValue(v->first);
+		// if there was an error, return
+		if(s == nullptr)
+			return ValueNil;
+		s         = String::append(s, ": ");
+		String *t = String::toStringValue(v->second);
+		// if there was an error, return
+		if(t == nullptr)
+			return ValueNil;
+		s   = String::append(s, t);
+		str = String::append(str, s);
+		v   = std::next(v);
+		for(auto e = a->vv.end(); v != e; v = std::next(v)) {
+			String *s = String::toStringValue(v->first);
+			// if there was an error, return
+			if(s == nullptr)
+				return ValueNil;
+			s         = String::append(s, ": ");
+			String *t = String::toStringValue(v->second);
+			// if there was an error, return
+			if(t == nullptr)
+				return ValueNil;
+			s   = String::append(s, t);
+			str = String::append(str, ", ");
+			str = String::append(str, s);
+		}
+	}
+	str = String::append(str, "}");
+	return str;
+}
+
 Value next_map_construct(const Value *args, int numargs) {
 	(void)numargs;
 	(void)args;
@@ -97,6 +134,7 @@ void ValueMap::init() {
 	ValueMapClass->add_builtin_fn("iterate()", 0, next_map_iterate);
 	ValueMapClass->add_builtin_fn("keys()", 0, next_map_keys);
 	ValueMapClass->add_builtin_fn("size()", 0, next_map_size);
+	ValueMapClass->add_builtin_fn_nest("str()", 0, next_map_str);
 	ValueMapClass->add_builtin_fn_nest("remove(_)", 1,
 	                                   next_map_remove); // can nest
 	ValueMapClass->add_builtin_fn("values()", 0, next_map_values);

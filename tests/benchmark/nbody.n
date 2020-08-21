@@ -10,23 +10,6 @@ fn combinations(l) {
     ret res
 }
 
-fn print_arr(arr) {
-    i = 0
-    print("[")
-    for(e in arr) {
-        if(is_same_type(e, arr)) {
-            print_arr(e)
-        } else {
-            if(e > 0) {
-                print(" ")
-            }
-            print(e)
-        }
-        print(", ")
-    }
-    print("]\n")
-}
-
 PI = 3.14159265358979323
 SOLAR_MASS = 4 * PI * PI
 DAYS_PER_YEAR = 365.24

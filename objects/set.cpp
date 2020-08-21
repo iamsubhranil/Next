@@ -42,6 +42,31 @@ Value next_set_size(const Value *args, int numargs) {
 	return Value((double)args[0].toValueSet()->hset.size());
 }
 
+Value next_set_str(const Value *args, int numargs) {
+	(void)numargs;
+	String *  str = String::from("{");
+	ValueSet *a   = args[0].toValueSet();
+	if(a->hset.size() > 0) {
+		auto    v = a->hset.begin();
+		String *s = String::toStringValue(*v);
+		// if there was an error, return
+		if(s == nullptr)
+			return ValueNil;
+		str = String::append(str, s);
+		v   = std::next(v);
+		for(auto e = a->hset.end(); v != e; v = std::next(v)) {
+			String *s = String::toStringValue(*v);
+			// if there was an error, return
+			if(s == nullptr)
+				return ValueNil;
+			str = String::append(str, ", ");
+			str = String::append(str, s);
+		}
+	}
+	str = String::append(str, "}");
+	return str;
+}
+
 Value next_set_remove(const Value *args, int numargs) {
 	(void)numargs;
 	Value h;
@@ -78,6 +103,7 @@ void ValueSet::init() {
 	ValueSetClass->add_builtin_fn("iterate()", 0, next_set_iterate);
 	ValueSetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
 	ValueSetClass->add_builtin_fn("size()", 0, next_set_size);
+	ValueSetClass->add_builtin_fn_nest("str()", 0, next_set_str);
 	ValueSetClass->add_builtin_fn_nest("remove(_)", 1,
 	                                   next_set_remove); // can nest
 	ValueSetClass->add_builtin_fn("values()", 0, next_set_values);
