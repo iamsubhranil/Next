@@ -23,7 +23,7 @@ void BoundMethod::init() {
 	Class *BoundMethodClass = GcObject::BoundMethodClass;
 
 	BoundMethodClass->init("bound_method", Class::ClassType::BUILTIN);
-	BoundMethodClass->add_builtin_fn("str()", 0, next_boundmethod_str);
+	BoundMethodClass->add_builtin_fn_nest("str()", 0, next_boundmethod_str);
 }
 
 BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
