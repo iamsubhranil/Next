@@ -3,22 +3,22 @@
 #include "errors.h"
 #include "symtab.h"
 
-Object *Range::create(double from, double to, double step) {
-	Object *r = GcObject::allocObject(GcObject::RangeClass);
+Range *Range::create(int64_t from, int64_t to, int64_t step) {
+	Range *r = GcObject::allocRange();
 
-	r->slots(0).setNumber(from - step); // to start from 'from'
-	r->slots(1).setNumber(to);
-	r->slots(2).setNumber(step);
-	r->slots(3).setBoolean(from < to);
+	r->from    = from;
+	r->to      = to;
+	r->step    = step;
+	r->hasNext = Value(from < to);
 
 	return r;
 }
 
-Object *Range::create(double from, double to) {
+Range *Range::create(int64_t from, int64_t to) {
 	return create(from, to, 1);
 }
 
-Object *Range::create(double to) {
+Range *Range::create(int64_t to) {
 	return create(0, to);
 }
 
@@ -57,17 +57,17 @@ Value next_range_construct_3(const Value *args, int numargs) {
 
 Value next_range_from(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toObject()->slots(0));
+	return Value(args[0].toRange()->from);
 }
 
 Value next_range_to(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toObject()->slots(1));
+	return Value(args[0].toRange()->to);
 }
 
 Value next_range_step(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toObject()->slots(2));
+	return Value(args[0].toRange()->step);
 }
 
 Value next_range_iterate(const Value *args, int numargs) {
@@ -78,15 +78,19 @@ Value next_range_iterate(const Value *args, int numargs) {
 
 Value next_range_next(const Value *args, int numargs) {
 	(void)numargs;
-	Value *r    = args[0].toObject()->slots();
-	double from = r[0].toNumber();
-	double to   = r[1].toNumber();
-	double step = r[2].toNumber();
-	// next value
-	r[0].setNumber(from += step);
-	// has_next flag
-	r[3].setBoolean((from + step) < to);
+	Range *r = args[0].toRange();
+
+	int64_t from = r->from;
+	r->from += r->step;
+	r->hasNext = Value(r->from < r->to);
+
 	return Value(from);
+}
+
+Value &RangeHasNext(const Class *c, Value v, int field) {
+	(void)c;
+	(void)field;
+	return v.toRange()->hasNext;
 }
 
 void Range::init() {
@@ -95,7 +99,8 @@ void Range::init() {
 	RangeClass->init("range", Class::ClassType::BUILTIN);
 	RangeClass->numSlots = 4; // from, to, step, has_next
 	// create the has_next field
-	RangeClass->add_sym(SymbolTable2::insert("has_next"), Value(3));
+	RangeClass->add_sym(SymbolTable2::insert("has_next"), ValueTrue);
+	RangeClass->accessFn = RangeHasNext;
 	// methods
 	RangeClass->add_builtin_fn("(_)", 1, next_range_construct_1);
 	RangeClass->add_builtin_fn("(_,_)", 2, next_range_construct_2);

@@ -4,9 +4,16 @@
 #include "object.h"
 
 struct Range {
-	static Object *create(double to);
-	static Object *create(double from, double to);
-	static Object *create(double from, double to, double step);
+	GcObject obj;
+
+	int64_t from;
+	int64_t to;
+	int64_t step;
+	Value   hasNext;
+
+	static Range *create(int64_t to);
+	static Range *create(int64_t from, int64_t to);
+	static Range *create(int64_t from, int64_t to, int64_t step);
 
 	static void init();
 	void        mark() {}
