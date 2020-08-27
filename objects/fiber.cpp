@@ -285,7 +285,7 @@ void Fiber::init() {
 	 *  the yielding will happen with the 'yield' keyword.
 	 *
 	 *  for(i in [1, 2]) {
-	 *      yield i
+	 *      yield(i)
 	 *  }
 	 *
 	 *  iterating over a fiber is possible using standard for
@@ -299,7 +299,7 @@ void Fiber::init() {
 	 *  fn longRunningMethod() {
 	 *      i = 0
 	 *      while(i++ < 10) {
-	 *          yield i
+	 *          yield(i)
 	 *      }
 	 *  }
 	 *
