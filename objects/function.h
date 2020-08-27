@@ -36,7 +36,7 @@ struct Function {
 	// boundmethods. so we store it directly
 	// in the function.
 	int arity;
-	enum Type : uint8_t { METHOD = 0, BUILTIN = 1 } mode;
+	enum Type { METHOD = 0, BUILTIN = 1 } mode;
 	// cannest is specifies that this is builtin which
 	// may trigger a nested call to the engine, so that
 	// certain checks have to be performed before and after the
@@ -51,7 +51,7 @@ struct Function {
 	// fn test(a, b, ... extra) // arity -> 2
 	// fn test(... extra)       // arity -> 0
 
-	inline Function::Type getType() const { return (Type)mode; }
+	inline Function::Type getType() const { return mode; }
 
 	inline bool canNest() const { return cannest; }
 	inline bool isStatic() const { return static_; }
