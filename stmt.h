@@ -19,6 +19,7 @@ class VisibilityStatement;
 class ThrowStatement;
 class ReturnStatement;
 class ForStatement;
+class BreakStatement;
 
 class StatementVisitor {
   public:
@@ -38,6 +39,7 @@ class StatementVisitor {
 	virtual void visit(ThrowStatement *ifs)          = 0;
 	virtual void visit(ReturnStatement *ifs)         = 0;
 	virtual void visit(ForStatement *ifs)            = 0;
+	virtual void visit(BreakStatement *ifs)          = 0;
 };
 
 typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV, VIS_DEFAULT } Visibility;
@@ -60,7 +62,8 @@ class Statement {
 		VISIBILITY,
 		THROW,
 		RETURN,
-		FOR
+		FOR,
+		BREAK
 	};
 	Token token;
 	Type  type;
@@ -270,6 +273,12 @@ class ForStatement : public Statement {
 	void accept(StatementVisitor *vis) { vis->visit(this); }
 };
 
+class BreakStatement : public Statement {
+  public:
+	BreakStatement(Token t) : Statement(t, BREAK) {}
+	void accept(StatementVisitor *vis) { vis->visit(this); }
+};
+
 #ifdef DEBUG
 class StatementPrinter : public StatementVisitor {
   private:
@@ -299,5 +308,6 @@ class StatementPrinter : public StatementVisitor {
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);
+	void visit(BreakStatement *ifs);
 };
 #endif

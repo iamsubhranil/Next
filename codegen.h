@@ -75,6 +75,20 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// try markers
 	int tryBlockStart, tryBlockEnd;
 
+	// denotes if we are inside a loop
+	int inLoop;
+	// structure to denote a break statement.
+	struct Break {
+		size_t ip;
+		int    scope;
+	};
+	// the array of break statements pending patching
+	std::vector<Break> pendingBreaks;
+	// after a loop statement finishes, this method
+	// patches all break statements defined in scopes
+	// >= present scope.
+	void patchBreaks();
+
 	// Expression generator
 	void visit(ArrayLiteralExpression *as);
 	void visit(AssignExpression *as);
@@ -108,6 +122,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	void visit(ThrowStatement *ifs);
 	void visit(ReturnStatement *ifs);
 	void visit(ForStatement *ifs);
+	void visit(BreakStatement *ifs);
 
 	// generates necessary load/store instructions
 	// based on variableInfo

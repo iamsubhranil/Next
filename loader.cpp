@@ -89,6 +89,7 @@ void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
 	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
 	p->registerParselet(TOKEN_for, new ForStatementParselet());
+	p->registerParselet(TOKEN_break, new BreakStatementParselet());
 
 	// intraclass declarations
 	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());

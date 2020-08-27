@@ -214,4 +214,11 @@ void StatementPrinter::visit(ForStatement *ifs) {
 	os << ")";
 	ifs->body->accept(this);
 }
+
+void StatementPrinter::visit(BreakStatement *ifs) {
+	(void)ifs;
+	printTabs();
+	os << "break";
+}
+
 #endif

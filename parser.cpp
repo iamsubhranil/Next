@@ -462,6 +462,12 @@ StmtPtr ForStatementParselet::parse(Parser *p, Token t) {
 	StmtPtr body = p->parseBlock();
 	return unq(ForStatement, t, is_iterator, inits, cond, incrs, body);
 }
+
+StmtPtr BreakStatementParselet::parse(Parser *p, Token t) {
+	(void)p;
+	return unq(BreakStatement, t);
+}
+
 // Expressions
 
 ExpPtr NameParselet::parse(Parser *parser, Token t) {

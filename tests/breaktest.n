@@ -1,0 +1,35 @@
+pub fn test() {
+    i = 0
+    res = true
+    while(i++ < 10) {
+        if(i == 5) {
+            break
+        }
+    }
+    if(i != 5) {
+        println("Break is not working: expected i to be 5!")
+        res = false
+    }
+    for(j in range(6)) {
+        if(j == 3) {
+            i = 69
+            break
+        }
+        l = 0
+        for(k in range(9)) {
+            if(k == 7) {
+                l = 128
+                break
+            }
+        }
+        if(l != 128) {
+            println("Nested break not working: l should be 128")
+            res = false
+        }
+    }
+    if(i != 69) {
+        println("Nested break not working: i should be 69!")
+        res = false
+    }
+    ret res
+}

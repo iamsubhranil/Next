@@ -26,6 +26,7 @@ import vatest
 import tupletest
 import inheritance
 import settest
+import breaktest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -50,7 +51,8 @@ modules = {prepost: "Pre and post increment/decrements",
         vatest: "Variadic arguments",
         tupletest: "Tuple expressions",
         inheritance: "Inheritance",
-        settest: "Sets"}
+        settest: "Sets",
+        breaktest: "Break statements"}
 
 // find the maximum length
 len = 0

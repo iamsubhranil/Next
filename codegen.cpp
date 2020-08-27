@@ -37,6 +37,8 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	parentGenerator      = parent;
 	inThis               = false;
 	inSuper              = false;
+	inLoop               = 0;
+	pendingBreaks        = std::vector<Break>();
 
 	mtx     = NULL;
 	ctx     = NULL;
@@ -162,6 +164,14 @@ void CodeGenerator::loadPresentModule() {
 
 void CodeGenerator::loadCoreModule() {
 	btx->load_module_core();
+}
+
+void CodeGenerator::patchBreaks() {
+	while(pendingBreaks.size() > 0 && pendingBreaks.back().scope >= scopeID) {
+		Break b = pendingBreaks.back();
+		pendingBreaks.pop_back();
+		btx->jump(b.ip, btx->getip() - b.ip);
+	}
 }
 
 void CodeGenerator::visit(BinaryExpression *bin) {
@@ -1005,6 +1015,7 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
+	inLoop++;
 	if(!ifs->isDo) {
 		int pos = btx->getip();
 		ifs->condition->accept(this);
@@ -1020,6 +1031,12 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 		btx->insert_token(ifs->token);
 		btx->jumpiftrue(pos - btx->getip());
 	}
+	// manually increment the scope because of the blocks,
+	// and patch the breaks
+	scopeID++;
+	patchBreaks();
+	scopeID--;
+	inLoop--;
 }
 
 void CodeGenerator::visit(ReturnStatement *ifs) {
@@ -1045,6 +1062,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
+	inLoop++;
 	if(ifs->is_iterator) {
 		// iterators
 		// first, validate the in expression
@@ -1081,6 +1099,8 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			btx->jump(pos - btx->getip());
 			// patch the exit
 			btx->jumpiffalse(exit_, btx->getip() - exit_);
+			// patch pending breaks
+			patchBreaks();
 			// pop the scope
 			popScope();
 		}
@@ -1116,6 +1136,8 @@ void CodeGenerator::visit(ForStatement *ifs) {
 				btx->pop_();
 			}
 		}
+		// patch pending breaks
+		patchBreaks();
 		// come out to the parent scope
 		popScope();
 		// finally, jump back to the beginning
@@ -1124,6 +1146,20 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		if(patch_exit != -1) {
 			btx->jumpiffalse(patch_exit, btx->getip() - patch_exit);
 		}
+	}
+	inLoop--;
+}
+
+void CodeGenerator::visit(BreakStatement *ifs) {
+#ifdef DEBUG_CODEGEN
+	dinfo("");
+	ifs->token.highlight();
+#endif
+	if(inLoop == 0) {
+		lnerr_("Cannot use 'break' outside of a loop!", ifs->token);
+	} else {
+		size_t ip = btx->jump(0);
+		pendingBreaks.push_back((Break){ip, scopeID});
 	}
 }
 
