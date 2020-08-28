@@ -21,8 +21,8 @@ Value next_array_iterate(const Value *args, int numargs) {
 Value next_array_get(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(array, "[](_)", 1, Integer);
-	Array *a = args[0].toArray();
-	int64_t   i = args[1].toInteger();
+	Array * a = args[0].toArray();
+	int64_t i = args[1].toInteger();
 	if(i < 0) {
 		i += a->size;
 	}
@@ -38,8 +38,8 @@ Value next_array_get(const Value *args, int numargs) {
 Value next_array_set(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(array, "[](_,_)", 1, Integer);
-	Array *a = args[0].toArray();
-	int64_t   i = args[1].toInteger();
+	Array * a = args[0].toArray();
+	int64_t i = args[1].toInteger();
 	if(i < 0) {
 		i += a->size;
 	}
@@ -81,16 +81,16 @@ Value next_array_construct_size(const Value *args, int numargs) {
 
 Value next_array_str(const Value *args, int numargs) {
 	(void)numargs;
-	String *str = String::from("[");
+	String2 str = String::from("[");
 	Array * a   = args[0].toArray();
 	if(a->size > 0) {
-		String *s = String::toStringValue(a->values[0]);
+		String2 s = String::toStringValue(a->values[0]);
 		// if there was an error, return
 		if(s == nullptr)
 			return ValueNil;
 		str = String::append(str, s);
 		for(int i = 1; i < a->size; i++) {
-			String *s = String::toStringValue(a->values[i]);
+			String2 s = String::toStringValue(a->values[i]);
 			// if there was an error, return
 			if(s == nullptr)
 				return ValueNil;

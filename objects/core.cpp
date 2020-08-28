@@ -137,7 +137,7 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			break;
 		}
 		case ImportStatus::FOPEN_ERROR: {
-			String *s = Formatter::fmt("Unable to open '{}' for reading: ",
+			String2 s = Formatter::fmt("Unable to open '{}' for reading: ",
 			                           parts[highlight])
 			                .toString();
 			if(s == NULL)
@@ -199,7 +199,7 @@ Value next_core_import1(const Value *args, int arity) {
 		RERR("Builtin functions cannot call import(_)!");
 	}
 	// get the file name from the bytecodecontext
-	String *fname = String::from(fu->code->ctx->ranges_[0].token.fileName);
+	String2 fname = String::from(fu->code->ctx->ranges_[0].token.fileName);
 	return next_core_import_(fname, &args[1], arity - 1);
 }
 
@@ -224,7 +224,7 @@ Value next_core_import2(const Value *args, int numargs) {
 	if(imp->size == 0) {
 		IMPORTERR("Empty import string!");
 	}
-	Array *parts = Array::create(1);
+	Array2 parts = Array::create(1);
 	// insert the core as object to the array
 	parts->insert(args[0]);
 	const char *s    = imp->str();
@@ -262,7 +262,7 @@ Value next_core_import2(const Value *args, int numargs) {
 
 void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
                     bool isva = false, bool cannest = false) {
-	String *  s = String::from(n);
+	String2   s = String::from(n);
 	Function *f = Function::from(s, arity, fn, isva);
 	f->cannest  = cannest;
 	GcObject::CoreContext->add_public_fn(s, f);
@@ -288,7 +288,7 @@ void Core::addCoreFunctions() {
 }
 
 void addClocksPerSec() {
-	String *n = String::from("clocks_per_sec");
+	String2 n = String::from("clocks_per_sec");
 	GcObject::CoreContext->add_public_mem(n);
 	int s = GcObject::CoreContext->get_mem_slot(n);
 	GcObject::CoreContext->defaultConstructor->bcc->push(Value(CLOCKS_PER_SEC));

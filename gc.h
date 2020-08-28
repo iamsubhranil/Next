@@ -147,9 +147,42 @@ struct GcObject {
 	// returns a place holder gcobject
 	static GcObject DefaultGcObject;
 
+	// track temporary objects
+	static ValueSet *temporaryObjects;
+	static void      trackTemp(GcObject *o);
+	static void      untrackTemp(GcObject *o);
+
 	// debug information
 #ifdef DEBUG_GC
 	static size_t GcCounters[];
 	static void   print_stat();
 #endif
 };
+
+template <typename T> struct GcTempObject {
+  private:
+	T *obj;
+
+  public:
+	GcTempObject(T *o) : obj(o) { GcObject::trackTemp((GcObject *)obj); }
+
+	~GcTempObject() { GcObject::untrackTemp((GcObject *)obj); }
+
+	T *operator->() const { return obj; }
+
+	T &operator*() const { return *obj; }
+
+	GcTempObject<T> &operator=(T *o) {
+		GcObject::untrackTemp((GcObject *)obj);
+		obj = o;
+		GcObject::trackTemp((GcObject *)obj);
+		return *this;
+	}
+
+	operator T *() const { return obj; }
+
+	void *operator new(size_t s) = delete;
+};
+
+#define OBJTYPE(x) using x##2 = GcTempObject<x>;
+#include "objecttype.h"

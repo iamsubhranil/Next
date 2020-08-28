@@ -75,13 +75,13 @@ void Class::add_fn(const char *str, Function *f) {
 
 void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
                             bool isva, bool cannest) {
-	Function *f = Function::from(str, arity, fn, isva);
+	Function2 f = Function::from(str, arity, fn, isva);
 	f->cannest  = cannest;
 	add_fn(str, f);
 	if(isva) {
 		// sig contains the base signature, without
 		// the vararg. so get the base without ')'
-		String *base = String::from(str, strlen(str) - 1);
+		String2 base = String::from(str, strlen(str) - 1);
 		// now starting from 1 upto MAX_VARARG_COUNT, generate
 		// a signature and register
 		for(int i = 0; i < MAX_VARARG_COUNT; i++) {
@@ -133,7 +133,7 @@ bool Class::is_child_of(Class *parent) const {
 }
 
 Class *Class::copy() {
-	Class *s = GcObject::allocClass();
+	Class2 s = GcObject::allocClass();
 	s->name  = name;
 	s->type  = type;
 	// create a copy

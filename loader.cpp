@@ -132,7 +132,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
                                              String *modName, bool execute) {
 	CodeGenerator c(currentGenerator);
 	currentGenerator = &c;
-	String *fname    = String::from(fileName);
+	String2 fname    = String::from(fileName);
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -151,7 +151,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		}
 		cout << "Parsed successfully!" << endl;
 #endif
-		ClassCompilationContext *ctx =
+		ClassCompilationContext2 ctx =
 		    ClassCompilationContext::create(NULL, modName);
 		c.compile(ctx, decls);
 		currentGenerator = c.parentGenerator;

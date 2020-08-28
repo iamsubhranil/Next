@@ -32,7 +32,7 @@ Value next_string_at(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(string, "at(_)", 1, Integer);
 	String *s = args[0].toString();
-	int64_t    i = args[1].toInteger();
+	int64_t i = args[1].toInteger();
 	if(-i > s->size || i >= s->size) {
 		IDXERR("Invalid string index", -s->size, s->size - 1, i);
 	}
@@ -120,8 +120,8 @@ Value next_string_substr(const Value *args, int numargs) {
 	EXPECT(string, "substr(_,_)", 2, Integer);
 	// range can be [0, size - 1]
 	// arg2 must be greater than arg1
-	int64_t    from = args[1].toInteger();
-	int64_t    to   = args[2].toInteger();
+	int64_t from = args[1].toInteger();
+	int64_t to   = args[2].toInteger();
 	String *s    = args[0].toString();
 	if(to >= s->size) {
 		IDXERR("Invalid 'to' index", 0, s->size - 1, to);
@@ -279,7 +279,7 @@ int String::hash_string(const char *s, size_t size) {
 
 // val MUST be mallocated elsewhere
 String *String::insert(char *val, size_t size, int hash_) {
-	String *s = GcObject::allocString2(size);
+	String2 s = GcObject::allocString2(size);
 	memcpy(s->str(), val, size);
 	s->size  = size;
 	s->hash_ = hash_;
@@ -404,7 +404,7 @@ String *String::toString(Value v) {
 			if(!ExecutionEngine::execute(v, f, &v, true))
 				return nullptr;
 		} else {
-			String *s = append("<object of '", c->name);
+			String2 s = append("<object of '", c->name);
 			s         = append(s, "'>");
 			return s;
 		}
@@ -442,7 +442,7 @@ String *String::toStringValue(Value v) {
 			if(!ExecutionEngine::execute(v, f, &v, true))
 				return nullptr;
 		} else {
-			String *s = append("<object of '", c->name);
+			String2 s = append("<object of '", c->name);
 			s         = append(s, "'>");
 			return s;
 		}

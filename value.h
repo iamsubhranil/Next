@@ -65,12 +65,20 @@ struct Value {
 		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
 		          << " (Magic : " << QNAN_GcObject << ")\n"                    \
 		          << std::dec; */                                              \
+	}                                                                          \
+	Value(GcTempObject<r> &s) {                                                \
+		r *temp = s;                                                           \
+		encodeGcObject((GcObject *)temp);                                      \
 	}
 #else
 #define TYPE(r, n) \
 	Value(const r s) { encode##n(s); }
-#define OBJTYPE(r) \
-	Value(const r *s) { encodeGcObject((GcObject *)s); }
+#define OBJTYPE(r)                                       \
+	Value(const r *s) { encodeGcObject((GcObject *)s); } \
+	Value(GcTempObject<r> &s) {                          \
+		r *temp = s;                                     \
+		encodeGcObject((GcObject *)temp);                \
+	}
 #endif
 #include "objecttype.h"
 #include "valuetypes.h"
@@ -102,7 +110,7 @@ struct Value {
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
 	inline double   toNumber() const { return dvalue; }
-	inline int64_t     toInteger() const { return (int64_t)toNumber(); }
+	inline int64_t  toInteger() const { return (int64_t)toNumber(); }
 	inline uint64_t toBits() const { return value; }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }

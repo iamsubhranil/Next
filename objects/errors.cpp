@@ -3,9 +3,9 @@
 #include "../format.h"
 #include "function.h"
 
-TypeError *TypeError::create(String *o, String *m, String *e, Value r,
+TypeError *TypeError::create(String2 o, String2 m, String2 e, Value r,
                              int arg) {
-	TypeError *t = GcObject::allocTypeError();
+	TypeError2 t = GcObject::allocTypeError();
 	t->message =
 	    Formatter::fmt("Expected argument {} of {}.{} to be {}, Received '{}'!",
 	                   Value(arg), o, m, e, r)
@@ -37,7 +37,7 @@ void TypeError::init() {
 	TypeErrorClass->derive(GcObject::ErrorClass);
 }
 
-RuntimeError *RuntimeError::create(String *m) {
+RuntimeError *RuntimeError::create(String2 m) {
 	RuntimeError *re = GcObject::allocRuntimeError();
 	re->message      = m;
 	return re;
@@ -72,8 +72,8 @@ void RuntimeError::init() {
 	RuntimeErrorClass->add_builtin_fn("(_)", 1, next_runtimeerror_construct_1);
 }
 
-IndexError *IndexError::create(String *m, int64_t l, int64_t h, int64_t r) {
-	IndexError *ie = GcObject::allocIndexError();
+IndexError *IndexError::create(String2 m, int64_t l, int64_t h, int64_t r) {
+	IndexError2 ie = GcObject::allocIndexError();
 	ie->message = Formatter::fmt("{} (expected {} <= index <= {}, received {})",
 	                             Value(m), l, h, r)
 	                  .toString();
@@ -102,7 +102,7 @@ void IndexError::init() {
 	IndexErrorClass->derive(GcObject::ErrorClass);
 }
 
-FormatError *FormatError::create(String *m) {
+FormatError *FormatError::create(String2 m) {
 	FormatError *re = GcObject::allocFormatError();
 	re->message     = m;
 	return re;
@@ -137,7 +137,7 @@ void FormatError::init() {
 	FormatErrorClass->add_builtin_fn("(_)", 1, next_formaterror_construct_1);
 }
 
-ImportError *ImportError::create(String *m) {
+ImportError *ImportError::create(String2 m) {
 	ImportError *re = GcObject::allocImportError();
 	re->message     = m;
 	return re;
@@ -172,7 +172,7 @@ void ImportError::init() {
 	ImportErrorClass->add_builtin_fn("(_)", 1, next_importerror_construct_1);
 }
 
-Error *Error::create(String *m) {
+Error *Error::create(String2 m) {
 	Error *re   = GcObject::allocError();
 	re->message = m;
 	return re;
@@ -205,7 +205,7 @@ Value next_error_construct_1(const Value *args, int numargs) {
 }
 
 Function *ErrorObjectClassConstructor(Class *c) {
-	Function *f = Function::create(String::from("new"), 1);
+	Function2 f = Function::create(String::from("new"), 1);
 	f->code     = Bytecode::create();
 	// new(x) { message = x }
 	f->code->insertSlot(); // this
@@ -220,7 +220,7 @@ Function *ErrorObjectClassConstructor(Class *c) {
 }
 
 Function *ErrorObjectClassStr() {
-	Function *f = Function::create(String::from("str"), 0);
+	Function2 f = Function::create(String::from("str"), 0);
 	f->code     = Bytecode::create();
 	// str() { ret message }
 	f->code->insertSlot(); // this

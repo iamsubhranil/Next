@@ -3,7 +3,7 @@
 #include "class.h"
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
-	BytecodeCompilationContext *bcc =
+	BytecodeCompilationContext2 bcc =
 	    GcObject::allocBytecodeCompilationContext();
 	bcc->code              = Bytecode::create();
 	bcc->code->ctx         = bcc;

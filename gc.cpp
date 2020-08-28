@@ -46,10 +46,11 @@ static size_t counterCounter = 0;
 #endif
 #define OBJTYPE(n) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
-Class *GcObject::NumberClass      = nullptr;
-Class *GcObject::BooleanClass     = nullptr;
-Class *GcObject::ErrorObjectClass = nullptr;
-Class *GcObject::CoreModule       = nullptr;
+Class *   GcObject::NumberClass      = nullptr;
+Class *   GcObject::BooleanClass     = nullptr;
+Class *   GcObject::ErrorObjectClass = nullptr;
+Class *   GcObject::CoreModule       = nullptr;
+ValueSet *GcObject::temporaryObjects = nullptr;
 
 ClassCompilationContext *GcObject::CoreContext = nullptr;
 // when enabled, the garbage collector allocates
@@ -158,6 +159,10 @@ void GcObject::gc(bool force) {
 #endif
 		SymbolTable2::mark();
 #ifdef DEBUG_GC
+		std::cout << "[GC] Marking temporary objects..\n";
+#endif
+		mark(temporaryObjects);
+#ifdef DEBUG_GC
 		std::cout << "[GC] Sweeping..\n";
 #endif
 		sweep();
@@ -187,6 +192,20 @@ void GcObject::setNextGC(size_t v) {
 
 void GcObject::setMaxGC(size_t v) {
 	max_gc = v;
+}
+
+void GcObject::trackTemp(GcObject *g) {
+#ifdef DEBUG
+	// std::cout << "[GC] Tracking " << g << "..\n";
+#endif
+	temporaryObjects->hset.insert(g);
+}
+
+void GcObject::untrackTemp(GcObject *g) {
+#ifdef DEBUG
+	// std::cout << "[GC] Untracking " << g << "..\n";
+#endif
+	temporaryObjects->hset.erase(g);
 }
 
 void GcObject::tracker_init() {
@@ -392,6 +411,13 @@ void GcObject::init() {
 	NumberClass      = GcObject::allocClass();
 	BooleanClass     = GcObject::allocClass();
 	ErrorObjectClass = GcObject::allocClass();
+
+	// initialize the temporary tracker
+	// allocate it manually, ValueSet::create
+	// itself uses temporary objects
+	temporaryObjects = GcObject::allocValueSet();
+	::new(&temporaryObjects->hset) ValueSet::ValueSetType();
+
 	// initialize the string set and symbol table
 	String::init0();
 	SymbolTable2::init();

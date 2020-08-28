@@ -15,7 +15,7 @@ int SymbolTable2::insert(const char *str) {
 	return insert(String::from(str));
 }
 
-int SymbolTable2::insert(const String *str) {
+int SymbolTable2::insert(const String2 str) {
 	Value s = Value(str);
 	for(int i = 0; i < counter; i++) {
 		if(symbols[0][i] == s)

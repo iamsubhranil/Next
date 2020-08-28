@@ -64,11 +64,11 @@ struct Function {
 	Exception *create_exception_block(int from, int to);
 
 	static void      init();
-	static Function *create(String *name, int arity, bool isva = false,
+	static Function *create(String2 name, int arity, bool isva = false,
 	                        bool isStatic = false);
 	static Function *from(const char *str, int arity, next_builtin_fn fn,
 	                      bool isva = false, bool isStatic = false);
-	static Function *from(String *str, int arity, next_builtin_fn fn,
+	static Function *from(String2 str, int arity, next_builtin_fn fn,
 	                      bool isva = false, bool isStatic = false);
 
 	// creates a copy of the function to use in the subclass.

@@ -6,7 +6,7 @@
 
 ClassCompilationContext *
 ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
-	ClassCompilationContext *ctx = GcObject::allocClassCompilationContext();
+	ClassCompilationContext2 ctx = GcObject::allocClassCompilationContext();
 	ctx->klass                   = GcObject::allocClass();
 	ctx->members = (MemberMap *)GcObject_malloc(sizeof(MemberMap));
 	::new(ctx->members) MemberMap();
@@ -183,7 +183,7 @@ bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
 	if(f->isVarArg()) {
 		// sig contains the base signature, without
 		// the vararg. so get the base without ')'
-		String *base = String::from(sig->str(), sig->size - 1);
+		String2 base = String::from(sig->str(), sig->size - 1);
 		// now starting from 1 upto MAX_VARARG_COUNT, generate
 		// a signature and register
 		for(int i = 0; i < MAX_VARARG_COUNT; i++) {

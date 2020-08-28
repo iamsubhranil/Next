@@ -48,7 +48,7 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 }
 
 Class *CodeGenerator::compile(String *name, const vector<StmtPtr> &stmts) {
-	ClassCompilationContext *ctx = ClassCompilationContext::create(NULL, name);
+	ClassCompilationContext2 ctx = ClassCompilationContext::create(NULL, name);
 	compile(ctx, stmts);
 	return ctx->get_class();
 }
@@ -301,8 +301,8 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	call->callee->token.highlight();
 #endif
 	int     argSize   = call->arguments.size();
-	String *signature = generateSignature(call->callee->token, argSize);
-	String *name =
+	String2 signature = generateSignature(call->callee->token, argSize);
+	String2 name =
 	    String::from(call->callee->token.start, call->callee->token.length);
 
 	// 0 denotes no super or this call
@@ -1164,7 +1164,7 @@ void CodeGenerator::visit(BreakStatement *ifs) {
 }
 
 String *CodeGenerator::generateSignature(int arity) {
-	String *sig = String::from("(", 1);
+	String2 sig = String::from("(", 1);
 	if(arity > 0) {
 		sig = String::append(sig, "_");
 		while(--arity) {
@@ -1176,7 +1176,7 @@ String *CodeGenerator::generateSignature(int arity) {
 }
 
 String *CodeGenerator::generateSignature(const String *name, int arity) {
-	String *sig = generateSignature(arity);
+	String2 sig = generateSignature(arity);
 	if(name) {
 		sig = String::append(name, sig);
 		if(inSuper) {
@@ -1242,7 +1242,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 				       ifs->name);
 			}
 		}
-		FunctionCompilationContext *fctx = FunctionCompilationContext::create(
+		FunctionCompilationContext2 fctx = FunctionCompilationContext::create(
 		    String::from(ifs->name.start, ifs->name.length), ifs->arity,
 		    ifs->isStatic, ifs->body->isva);
 		Visibility consider = currentVisibility;
@@ -1352,7 +1352,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	String *className = String::from(ifs->name.start, ifs->name.length);
+	String2 className = String::from(ifs->name.start, ifs->name.length);
 	if(getState() == COMPILE_DECLARATION) {
 		if(mtx->has_class(className)) {
 			lnerr_("Class '%s' is already declared in mtx '%s'!", ifs->name,
@@ -1362,7 +1362,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 			// mtx->classes[className]->token);
 			// mtx->classes[className]->token.highlight();
 		}
-		ClassCompilationContext *c =
+		ClassCompilationContext2 c =
 		    ClassCompilationContext::create(mtx, className);
 		c->isDerived = ifs->isDerived;
 		switch(ifs->vis) {

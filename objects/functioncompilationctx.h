@@ -26,7 +26,7 @@ struct FunctionCompilationContext {
 	Function *                  get_fn();
 
 	static FunctionCompilationContext *
-	create(String *name, int arity, bool isStatic = false, bool isva = false);
+	create(String2 name, int arity, bool isStatic = false, bool isva = false);
 
 	static void init();
 

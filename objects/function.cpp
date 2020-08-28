@@ -2,7 +2,7 @@
 #include "class.h"
 #include <ostream>
 
-Function *Function::from(String *str, int arity, next_builtin_fn fn, bool isva,
+Function *Function::from(String2 str, int arity, next_builtin_fn fn, bool isva,
                          bool isStatic) {
 	Function *f = create(str, arity, isva, isStatic);
 	f->mode     = Function::Type::BUILTIN;
@@ -15,8 +15,8 @@ Function *Function::from(const char *str, int arity, next_builtin_fn fn,
 	return from(String::from(str), arity, fn, isva, isStatic);
 }
 
-Function *Function::create(String *str, int arity, bool isva, bool isStatic) {
-	Function *f      = GcObject::allocFunction();
+Function *Function::create(String2 str, int arity, bool isva, bool isStatic) {
+	Function2 f      = GcObject::allocFunction();
 	f->name          = str;
 	f->code          = NULL;
 	f->mode          = METHOD;

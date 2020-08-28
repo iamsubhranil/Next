@@ -36,9 +36,9 @@ Value next_tuple_iterate(const Value *args, int numargs) {
 Value next_tuple_get(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(tuple, "[](_)", 1, Integer);
-	int64_t   idx           = args[1].toInteger();
-	int64_t   effective_idx = idx;
-	Tuple *t             = args[0].toTuple();
+	int64_t idx           = args[1].toInteger();
+	int64_t effective_idx = idx;
+	Tuple * t             = args[0].toTuple();
 	if(idx < 0) {
 		effective_idx += t->size;
 	}
@@ -55,9 +55,9 @@ Value next_tuple_get(const Value *args, int numargs) {
 Value next_tuple_set(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(tuple, "[](_,_)", 1, Integer);
-	int64_t   idx           = args[1].toInteger();
-	int64_t   effective_idx = idx;
-	Tuple *t             = args[0].toTuple();
+	int64_t idx           = args[1].toInteger();
+	int64_t effective_idx = idx;
+	Tuple * t             = args[0].toTuple();
 	if(idx < 0) {
 		effective_idx += t->size;
 	}
@@ -73,16 +73,16 @@ Value next_tuple_set(const Value *args, int numargs) {
 
 Value next_tuple_str(const Value *args, int numargs) {
 	(void)numargs;
-	String *str = String::from("(");
+	String2 str = String::from("(");
 	Tuple * a   = args[0].toTuple();
 	if(a->size > 0) {
-		String *s = String::toStringValue(a->values()[0]);
+		String2 s = String::toStringValue(a->values()[0]);
 		// if there was an error, return
 		if(s == nullptr)
 			return ValueNil;
 		str = String::append(str, s);
 		for(int i = 1; i < a->size; i++) {
-			String *s = String::toStringValue(a->values()[i]);
+			String2 s = String::toStringValue(a->values()[i]);
 			// if there was an error, return
 			if(s == nullptr)
 				return ValueNil;

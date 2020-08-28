@@ -8,7 +8,7 @@ struct SymbolTable2 {
 
 	static void init();
 	static int  insert(const char *str);
-	static int  insert(const String *str);
+	static int  insert(const String2 str);
 
 	static const char *get(int id);
 	static String *    getString(int id);

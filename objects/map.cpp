@@ -26,7 +26,7 @@ Value next_map_iterate(const Value *args, int numargs) {
 Value next_map_keys(const Value *args, int numargs) {
 	(void)numargs;
 	ValueMap *m = args[0].toValueMap();
-	Array *   a = Array::create(m->vv.size());
+	Array2    a = Array::create(m->vv.size());
 	a->size     = m->vv.size();
 	size_t i    = 0;
 	for(auto kv : m->vv) {
@@ -52,7 +52,7 @@ Value next_map_remove(const Value *args, int numargs) {
 Value next_map_values(const Value *args, int numargs) {
 	(void)numargs;
 	ValueMap *m = args[0].toValueMap();
-	Array *   a = Array::create(m->vv.size());
+	Array2    a = Array::create(m->vv.size());
 	a->size     = m->vv.size();
 	size_t i    = 0;
 	for(auto kv : m->vv) {
@@ -82,16 +82,16 @@ Value next_map_set(const Value *args, int numargs) {
 
 Value next_map_str(const Value *args, int numargs) {
 	(void)numargs;
-	String *  str = String::from("{");
+	String2   str = String::from("{");
 	ValueMap *a   = args[0].toValueMap();
 	if(a->vv.size() > 0) {
 		auto    v = a->vv.begin();
-		String *s = String::toStringValue(v->first);
+		String2 s = String::toStringValue(v->first);
 		// if there was an error, return
 		if(s == nullptr)
 			return ValueNil;
 		s         = String::append(s, ": ");
-		String *t = String::toStringValue(v->second);
+		String2 t = String::toStringValue(v->second);
 		// if there was an error, return
 		if(t == nullptr)
 			return ValueNil;
@@ -99,12 +99,12 @@ Value next_map_str(const Value *args, int numargs) {
 		str = String::append(str, s);
 		v   = std::next(v);
 		for(auto e = a->vv.end(); v != e; v = std::next(v)) {
-			String *s = String::toStringValue(v->first);
+			String2 s = String::toStringValue(v->first);
 			// if there was an error, return
 			if(s == nullptr)
 				return ValueNil;
 			s         = String::append(s, ": ");
-			String *t = String::toStringValue(v->second);
+			String2 t = String::toStringValue(v->second);
 			// if there was an error, return
 			if(t == nullptr)
 				return ValueNil;
@@ -143,13 +143,13 @@ void ValueMap::init() {
 }
 
 ValueMap *ValueMap::create() {
-	ValueMap *vvm = GcObject::allocValueMap();
+	ValueMap2 vvm = GcObject::allocValueMap();
 	::new(&vvm->vv) ValueMapType();
 	return vvm;
 }
 
 ValueMap *ValueMap::from(const Value *args, int numArg) {
-	ValueMap *vm = create();
+	ValueMap2 vm = create();
 	for(int i = 0; i < numArg * 2; i += 2) {
 		Value key   = args[i];
 		Value value = args[i + 1];

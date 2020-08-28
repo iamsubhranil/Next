@@ -4,7 +4,7 @@
 #include "set_iterator.h"
 
 ValueSet *ValueSet::create() {
-	ValueSet *v = GcObject::allocValueSet();
+	ValueSet2 v = GcObject::allocValueSet();
 	::new(&v->hset) ValueSetType();
 	return v;
 }
@@ -44,18 +44,18 @@ Value next_set_size(const Value *args, int numargs) {
 
 Value next_set_str(const Value *args, int numargs) {
 	(void)numargs;
-	String *  str = String::from("{");
+	String2   str = String::from("{");
 	ValueSet *a   = args[0].toValueSet();
 	if(a->hset.size() > 0) {
 		auto    v = a->hset.begin();
-		String *s = String::toStringValue(*v);
+		String2 s = String::toStringValue(*v);
 		// if there was an error, return
 		if(s == nullptr)
 			return ValueNil;
 		str = String::append(str, s);
 		v   = std::next(v);
 		for(auto e = a->hset.end(); v != e; v = std::next(v)) {
-			String *s = String::toStringValue(*v);
+			String2 s = String::toStringValue(*v);
 			// if there was an error, return
 			if(s == nullptr)
 				return ValueNil;
@@ -78,7 +78,7 @@ Value next_set_remove(const Value *args, int numargs) {
 Value next_set_values(const Value *args, int numargs) {
 	(void)numargs;
 	ValueSet *vs = args[0].toValueSet();
-	Array *   a  = Array::create(vs->hset.size());
+	Array2    a  = Array::create(vs->hset.size());
 	for(auto &v : vs->hset) {
 		a->insert(v);
 	}
