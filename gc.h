@@ -163,25 +163,51 @@ template <typename T> struct GcTempObject {
   private:
 	T *obj;
 
-  public:
-	GcTempObject(T *o) : obj(o) { GcObject::trackTemp((GcObject *)obj); }
+	void track() {
+		if(obj)
+			GcObject::trackTemp((GcObject *)obj);
+	}
 
-	~GcTempObject() { GcObject::untrackTemp((GcObject *)obj); }
+	void untrack() {
+		if(obj)
+			GcObject::untrackTemp((GcObject *)obj);
+	}
+
+  public:
+	GcTempObject(T *o) : obj(o) { track(); }
+
+	~GcTempObject() { untrack(); }
 
 	T *operator->() const { return obj; }
 
 	T &operator*() const { return *obj; }
 
 	GcTempObject<T> &operator=(T *o) {
-		GcObject::untrackTemp((GcObject *)obj);
+		untrack();
 		obj = o;
-		GcObject::trackTemp((GcObject *)obj);
+		track();
 		return *this;
 	}
 
 	operator T *() const { return obj; }
 
 	void *operator new(size_t s) = delete;
+	// disallow copy construct and copy assign
+	GcTempObject(GcTempObject<T> &o) = delete;
+	GcTempObject<T> &operator=(const GcTempObject<T> &o) = delete;
+	// allow move construct and move assign
+	GcTempObject(GcTempObject<T> &&o) {
+		obj   = o.obj;
+		o.obj = nullptr;
+		track();
+	}
+
+	GcTempObject<T> &operator=(GcTempObject<T> &&o) {
+		untrack();
+		obj   = o.obj; // it is already being tracked
+		o.obj = nullptr;
+		return *this;
+	}
 };
 
 #define OBJTYPE(x) using x##2 = GcTempObject<x>;

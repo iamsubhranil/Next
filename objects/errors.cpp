@@ -8,7 +8,7 @@ TypeError *TypeError::create(String2 o, String2 m, String2 e, Value r,
 	TypeError2 t = GcObject::allocTypeError();
 	t->message =
 	    Formatter::fmt("Expected argument {} of {}.{} to be {}, Received '{}'!",
-	                   Value(arg), o, m, e, r)
+	                   Value(arg), Value(o), Value(m), Value(e), r)
 	        .toString();
 	return t;
 }
