@@ -1413,63 +1413,30 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_IMPORTS) {
-		Token        last = *(ifs->import.end() - 1);
-		ImportStatus is   = Importer::import(ifs->import);
-		Token        t =
-		    ifs->import[is.toHighlight ? is.toHighlight - 1 : is.toHighlight];
-		switch(is.res) {
-			case ImportStatus::BAD_IMPORT: {
-				lnerr_("Folder does not exist or is not accessible!", t);
-				break;
-			}
-			case ImportStatus::FOLDER_IMPORT: {
-				lnerr_("Importing a folder is not supported!", t);
-				break;
-			}
-			case ImportStatus::FILE_NOT_FOUND: {
-				lnerr_("No such mtx found in the given folder!", t);
-				break;
-			}
-			case ImportStatus::PARTIAL_IMPORT:
-			case ImportStatus::IMPORT_SUCCESS: {
-				GcObject *m = Loader::compile_and_load(is.fileName, true);
-				if(m == NULL) {
-					// compilation of the mtx failed
-					lnerr_("Compilation of imported module failed!", t);
-					break;
-				}
-				// The name of the imported mtx for the
-				// importee mtx would be the last part
-				// of the import statement
-				// i.e.:    import sys.io
-				// Registered mtx name : io
-				// Warn if a variable name shadows the imported
-				// mtx
-				// Also, if the import is a success, we know
-				// the returned value is the instance of the
-				// module
-				variableInfo = lookForVariable(last, true);
-				btx->push(Value(m));
-				// if it is a partial import, load the rest
-				// of the parts
-				if(is.res == ImportStatus::PARTIAL_IMPORT) {
-					size_t h = is.toHighlight;
-					// perform load_field on rest of the parts
-					while(h < ifs->import.size()) {
-						String *f   = String::from(ifs->import[h].start,
-                                                 ifs->import[h].length);
-						int     sym = SymbolTable2::insert(f);
-						btx->load_field(sym);
-						h++;
-					}
-				}
-				// store the result to the declared slot
-				storeVariable(variableInfo);
-				btx->pop_();
-
-				break;
-			}
+		btx->insert_token(ifs->token);
+		// load the core module
+		loadCoreModule();
+		// make each part a string and push to the stack
+		for(auto &i : ifs->import) {
+			btx->push(Value(String::from(i.start, i.length)));
 		}
+		// make a call to ' import(_)'
+		btx->call(SymbolTable2::insert(" import(_)"), ifs->import.size());
+		Token last = *(ifs->import.end() - 1);
+		// The name of the imported module for the
+		// importee module would be the last part
+		// of the import statement
+		// i.e.:    import sys.io
+		// Registered module name : io
+		// Warn if a variable name shadows the imported
+		// module
+		// Also, if the import is a success, we know
+		// the returned value is the instance of the
+		// module
+		variableInfo = lookForVariable(last, true);
+		// store the result to the declared slot
+		storeVariable(variableInfo);
+		btx->pop_();
 	}
 }
 

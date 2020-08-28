@@ -125,7 +125,7 @@ Value FormatError::sete(const char *m) {
 
 Value next_formaterror_construct_1(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(index_error, "(_)", 1, String);
+	EXPECT(format_error, "(_)", 1, String);
 	return FormatError::create(args[1].toString());
 }
 
@@ -135,6 +135,41 @@ void FormatError::init() {
 	FormatErrorClass->init("format_error", Class::ClassType::BUILTIN);
 	FormatErrorClass->derive(GcObject::ErrorClass);
 	FormatErrorClass->add_builtin_fn("(_)", 1, next_formaterror_construct_1);
+}
+
+ImportError *ImportError::create(String *m) {
+	ImportError *re = GcObject::allocImportError();
+	re->message     = m;
+	return re;
+}
+
+Value ImportError::sete(String *m) {
+	ExecutionEngine::setPendingException(create(m));
+	return ValueNil;
+}
+
+#ifdef DEBUG_GC
+const char *ImportError::gc_repr() {
+	return message->str();
+}
+#endif
+
+Value ImportError::sete(const char *m) {
+	return sete(String::from(m));
+}
+
+Value next_importerror_construct_1(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(import_error, "(_)", 1, String);
+	return ImportError::create(args[1].toString());
+}
+
+void ImportError::init() {
+	Class *ImportErrorClass = GcObject::ImportErrorClass;
+
+	ImportErrorClass->init("import_error", Class::ClassType::BUILTIN);
+	ImportErrorClass->derive(GcObject::ErrorClass);
+	ImportErrorClass->add_builtin_fn("(_)", 1, next_importerror_construct_1);
 }
 
 Error *Error::create(String *m) {

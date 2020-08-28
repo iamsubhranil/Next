@@ -17,8 +17,8 @@
 #include <iomanip>
 #endif
 
-char                       ExecutionEngine::ExceptionMessage[1024] = {0};
-HashMap<String *, Class *> ExecutionEngine::loadedModules =
+char                          ExecutionEngine::ExceptionMessage[1024] = {0};
+HashMap<String *, GcObject *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
 Array * ExecutionEngine::pendingExceptions     = nullptr;
 Array * ExecutionEngine::pendingFibers         = nullptr;
@@ -51,15 +51,17 @@ bool ExecutionEngine::isModuleRegistered(String *name) {
 	return loadedModules.contains(name);
 }
 
-Class *ExecutionEngine::getRegisteredModule(String *name) {
+GcObject *ExecutionEngine::getRegisteredModule(String *name) {
 	return loadedModules[name];
 }
 
-void ExecutionEngine::registerModule(Class *m) {
-	if(loadedModules.contains(m->name)) {
-		warn("Module already loaded : '%s'!", m->name->str());
+bool ExecutionEngine::registerModule(String *name, Function *toplevel,
+                                     Value *instance) {
+	if(execute(ValueNil, toplevel, instance, true)) {
+		loadedModules[name] = instance->toGcObject();
+		return true;
 	}
-	loadedModules[m->name] = m;
+	return false;
 }
 
 // using Bytecode::Opcodes

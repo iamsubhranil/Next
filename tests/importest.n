@@ -34,5 +34,42 @@ pub fn test() {
         res = false
     }
 
+    try {
+        s = import_file("a")
+        println("[Error] Expected error on invalid import 'a'!")
+        res = false
+    } catch(import_error ie) {}
+
+
+    try {
+        s = import_file("it@12")
+        println("[Error] Expected error on invalid import string 'it@12'!")
+        res = false
+    } catch(import_error ie) {}
+
+    try {
+        s = import_file("it..")
+        println("[Error] Expected error on invalid import string 'it..'!")
+        res = false
+    } catch(import_error ie) {}
+
+    try {
+        s = import_file("it.testmodule.w")
+        println("[Error] Expected error on invalid import 'it.testmodule.w'!")
+        res = false
+    } catch(import_error ie) {}
+
+    // import testmodule once more
+    tm = import_file("it.testmodule")
+    if(tm.var != 9) {
+        println("[Error] Expected tm.var to be 9 on dynamic import!")
+        res = false
+    }
+    tm.var = 1
+    if(testmodule.var != 1) {
+        println("[Error] Expected testmodule.var to be 1!")
+        res = false
+    }
+
     ret res
 }

@@ -1,12 +1,15 @@
 #include "core.h"
 #include "../engine.h"
 #include "../format.h"
+#include "../import.h"
+#include "../loader.h"
 #include "buffer.h"
 #include "bytecodecompilationctx.h"
 #include "classcompilationctx.h"
 #include "errors.h"
 #include "fiber.h"
 #include "functioncompilationctx.h"
+#include "symtab.h"
 #include <iostream>
 #include <time.h>
 
@@ -99,6 +102,164 @@ Value next_core_input1(const Value *args, int numargs) {
 	return next_core_input0(args, numargs);
 }
 
+Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
+	ImportStatus is        = Importer::import(currentPath, parts, numparts);
+	int          highlight = is.toHighlight;
+	switch(is.res) {
+		case ImportStatus::BAD_IMPORT: {
+			String *s = Formatter::fmt(
+			                "Folder '{}' does not exist or is not accessible!",
+			                parts[highlight])
+			                .toString();
+			if(s == NULL)
+				return ValueNil;
+			IMPORTERR(s);
+			break;
+		}
+		case ImportStatus::FOLDER_IMPORT: {
+			String *s =
+			    Formatter::fmt("Importing folder '{}' is not supported!",
+			                   parts[highlight])
+			        .toString();
+			if(s == NULL)
+				return ValueNil;
+			IMPORTERR(s);
+			break;
+		}
+		case ImportStatus::FILE_NOT_FOUND: {
+			String *s =
+			    Formatter::fmt("No such module '{}' found in the given folder!",
+			                   parts[highlight])
+			        .toString();
+			if(s == NULL)
+				return ValueNil;
+			IMPORTERR(s);
+			break;
+		}
+		case ImportStatus::FOPEN_ERROR: {
+			String *s = Formatter::fmt("Unable to open '{}' for reading: ",
+			                           parts[highlight])
+			                .toString();
+			if(s == NULL)
+				return ValueNil;
+			// is.filename contains the strerror message
+			IMPORTERR(String::append(s, is.fileName));
+			break;
+		}
+		case ImportStatus::PARTIAL_IMPORT:
+		case ImportStatus::IMPORT_SUCCESS: {
+			GcObject *m = Loader::compile_and_load(is.fileName, true);
+			if(m == NULL) {
+				// compilation of the module failed
+				IMPORTERR("Compilation of imported module failed!");
+				break;
+			}
+			// if it is a partial import, load the rest
+			// of the parts
+			if(is.res == ImportStatus::PARTIAL_IMPORT) {
+				int   h   = is.toHighlight;
+				Value mod = Value(m);
+				// perform load_field on rest of the parts
+				while(h < numparts) {
+					if(mod.getClass()->has_fn(parts[h].toString())) {
+						mod = mod.getClass()->accessFn(
+						    mod.getClass(), mod,
+						    SymbolTable2::insert(parts[h].toString()));
+					} else {
+						String *s =
+						    Formatter::fmt("Unable to import '{}' from '{}'!",
+						                   parts[h], parts[h - 1])
+						        .toString();
+						if(s == NULL)
+							return ValueNil;
+						IMPORTERR(s);
+					}
+					h++;
+				}
+				return mod;
+			}
+			return m;
+		}
+	}
+	return ValueNil;
+}
+
+Value next_core_import1(const Value *args, int arity) {
+	// since this function cannot directly be called
+	// by any function from next, we don't need to verify
+	// here
+	/*
+	for(int i = 1; i < arity; i++) {
+	    EXPECT(core, "import(_,...)", i, String);
+	}*/
+	// get the file name
+	Fiber *   f  = ExecutionEngine::getCurrentFiber();
+	Function *fu = f->callFrames[f->callFramePointer - 1].f;
+	if(fu->getType() == Function::Type::BUILTIN) {
+		RERR("Builtin functions cannot call import(_)!");
+	}
+	// get the file name from the bytecodecontext
+	String *fname = String::from(fu->code->ctx->ranges_[0].token.fileName);
+	return next_core_import_(fname, &args[1], arity - 1);
+}
+
+bool isAlpha(char c) {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_');
+}
+
+bool isDigit(char c) {
+	return (c >= '0' && c <= '9');
+}
+
+bool isAlphaNumeric(char c) {
+	return isAlpha(c) || isDigit(c);
+}
+
+Value next_core_import2(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(core, "import_file(_)", 1, String);
+	// now we verify whether the import string followes
+	// the grammar
+	String *imp = args[1].toString();
+	if(imp->size == 0) {
+		IMPORTERR("Empty import string!");
+	}
+	Array *parts = Array::create(1);
+	// insert the core as object to the array
+	parts->insert(args[0]);
+	const char *s    = imp->str();
+	int         size = imp->size;
+	for(int i = 0; i < size; i++) {
+		// the first character must be an alphabet
+		if(!isAlpha(s[i])) {
+			IMPORTERR("Part of an import string must start with a valid "
+			          "alphabet or '_'!");
+		}
+		int j = i++;
+		while(i < size && s[i] != '.') {
+			if(!isAlphaNumeric(s[i])) {
+				IMPORTERR("Import string contains invalid character!");
+			}
+			i++;
+		}
+		// create a part, and insert
+		String *part = String::from(&s[j], i - j);
+		parts->insert(part);
+		// if we're at the end, we're good
+		if(i == size)
+			break;
+		// if we stumbled upon a '.', there must
+		// be some more part to it
+		else if(s[i] == '.') {
+			if(i == size - 1) {
+				IMPORTERR("Unexpected end of import string!");
+			}
+		}
+	}
+	// now finally, perform the import
+	return next_core_import1(parts->values, parts->size);
+}
+
 void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
                     bool isva = false, bool cannest = false) {
 	String *  s = String::from(n);
@@ -116,7 +277,10 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("gc()", 0, next_core_gc);
 	add_builtin_fn("input()", 0, next_core_input0);
 	add_builtin_fn("input(_)", 1, next_core_input1, false, true); // can nest
-
+	add_builtin_fn(" import(_)", 1, next_core_import1, true,
+	               true); // is va, can nest
+	add_builtin_fn("import_file(_)", 1, next_core_import2, false,
+	               true); // can nest
 	// all of these can nest
 	add_builtin_fn("print()", 0, next_core_print, true, true);
 	add_builtin_fn("println()", 0, next_core_println, true, true);

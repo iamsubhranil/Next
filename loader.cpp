@@ -132,14 +132,13 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
                                              String *modName, bool execute) {
 	CodeGenerator c(currentGenerator);
 	currentGenerator = &c;
+	String *fname    = String::from(fileName);
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	if(ExecutionEngine::isModuleRegistered(modName))
-		return (GcObject *)ExecutionEngine::getRegisteredModule(modName)
-		    ->instance;
-	ExecutionEngine ex;
-	Scanner         s(fileName);
+	if(ExecutionEngine::isModuleRegistered(fname))
+		return ExecutionEngine::getRegisteredModule(fname);
+	Scanner s(fileName);
 	try {
 		Parser p(s);
 		registerParselets(&p);
@@ -157,11 +156,9 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		c.compile(ctx, decls);
 		currentGenerator = c.parentGenerator;
 		if(execute) {
-			Fiber *f = Fiber::create();
-			f->appendBoundMethodDirect(
-			    ValueNil, ctx->get_default_constructor()->f, NULL, 0, false);
 			Value v;
-			if(ex.execute(f, &v))
+			if(ExecutionEngine::registerModule(
+			       fname, ctx->get_default_constructor()->f, &v))
 				return v.toGcObject();
 			return NULL;
 		}
@@ -185,8 +182,7 @@ GcObject *Loader::compile_and_load_from_source(
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	ExecutionEngine ex;
-	Scanner         s(source, modulectx->get_class()->name->str());
+	Scanner s(source, modulectx->get_class()->name->str());
 	try {
 		Parser p(s);
 		registerParselets(&p);
@@ -201,12 +197,9 @@ GcObject *Loader::compile_and_load_from_source(
 		c.compile(modulectx, decls);
 		currentGenerator = c.parentGenerator;
 		if(execute) {
-			Fiber *f = Fiber::create();
-			f->appendBoundMethodDirect(ValueNil,
-			                           modulectx->get_default_constructor()->f,
-			                           NULL, 0, false);
 			Value v;
-			if(ex.execute(f, &v))
+			if(ExecutionEngine::execute(
+			       ValueNil, modulectx->get_default_constructor()->f, &v, true))
 				return v.toGcObject();
 			return NULL;
 		}

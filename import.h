@@ -1,15 +1,13 @@
 #pragma once
 
 #include "objects/string.h"
-#include "scanner.h"
-#include "value.h"
-#include <vector>
 
 typedef struct ImportStatus {
 	enum {
 		IMPORT_SUCCESS,
 		BAD_IMPORT,
 		FILE_NOT_FOUND,
+		FOPEN_ERROR, // fileName will contain the strerror message
 		FOLDER_IMPORT,
 		PARTIAL_IMPORT // first part is resolved, the rest will be
 		               // load_field
@@ -19,5 +17,6 @@ typedef struct ImportStatus {
 } ImportStatus;
 
 struct Importer {
-	static ImportStatus import(std::vector<Token> &lines);
+	static ImportStatus import(String *currentPath, const Value *parts,
+	                           int size);
 };

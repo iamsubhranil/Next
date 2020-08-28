@@ -11,7 +11,7 @@ class ExecutionEngine {
 
 	static char ExceptionMessage[1024];
 
-	static HashMap<String *, Class *> loadedModules;
+	static HashMap<String *, GcObject *> loadedModules;
 
 	// stack of unhandled exceptions
 	static Array *pendingExceptions;
@@ -29,12 +29,11 @@ class ExecutionEngine {
 	static void printRemainingExceptions();
 
   public:
-	static void   mark();
-	static void   init();
-	static bool   isModuleRegistered(String *name);
-	static void   registerModule(Class *m);
-	static Class *getRegisteredModule(String *name);
-	static void   setPendingException(Value v);
+	static void      mark();
+	static void      init();
+	static bool      isModuleRegistered(String *filename);
+	static GcObject *getRegisteredModule(String *filename);
+	static void      setPendingException(Value v);
 	// throwException will either return
 	// the matching Fiber if found,
 	// or call exit(1) from itself.
@@ -50,6 +49,10 @@ class ExecutionEngine {
 	// the number of exceptions generated before
 	// executing the function is greater than
 	// number of exceptions generated after.
+
+	// registers and executes a module
+	static bool registerModule(String *fileName, Function *defConstructor,
+	                           Value *ret);
 
 	// executes a bound method on v in current fiber
 	static bool execute(Value v, Function *f, Value *args, int numargs,

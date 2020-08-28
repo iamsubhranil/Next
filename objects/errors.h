@@ -57,7 +57,8 @@ struct RuntimeError : public Error {
 };
 
 struct IndexError : public Error {
-	static IndexError *create(String *m, int64_t lo, int64_t hi, int64_t received);
+	static IndexError *create(String *m, int64_t lo, int64_t hi,
+	                          int64_t received);
 	static Value       sete(String *m, int64_t l, int64_t h, int64_t r);
 	static Value       sete(const char *m, int64_t l, int64_t h, int64_t r);
 
@@ -79,6 +80,18 @@ struct FormatError : public Error {
 #endif
 };
 
+struct ImportError : public Error {
+	static ImportError *create(String *msg);
+	static Value        sete(String *msg);
+	static Value        sete(const char *msg);
+
+	static void init();
+
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
+};
+
 #define RERR(x) return RuntimeError::sete(x);
 #define IDXERR(m, l, h, r) return IndexError::sete(m, l, h, r);
 
@@ -88,3 +101,4 @@ struct FormatError : public Error {
 	}
 
 #define FERR(x) return FormatError::sete(x);
+#define IMPORTERR(x) return ImportError::sete(x);
