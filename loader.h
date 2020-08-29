@@ -11,7 +11,8 @@ struct Loader {
 
 	static CodeGenerator *currentGenerator;
 
-	static GcObject *compile_and_load(String *fileName, bool execute = false);
+	static GcObject *compile_and_load(const String2 &fileName,
+	                                  bool           execute = false);
 	static GcObject *compile_and_load(const char *fileName,
 	                                  bool        execute = false);
 	static GcObject *compile_and_load_with_name(const char *fileName,

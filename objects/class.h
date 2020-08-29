@@ -116,6 +116,8 @@ struct Class {
 		}
 	}
 
+	static Class *create(); // allocates a class and sets everything to NULL
+
 #ifdef DEBUG_GC
 	const char *gc_repr();
 #endif

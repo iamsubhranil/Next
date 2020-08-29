@@ -7,19 +7,26 @@
 ClassCompilationContext *
 ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ClassCompilationContext2 ctx = GcObject::allocClassCompilationContext();
-	ctx->klass                   = GcObject::allocClass();
+	ctx->slotCount               = 0;
+	ctx->staticSlotCount         = 0;
+	ctx->isCompiled              = false;
+	ctx->moduleContext           = s;
+	ctx->defaultConstructor      = nullptr;
+	ctx->cctxMap                 = nullptr;
+	ctx->isDerived               = false;
+	ctx->public_signatures       = nullptr;
+	ctx->private_signatures      = nullptr;
+	ctx->klass                   = nullptr;
+	ctx->fctxMap                 = nullptr;
+	ctx->metaclass               = nullptr;
+	ctx->members                 = nullptr;
+	// initialize the members
 	ctx->members = (MemberMap *)GcObject_malloc(sizeof(MemberMap));
 	::new(ctx->members) MemberMap();
 	ctx->public_signatures  = ValueMap::create();
 	ctx->private_signatures = ValueMap::create();
-	ctx->slotCount          = 0;
-	ctx->staticSlotCount    = 0;
-	ctx->isCompiled         = false;
-	ctx->moduleContext      = s;
-	ctx->defaultConstructor = nullptr;
-	ctx->cctxMap            = nullptr;
+	ctx->klass              = Class::create();
 	ctx->fctxMap            = ValueMap::create();
-	ctx->isDerived          = false;
 	if(s == NULL) {
 		// it's a module.
 		// init the module
@@ -124,7 +131,7 @@ bool ClassCompilationContext::is_static_slot(String *name) {
 }
 
 void ClassCompilationContext::add_public_signature(
-    String *sig, Function *f, FunctionCompilationContext *fctx) {
+    const String2 &sig, Function *f, FunctionCompilationContext *fctx) {
 
 	// TODO: insert token here
 	public_signatures->vv[Value(sig)] = Value(f);
@@ -136,7 +143,7 @@ void ClassCompilationContext::add_public_signature(
 	}
 }
 
-bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
+bool ClassCompilationContext::add_public_fn(const String2 &sig, Function *f,
                                             FunctionCompilationContext *fctx) {
 	if(has_fn(sig))
 		return false;
@@ -144,7 +151,7 @@ bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
 	if(f->isVarArg()) {
 		// sig contains the base signature, without
 		// the vararg. so get the base without ')'
-		String *base = String::from(sig->str(), sig->size - 1);
+		String2 base = String::from(sig->str(), sig->size - 1);
 		// now starting from 1 upto MAX_VARARG_COUNT, generate
 		// a signature and register
 		for(int i = 0; i < MAX_VARARG_COUNT; i++) {
@@ -163,19 +170,19 @@ bool ClassCompilationContext::add_public_fn(String *sig, Function *f,
 }
 
 void ClassCompilationContext::add_private_signature(
-    String *sig, Function *f, FunctionCompilationContext *fctx) {
+    const String2 &sig, Function *f, FunctionCompilationContext *fctx) {
 	// TODO: insert token here
 	private_signatures->vv[Value(sig)] = Value(f);
 	// append the signature with "p " so that it cannot
 	// be invoked as a method outside of the class
-	String *priv_signature = String::append("p ", sig);
+	String2 priv_signature = String::append("p ", sig);
 	klass->add_fn(priv_signature, f);
 	if(fctx)
 		fctxMap->vv[Value(sig)] = Value(fctx);
 	// we don't need to add anything to the metaclass
 }
 
-bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
+bool ClassCompilationContext::add_private_fn(const String2 &sig, Function *f,
                                              FunctionCompilationContext *fctx) {
 	if(has_fn(sig))
 		return false;
@@ -202,17 +209,16 @@ bool ClassCompilationContext::add_private_fn(String *sig, Function *f,
 }
 
 bool ClassCompilationContext::has_fn(String *sig) {
-	if(public_signatures->vv.find(Value(sig)) != public_signatures->vv.end())
+	if(public_signatures->vv.contains(Value(sig)))
 		return true;
-	if(private_signatures->vv.find(Value(sig)) != private_signatures->vv.end())
+	if(private_signatures->vv.contains(Value(sig)))
 		return true;
 	return false;
 }
 
-int ClassCompilationContext::get_fn_sym(String *sig) {
-	String *finalSig = sig;
-	if(private_signatures->vv.find(Value(sig)) !=
-	   private_signatures->vv.end()) {
+int ClassCompilationContext::get_fn_sym(const String2 &sig) {
+	String2 finalSig = sig;
+	if(private_signatures->vv.contains(Value(sig))) {
 		finalSig = String::append("p ", sig);
 	}
 	return SymbolTable2::insert(finalSig);

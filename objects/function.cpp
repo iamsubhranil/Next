@@ -31,7 +31,7 @@ Function *Function::create(const String2 &str, int arity, bool isva,
 }
 
 Function *Function::create_derived(int offset) {
-	Function *df = Function::create(name, arity, varArg, static_);
+	Function2 df = Function::create(name, arity, varArg, static_);
 	df->mode     = mode;
 	df->cannest  = cannest;
 	if(mode == Function::BUILTIN) {

@@ -224,8 +224,8 @@ void CodeGenerator::visit(GroupingExpression *g) {
 	}
 }
 
-CodeGenerator::CallInfo CodeGenerator::resolveCall(String *name,
-                                                   String *signature) {
+CodeGenerator::CallInfo CodeGenerator::resolveCall(const String2 &name,
+                                                   const String2 &signature) {
 	CallInfo info = {UNDEFINED, 0, true, false};
 
 	// the order of preference is as following
@@ -1175,7 +1175,7 @@ String *CodeGenerator::generateSignature(int arity) {
 	return sig;
 }
 
-String *CodeGenerator::generateSignature(const String *name, int arity) {
+String *CodeGenerator::generateSignature(const String2 &name, int arity) {
 	String2 sig = generateSignature(arity);
 	if(name) {
 		sig = String::append(name, sig);
@@ -1208,7 +1208,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	String *signature;
+	String2 signature;
 
 	bool inConstructor = inClass && ifs->isConstructor;
 	if(inConstructor) {

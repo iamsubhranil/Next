@@ -136,16 +136,15 @@ void GcObject::gc(bool force) {
 		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
 		std::cout << "[GC] Marking core classes..\n";
 #endif
-		mark((GcObject *)CoreModule);
-		mark(ExecutionEngine::CoreObject);
+#define OBJTYPE(n) mark(n##Class);
+#include "objecttype.h"
 		mark(NumberClass);
 		mark(BooleanClass);
 		// mark error object class
 		mark(ErrorObjectClass);
-#ifdef DEBUG_GC
-		std::cout << "[GC] Marking Engine..\n";
-#endif
-		ExecutionEngine::mark();
+		mark((GcObject *)CoreModule);
+		mark(ExecutionEngine::CoreObject);
+		mark(CoreContext); // not really needed
 #ifdef DEBUG_GC
 		std::cout << "[GC] Marking CodeGens via Loader..\n";
 #endif
@@ -162,6 +161,10 @@ void GcObject::gc(bool force) {
 		std::cout << "[GC] Marking temporary objects..\n";
 #endif
 		mark(temporaryObjects);
+#ifdef DEBUG_GC
+		std::cout << "[GC] Marking Engine..\n";
+#endif
+		ExecutionEngine::mark();
 #ifdef DEBUG_GC
 		std::cout << "[GC] Sweeping..\n";
 #endif
@@ -209,7 +212,7 @@ void GcObject::untrackTemp(GcObject *g) {
 }
 
 void GcObject::tracker_init() {
-	trackedObjectCapacity = 32;
+	trackedObjectCapacity = GC_MIN_TRACKED_OBJECTS_CAP;
 	trackedObjectCount    = 0;
 	tracker               = (GcObject **)GcObject_malloc(sizeof(GcObject *) *
                                            trackedObjectCapacity);
@@ -229,7 +232,8 @@ void GcObject::tracker_insert(GcObject *g) {
 void GcObject::tracker_shrink() {
 	// if there are less than half the capacity number of objects in the array,
 	// shrink to reduce memory usage
-	if(trackedObjectCount < trackedObjectCapacity / 2) {
+	if(trackedObjectCount < trackedObjectCapacity / 2 &&
+	   trackedObjectCapacity > GC_MIN_TRACKED_OBJECTS_CAP) {
 		size_t newCap = Utils::powerOf2Ceil(trackedObjectCount);
 		tracker       = (GcObject **)GcObject_realloc(
             tracker, sizeof(GcObject *) * trackedObjectCapacity,
@@ -243,7 +247,7 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	// try for gc before allocation
 	// because the returned pointer
 	// may be less fragmented
-	gc();
+	gc(GC_STRESS);
 
 	GcObject *obj = (GcObject *)GcObject::malloc(s);
 	obj->objType  = type;
@@ -259,7 +263,8 @@ Object *GcObject::allocObject(const Class *klass) {
 	// at once
 	Object *o = (Object *)alloc(
 	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
-	Utils::fillNil(o->slots(), klass->numSlots);
+	o->numSlots = klass->numSlots;
+	Utils::fillNil(o->slots(), o->numSlots);
 	return o;
 }
 
@@ -310,9 +315,18 @@ void GcObject::release(Value v) {
 #include "objecttype.h"
 
 String *GcObject::allocString2(int numchar) {
-	String *s = (String *)alloc(sizeof(String) + (sizeof(char) * numchar),
-	                            OBJ_String, StringClass);
+	// strings are not initially tracked, since
+	// duplicate strings are freed immediately
+	String *s =
+	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
+	s->obj.objType = OBJ_String;
+	s->obj.klass   = StringClass;
 	return s;
+}
+
+void GcObject::releaseString2(String *s) {
+	totalAllocated -= s->size + 1;
+	GcObject::free(s, sizeof(String));
 }
 
 Tuple *GcObject::allocTuple2(int numobj) {
@@ -337,6 +351,8 @@ void GcObject::mark(Value *v, size_t num) {
 constexpr uintptr_t marker = ((uintptr_t)1) << ((sizeof(void *) * 8) - 1);
 
 void GcObject::mark(GcObject *p) {
+	if(p == NULL)
+		return;
 	// if the object is already marked,
 	// leave it
 	if(isMarked(p))
@@ -405,18 +421,18 @@ void GcObject::sweep() {
 void GcObject::init() {
 	// initialize the object tracker
 	tracker_init();
-	// allocate the core classes
-#define OBJTYPE(n) n##Class = GcObject::allocClass();
-#include "objecttype.h"
-	NumberClass      = GcObject::allocClass();
-	BooleanClass     = GcObject::allocClass();
-	ErrorObjectClass = GcObject::allocClass();
-
 	// initialize the temporary tracker
 	// allocate it manually, ValueSet::create
 	// itself uses temporary objects
 	temporaryObjects = GcObject::allocValueSet();
 	::new(&temporaryObjects->hset) ValueSet::ValueSetType();
+
+	// allocate the core classes
+#define OBJTYPE(n) n##Class = Class::create();
+#include "objecttype.h"
+	NumberClass      = Class::create();
+	BooleanClass     = Class::create();
+	ErrorObjectClass = Class::create();
 
 	// initialize the string set and symbol table
 	String::init0();

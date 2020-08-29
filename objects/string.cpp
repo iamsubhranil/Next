@@ -279,15 +279,19 @@ int String::hash_string(const char *s, size_t size) {
 
 // val MUST be mallocated elsewhere
 String *String::insert(char *val, size_t size, int hash_) {
-	String2 s = GcObject::allocString2(size);
+	String *s = GcObject::allocString2(size);
 	memcpy(s->str(), val, size);
 	s->size  = size;
 	s->hash_ = hash_;
+	// track the string from now on
+	GcObject::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
 	return s;
 }
 
 String *String::insert(String *s) {
+	// track the string from now on
+	GcObject::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
 	return s;
 }
@@ -302,7 +306,8 @@ String *String::from(const char *v, size_t size, string_transform transform) {
 	val->hash_       = hash_string(val->str(), size);
 	auto res         = string_set->hset.find(val);
 	if(res != string_set->hset.end()) {
-		// the transformed string will get garbage collected when needed
+		// free the duplicate string
+		GcObject::releaseString2(val);
 		// return the original back
 		return (*res);
 	}
@@ -320,7 +325,9 @@ String *String::from(const char *val, size_t size) {
 	check->hash_       = hash_string(check->str(), size);
 	auto res           = string_set->hset.find(check);
 	if(res != string_set->hset.end()) {
-		// it does, so return that back
+		// free the duplicate string
+		GcObject::releaseString2(check);
+		// return the original back
 		return (*res);
 	}
 	// it doesn't, so insert
@@ -331,14 +338,14 @@ String *String::from(const char *val) {
 	return from(val, strlen(val));
 }
 
+String *String::from(const String *s, string_transform transform) {
+	return from(s->str(), s->size, transform);
+}
+
 String *String::fromParser(const char *val) {
 	String *s = from(val);
 	keep_set->hset.insert(s);
 	return s;
-}
-
-String *String::from(const String *s, string_transform transform) {
-	return from(s->str(), s->size, transform);
 }
 
 // we create a separate method for append because
@@ -358,6 +365,8 @@ String *String::append(const char *val1, size_t size1, const char *val2,
 	auto res = string_set->hset.find(ns);
 	if(res != string_set->hset.end()) {
 		// already one exists
+		// free the duplicate string
+		GcObject::releaseString2(ns);
 		// return the old one back
 		return (*res);
 	}
@@ -481,7 +490,8 @@ void String::release_all() {
 }
 
 void String::keep() {
-	keep_set->mark();
+	if(keep_set)
+		keep_set->mark();
 }
 
 void String::unkeep(String *s) {

@@ -10,6 +10,6 @@ void Object::init() {
 
 #ifdef DEBUG_GC
 const char *Object::gc_repr() {
-	return obj.klass->name->str();
+	return "<object>";
 }
 #endif

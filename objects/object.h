@@ -6,33 +6,37 @@
 #include "../value.h"
 #include "class.h"
 
+#include "string.h"
+
 struct Value;
 
 struct Object {
 	GcObject obj;
+	// in case of a gc, the class of the object may already
+	// be garbage collected, and hence we can't access numSlots
+	// anymore. So we keep a copy of that here.
+	int numSlots;
 
 	static void init();
 
 	// gc functions
 	void mark() const {
-		// temporary unmark to get the klass
-		Class *c = GcObject::getMarkedClass(this);
-		for(int i = 0; i < c->numSlots; i++) {
+		for(int i = 0; i < numSlots; i++) {
 			GcObject::mark(slots(i));
 		}
 	}
 
 	inline Value *slots() const { return (Value *)(this + 1); }
-	inline Value &slots(int idx) const { return ((Value *)(this + 1))[idx]; }
+	inline Value &slots(int idx) const {
+		Value *v = (Value *)(this + 1);
+		return v[idx];
+	}
 
 	// we don't need to free anything here
 	// just reduce the counter since slots
 	// are allocated right after the struct.
-	//
-	// what happens when obj.klass is already
-	// collected?
 	void release() const {
-		GcObject::totalAllocated -= sizeof(Value) * (obj.klass->numSlots);
+		GcObject::totalAllocated -= sizeof(Value) * (numSlots);
 	}
 
 #ifdef DEBUG_GC

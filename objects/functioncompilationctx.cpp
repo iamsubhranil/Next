@@ -16,12 +16,16 @@ FunctionCompilationContext *FunctionCompilationContext::create(String2 name,
                                                                bool    isva) {
 	FunctionCompilationContext2 fcc =
 	    GcObject::allocFunctionCompilationContext();
-	fcc->f       = Function::create(name, arity, isva, isStatic);
+	fcc->slotCount = 0;
+	fcc->bcc       = NULL;
+	fcc->f         = NULL;
+	fcc->slotmap   = NULL;
+	// initialize the members
 	fcc->slotmap = (SlotMap *)GcObject::malloc(sizeof(SlotMap));
 	::new(fcc->slotmap) SlotMap();
-	fcc->bcc       = BytecodeCompilationContext::create();
-	fcc->f->code   = fcc->bcc->code;
-	fcc->slotCount = 0;
+	fcc->f       = Function::create(name, arity, isva, isStatic);
+	fcc->bcc     = BytecodeCompilationContext::create();
+	fcc->f->code = fcc->bcc->code;
 	return fcc;
 }
 

@@ -52,19 +52,19 @@ struct ClassCompilationContext {
 	MemberInfo get_mem_info(String *name);
 	bool       is_static_slot(String *name);
 
-	bool add_public_fn(String *sig, Function *f,
+	bool add_public_fn(const String2 &sig, Function *f,
 	                   FunctionCompilationContext *fctx = NULL);
-	void add_public_signature(String *sig, Function *f,
+	void add_public_signature(const String2 &sig, Function *f,
 	                          FunctionCompilationContext *fctx);
-	bool add_private_fn(String *sig, Function *f,
+	bool add_private_fn(const String2 &sig, Function *f,
 	                    FunctionCompilationContext *fctx = NULL);
-	void add_private_signature(String *sig, Function *f,
+	void add_private_signature(const String2 &sig, Function *f,
 	                           FunctionCompilationContext *fctx);
 	bool has_fn(String *sig);
 	// retrieve the ctx for a function
 	FunctionCompilationContext *get_func_ctx(String *sig);
 	// unchecked. use has_fn before
-	int get_fn_sym(String *sig);
+	int get_fn_sym(const String2 &sig);
 
 	// check if a class exists
 	bool                     has_class(String *name);

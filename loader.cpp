@@ -102,7 +102,7 @@ void registerParselets(Parser *p) {
 	                                   new MemberDeclaration());
 }
 
-GcObject *Loader::compile_and_load(String *fileName, bool execute) {
+GcObject *Loader::compile_and_load(const String2 &fileName, bool execute) {
 	return compile_and_load(fileName->str(), execute);
 }
 
@@ -124,15 +124,13 @@ String *generateModuleName(const char *inp) {
 }
 
 GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
-	String *modName = generateModuleName(fileName);
+	String2 modName = generateModuleName(fileName);
 	return compile_and_load_with_name(fileName, modName, execute);
 }
 
 GcObject *Loader::compile_and_load_with_name(const char *fileName,
                                              String *modName, bool execute) {
-	CodeGenerator c(currentGenerator);
-	currentGenerator = &c;
-	String2 fname    = String::from(fileName);
+	String2 fname = String::from(fileName);
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -153,6 +151,8 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 #endif
 		ClassCompilationContext2 ctx =
 		    ClassCompilationContext::create(NULL, modName);
+		CodeGenerator c(currentGenerator);
+		currentGenerator = &c;
 		c.compile(ctx, decls);
 		currentGenerator = c.parentGenerator;
 		if(execute) {
@@ -177,8 +177,6 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 
 GcObject *Loader::compile_and_load_from_source(
     const char *source, ClassCompilationContext *modulectx, bool execute) {
-	CodeGenerator c(currentGenerator);
-	currentGenerator = &c;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -194,6 +192,8 @@ GcObject *Loader::compile_and_load_from_source(
 			cout << "\n";
 		}
 #endif
+		CodeGenerator c(currentGenerator);
+		currentGenerator = &c;
 		c.compile(modulectx, decls);
 		currentGenerator = c.parentGenerator;
 		if(execute) {
@@ -217,6 +217,6 @@ GcObject *Loader::compile_and_load_from_source(
 }
 
 void Loader::mark() {
-	if(currentGenerator != NULL)
+	if(currentGenerator != nullptr)
 		currentGenerator->mark();
 }

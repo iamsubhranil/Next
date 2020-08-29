@@ -6,6 +6,7 @@
 TypeError *TypeError::create(String2 o, String2 m, String2 e, Value r,
                              int arg) {
 	TypeError2 t = GcObject::allocTypeError();
+	t->message   = NULL; // fmt may trigger gc, so mark it null
 	t->message =
 	    Formatter::fmt("Expected argument {} of {}.{} to be {}, Received '{}'!",
 	                   Value(arg), Value(o), Value(m), Value(e), r)
@@ -26,7 +27,7 @@ Value TypeError::sete(const char *o, const char *m, const char *e, Value r,
 
 #ifdef DEBUG_GC
 const char *TypeError::gc_repr() {
-	return message->str();
+	return "<type error>";
 }
 #endif
 
@@ -54,7 +55,7 @@ Value RuntimeError::sete(const char *m) {
 
 #ifdef DEBUG_GC
 const char *RuntimeError::gc_repr() {
-	return message->str();
+	return "<runtime error>";
 }
 #endif
 
@@ -74,6 +75,7 @@ void RuntimeError::init() {
 
 IndexError *IndexError::create(String2 m, int64_t l, int64_t h, int64_t r) {
 	IndexError2 ie = GcObject::allocIndexError();
+	ie->message    = NULL; // fmt may trigger gc, so mark it null
 	ie->message = Formatter::fmt("{} (expected {} <= index <= {}, received {})",
 	                             Value(m), l, h, r)
 	                  .toString();
@@ -91,7 +93,7 @@ Value IndexError::sete(const char *m, int64_t l, int64_t h, int64_t r) {
 
 #ifdef DEBUG_GC
 const char *IndexError::gc_repr() {
-	return message->str();
+	return "<index error>";
 }
 #endif
 
@@ -115,7 +117,7 @@ Value FormatError::sete(String *m) {
 
 #ifdef DEBUG_GC
 const char *FormatError::gc_repr() {
-	return message->str();
+	return "<format error>";
 }
 #endif
 
@@ -150,7 +152,7 @@ Value ImportError::sete(String *m) {
 
 #ifdef DEBUG_GC
 const char *ImportError::gc_repr() {
-	return message->str();
+	return "<import error>";
 }
 #endif
 
@@ -185,7 +187,7 @@ Value Error::sete(String *m) {
 
 #ifdef DEBUG_GC
 const char *Error::gc_repr() {
-	return message->str();
+	return "<error>";
 }
 #endif
 
@@ -204,7 +206,7 @@ Value next_error_construct_1(const Value *args, int numargs) {
 	return Error::create(args[1].toString());
 }
 
-Function *ErrorObjectClassConstructor(Class *c) {
+Function2 ErrorObjectClassConstructor(Class *c) {
 	Function2 f = Function::create(String::from("new"), 1);
 	f->code     = Bytecode::create();
 	// new(x) { message = x }
@@ -219,7 +221,7 @@ Function *ErrorObjectClassConstructor(Class *c) {
 	return f;
 }
 
-Function *ErrorObjectClassStr() {
+Function2 ErrorObjectClassStr() {
 	Function2 f = Function::create(String::from("str"), 0);
 	f->code     = Bytecode::create();
 	// str() { ret message }

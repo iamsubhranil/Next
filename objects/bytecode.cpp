@@ -86,15 +86,16 @@ void Bytecode::init() {
 }
 
 Bytecode *Bytecode::create() {
-	Bytecode *code     = GcObject::allocBytecode();
+	Bytecode2 code     = GcObject::allocBytecode();
 	code->bytecodes    = (Opcode *)GcObject::malloc(sizeof(Opcode) * 1);
 	code->size         = 0;
 	code->capacity     = 1;
 	code->stackSize    = 1;
 	code->stackMaxSize = 1;
 	code->ctx          = NULL;
-	code->values       = Array::create(1);
+	code->values       = NULL;
 	code->numSlots     = 0;
+	code->values       = Array::create(1);
 	return code;
 }
 

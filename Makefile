@@ -35,6 +35,9 @@ debug_ins: debug
 debug_gc: CXXFLAGS += -DDEBUG_GC
 debug_gc: debug
 
+debug_gc_stress: CXXFLAGS += -DGC_STRESS
+debug_gc_stress: debug
+
 debug_all: CXXFLAGS += -DDEBUG_INS -DDEBUG_GC -DDEBUG_CODEGEN
 debug_all: debug
 

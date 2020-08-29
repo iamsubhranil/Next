@@ -23,8 +23,8 @@ Value &FieldAccessFunction(const Class *c, Value v, int field) {
 void Class::init(String *s, ClassType typ, Class *mc) {
 	name              = s;
 	type              = typ;
-	functions         = Array::create(1);
 	numSlots          = 0;
+	functions         = NULL;
 	module            = NULL;
 	instance          = NULL;
 	static_slot_count = 0;
@@ -35,6 +35,7 @@ void Class::init(String *s, ClassType typ, Class *mc) {
 	accessFn          = FieldAccessFunction;
 	if(mc)
 		mc->isMetaClass = true;
+	functions = Array::create(1);
 }
 
 void Class::init(const char *n, ClassType typ, Class *mc) {
@@ -133,7 +134,7 @@ bool Class::is_child_of(Class *parent) const {
 }
 
 Class *Class::copy() {
-	Class2 s = GcObject::allocClass();
+	Class2 s = Class::create();
 	s->name  = name;
 	s->type  = type;
 	// create a copy
@@ -153,30 +154,49 @@ Class *Class::copy() {
 	return s;
 }
 
+Class *Class::create() {
+	Class2 kls             = GcObject::allocClass();
+	kls->metaclass         = NULL;
+	kls->module            = NULL;
+	kls->name              = NULL;
+	kls->functions         = NULL;
+	kls->static_values     = NULL;
+	kls->instance          = NULL;
+	kls->numSlots          = 0;
+	kls->static_slot_count = 0;
+	kls->superclass        = NULL;
+	kls->accessFn          = FieldAccessFunction;
+	return kls;
+}
+
 void Class::derive(Class *superclass) {
 	// copy the symbols
 	for(int i = 0; i < superclass->functions->size; i++) {
 		Value v = superclass->functions->values[i];
 		if(v.isNil()) // it is not a valid symbol, skip
 			continue;
-		// if it is a slot, offset it with numslots
-		if(v.isInteger()) {
-			v.setNumber(v.toInteger() + numSlots);
-		} else if(v.isFunction()) {
-			// if it is a function, create a modified function
-			Function *f = v.toFunction()->create_derived(numSlots);
-			v           = Value(f);
-		}
-		// pointers to static slots will point to the original class
 
 		// get the name of the symbol from the symbol table
 		String *s = SymbolTable2::getString(i);
 		// append an 's '
-		String *modified = String::append("s ", s);
+		String2 modified = String::append("s ", s);
 		// insert the new string to the table
 		int ns = SymbolTable2::insert(modified);
-		// insert the symbol to present class
-		add_sym(ns, v);
+
+		if(v.isFunction()) {
+			// if it is a function, create a modified function
+			Function2 f = v.toFunction()->create_derived(numSlots);
+			v           = Value(f);
+			add_sym(ns, v);
+		} else {
+			// if it is a slot, offset it with numslots
+			if(v.isInteger()) {
+				v.setNumber(v.toInteger() + numSlots);
+			}
+			// insert the symbol to present class
+			add_sym(ns, v);
+		}
+		// pointers to static slots will point to the original class
 		// now check if present class already had a symbol
 		// named 's' in its table or not
 		if(!has_fn(i)) {

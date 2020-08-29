@@ -13,6 +13,15 @@ struct Value;
 #define OBJTYPE(name) struct name;
 #include "objecttype.h"
 
+#ifdef GC_STRESS
+#undef GC_STRESS
+#define GC_STRESS 1
+#else
+#define GC_STRESS 0
+#endif
+
+#define GC_MIN_TRACKED_OBJECTS_CAP 32
+
 struct GcObject {
 	const Class *klass;
 	enum GcObjectType {
@@ -131,8 +140,11 @@ struct GcObject {
 	// instead of builtin Error.
 	static Class *ErrorObjectClass;
 	// makes a contiguous allocation of a String
-	// object along with its characters
+	// object along with its characters, the string
+	// is not yet tracked by the gc
 	static String *allocString2(int numchar);
+	// release an untracked string
+	static void releaseString2(String *s);
 	// tuple is a contiguous array of fixed size
 	static Tuple *allocTuple2(int numobj);
 	// primitive classes
@@ -174,6 +186,7 @@ template <typename T> struct GcTempObject {
 	}
 
   public:
+	GcTempObject() : obj(nullptr) {}
 	GcTempObject(T *o) : obj(o) { track(); }
 
 	~GcTempObject() { untrack(); }

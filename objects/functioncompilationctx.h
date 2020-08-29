@@ -33,6 +33,9 @@ struct FunctionCompilationContext {
 	void mark() const {
 		GcObject::mark(f);
 		GcObject::mark(bcc);
+		for(auto &a : *slotmap) {
+			GcObject::mark(a.first);
+		}
 	}
 
 	void release() const {

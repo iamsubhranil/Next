@@ -31,7 +31,7 @@ void ExecutionEngine::init() {
 	pendingExceptions = Array::create(1);
 	pendingFibers     = Array::create(1);
 	// create a new fiber
-	Fiber *f = Fiber::create();
+	Fiber2 f = Fiber::create();
 	// make slot for core
 	f->stackTop++;
 	// create core instance
@@ -48,7 +48,7 @@ void ExecutionEngine::init() {
 }
 
 bool ExecutionEngine::isModuleRegistered(String *name) {
-	return loadedModules.contains(name);
+	return loadedModules.contains(name) && loadedModules[name] != NULL;
 }
 
 GcObject *ExecutionEngine::getRegisteredModule(String *name) {
@@ -126,11 +126,14 @@ void ExecutionEngine::mark() {
 	// mark the pending exceptions and fibers
 	GcObject::mark(pendingExceptions);
 	GcObject::mark(pendingFibers);
-	// the modules which are not marked, remove them
+	// the modules which are not marked, remove them.
+	// we can't really remove the keys, i.e. paths,
+	// in the same time we traverse, so we keep those,
+	// and remove the modules themselves
 	for(auto &a : loadedModules) {
-		if(!GcObject::isMarked((GcObject *)a.second)) {
-			loadedModules.erase(a.first);
-		}
+		GcObject::mark(a.first);
+		if(!GcObject::isMarked(a.second))
+			loadedModules[a.first] = NULL;
 	}
 }
 

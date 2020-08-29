@@ -131,14 +131,14 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 
 	void     loadCoreModule();
 	void     loadPresentModule();
-	CallInfo resolveCall(String *name, String *signature);
+	CallInfo resolveCall(const String2 &name, const String2 &signature);
 	void     emitCall(CallExpression *call);
 	// validates whether the present lexical scope is
 	// an appropriate place to refer this/super
 	void validateThisOrSuper(Token tos);
 
 	String *         generateSignature(const Token &name, int arity);
-	String *         generateSignature(const String *name, int arity);
+	String *         generateSignature(const String2 &name, int arity);
 	String *         generateSignature(int arity);
 	VarInfo          lookForVariable(Token t, bool declare = false,
 	                                 bool       showError = true,

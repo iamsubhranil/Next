@@ -24,7 +24,7 @@
  *  int_type    ::=  "b" | "B" | "d" | "o" | "x" | "X"
  */
 
-String *append(String *res, const char *source, const char *start,
+String2 append(const String2 &res, const char *source, const char *start,
                const char *end) {
 	if(res == NULL) {
 		// we have not allocated a string yet
@@ -77,7 +77,7 @@ Value Formatter::fmt(const Value *args, int size) {
 }
 
 Value Formatter::fmt(const char *source, const Value *args, int size) {
-	String *res = NULL;
+	String2 res;
 
 	// arguments start from index 1
 	// ids start from 0
@@ -103,7 +103,7 @@ Value Formatter::fmt(const char *source, const Value *args, int size) {
 				FERR("Extra arguments for format!");
 			}
 			// we good, return the result string
-			return append(res, source, start, end);
+			return Value(append(res, source, start, end));
 		} else {
 			// we're not
 			// so copy whatever we consumed
@@ -340,12 +340,12 @@ Value Formatter::fmt(const char *source, const Value *args, int size) {
 				if(!ExecutionEngine::execute(v, f, &fspecv, 1, &v, true))
 					return ValueNil;
 				// whatever fmt(_) returned, convert it to a string
-				String *val = String::toString(v);
+				String2 val = String::toString(v);
 				// append it to the result
 				if(res)
 					res = String::append(res, val);
 				else
-					res = val;
+					res = std::move(val);
 				break;
 
 			} else if(c->has_fn(SymbolTable2::const_sig_str)) {

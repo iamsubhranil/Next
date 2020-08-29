@@ -5,14 +5,15 @@
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	BytecodeCompilationContext2 bcc =
 	    GcObject::allocBytecodeCompilationContext();
-	bcc->code              = Bytecode::create();
-	bcc->code->ctx         = bcc;
+	bcc->code              = NULL;
 	bcc->ranges_           = (TokenRange *)GcObject::malloc(sizeof(TokenRange));
 	bcc->ranges_[0].token  = Token::PlaceholderToken;
 	bcc->ranges_[0].range_ = 0;
 	bcc->size              = 0;
 	bcc->capacity          = 1;
 	bcc->present_range     = 0;
+	bcc->code              = Bytecode::create();
+	bcc->code->ctx         = bcc;
 	return bcc;
 }
 
