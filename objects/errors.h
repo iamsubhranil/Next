@@ -20,8 +20,8 @@ struct Error {
 
 	String *message;
 
-	static Error *create(String2 message);
-	static Value  sete(String *message);
+	static Error *create(const String2 &message);
+	static Value  sete(const String2 &message);
 	static Value  sete(const char *message);
 
 	static void init();
@@ -34,8 +34,10 @@ struct Error {
 };
 
 struct TypeError : public Error {
-	static TypeError *create(String2 o, String2 m, String2 e, Value r, int arg);
-	static Value      sete(String *o, String *m, String *e, Value r, int arg);
+	static TypeError *create(const String2 &o, const String2 &m,
+	                         const String2 &e, Value r, int arg);
+	static Value      sete(const String2 &o, const String2 &m, const String2 &e,
+	                       Value r, int arg);
 	static Value      sete(const char *o, const char *m, const char *e, Value r,
 	                       int arg);
 
@@ -46,9 +48,9 @@ struct TypeError : public Error {
 };
 
 struct RuntimeError : public Error {
-	static RuntimeError *create(String2 msg);
+	static RuntimeError *create(const String2 &msg);
 	static Value         sete(const char *msg);
-	static Value         sete(String *msg);
+	static Value         sete(const String2 &msg);
 
 	static void init();
 #ifdef DEBUG_GC
@@ -57,9 +59,9 @@ struct RuntimeError : public Error {
 };
 
 struct IndexError : public Error {
-	static IndexError *create(String2 m, int64_t lo, int64_t hi,
+	static IndexError *create(const String2 &m, int64_t lo, int64_t hi,
 	                          int64_t received);
-	static Value       sete(String *m, int64_t l, int64_t h, int64_t r);
+	static Value       sete(const String2 &m, int64_t l, int64_t h, int64_t r);
 	static Value       sete(const char *m, int64_t l, int64_t h, int64_t r);
 
 	static void init();
@@ -69,8 +71,8 @@ struct IndexError : public Error {
 };
 
 struct FormatError : public Error {
-	static FormatError *create(String2 msg);
-	static Value        sete(String *msg);
+	static FormatError *create(const String2 &msg);
+	static Value        sete(const String2 &msg);
 	static Value        sete(const char *msg);
 
 	static void init();
@@ -81,8 +83,8 @@ struct FormatError : public Error {
 };
 
 struct ImportError : public Error {
-	static ImportError *create(String2 msg);
-	static Value        sete(String *msg);
+	static ImportError *create(const String2 &msg);
+	static Value        sete(const String2 &msg);
 	static Value        sete(const char *msg);
 
 	static void init();

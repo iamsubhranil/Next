@@ -3,8 +3,8 @@
 #include "../format.h"
 #include "function.h"
 
-TypeError *TypeError::create(String2 o, String2 m, String2 e, Value r,
-                             int arg) {
+TypeError *TypeError::create(const String2 &o, const String2 &m,
+                             const String2 &e, Value r, int arg) {
 	TypeError2 t = GcObject::allocTypeError();
 	t->message   = NULL; // fmt may trigger gc, so mark it null
 	t->message =
@@ -14,7 +14,8 @@ TypeError *TypeError::create(String2 o, String2 m, String2 e, Value r,
 	return t;
 }
 
-Value TypeError::sete(String *o, String *m, String *e, Value r, int arg) {
+Value TypeError::sete(const String2 &o, const String2 &m, const String2 &e,
+                      Value r, int arg) {
 	TypeError *t = TypeError::create(o, m, e, r, arg);
 	ExecutionEngine::setPendingException(Value(t));
 	return ValueNil;
@@ -38,13 +39,13 @@ void TypeError::init() {
 	TypeErrorClass->derive(GcObject::ErrorClass);
 }
 
-RuntimeError *RuntimeError::create(String2 m) {
+RuntimeError *RuntimeError::create(const String2 &m) {
 	RuntimeError *re = GcObject::allocRuntimeError();
 	re->message      = m;
 	return re;
 }
 
-Value RuntimeError::sete(String *m) {
+Value RuntimeError::sete(const String2 &m) {
 	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }
@@ -73,7 +74,8 @@ void RuntimeError::init() {
 	RuntimeErrorClass->add_builtin_fn("(_)", 1, next_runtimeerror_construct_1);
 }
 
-IndexError *IndexError::create(String2 m, int64_t l, int64_t h, int64_t r) {
+IndexError *IndexError::create(const String2 &m, int64_t l, int64_t h,
+                               int64_t r) {
 	IndexError2 ie = GcObject::allocIndexError();
 	ie->message    = NULL; // fmt may trigger gc, so mark it null
 	ie->message = Formatter::fmt("{} (expected {} <= index <= {}, received {})",
@@ -82,7 +84,7 @@ IndexError *IndexError::create(String2 m, int64_t l, int64_t h, int64_t r) {
 	return ie;
 }
 
-Value IndexError::sete(String *m, int64_t l, int64_t h, int64_t r) {
+Value IndexError::sete(const String2 &m, int64_t l, int64_t h, int64_t r) {
 	ExecutionEngine::setPendingException(Value(create(m, l, h, r)));
 	return ValueNil;
 }
@@ -104,13 +106,13 @@ void IndexError::init() {
 	IndexErrorClass->derive(GcObject::ErrorClass);
 }
 
-FormatError *FormatError::create(String2 m) {
+FormatError *FormatError::create(const String2 &m) {
 	FormatError *re = GcObject::allocFormatError();
 	re->message     = m;
 	return re;
 }
 
-Value FormatError::sete(String *m) {
+Value FormatError::sete(const String2 &m) {
 	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }
@@ -139,13 +141,13 @@ void FormatError::init() {
 	FormatErrorClass->add_builtin_fn("(_)", 1, next_formaterror_construct_1);
 }
 
-ImportError *ImportError::create(String2 m) {
+ImportError *ImportError::create(const String2 &m) {
 	ImportError *re = GcObject::allocImportError();
 	re->message     = m;
 	return re;
 }
 
-Value ImportError::sete(String *m) {
+Value ImportError::sete(const String2 &m) {
 	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }
@@ -174,13 +176,13 @@ void ImportError::init() {
 	ImportErrorClass->add_builtin_fn("(_)", 1, next_importerror_construct_1);
 }
 
-Error *Error::create(String2 m) {
+Error *Error::create(const String2 &m) {
 	Error *re   = GcObject::allocError();
 	re->message = m;
 	return re;
 }
 
-Value Error::sete(String *m) {
+Value Error::sete(const String2 &m) {
 	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }

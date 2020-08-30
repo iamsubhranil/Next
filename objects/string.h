@@ -38,14 +38,14 @@ struct String {
 	static String *   fromParser(const char *val);
 	static String *   from(const char *val, size_t size,
 	                       string_transform transform);
-	static String *   from(const String *val, string_transform transform);
+	static String *   from(const String2 &val, string_transform transform);
 	static String *   append(const char *val1, size_t size1, const char *val2,
 	                         size_t size2);
 	static String *   append(const char *val1, const char *val2);
-	static String *   append(const char *val1, const String *val2);
-	static String *   append(const String *val1, const char *val2);
-	static String *   append(const String *val1, const String *val2);
-	static String *append(const String *val1, const char *val2, size_t size2);
+	static String *   append(const char *val1, const String2 &val2);
+	static String *   append(const String2 &val1, const char *val2);
+	static String *   append(const String2 &val1, const String2 &val2);
+	static String *append(const String2 &val1, const char *val2, size_t size2);
 	static int     hash_string(const char *val, size_t size);
 	// removes a value from the keep_set
 	static void unkeep(String *s);
@@ -64,7 +64,7 @@ struct String {
 	// applies f on val
 	// creates a new string to return
 	static Value fmt(FormatSpec *f, const char *val, int size);
-	static Value fmt(FormatSpec *f, String *s);
+	static Value fmt(FormatSpec *f, const String2 &s);
 
 	// release all
 	static void release_all();

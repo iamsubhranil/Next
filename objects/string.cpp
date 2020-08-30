@@ -245,7 +245,7 @@ Value String::fmt(FormatSpec *f, const char *s, int size) {
 	return String::from(s, size);
 }
 
-Value String::fmt(FormatSpec *f, String *s) {
+Value String::fmt(FormatSpec *f, const String2 &s) {
 	return fmt(f, s->str(), s->size);
 }
 
@@ -338,7 +338,7 @@ String *String::from(const char *val) {
 	return from(val, strlen(val));
 }
 
-String *String::from(const String *s, string_transform transform) {
+String *String::from(const String2 &s, string_transform transform) {
 	return from(s->str(), s->size, transform);
 }
 
@@ -378,19 +378,19 @@ String *String::append(const char *val1, const char *val2) {
 	return append(val1, strlen(val1), val2, strlen(val2));
 }
 
-String *String::append(const char *val1, const String *val2) {
+String *String::append(const char *val1, const String2 &val2) {
 	return append(val1, strlen(val1), val2->str(), val2->size);
 }
 
-String *String::append(const String *val1, const char *val2) {
+String *String::append(const String2 &val1, const char *val2) {
 	return append(val1->str(), val1->size, val2, strlen(val2));
 }
 
-String *String::append(const String *s1, const String *s2) {
+String *String::append(const String2 &s1, const String2 &s2) {
 	return append(s1->str(), s1->size, s2->str(), s2->size);
 }
 
-String *String::append(const String *s1, const char *val2, size_t size2) {
+String *String::append(const String2 &s1, const char *val2, size_t size2) {
 	return append(s1->str(), s1->size, val2, size2);
 }
 

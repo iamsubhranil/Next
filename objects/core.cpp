@@ -263,7 +263,7 @@ Value next_core_import2(const Value *args, int numargs) {
 void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
                     bool isva = false, bool cannest = false) {
 	String2   s = String::from(n);
-	Function *f = Function::from(s, arity, fn, isva);
+	Function2 f = Function::from(s, arity, fn, isva);
 	f->cannest  = cannest;
 	GcObject::CoreContext->add_public_fn(s, f);
 }

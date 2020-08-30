@@ -8,7 +8,7 @@
 
 using namespace std;
 
-ImportStatus Importer::import(String *currentPath, const Value *parts,
+ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
                               int size) {
 	ImportStatus ret;
 	ret.fileName    = String::from("<bad>");

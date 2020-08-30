@@ -105,7 +105,7 @@ Bytecode *Bytecode::create() {
 #define next_int() relocip(int)
 #define next_Value() relocip(Value)
 Bytecode *Bytecode::create_derived(int offset) {
-	Bytecode *b     = Bytecode::create();
+	Bytecode2 b     = Bytecode::create();
 	b->numSlots     = numSlots;
 	b->stackSize    = numSlots;
 	b->stackMaxSize = numSlots;
@@ -127,7 +127,7 @@ Bytecode *Bytecode::create_derived(int offset) {
 				case CODE_construct: next_Value(); break;
 				case CODE_call_intra:
 				case CODE_call_method_super: {
-					String *sym   = SymbolTable2::getString(next_int());
+					String2 sym   = SymbolTable2::getString(next_int());
 					int     arity = next_int();
 					sym           = String::append("s ", sym);
 					if(o == CODE_call_intra)

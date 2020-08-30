@@ -13,10 +13,10 @@ typedef struct ImportStatus {
 		               // load_field
 	} res;
 	int     toHighlight; // number of token to highlight
-	String *fileName;
+	String2 fileName;
 } ImportStatus;
 
 struct Importer {
-	static ImportStatus import(String *currentPath, const Value *parts,
+	static ImportStatus import(const String2 &currentPath, const Value *parts,
 	                           int size);
 };
