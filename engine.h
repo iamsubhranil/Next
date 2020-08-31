@@ -26,8 +26,6 @@ class ExecutionEngine {
 	static size_t maxRecursionLimit;
 	static size_t currentRecursionDepth;
 
-	static void printRemainingExceptions();
-
   public:
 	static void      mark();
 	static void      init();
@@ -76,7 +74,11 @@ class ExecutionEngine {
 	static size_t getMaxRecursionLimit() { return maxRecursionLimit; }
 	static void   setMaxRecursionLimit(size_t n) { maxRecursionLimit = n; }
 	static size_t getCurrentRecursionDepth() { return currentRecursionDepth; }
-
+	// prints any unhandled exceptions
+	// alreadyPrinted denotes whether or not
+	// any exception is already printed before
+	// this call.
+	static void printRemainingExceptions(bool alreadyPrinted = true);
 	// returns false if the hash extraction fails
 	// if succeeds, assigns the pointer to the generated hash
 	static bool getHash(const Value &v, Value *generatedHash);

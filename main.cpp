@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "loader.h"
+#include "objects/symtab.h"
 #include <iostream>
 using namespace std;
 
@@ -13,12 +14,18 @@ int main(int argc, char *argv[]) {
 	GcObject::init();
 	Value::init();
 	ExecutionEngine::init();
-	// ExecutionEngine::init();
-	// bind all the core classes
-	// NextType::bindCoreClasses();
 	if(argc > 1) {
-		Loader::compile_and_load(argv[1], true);
-		// cout << s.scanAllTokens();
+		Value arg = Value(String::from(argv[1]));
+		Value ret;
+		// execute an import_file on core with the given argument
+		if(!ExecutionEngine::execute(
+		       ExecutionEngine::CoreObject,
+		       GcObject::CoreModule
+		           ->get_fn(SymbolTable2::insert("import_file(_)"))
+		           .toFunction(),
+		       &arg, 1, &ret, true)) {
+			ExecutionEngine::printRemainingExceptions(false);
+		}
 	} else {
 		cout << "Repl is not implemented yet!";
 		/*

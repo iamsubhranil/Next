@@ -198,13 +198,18 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	printStackTrace(f);
 }
 
-void ExecutionEngine::printRemainingExceptions() {
+void ExecutionEngine::printRemainingExceptions(bool alreadyPrinted) {
 	while(pendingExceptions->size > 0) {
 		Value  ex = pendingExceptions->values[--pendingExceptions->size];
 		Fiber *f  = pendingFibers->values[--pendingFibers->size].toFiber();
-		std::cout << "Above exception occurred while handling the following:\n";
+		if(alreadyPrinted)
+			std::cout
+			    << "Above exception occurred while handling the following:\n";
 		printException(ex, f);
 		printStackTrace(f);
+		// if we have more than one exceptions, then we sure are
+		// cascading some of them
+		alreadyPrinted = true;
 	}
 }
 
@@ -577,7 +582,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			BACKUP_FRAMEINFO();
 			fiber = currentFiber;
 		}
-		RESTORE_FRAMEINFO();
+		if(fiber->callFramePointer > 0) {
+			RESTORE_FRAMEINFO();
+		}
 		if(pendingExceptions->size > numberOfExceptions) {
 			// we unwind this stack to let the caller handle
 			// the exception

@@ -16,7 +16,13 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	ret.toHighlight = 0;
 
 	auto             it = 0;
-	filesystem::path p  = filesystem::path(currentPath->str()).parent_path();
+	filesystem::path p;
+
+	if(currentPath != nullptr) {
+		p = filesystem::path(currentPath->str()).parent_path();
+	} else {
+		p = filesystem::path::getcwd();
+	}
 
 	while(p.is_directory() && it != size) {
 		p = p / filesystem::path(parts[it].toString()->str());

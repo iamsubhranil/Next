@@ -127,10 +127,17 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			break;
 		}
 		case ImportStatus::FILE_NOT_FOUND: {
-			String *s =
-			    Formatter::fmt("No such module '{}' found in the given folder!",
-			                   parts[highlight])
-			        .toString();
+			String *s;
+			if(highlight == 0) {
+				s = Formatter::fmt(
+				        "No such module '{}' found in the present folder!",
+				        parts[highlight])
+				        .toString();
+			} else {
+				s = Formatter::fmt("No such module '{}' found in '{}'!",
+				                   parts[highlight], parts[highlight - 1])
+				        .toString();
+			}
 			if(s == NULL)
 				return ValueNil;
 			IMPORTERR(s);
@@ -193,13 +200,19 @@ Value next_core_import1(const Value *args, int arity) {
 	    EXPECT(core, "import(_,...)", i, String);
 	}*/
 	// get the file name
-	Fiber *   f  = ExecutionEngine::getCurrentFiber();
-	Function *fu = f->callFrames[f->callFramePointer - 1].f;
-	if(fu->getType() == Function::Type::BUILTIN) {
-		RERR("Builtin functions cannot call import(_)!");
+	Fiber * f = ExecutionEngine::getCurrentFiber();
+	String2 fname;
+	// if we have any Next call frames to query, do that.
+	// otherwise pass NULL to import, which will
+	// default to the pwd in importer. This means
+	// builtin functions will also pass NULL to
+	// the importer.
+	if(f->callFramePointer > 0 &&
+	   f->getCurrentFrame()->f->getType() != Function::Type::BUILTIN) {
+		Function *fu = f->getCurrentFrame()->f;
+		// get the file name from the bytecodecontext
+		fname = String::from(fu->code->ctx->ranges_[0].token.fileName);
 	}
-	// get the file name from the bytecodecontext
-	String2 fname = String::from(fu->code->ctx->ranges_[0].token.fileName);
 	return next_core_import_(fname, &args[1], arity - 1);
 }
 
