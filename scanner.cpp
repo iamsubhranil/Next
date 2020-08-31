@@ -121,6 +121,7 @@ void Token::highlight(bool showFileName, const char *prefix,
 const char *Token::TokenNames[] = {
     "TOKEN_LEFT_PAREN",    "TOKEN_RIGHT_PAREN", "TOKEN_LEFT_BRACE",
     "TOKEN_RIGHT_BRACE",   "TOKEN_LEFT_SQUARE", "TOKEN_RIGHT_SQUARE",
+    "TOKEN_SUBSCRIPT",
 
     "TOKEN_BANG",          "TOKEN_BANG_EQUAL",  "TOKEN_COMMA",
     "TOKEN_DOT",           "TOKEN_DOT_DOT",     "TOKEN_COLON",
@@ -129,7 +130,8 @@ const char *Token::TokenNames[] = {
     "TOKEN_GREATER_EQUAL", "TOKEN_LESS",        "TOKEN_LESS_EQUAL",
     "TOKEN_MINUS",         "TOKEN_PLUS",        "TOKEN_SEMICOLON",
     "TOKEN_SLASH",         "TOKEN_STAR",        "TOKEN_PERCEN",
-    "TOKEN_CARET",         "TOKEN_AT",
+    "TOKEN_CARET",         "TOKEN_AT",          "TOKEN_PLUS_PLUS",
+    "TOKEN_MINUS_MINUS",
 
     "TOKEN_IDENTIFIER",    "TOKEN_STRING",      "TOKEN_NUMBER",
     "TOKEN_HEX",           "TOKEN_OCT",         "TOKEN_BIN",
@@ -141,24 +143,25 @@ const char *Token::TokenNames[] = {
     "TOKEN_ERROR",         "TOKEN_EOF"};
 
 const char *Token::FormalNames[] = {
-    "(",      ")",          "{",          "}",     "[",      "]", "[]",
-    "!",      "!=",         ",",          ".",     "..",     ":", "=",
-    "==",     ">",          ">=",         "<",     "<=",     "-", "+",
-    ";",      "/",          "*",          "%",     "^",      "@", "identifier",
-    "string", "number",     "hexdecimal", "octal", "binary",
+    "(",     ")",          "{",      "}",      "[",          "]",     "[]",
+    "!",     "!=",         ",",      ".",      "..",         ":",     "=",
+    "==",    ">",          ">=",     "<",      "<=",         "-",     "+",
+    ";",     "/",          "*",      "%",      "^",          "@",     "++",
+    "--",    "identifier", "string", "number", "hexdecimal", "octal", "binary",
 #define KEYWORD(x, y) #x,
 #include "keywords.h"
 #undef KEYWORD
 
-    "error",  "end of file"};
+    "error", "end of file"};
 
 using namespace std;
 
 #ifdef DEBUG_SCANNER
 ostream &operator<<(ostream &os, const Token &t) {
 	os << setw(15) << std::left << string(t.start, t.length);
-	os << " " << setw(2) << t.length << " " << setw(10) << string(t.fileName)
-	   << setw(3) << t.line << " " << Token::TokenNames[t.type] << endl;
+	os << " len:" << setw(2) << t.length << " " << setw(10)
+	   << string(t.fileName) << setw(3) << ":" << t.line << " "
+	   << Token::TokenNames[t.type] << endl;
 	return os;
 }
 #else
