@@ -129,7 +129,7 @@ void GcObject::free(void *mem, size_t bytes) {
 void GcObject::gc(bool force) {
 	// check for gc
 	if(totalAllocated >= next_gc || force) {
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Started GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
 		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
@@ -145,27 +145,27 @@ void GcObject::gc(bool force) {
 		mark((GcObject *)CoreModule);
 		mark(ExecutionEngine::CoreObject);
 		mark(CoreContext); // not really needed
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Marking CodeGens via Loader..\n";
 #endif
 		Loader::mark();
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Marking weak strings..\n";
 #endif
 		String::keep();
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Marking symbol table..\n";
 #endif
 		SymbolTable2::mark();
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Marking temporary objects..\n";
 #endif
 		mark(temporaryObjects);
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Marking Engine..\n";
 #endif
 		ExecutionEngine::mark();
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Sweeping..\n";
 #endif
 		sweep();
@@ -180,7 +180,7 @@ void GcObject::gc(bool force) {
 		// new budget
 		if(next_gc < c)
 			next_gc = c;
-#ifdef DEBUG_GC
+#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Finished GC..\n";
 		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
 		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";

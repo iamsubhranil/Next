@@ -38,8 +38,14 @@ debug_gc: debug
 debug_gc_stress: CXXFLAGS += -DGC_STRESS
 debug_gc_stress: debug
 
-debug_all: CXXFLAGS += -DDEBUG_INS -DDEBUG_GC -DDEBUG_CODEGEN
+debug_all: CXXFLAGS += -DDEBUG_INS -DDEBUG_CODEGEN -DDEBUG_GC_CLEANUP
 debug_all: debug
+
+debug_all_verbose: CXXFLAGS += -DDEBUG_GC
+debug_all_verbose: debug_all
+
+debug_scanner: CXXFLAGS += -DDEBUG_SCANNER
+debug_scanner: debug_all
 
 pgo: merge_profraw pgouse
 
@@ -76,7 +82,7 @@ tests: release
 	$(V) ./next tests/orchestrator.n
 
 next: $(OBJS)
-	$(CXX) $(OBJS) $(LDFLAGS) -o next
+	$(V) $(CXX) $(OBJS) $(LDFLAGS) -o next
 
 benchmark: release
 	$(V) python3 util/benchmark.py -n $(NUM_TRIALS) -l next $(suite)

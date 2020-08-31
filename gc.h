@@ -20,6 +20,10 @@ struct Value;
 #define GC_STRESS 0
 #endif
 
+#if defined(DEBUG_GC) || defined(DEBUG_GC_CLEANUP)
+#define GC_PRINT_CLEANUP
+#endif
+
 #define GC_MIN_TRACKED_OBJECTS_CAP 32
 
 struct GcObject {
