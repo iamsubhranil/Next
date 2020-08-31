@@ -8,6 +8,15 @@ using namespace std;
 
 Token Token::PlaceholderToken = {TOKEN_ERROR, NULL, NULL, 0, 0, NULL};
 
+#ifdef DEBUG_SCANNER
+void tokenPrintDebug(const Token &t) {
+	std::cout << setw(15) << std::left << string(t.start, t.length);
+	std::cout << std::left << " len:" << setw(2) << t.length << " " << setw(10)
+	          << string(t.fileName) << ":" << setw(3) << t.line << " "
+	          << Token::TokenNames[t.type] << endl;
+}
+#endif
+
 Token Token::from(TokenType type, Scanner *scanner) {
 	Token token;
 	token.type     = type;
@@ -16,6 +25,9 @@ Token Token::from(TokenType type, Scanner *scanner) {
 	token.fileName = scanner->fileName;
 	token.line     = scanner->line;
 	token.source   = scanner->source;
+#ifdef DEBUG_SCANNER
+	tokenPrintDebug(token);
+#endif
 	return token;
 }
 
@@ -154,21 +166,9 @@ const char *Token::FormalNames[] = {
 
     "error", "end of file"};
 
-using namespace std;
-
-#ifdef DEBUG_SCANNER
-ostream &operator<<(ostream &os, const Token &t) {
-	os << setw(15) << std::left << string(t.start, t.length);
-	os << " len:" << setw(2) << t.length << " " << setw(10)
-	   << string(t.fileName) << setw(3) << ":" << t.line << " "
-	   << Token::TokenNames[t.type] << endl;
-	return os;
-}
-#else
 ostream &operator<<(ostream &os, const Token &t) {
 	return os << string(t.start, t.length);
 }
-#endif
 
 ostream &operator<<(ostream &os, const vector<Token> &tv) {
 	for(auto i = tv.begin(), j = tv.end(); i != j; i++) os << *i;
