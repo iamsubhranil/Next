@@ -33,11 +33,7 @@ struct Object {
 	}
 
 	// we don't need to free anything here
-	// just reduce the counter since slots
-	// are allocated right after the struct.
-	void release() const {
-		GcObject::totalAllocated -= sizeof(Value) * (numSlots);
-	}
+	void release() const {}
 
 #ifdef DEBUG_GC
 	const char *gc_repr();

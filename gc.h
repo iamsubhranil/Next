@@ -66,6 +66,9 @@ struct GcObject {
 	static void  free(void *mem, size_t bytes);
 	static void *realloc(void *mem, size_t oldb, size_t newb);
 
+	// malloc and free for objects, powered by memorymanager
+	static void *mallocObject(size_t bytes);
+	static void  freeObject(void *mem, size_t bytes);
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC
 #define gc_msg_a(m)                                                            \
