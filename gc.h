@@ -1,7 +1,7 @@
 #pragma once
 #include <cstddef>
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(GC_PRINT_CLEANUP)
 #include "display.h"
 #include <iostream>
 #endif
@@ -65,6 +65,11 @@ struct GcObject {
 	static void *calloc(size_t num, size_t size);
 	static void  free(void *mem, size_t bytes);
 	static void *realloc(void *mem, size_t oldb, size_t newb);
+
+	// special malloc and frees for objects,
+	// which uses the memory manager
+	static void *mallocObject(size_t bytes);
+	static void  freeObject(void *mem, size_t bytes);
 
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC

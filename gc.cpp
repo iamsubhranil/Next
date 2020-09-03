@@ -2,6 +2,7 @@
 #include "display.h"
 #include "engine.h"
 #include "loader.h"
+#include "memman.h"
 #include "objects/array_iterator.h"
 #include "objects/boolean.h"
 #include "objects/boundmethod.h"
@@ -28,7 +29,7 @@ using namespace std;
 #endif
 
 size_t     GcObject::totalAllocated        = 0;
-size_t     GcObject::next_gc               = 1024 * 1024 * 10;
+size_t     GcObject::next_gc               = 1024 * 1024 * 1;
 size_t     GcObject::max_gc                = 1024 * 1024 * 1024;
 size_t     GcObject::trackedObjectCount    = 0;
 size_t     GcObject::trackedObjectCapacity = 0;
@@ -77,9 +78,9 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 	}
 #else
 #define STORE_SIZE(x, y)
-#define MALLOC(x) ::malloc(x)
-#define REALLOC(x, y) ::realloc(x, y)
-#define FREE(x, y) ::free(x)
+#define MALLOC(x) std::malloc(x)
+#define REALLOC(x, y, z) std::realloc(x, z)
+#define FREE(x, y) std::free(x)
 #endif
 
 void *GcObject::malloc(size_t bytes) {
@@ -94,23 +95,23 @@ void *GcObject::malloc(size_t bytes) {
 }
 
 void *GcObject::calloc(size_t num, size_t bytes) {
-	void *m = ::calloc(num, bytes);
+	void *m = std::calloc(num, bytes);
+	if(num * bytes > 0 && m == NULL) {
+		err("[Fatal Error] Out of memory!");
+		exit(1);
+	}
 #ifdef GC_STORE_SIZE
 	// realloc to store the size
 	m = ::realloc(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
 #endif
-	if(num > 0 && bytes > 0 && m == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
 	totalAllocated += (num * bytes);
 	STORE_SIZE(m, bytes);
 	return m;
 }
 
 void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
-	void *n = REALLOC(mem, newb);
+	void *n = REALLOC(mem, oldb, newb);
 	if(newb > 0 && n == NULL) {
 		err("[Fatal Error] Out of memory!");
 		exit(1);
@@ -174,7 +175,7 @@ void GcObject::gc(bool force) {
 		size_t c = Utils::powerOf2Ceil(totalAllocated);
 		// this is our budget
 		if(!force)
-			next_gc *= 2;
+			next_gc += (next_gc / 2);
 		// if the ceiling is
 		// greater than our budget, that is our
 		// new budget
@@ -242,6 +243,12 @@ void GcObject::tracker_shrink() {
 	}
 }
 
+void *GcObject::mallocObject(size_t bytes) {
+	void *m = MemoryManager::malloc(bytes);
+	totalAllocated += bytes;
+	return m;
+}
+
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
                       const Class *klass) {
 	// try for gc before allocation
@@ -268,6 +275,11 @@ Object *GcObject::allocObject(const Class *klass) {
 	return o;
 }
 
+void GcObject::freeObject(void *mem, size_t bytes) {
+	MemoryManager::free(mem, bytes);
+	totalAllocated -= bytes;
+}
+
 void GcObject::release(GcObject *obj) {
 	switch(obj->objType) {
 		case OBJ_NONE:
@@ -279,14 +291,14 @@ void GcObject::release(GcObject *obj) {
 		std::cout << "[GC] [Release] " << #name << " (" << sizeof(name) \
 		          << ") -> " << ((name *)obj)->gc_repr() << "\n";       \
 		((name *)obj)->release();                                       \
-		GcObject::free(obj, sizeof(name));                              \
+		GcObject::freeObject(obj, sizeof(name));                        \
 		GcCounters[name##Counter]--;                                    \
 		break;
 #else
-#define OBJTYPE(name)                      \
-	case OBJ_##name:                       \
-		((name *)obj)->release();          \
-		GcObject::free(obj, sizeof(name)); \
+#define OBJTYPE(name)                            \
+	case OBJ_##name:                             \
+		((name *)obj)->release();                \
+		GcObject::freeObject(obj, sizeof(name)); \
 		break;
 #endif
 #include "objecttype.h"
@@ -419,6 +431,8 @@ void GcObject::sweep() {
 }
 
 void GcObject::init() {
+	// initialize the memory manager
+	MemoryManager::init();
 	// initialize the object tracker
 	tracker_init();
 	// initialize the temporary tracker
