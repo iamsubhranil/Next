@@ -289,8 +289,7 @@ Object *GcObject::allocObject(const Class *klass) {
 	// at once
 	Object *o = (Object *)alloc(
 	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
-	o->numSlots = klass->numSlots;
-	Utils::fillNil(o->slots(), o->numSlots);
+	Utils::fillNil(o->slots(), klass->numSlots);
 	return o;
 }
 
@@ -338,8 +337,7 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Object:
 			GcObject::freeObject(
-			    obj,
-			    sizeof(Object) + (sizeof(Value) * ((Object *)obj)->numSlots));
+			    obj, sizeof(Object) + (sizeof(Value) * obj->klass->numSlots));
 #ifdef DEBUG_GC
 			GcCounters[ObjectCounter]--;
 #endif
@@ -443,11 +441,31 @@ Class *GcObject::getMarkedClass(const Object *o) {
 
 void GcObject::sweep() {
 	size_t lastFilledAt = 0;
+	// for an unmarked class, it may still have
+	// some objects alive, so we hold its release
+	// until they are done using this singly
+	// linked list of unmarked classes.
+	Class *unmarkedClassesHead = nullptr;
+	Class *unmarkedClassesLast = nullptr;
 	for(size_t i = 0; i < trackedObjectCount; i++) {
 		GcObject *v = tracker[i];
 		// if it is not marked, release
 		if(!isMarked(v)) {
-			release(v);
+			if(v->isClass()) {
+				// it doesn't matter where we store
+				// the pointer now, since everything
+				// is already marked anyway
+				Class *c  = (Class *)v;
+				c->module = nullptr;
+				if(unmarkedClassesLast) {
+					unmarkedClassesLast->module = c;
+					unmarkedClassesLast         = c;
+				} else {
+					unmarkedClassesHead = unmarkedClassesLast = c;
+				}
+			} else {
+				release(v);
+			}
 		}
 		// it is marked, shift it left to the
 		// first non empty slot
@@ -458,6 +476,12 @@ void GcObject::sweep() {
 	}
 	trackedObjectCount = lastFilledAt;
 	tracker_shrink();
+	// release all unmarked classes
+	while(unmarkedClassesHead) {
+		Class *next = unmarkedClassesHead->module;
+		release(unmarkedClassesHead);
+		unmarkedClassesHead = next;
+	}
 	// try to release any empty arenas
 	MemoryManager::releaseArenas();
 }
