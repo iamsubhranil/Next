@@ -86,14 +86,18 @@ struct MemoryManager {
 				err("Unable to allocate a pool!");
 				exit(1);
 			}
-			p->startMem       = mem;
-			p->endMem         = (char *)mem + poolSize - 1;
-			p->lastBlock      = (Block *)((char *)mem - blockSize);
-			p->blockSize      = blockSize;
-			p->numAvailBlocks = (poolSize / blockSize);
-			p->nextPool       = nullptr;
-			p->nextBlock      = nullptr;
+			p->init(blockSize, mem);
 			return p;
+		}
+
+		void init(size_t blockSiz, void *mem) {
+			startMem       = mem;
+			endMem         = (char *)mem + poolSize - 1;
+			lastBlock      = (Block *)((char *)mem - blockSiz);
+			blockSize      = blockSiz;
+			numAvailBlocks = (poolSize / blockSiz);
+			nextPool       = nullptr;
+			nextBlock      = nullptr;
 		}
 	};
 
@@ -110,6 +114,10 @@ struct MemoryManager {
 		// linked list of available
 		// pools of different size classes
 		Pool *pools[blockCount];
+		// singly linked list of free pools,
+		// which were once allocated, but
+		// has been freed now
+		Pool *freePools;
 		// pointer to the next area
 		struct Arena *nextArena;
 
@@ -133,6 +141,7 @@ struct MemoryManager {
 			a->lastPoolBlock = (Block *)((char *)a->beginMemory - poolSize);
 			a->nextPoolBlock = nullptr;
 			a->nextArena     = nullptr;
+			a->freePools     = nullptr;
 			return a;
 		}
 
@@ -145,9 +154,18 @@ struct MemoryManager {
 				}
 				void *mem     = nextPoolBlock;
 				nextPoolBlock = (Block *)nextPoolBlock->nextBlock;
-				Pool *p       = Pool::create(size, mem);
-				p->nextPool   = pools[cls];
-				pools[cls]    = p;
+				Pool *p;
+				// if we have a free pool, use that
+				if(freePools) {
+					p         = freePools;
+					freePools = freePools->nextPool;
+					p->init(size, mem);
+				} else {
+					// otherwise, allocate a new pool
+					p = Pool::create(size, mem);
+				}
+				p->nextPool = pools[cls];
+				pools[cls]  = p;
 				availPools--;
 				return p;
 			}
@@ -234,7 +252,9 @@ struct MemoryManager {
 			} else {
 				pools[cls] = p->nextPool;
 			}
-			std::free(p);
+			// add it to the freePool list
+			p->nextPool = freePools;
+			freePools   = p;
 			availPools++;
 		}
 
@@ -247,6 +267,11 @@ struct MemoryManager {
 					bak       = bak->nextPool;
 					std::free(rel);
 				}
+			}
+			while(freePools) {
+				Pool *rel = freePools;
+				freePools = freePools->nextPool;
+				std::free(rel);
 			}
 			// release the memory
 			std::free(beginMemory);
