@@ -434,7 +434,6 @@ void GcObject::sweep() {
 	// until they are done using this singly
 	// linked list of unmarked classes.
 	Class *unmarkedClassesHead = nullptr;
-	Class *unmarkedClassesLast = nullptr;
 	for(size_t i = 0; i < trackedObjectCount; i++) {
 		GcObject *v = tracker[i];
 		// if it is not marked, release
@@ -443,14 +442,9 @@ void GcObject::sweep() {
 				// it doesn't matter where we store
 				// the pointer now, since everything
 				// is already marked anyway
-				Class *c  = (Class *)v;
-				c->module = nullptr;
-				if(unmarkedClassesLast) {
-					unmarkedClassesLast->module = c;
-					unmarkedClassesLast         = c;
-				} else {
-					unmarkedClassesHead = unmarkedClassesLast = c;
-				}
+				Class *c            = (Class *)v;
+				c->module           = unmarkedClassesHead;
+				unmarkedClassesHead = c;
 			} else {
 				release(v);
 			}
