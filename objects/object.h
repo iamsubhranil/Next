@@ -12,16 +12,17 @@ struct Value;
 
 struct Object {
 	GcObject obj;
-	// in case of a gc, the class of the object may already
-	// be garbage collected, and hence we can't access numSlots
-	// anymore. So we keep a copy of that here.
-	int numSlots;
+	// in case of a gc, the gc ensures that the class
+	// is garbage collected after the object, so we can
+	// safely access its numSlots in all cases without
+	// storing it explicitly
 
 	static void init();
 
 	// gc functions
 	void mark() const {
-		for(int i = 0; i < numSlots; i++) {
+		Class *c = GcObject::getMarkedClass(this);
+		for(int i = 0; i < c->numSlots; i++) {
 			GcObject::mark(slots(i));
 		}
 	}
@@ -33,11 +34,7 @@ struct Object {
 	}
 
 	// we don't need to free anything here
-	// just reduce the counter since slots
-	// are allocated right after the struct.
-	void release() const {
-		GcObject::totalAllocated -= sizeof(Value) * (numSlots);
-	}
+	void release() const {}
 
 #ifdef DEBUG_GC
 	const char *gc_repr();

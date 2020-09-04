@@ -2,6 +2,7 @@
 #include "display.h"
 #include "engine.h"
 #include "loader.h"
+#include "memman.h"
 #include "objects/array_iterator.h"
 #include "objects/boolean.h"
 #include "objects/boundmethod.h"
@@ -77,17 +78,13 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 	}
 #else
 #define STORE_SIZE(x, y)
-#define MALLOC(x) ::malloc(x)
-#define REALLOC(x, y) ::realloc(x, y)
-#define FREE(x, y) ::free(x)
+#define MALLOC(x) MemoryManager::malloc(x)
+#define REALLOC(x, y, z) MemoryManager::realloc(x, y, z)
+#define FREE(x, y) MemoryManager::free(x, y)
 #endif
 
 void *GcObject::malloc(size_t bytes) {
 	void *m = MALLOC(bytes);
-	if(bytes > 0 && m == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
 	totalAllocated += bytes;
 	STORE_SIZE(m, bytes);
 	return m;
@@ -100,21 +97,13 @@ void *GcObject::calloc(size_t num, size_t bytes) {
 	m = ::realloc(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
 #endif
-	if(num > 0 && bytes > 0 && m == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
 	totalAllocated += (num * bytes);
 	STORE_SIZE(m, bytes);
 	return m;
 }
 
 void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
-	void *n = REALLOC(mem, newb);
-	if(newb > 0 && n == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
+	void *n = REALLOC(mem, oldb, newb);
 	totalAllocated += newb;
 	totalAllocated -= oldb;
 	STORE_SIZE(n, newb);
@@ -242,6 +231,17 @@ void GcObject::tracker_shrink() {
 	}
 }
 
+void *GcObject::mallocObject(size_t bytes) {
+	void *m = MemoryManager::malloc(bytes);
+	totalAllocated += bytes;
+	return m;
+}
+
+void GcObject::freeObject(void *mem, size_t bytes) {
+	MemoryManager::free(mem, bytes);
+	totalAllocated -= bytes;
+}
+
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
                       const Class *klass) {
 	// try for gc before allocation
@@ -249,55 +249,13 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	// may be less fragmented
 	gc(GC_STRESS);
 
-	GcObject *obj = (GcObject *)GcObject::malloc(s);
+	GcObject *obj = (GcObject *)GcObject::mallocObject(s);
 	obj->objType  = type;
 	obj->klass    = klass;
 
 	tracker_insert(obj);
 
 	return obj;
-}
-
-Object *GcObject::allocObject(const Class *klass) {
-	// perform the whole allocation (object + slots)
-	// at once
-	Object *o = (Object *)alloc(
-	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
-	o->numSlots = klass->numSlots;
-	Utils::fillNil(o->slots(), o->numSlots);
-	return o;
-}
-
-void GcObject::release(GcObject *obj) {
-	switch(obj->objType) {
-		case OBJ_NONE:
-			err("Object type NONE should not be present in the list!");
-			break;
-#ifdef DEBUG_GC
-#define OBJTYPE(name)                                                   \
-	case OBJ_##name:                                                    \
-		std::cout << "[GC] [Release] " << #name << " (" << sizeof(name) \
-		          << ") -> " << ((name *)obj)->gc_repr() << "\n";       \
-		((name *)obj)->release();                                       \
-		GcObject::free(obj, sizeof(name));                              \
-		GcCounters[name##Counter]--;                                    \
-		break;
-#else
-#define OBJTYPE(name)                      \
-	case OBJ_##name:                       \
-		((name *)obj)->release();          \
-		GcObject::free(obj, sizeof(name)); \
-		break;
-#endif
-#include "objecttype.h"
-	}
-}
-
-void GcObject::release(Value v) {
-	if(v.isGcObject())
-		release(v.toGcObject());
-	else if(v.isPointer())
-		release(*v.toPointer());
 }
 
 #ifdef DEBUG_GC
@@ -314,25 +272,95 @@ void GcObject::release(Value v) {
 #endif
 #include "objecttype.h"
 
+Object *GcObject::allocObject(const Class *klass) {
+	// perform the whole allocation (object + slots)
+	// at once
+	Object *o = (Object *)alloc(
+	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
+	Utils::fillNil(o->slots(), klass->numSlots);
+	return o;
+}
+
 String *GcObject::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
-	String *s =
-	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
+	String *s      = (String *)GcObject::mallocObject(sizeof(String) +
+                                                 (sizeof(char) * numchar));
 	s->obj.objType = OBJ_String;
 	s->obj.klass   = StringClass;
 	return s;
 }
 
 void GcObject::releaseString2(String *s) {
-	totalAllocated -= s->size + 1;
-	GcObject::free(s, sizeof(String));
+	GcObject::freeObject(s, (sizeof(String) + (sizeof(char) * (s->size + 1))));
 }
 
 Tuple *GcObject::allocTuple2(int numobj) {
 	Tuple *t = (Tuple *)alloc(sizeof(Tuple) + (sizeof(Value) * numobj),
 	                          OBJ_Tuple, TupleClass);
 	return t;
+}
+
+void GcObject::release(GcObject *obj) {
+	// for the types that are allocated contiguously,
+	// we need to pass the total allocated size to
+	// the memory manager, otherwise it will add the
+	// block to a different pool than the original
+	switch(obj->objType) {
+		case OBJ_String:
+			((String *)obj)->release();
+			GcObject::freeObject(
+			    obj,
+			    sizeof(String) + (sizeof(char) * ((String *)obj)->size + 1));
+#ifdef DEBUG_GC
+			GcCounters[StringCounter]--;
+#endif
+			return;
+		case OBJ_Tuple:
+			GcObject::freeObject(
+			    obj, sizeof(Tuple) + (sizeof(Value) * ((Tuple *)obj)->size));
+#ifdef DEBUG_GC
+			GcCounters[TupleCounter]--;
+#endif
+			return;
+		case OBJ_Object:
+			GcObject::freeObject(
+			    obj, sizeof(Object) + (sizeof(Value) * obj->klass->numSlots));
+#ifdef DEBUG_GC
+			GcCounters[ObjectCounter]--;
+#endif
+			return;
+		default: break;
+	}
+	switch(obj->objType) {
+		case OBJ_NONE:
+			err("Object type NONE should not be present in the list!");
+			break;
+#ifdef DEBUG_GC
+#define OBJTYPE(name)                                                   \
+	case OBJ_##name:                                                    \
+		std::cout << "[GC] [Release] " << #name << " (" << sizeof(name) \
+		          << ") -> " << ((name *)obj)->gc_repr() << "\n";       \
+		((name *)obj)->release();                                       \
+		GcObject::freeObject(obj, sizeof(name));                        \
+		GcCounters[name##Counter]--;                                    \
+		break;
+#else
+#define OBJTYPE(name)                            \
+	case OBJ_##name:                             \
+		((name *)obj)->release();                \
+		GcObject::freeObject(obj, sizeof(name)); \
+		break;
+#endif
+#include "objecttype.h"
+	}
+}
+
+void GcObject::release(Value v) {
+	if(v.isGcObject())
+		release(v.toGcObject());
+	else if(v.isPointer())
+		release(*v.toPointer());
 }
 
 inline void GcObject::mark(Value v) {
@@ -401,11 +429,31 @@ Class *GcObject::getMarkedClass(const Object *o) {
 
 void GcObject::sweep() {
 	size_t lastFilledAt = 0;
+	// for an unmarked class, it may still have
+	// some objects alive, so we hold its release
+	// until they are done using this singly
+	// linked list of unmarked classes.
+	Class *unmarkedClassesHead = nullptr;
+	Class *unmarkedClassesLast = nullptr;
 	for(size_t i = 0; i < trackedObjectCount; i++) {
 		GcObject *v = tracker[i];
 		// if it is not marked, release
 		if(!isMarked(v)) {
-			release(v);
+			if(v->isClass()) {
+				// it doesn't matter where we store
+				// the pointer now, since everything
+				// is already marked anyway
+				Class *c  = (Class *)v;
+				c->module = nullptr;
+				if(unmarkedClassesLast) {
+					unmarkedClassesLast->module = c;
+					unmarkedClassesLast         = c;
+				} else {
+					unmarkedClassesHead = unmarkedClassesLast = c;
+				}
+			} else {
+				release(v);
+			}
 		}
 		// it is marked, shift it left to the
 		// first non empty slot
@@ -416,9 +464,19 @@ void GcObject::sweep() {
 	}
 	trackedObjectCount = lastFilledAt;
 	tracker_shrink();
+	// release all unmarked classes
+	while(unmarkedClassesHead) {
+		Class *next = unmarkedClassesHead->module;
+		release(unmarkedClassesHead);
+		unmarkedClassesHead = next;
+	}
+	// try to release any empty arenas
+	MemoryManager::releaseArenas();
 }
 
 void GcObject::init() {
+	// initialize the memory manager
+	MemoryManager::init();
 	// initialize the object tracker
 	tracker_init();
 	// initialize the temporary tracker
