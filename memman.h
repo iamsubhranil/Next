@@ -26,14 +26,15 @@ struct MemoryManager {
 		return (value + blockWidth - 1) & -blockWidth;
 	}
 
-	static const size_t arenaSize     = 256 * 1024; // 1 MiB
+	static const size_t arenaSize     = 256 * 1024; // 256 KiB
 	static const size_t poolsPerArena = 64;
 	static const size_t poolSize      = arenaSize / poolsPerArena; // 64 KiB
 
 	struct Block {
-		// if this block is allocated, it will hold
-		// the address of its pool, otherwise, it
-		// will hold the address of its next block
+		// it holds the address of the next block in memory.
+		// if this is nullptr, it denotes that the next block
+		// is not carved out yet, and is at blockSize/poolSize
+		// offset from the present block, as applicable.
 		void *nextBlock;
 	};
 
@@ -45,6 +46,8 @@ struct MemoryManager {
 		size_t numAvailBlocks;
 		// pointer to the next free block in this pool
 		Block *nextBlock;
+		// last allocated block in this pool
+		Block *lastBlock;
 		// size of the blocks in this pool
 		size_t blockSize;
 		// pointer to the next pool in
@@ -56,9 +59,13 @@ struct MemoryManager {
 		// to allocate
 		void *allocateBlock() {
 			if(numAvailBlocks > 0) {
-				Block *nhead = (Block *)nextBlock->nextBlock;
-				void * ret   = nextBlock;
-				nextBlock    = nhead;
+				if(nextBlock == nullptr) {
+					nextBlock = (Block *)((char *)lastBlock + blockSize);
+					nextBlock->nextBlock = nullptr;
+					lastBlock            = nextBlock;
+				}
+				void *ret = nextBlock;
+				nextBlock = (Block *)nextBlock->nextBlock;
 				numAvailBlocks--;
 				return ret;
 			}
@@ -80,18 +87,11 @@ struct MemoryManager {
 			}
 			p->startMem       = mem;
 			p->endMem         = (char *)mem + poolSize - 1;
-			p->nextBlock      = (Block *)mem;
+			p->lastBlock      = (Block *)((char *)mem - blockSize);
 			p->blockSize      = blockSize;
 			p->numAvailBlocks = (poolSize / blockSize);
 			p->nextPool       = nullptr;
-			// how do we initialize the memory so that
-			// the singly linked list of blocks remains?
-			// let's do it in the naive way first.
-			Block *cur = p->nextBlock;
-			for(size_t i = 0; i < p->numAvailBlocks; i++) {
-				cur->nextBlock = (char *)cur + blockSize;
-				cur            = (Block *)cur->nextBlock;
-			}
+			p->nextBlock      = nullptr;
 			return p;
 		}
 	};
@@ -102,6 +102,8 @@ struct MemoryManager {
 		void *endMemory;
 		// free mems are linked together
 		Block *nextPoolBlock;
+		// last allocated pool block
+		Block *lastPoolBlock;
 		// number of available pools
 		size_t availPools;
 		// linked list of available
@@ -127,19 +129,19 @@ struct MemoryManager {
 				exit(1);
 			}
 			a->endMemory     = (char *)a->beginMemory + arenaSize - 1;
-			a->nextPoolBlock = (Block *)a->beginMemory;
+			a->lastPoolBlock = (Block *)((char *)a->beginMemory - poolSize);
+			a->nextPoolBlock = nullptr;
 			a->nextArena     = nullptr;
-			// initialize blocks for pools
-			Block *start = a->nextPoolBlock;
-			for(size_t i = 0; i < poolsPerArena; i++) {
-				start->nextBlock = (char *)start + poolSize;
-				start            = (Block *)start->nextBlock;
-			}
 			return a;
 		}
 
 		Pool *allocatePool(size_t size, size_t cls) {
 			if(availPools > 0) {
+				if(nextPoolBlock == nullptr) {
+					nextPoolBlock = (Block *)((char *)lastPoolBlock + poolSize);
+					nextPoolBlock->nextBlock = nullptr;
+					lastPoolBlock            = nextPoolBlock;
+				}
 				void *mem     = nextPoolBlock;
 				nextPoolBlock = (Block *)nextPoolBlock->nextBlock;
 				Pool *p       = Pool::create(size, mem);
