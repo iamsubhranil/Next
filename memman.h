@@ -30,6 +30,7 @@ struct MemoryManager {
 	static const size_t arenaSize     = 1024 * 1024; // 1 MiB
 	static const size_t poolsPerArena = 64;
 	static const size_t poolSize      = arenaSize / poolsPerArena; // 128 KiB
+	static size_t       poolNumAvailBlocks[blockCount];
 
 	struct Block {
 		// it holds the address of the next block in memory.
@@ -80,7 +81,7 @@ struct MemoryManager {
 			numAvailBlocks++;
 		}
 
-		static Pool *create(size_t blockSize, void *mem) {
+		static Pool *create(size_t blockSize, void *mem, size_t cls) {
 			Pool *p = (Pool *)std::malloc(sizeof(Pool));
 			if(p == nullptr) {
 				err("Unable to allocate a pool!");
@@ -89,14 +90,14 @@ struct MemoryManager {
 			// initialize the memory boundary one time
 			p->startMem = mem;
 			p->endMem   = (char *)mem + poolSize - 1;
-			p->init(blockSize);
+			p->init(blockSize, cls);
 			return p;
 		}
 
-		void init(size_t blockSiz) {
+		void init(size_t blockSiz, size_t cls) {
 			lastBlock      = ((char *)startMem - blockSiz);
 			blockSize      = blockSiz;
-			numAvailBlocks = (poolSize / blockSiz);
+			numAvailBlocks = poolNumAvailBlocks[cls];
 			nextPool       = nullptr;
 			nextBlock      = nullptr;
 		}
@@ -150,7 +151,7 @@ struct MemoryManager {
 					// if we have a free pool, use that
 					p         = freePools;
 					freePools = freePools->nextPool;
-					p->init(size);
+					p->init(size, cls);
 				} else {
 					// otherwise, allocate a new pool.
 					// since pools do not return the
@@ -158,7 +159,7 @@ struct MemoryManager {
 					// arena, we certainly need to
 					// carve a new block for this pool
 					lastPoolBlock += poolSize;
-					p = Pool::create(size, lastPoolBlock);
+					p = Pool::create(size, lastPoolBlock, cls);
 				}
 				// put this pool in the beginning of
 				// the queue of its size class
@@ -205,7 +206,7 @@ struct MemoryManager {
 
 		void releaseBlock(void *mem, size_t cls) {
 			Pool * p         = pools[cls];
-			size_t numBlocks = poolSize / p->blockSize;
+			size_t numBlocks = poolNumAvailBlocks[cls];
 			// check if it is in the front of the pool list
 			if(mem >= p->startMem && mem <= p->endMem) {
 				p->releaseBlock(mem);
@@ -407,5 +408,11 @@ struct MemoryManager {
 	}
 
 	// initialize one arena in the beginning
-	static void init() { arenaList = Arena::create(); }
+	static void init() {
+		arenaList = Arena::create();
+		// initialize pool blockCount
+		for(size_t i = 0; i < blockCount; i++) {
+			poolNumAvailBlocks[i] = poolSize / (blockWidth * (i + 1));
+		}
+	}
 };
