@@ -205,20 +205,21 @@ struct MemoryManager {
 					// check if the pool is all free
 					if(p->numAvailBlocks == numBlocks) {
 						releasePool(p, poolParent, cls);
+					} else {
+						// release can only happen in case of a gc,
+						// and so, we're assuming that subsequent
+						// releases are going to refer this same pool.
+						// so we're putting this pool in the front
+						// of the queue, which we know it isn't already
+						poolParent->nextPool = p->nextPool;
+						p->nextPool          = pools[cls];
+						pools[cls]           = p;
 					}
 					break;
 				}
 				poolParent = p;
 				p          = p->nextPool;
 			}
-			// release can only happen in case of a gc,
-			// and so, we're assuming that subsequent
-			// releases are going to refer this same pool.
-			// so we're putting this pool in the front
-			// of the queue, which we know it isn't already
-			poolParent->nextPool = p->nextPool;
-			p->nextPool          = pools[cls];
-			pools[cls]           = p;
 		}
 
 		void releasePool(Pool *p, Pool *parent, size_t cls) {
