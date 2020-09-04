@@ -48,7 +48,7 @@ struct MemoryManager {
 		// pointer to the next free block in this pool
 		Block *nextBlock;
 		// last allocated block in this pool
-		Block *lastBlock;
+		char *lastBlock;
 		// size of the blocks in this pool
 		size_t blockSize;
 		// pointer to the next pool in
@@ -61,9 +61,9 @@ struct MemoryManager {
 		void *allocateBlock() {
 			if(numAvailBlocks > 0) {
 				if(nextBlock == nullptr) {
-					nextBlock = (Block *)((char *)lastBlock + blockSize);
+					lastBlock += blockSize;
+					nextBlock            = (Block *)lastBlock;
 					nextBlock->nextBlock = nullptr;
-					lastBlock            = nextBlock;
 				}
 				void *ret = nextBlock;
 				nextBlock = (Block *)nextBlock->nextBlock;
@@ -86,14 +86,15 @@ struct MemoryManager {
 				err("Unable to allocate a pool!");
 				exit(1);
 			}
-			p->init(blockSize, mem);
+			// initialize the memory boundary one time
+			p->startMem = mem;
+			p->endMem   = (char *)mem + poolSize - 1;
+			p->init(blockSize);
 			return p;
 		}
 
-		void init(size_t blockSiz, void *mem) {
-			startMem       = mem;
-			endMem         = (char *)mem + poolSize - 1;
-			lastBlock      = (Block *)((char *)mem - blockSiz);
+		void init(size_t blockSiz) {
+			lastBlock      = ((char *)startMem - blockSiz);
 			blockSize      = blockSiz;
 			numAvailBlocks = (poolSize / blockSiz);
 			nextPool       = nullptr;
@@ -105,10 +106,8 @@ struct MemoryManager {
 		// the beginning and end of the total mallocated memory
 		void *beginMemory;
 		void *endMemory;
-		// free mems are linked together
-		Block *nextPoolBlock;
 		// last allocated pool block
-		Block *lastPoolBlock;
+		char *lastPoolBlock;
 		// number of available pools
 		size_t availPools;
 		// linked list of available
@@ -138,8 +137,7 @@ struct MemoryManager {
 				exit(1);
 			}
 			a->endMemory     = (char *)a->beginMemory + arenaSize - 1;
-			a->lastPoolBlock = (Block *)((char *)a->beginMemory - poolSize);
-			a->nextPoolBlock = nullptr;
+			a->lastPoolBlock = ((char *)a->beginMemory - poolSize);
 			a->nextArena     = nullptr;
 			a->freePools     = nullptr;
 			return a;
@@ -147,23 +145,23 @@ struct MemoryManager {
 
 		Pool *allocatePool(size_t size, size_t cls) {
 			if(availPools > 0) {
-				if(nextPoolBlock == nullptr) {
-					nextPoolBlock = (Block *)((char *)lastPoolBlock + poolSize);
-					nextPoolBlock->nextBlock = nullptr;
-					lastPoolBlock            = nextPoolBlock;
-				}
-				void *mem     = nextPoolBlock;
-				nextPoolBlock = (Block *)nextPoolBlock->nextBlock;
 				Pool *p;
-				// if we have a free pool, use that
 				if(freePools) {
+					// if we have a free pool, use that
 					p         = freePools;
 					freePools = freePools->nextPool;
-					p->init(size, mem);
+					p->init(size);
 				} else {
-					// otherwise, allocate a new pool
-					p = Pool::create(size, mem);
+					// otherwise, allocate a new pool.
+					// since pools do not return the
+					// block they are holding to the
+					// arena, we certainly need to
+					// carve a new block for this pool
+					lastPoolBlock += poolSize;
+					p = Pool::create(size, lastPoolBlock);
 				}
+				// put this pool in the beginning of
+				// the queue of its size class
 				p->nextPool = pools[cls];
 				pools[cls]  = p;
 				availPools--;
@@ -244,9 +242,9 @@ struct MemoryManager {
 		}
 
 		void releasePool(Pool *p, Pool *parent, size_t cls) {
-			Block *b      = (Block *)p->startMem;
-			b->nextBlock  = nextPoolBlock;
-			nextPoolBlock = b;
+			// we don't need to release the block it is
+			// holding, we can just add it to the free list
+			// and call it a day
 			if(parent) {
 				parent->nextPool = p->nextPool;
 			} else {
