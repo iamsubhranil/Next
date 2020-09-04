@@ -27,9 +27,9 @@ struct MemoryManager {
 		return (value + blockWidth - 1) & -blockWidth;
 	}
 
-	static const size_t arenaSize     = 256 * 1024; // 256 KiB
+	static const size_t arenaSize     = 1024 * 1024; // 1 MiB
 	static const size_t poolsPerArena = 64;
-	static const size_t poolSize      = arenaSize / poolsPerArena; // 64 KiB
+	static const size_t poolSize      = arenaSize / poolsPerArena; // 128 KiB
 
 	struct Block {
 		// it holds the address of the next block in memory.
