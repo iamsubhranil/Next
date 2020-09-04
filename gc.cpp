@@ -78,17 +78,13 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 	}
 #else
 #define STORE_SIZE(x, y)
-#define MALLOC(x) ::malloc(x)
-#define REALLOC(x, y) ::realloc(x, y)
-#define FREE(x, y) ::free(x)
+#define MALLOC(x) MemoryManager::malloc(x)
+#define REALLOC(x, y, z) MemoryManager::realloc(x, y, z)
+#define FREE(x, y) MemoryManager::free(x, y)
 #endif
 
 void *GcObject::malloc(size_t bytes) {
 	void *m = MALLOC(bytes);
-	if(bytes > 0 && m == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
 	totalAllocated += bytes;
 	STORE_SIZE(m, bytes);
 	return m;
@@ -101,21 +97,13 @@ void *GcObject::calloc(size_t num, size_t bytes) {
 	m = ::realloc(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
 #endif
-	if(num > 0 && bytes > 0 && m == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
 	totalAllocated += (num * bytes);
 	STORE_SIZE(m, bytes);
 	return m;
 }
 
 void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
-	void *n = REALLOC(mem, newb);
-	if(newb > 0 && n == NULL) {
-		err("[Fatal Error] Out of memory!");
-		exit(1);
-	}
+	void *n = REALLOC(mem, oldb, newb);
 	totalAllocated += newb;
 	totalAllocated -= oldb;
 	STORE_SIZE(n, newb);

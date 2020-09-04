@@ -3,6 +3,7 @@
 #include "display.h"
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 
 struct MemoryManager {
 
@@ -255,6 +256,8 @@ struct MemoryManager {
 	static Arena *arenaList;
 
 	static void *malloc(size_t size) {
+		if(size == 0)
+			return NULL;
 		if(size <= blockEnd) {
 			size = blockNearest(size);
 			// try allocating from the top arena
@@ -284,7 +287,46 @@ struct MemoryManager {
 		return std::malloc(size);
 	}
 
+	static void *realloc(void *mem, size_t oldb, size_t newb) {
+		if(newb == 0) {
+			MemoryManager::free(mem, oldb);
+			return NULL;
+		}
+		if(oldb == 0 || mem == NULL) {
+			return MemoryManager::malloc(newb);
+		}
+		if(oldb > blockEnd && newb > blockEnd) {
+			void *m = std::realloc(mem, newb);
+			if(newb > 0 && m == NULL) {
+				err("Realloc failed!");
+				exit(1);
+			}
+			return m;
+		}
+		void * nmem = MemoryManager::malloc(newb);
+		size_t cp   = oldb < newb ? oldb : newb;
+		std::memcpy(nmem, mem, cp);
+		MemoryManager::free(mem, oldb);
+		return nmem;
+	}
+
+	static void *calloc(size_t num, size_t bytes) {
+		if(num * bytes <= blockEnd) {
+			void *mem = MemoryManager::malloc(num * bytes);
+			std::memset(mem, 0, num * bytes);
+			return mem;
+		}
+		void *m = std::calloc(num, bytes);
+		if(num * bytes > 0 && m == NULL) {
+			err("Calloc failed!");
+			exit(1);
+		}
+		return m;
+	}
+
 	static void free(void *mem, size_t size) {
+		if(mem == NULL)
+			return;
 		if(size <= blockEnd) {
 			size       = blockNearest(size);
 			Arena *a   = arenaList;
