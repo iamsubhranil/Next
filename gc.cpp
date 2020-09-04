@@ -231,17 +231,6 @@ void GcObject::tracker_shrink() {
 	}
 }
 
-void *GcObject::mallocObject(size_t bytes) {
-	void *m = MemoryManager::malloc(bytes);
-	totalAllocated += bytes;
-	return m;
-}
-
-void GcObject::freeObject(void *mem, size_t bytes) {
-	MemoryManager::free(mem, bytes);
-	totalAllocated -= bytes;
-}
-
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
                       const Class *klass) {
 	// try for gc before allocation
@@ -249,7 +238,7 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	// may be less fragmented
 	gc(GC_STRESS);
 
-	GcObject *obj = (GcObject *)GcObject::mallocObject(s);
+	GcObject *obj = (GcObject *)GcObject_malloc(s);
 	obj->objType  = type;
 	obj->klass    = klass;
 
@@ -284,15 +273,15 @@ Object *GcObject::allocObject(const Class *klass) {
 String *GcObject::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
-	String *s      = (String *)GcObject::mallocObject(sizeof(String) +
-                                                 (sizeof(char) * numchar));
+	String *s =
+	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
 	s->obj.objType = OBJ_String;
 	s->obj.klass   = StringClass;
 	return s;
 }
 
 void GcObject::releaseString2(String *s) {
-	GcObject::freeObject(s, (sizeof(String) + (sizeof(char) * (s->size + 1))));
+	GcObject_free(s, (sizeof(String) + (sizeof(char) * (s->size + 1))));
 }
 
 Tuple *GcObject::allocTuple2(int numobj) {
@@ -309,23 +298,22 @@ void GcObject::release(GcObject *obj) {
 	switch(obj->objType) {
 		case OBJ_String:
 			((String *)obj)->release();
-			GcObject::freeObject(
-			    obj,
-			    sizeof(String) + (sizeof(char) * ((String *)obj)->size + 1));
+			GcObject_free(obj, sizeof(String) +
+			                       (sizeof(char) * ((String *)obj)->size + 1));
 #ifdef DEBUG_GC
 			GcCounters[StringCounter]--;
 #endif
 			return;
 		case OBJ_Tuple:
-			GcObject::freeObject(
-			    obj, sizeof(Tuple) + (sizeof(Value) * ((Tuple *)obj)->size));
+			GcObject_free(obj, sizeof(Tuple) +
+			                       (sizeof(Value) * ((Tuple *)obj)->size));
 #ifdef DEBUG_GC
 			GcCounters[TupleCounter]--;
 #endif
 			return;
 		case OBJ_Object:
-			GcObject::freeObject(
-			    obj, sizeof(Object) + (sizeof(Value) * obj->klass->numSlots));
+			GcObject_free(obj, sizeof(Object) +
+			                       (sizeof(Value) * obj->klass->numSlots));
 #ifdef DEBUG_GC
 			GcCounters[ObjectCounter]--;
 #endif
@@ -342,14 +330,14 @@ void GcObject::release(GcObject *obj) {
 		std::cout << "[GC] [Release] " << #name << " (" << sizeof(name) \
 		          << ") -> " << ((name *)obj)->gc_repr() << "\n";       \
 		((name *)obj)->release();                                       \
-		GcObject::freeObject(obj, sizeof(name));                        \
+		GcObject_free(obj, sizeof(name));                               \
 		GcCounters[name##Counter]--;                                    \
 		break;
 #else
-#define OBJTYPE(name)                            \
-	case OBJ_##name:                             \
-		((name *)obj)->release();                \
-		GcObject::freeObject(obj, sizeof(name)); \
+#define OBJTYPE(name)                     \
+	case OBJ_##name:                      \
+		((name *)obj)->release();         \
+		GcObject_free(obj, sizeof(name)); \
 		break;
 #endif
 #include "objecttype.h"
