@@ -61,15 +61,14 @@ struct MemoryManager {
 		// to allocate
 		void *allocateBlock() {
 			if(numAvailBlocks > 0) {
-				if(nextBlock == nullptr) {
-					lastBlock += blockSize;
-					nextBlock            = (Block *)lastBlock;
-					nextBlock->nextBlock = nullptr;
-				}
-				void *ret = nextBlock;
-				nextBlock = (Block *)nextBlock->nextBlock;
 				numAvailBlocks--;
-				return ret;
+				if(nextBlock == nullptr) {
+					return lastBlock += blockSize;
+				} else {
+					void *ret = nextBlock;
+					nextBlock = (Block *)nextBlock->nextBlock;
+					return ret;
+				}
 			}
 			return nullptr;
 		}
