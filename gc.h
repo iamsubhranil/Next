@@ -9,6 +9,8 @@
 using size_t = std::size_t;
 
 struct Value;
+struct Expr;
+struct Statement;
 
 #define OBJTYPE(name) struct name;
 #include "objecttype.h"
@@ -104,6 +106,8 @@ struct GcObject {
 	// marking and unmarking functions
 	static void mark(Value v);
 	static void mark(GcObject *p);
+	static void mark(Expr *p) { mark((GcObject *)p); }
+	static void mark(Statement *s) { mark((GcObject *)s); }
 #define OBJTYPE(n) \
 	static void mark(n *val) { mark((GcObject *)val); };
 #include "objecttype.h"
@@ -229,3 +233,5 @@ template <typename T> struct GcTempObject {
 
 #define OBJTYPE(x) using x##2 = GcTempObject<x>;
 #include "objecttype.h"
+using Expr2      = GcTempObject<Expr>;
+using Statement2 = GcTempObject<Statement>;

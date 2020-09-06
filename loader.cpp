@@ -140,11 +140,11 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 	try {
 		Parser p(s);
 		registerParselets(&p);
-		vector<StmtPtr> decls = p.parseAllDeclarations();
+		Array2 decls = p.parseAllDeclarations();
 		p.releaseAll();
 #ifdef DEBUG
-		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
-			sp.print(i->get());
+		for(int i = 0; i < decls->size; i++) {
+			sp.print(decls->values[i].toStatement());
 			cout << "\n";
 		}
 		cout << "Parsed successfully!" << endl;
@@ -184,11 +184,11 @@ GcObject *Loader::compile_and_load_from_source(
 	try {
 		Parser p(s);
 		registerParselets(&p);
-		vector<StmtPtr> decls = p.parseAllDeclarations();
+		Array *decls = p.parseAllDeclarations();
 		p.releaseAll();
 #ifdef DEBUG
-		for(auto i = decls.begin(), j = decls.end(); i != j; i++) {
-			sp.print(i->get());
+		for(int i = 0; i < decls->size; i++) {
+			sp.print(decls->values[i].toStatement());
 			cout << "\n";
 		}
 #endif

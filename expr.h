@@ -1,25 +1,13 @@
 #pragma once
 
+#include "gc.h"
 #include "scanner.h"
 #include "value.h"
-#include <memory>
-#include <vector>
 
-class ArrayLiteralExpression;
-class AssignExpression;
-class BinaryExpression;
-class CallExpression;
-class GetExpression;
-class GetThisOrSuperExpression;
-class GroupingExpression;
-class HashmapLiteralExpression;
-class LiteralExpression;
-class MethodReferenceExpression;
-class PrefixExpression;
-class PostfixExpression;
-class SetExpression;
-class SubscriptExpression;
-class VariableExpression;
+#define EXPRTYPE(x) struct x##Expression;
+#include "exprtypes.h"
+
+#define unq(x, ...) (::new(GcObject::alloc##x()) x(__VA_ARGS__))
 
 class ExpressionVisitor {
   public:
@@ -40,194 +28,222 @@ class ExpressionVisitor {
 	virtual void visit(VariableExpression *vis)       = 0;
 };
 
-class Expr {
+struct Expr {
   public:
+	GcObject obj;
+
 	enum Type {
-		ARRAY_LITERAL,
-		ASSIGN,
-		BINARY,
-		CALL,
-		VARIABLE,
-		GET,
-		GETTHISORSUPER,
-		GROUPING,
-		HASHMAP_LITERAL,
-		LITERAL,
-		SET,
-		PREFIX,
-		POSTFIX,
-		SUBSCRIPT,
-		THIS,
-		METHOD_REFERENCE
+#define EXPRTYPE(x) EXPR_##x,
+#include "exprtypes.h"
+		EXPR_This,
 	};
 	Token token;
 	Type  type;
 	Expr(Token tok, Type t) : token(tok), type(t){};
-	virtual ~Expr() {}
-	virtual void accept(ExpressionVisitor *visitor) = 0;
-	Type         getType() { return type; }
-	bool         isAssignable() {
-        return (type == VARIABLE) || (type == ASSIGN) || (type == GET) ||
-               (type == SET) || (type == SUBSCRIPT) || (type == GETTHISORSUPER);
+	void accept(ExpressionVisitor *visitor);
+	Type getType() { return type; }
+	bool isAssignable() {
+		return (type == EXPR_Variable) || (type == EXPR_Assign) ||
+		       (type == EXPR_Get) || (type == EXPR_Set) ||
+		       (type == EXPR_Subscript) || (type == EXPR_GetThisOrSuper);
 	}
 	bool isMemberAccess() {
-		return (type == GET) || (type == SET) || (type == GETTHISORSUPER);
+		return (type == EXPR_Get) || (type == EXPR_Set) ||
+		       (type == EXPR_GetThisOrSuper);
 	}
 	friend class ExpressionVisitor;
 };
 
-using ExpPtr = std::unique_ptr<Expr>;
-
-class ArrayLiteralExpression : public Expr {
+struct ArrayLiteralExpression : public Expr {
   public:
-	std::vector<ExpPtr> exprs;
-	ArrayLiteralExpression(Token t, std::vector<ExpPtr> &s)
-	    : Expr(t, ARRAY_LITERAL) {
-		for(auto &i : s) {
-			exprs.push_back(ExpPtr(i.release()));
-		}
+	Array *exprs;
+	ArrayLiteralExpression(Token t, Array *s)
+	    : Expr(t, EXPR_ArrayLiteral), exprs(s) {}
+
+	void        mark() { GcObject::mark(exprs); }
+	void        release() {}
+	static void init();
+};
+
+struct AssignExpression : public Expr {
+  public:
+	Expr *target, *val;
+	AssignExpression(Expr *lvalue, Token eq, Expr *rvalue)
+	    : Expr(eq, EXPR_Assign), target(lvalue), val(rvalue) {}
+	void mark() {
+		GcObject::mark(target);
+		GcObject::mark(val);
 	}
-
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	void        release() {}
+	static void init();
 };
 
-class AssignExpression : public Expr {
+struct BinaryExpression : public Expr {
   public:
-	ExpPtr target, val;
-	AssignExpression(ExpPtr &lvalue, Token eq, ExpPtr &rvalue)
-	    : Expr(eq, ASSIGN), target(lvalue.release()), val(rvalue.release()) {}
-
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-};
-
-class BinaryExpression : public Expr {
-  public:
-	ExpPtr left, right;
-	BinaryExpression(ExpPtr &l, Token op, ExpPtr &r)
-	    : Expr(op, BINARY), left(l.release()), right(r.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-};
-
-class CallExpression : public Expr {
-  public:
-	ExpPtr              callee;
-	std::vector<ExpPtr> arguments;
-	CallExpression(ExpPtr &cle, Token paren, std::vector<ExpPtr> &args)
-	    : Expr(paren, CALL), callee(cle.release()) {
-		for(auto &i : args) {
-			arguments.push_back(ExpPtr(i.release()));
-		}
+	Expr *left, *right;
+	BinaryExpression(Expr *l, Token op, Expr *r)
+	    : Expr(op, EXPR_Binary), left(l), right(r) {}
+	void mark() {
+		GcObject::mark(left);
+		GcObject::mark(right);
 	}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	void        release() {}
+	static void init();
 };
 
-class VariableExpression : public Expr {
+struct CallExpression : public Expr {
   public:
-	VariableExpression(Token t) : Expr(t, VARIABLE) {}
+	Expr * callee;
+	Array *arguments;
+	CallExpression(Expr *cle, Token paren, Array *args)
+	    : Expr(paren, EXPR_Call), callee(cle), arguments(args) {}
+
+	void mark() {
+		GcObject::mark(callee);
+		GcObject::mark(arguments);
+	}
+	void        release() {}
+	static void init();
+};
+
+struct VariableExpression : public Expr {
+  public:
+	VariableExpression(Token t) : Expr(t, EXPR_Variable) {}
 	// special variable expression to denote the type,
 	// and mark it as non assignable
 	VariableExpression(Expr::Type typ, Token t) : Expr(t, typ) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
 	bool isVariable() { return true; }
+
+	void        mark() {}
+	void        release() {}
+	static void init();
 };
 
-class GetExpression : public Expr {
+struct GetExpression : public Expr {
   public:
-	ExpPtr object;
-	ExpPtr refer;
-	GetExpression(ExpPtr &obj, Token name, ExpPtr &r)
-	    : Expr(name, GET), object(obj.release()), refer(r.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-};
+	Expr *object;
+	Expr *refer;
+	GetExpression(Expr *obj, Token name, Expr *r)
+	    : Expr(name, EXPR_Get), object(obj), refer(r) {}
 
-class GetThisOrSuperExpression : public Expr {
-  public:
-	ExpPtr refer;
-	GetThisOrSuperExpression(Token tos, ExpPtr &r)
-	    : Expr(tos, GETTHISORSUPER), refer(r.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
-};
-
-class GroupingExpression : public Expr {
-  public:
-	std::vector<ExpPtr> exprs;
-	bool                istuple;
-	GroupingExpression(Token brace, std::vector<ExpPtr> &e, bool ist)
-	    : Expr(brace, GROUPING), istuple(ist) {
-		for(auto &i : e) {
-			exprs.push_back(ExpPtr(i.release()));
-		}
+	void mark() {
+		GcObject::mark(refer);
+		GcObject::mark(object);
 	}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	void        release() {}
+	static void init();
 };
 
-class HashmapLiteralExpression : public Expr {
+struct GetThisOrSuperExpression : public Expr {
   public:
-	std::vector<ExpPtr> keys, values;
-	HashmapLiteralExpression(Token t, std::vector<ExpPtr> &k,
-	                         std::vector<ExpPtr> &v)
-	    : Expr(t, ARRAY_LITERAL) {
-		for(auto &i : k) {
-			keys.push_back(ExpPtr(i.release()));
-		}
-		for(auto &i : v) {
-			values.push_back(ExpPtr(i.release()));
-		}
-	}
+	Expr *refer;
+	GetThisOrSuperExpression(Token tos, Expr *r)
+	    : Expr(tos, EXPR_GetThisOrSuper), refer(r) {}
 
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	void        mark() { GcObject::mark(refer); }
+	void        release() {}
+	static void init();
 };
 
-class LiteralExpression : public Expr {
+struct GroupingExpression : public Expr {
+  public:
+	Array *exprs;
+	bool   istuple;
+	GroupingExpression(Token brace, Array *e, bool ist)
+	    : Expr(brace, EXPR_Grouping), exprs(e), istuple(ist) {}
+
+	void        mark() { GcObject::mark(exprs); }
+	void        release() {}
+	static void init();
+};
+
+struct HashmapLiteralExpression : public Expr {
+  public:
+	Array *keys, *values;
+	HashmapLiteralExpression(Token t, Array *k, Array *v)
+	    : Expr(t, EXPR_HashmapLiteral), keys(k), values(v) {}
+
+	void mark() {
+		GcObject::mark(keys);
+		GcObject::mark(values);
+	}
+	void        release() {}
+	static void init();
+};
+
+struct LiteralExpression : public Expr {
   public:
 	Value value;
-	LiteralExpression(Value val, Token lit) : Expr(lit, LITERAL), value(val) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	LiteralExpression(Value val, Token lit)
+	    : Expr(lit, EXPR_Literal), value(val) {}
+
+	void        mark() { GcObject::mark(value); }
+	void        release() {}
+	static void init();
 };
 
-class SetExpression : public Expr {
+struct SetExpression : public Expr {
   public:
-	ExpPtr object, value;
-	SetExpression(ExpPtr &obj, Token name, ExpPtr &val)
-	    : Expr(name, SET), object(obj.release()), value(val.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	Expr *object, *value;
+	SetExpression(Expr *obj, Token name, Expr *val)
+	    : Expr(name, EXPR_Set), object(obj), value(val) {}
+
+	void mark() {
+		GcObject::mark(object);
+		GcObject::mark(value);
+	}
+	void        release() {}
+	static void init();
 };
 
-class PrefixExpression : public Expr {
+struct PrefixExpression : public Expr {
   public:
-	ExpPtr right;
-	PrefixExpression(Token op, ExpPtr &r)
-	    : Expr(op, PREFIX), right(r.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	Expr *right;
+	PrefixExpression(Token op, Expr *r) : Expr(op, EXPR_Prefix), right(r) {}
+
+	void        mark() { GcObject::mark(right); }
+	void        release() {}
+	static void init();
 };
 
-class PostfixExpression : public Expr {
+struct PostfixExpression : public Expr {
   public:
-	ExpPtr left;
-	PostfixExpression(ExpPtr &l, Token t)
-	    : Expr(t, POSTFIX), left(l.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	Expr *left;
+	PostfixExpression(Expr *l, Token t) : Expr(t, EXPR_Postfix), left(l) {}
+
+	void        mark() { GcObject::mark(left); }
+	void        release() {}
+	static void init();
 };
 
-class SubscriptExpression : public Expr {
+struct SubscriptExpression : public Expr {
   public:
-	ExpPtr object;
-	ExpPtr idx;
-	SubscriptExpression(ExpPtr &obj, Token name, ExpPtr &i)
-	    : Expr(name, SUBSCRIPT), object(obj.release()), idx(i.release()) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	Expr *object;
+	Expr *idx;
+	SubscriptExpression(Expr *obj, Token name, Expr *i)
+	    : Expr(name, EXPR_Subscript), object(obj), idx(i) {}
+
+	void mark() {
+		GcObject::mark(object);
+		GcObject::mark(idx);
+	}
+	void        release() {}
+	static void init();
 };
 
-class MethodReferenceExpression : public Expr {
+struct MethodReferenceExpression : public Expr {
   public:
 	int args;
 	MethodReferenceExpression(Token n, int i)
-	    : Expr(n, METHOD_REFERENCE), args(i) {}
-	void accept(ExpressionVisitor *visitor) { visitor->visit(this); }
+	    : Expr(n, EXPR_MethodReference), args(i) {}
+
+	void        mark() {}
+	void        release() {}
+	static void init();
 };
 
 #ifdef DEBUG
-class ExpressionPrinter : public ExpressionVisitor {
+struct ExpressionPrinter : public ExpressionVisitor {
   private:
 	std::ostream &out;
 

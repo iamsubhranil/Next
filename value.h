@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <functional>
 
+struct Statement;
+struct Expr;
+
 struct Value {
 	/*
 	constexpr uint64_t generateMask(size_t s) {
@@ -80,6 +83,8 @@ struct Value {
 		encodeGcObject((GcObject *)temp);                \
 	}
 #endif
+	Value(const Statement *s) { encodeGcObject((GcObject *)s); }
+	Value(const Expr *s) { encodeGcObject((GcObject *)s); }
 #include "objecttype.h"
 #include "valuetypes.h"
 
@@ -109,9 +114,11 @@ struct Value {
 #define OBJTYPE(r) \
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
-	inline double   toNumber() const { return dvalue; }
-	inline int64_t  toInteger() const { return (int64_t)toNumber(); }
-	inline uint64_t toBits() const { return value; }
+	inline Statement *toStatement() { return (Statement *)toGcObject(); }
+	inline Expr *     toExpression() { return (Expr *)toGcObject(); }
+	inline double     toNumber() const { return dvalue; }
+	inline int64_t    toInteger() const { return (int64_t)toNumber(); }
+	inline uint64_t   toBits() const { return value; }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"

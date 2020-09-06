@@ -4,8 +4,6 @@
 #include <ostream>
 #include <vector>
 
-#define unq(x, ...) std::make_unique<x>(__VA_ARGS__)
-
 typedef enum {
 	TOKEN_LEFT_PAREN,
 	TOKEN_RIGHT_PAREN,

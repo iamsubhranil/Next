@@ -1,6 +1,7 @@
 #include "gc.h"
 #include "display.h"
 #include "engine.h"
+#include "expr.h"
 #include "loader.h"
 #include "memman.h"
 #include "objects/array_iterator.h"
@@ -20,6 +21,7 @@
 #include "objects/symtab.h"
 #include "objects/tuple.h"
 #include "objects/tuple_iterator.h"
+#include "stmt.h"
 #include "utils.h"
 
 #ifdef DEBUG
@@ -445,6 +447,7 @@ void GcObject::sweep() {
 		}
 	}
 	trackedObjectCount = lastFilledAt;
+	// shrink the tracker
 	tracker_shrink();
 	// release all unmarked classes
 	while(unmarkedClassesHead) {
@@ -473,6 +476,8 @@ void GcObject::init() {
 	NumberClass      = Class::create();
 	BooleanClass     = Class::create();
 	ErrorObjectClass = Class::create();
+
+	temporaryObjects->obj.klass = ValueSetClass;
 
 	// initialize the string set and symbol table
 	String::init0();

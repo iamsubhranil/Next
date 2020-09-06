@@ -1,25 +1,11 @@
 #pragma once
 
 #include "expr.h"
+#include "objects/array.h"
 #include "scanner.h"
 
-class IfStatement;
-class WhileStatement;
-class FnStatement;
-class FnBodyStatement;
-class ClassStatement;
-class TryStatement;
-class CatchStatement;
-class ImportStatement;
-class BlockStatement;
-class ExpressionStatement;
-class VardeclStatement;
-class MemberVariableStatement;
-class VisibilityStatement;
-class ThrowStatement;
-class ReturnStatement;
-class ForStatement;
-class BreakStatement;
+#define STMTTYPE(x) struct x##Statement;
+#include "stmttypes.h"
 
 class StatementVisitor {
   public:
@@ -44,26 +30,12 @@ class StatementVisitor {
 
 typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV, VIS_DEFAULT } Visibility;
 
-class Statement {
+struct Statement {
   public:
+	GcObject obj;
 	enum Type {
-		IF,
-		WHILE,
-		FN,
-		FNBODY,
-		CLASS,
-		TRY,
-		CATCH,
-		IMPORT,
-		BLOCK,
-		EXPRESSION,
-		VARDECL,
-		MEMVAR,
-		VISIBILITY,
-		THROW,
-		RETURN,
-		FOR,
-		BREAK
+#define STMTTYPE(x) STMT_##x,
+#include "stmttypes.h"
 	};
 	Token token;
 	Type  type;
@@ -71,216 +43,240 @@ class Statement {
 	Type getType() { return type; }
 	bool isDeclaration() {
 		switch(type) {
-			case FN:
-			case CLASS: return true;
+			case STMT_Fn:
+			case STMT_Class: return true;
 			default: return false;
 		};
 	}
-	bool isImport() { return (type == IMPORT); }
-	virtual ~Statement() {}
-	virtual void accept(StatementVisitor *vis) = 0;
+	bool isImport() { return (type == STMT_Import); }
+	void accept(StatementVisitor *visitor);
 };
 
-using StmtPtr = std::unique_ptr<Statement>;
-
-class IfStatement : public Statement {
+struct IfStatement : public Statement {
   public:
-	ExpPtr  condition;
-	StmtPtr thenBlock;
-	StmtPtr elseBlock;
-	IfStatement(Token it, ExpPtr &cond, StmtPtr &then, StmtPtr &else_)
-	    : Statement(it, IF), condition(cond.release()),
-	      thenBlock(then.release()),
-	      elseBlock(else_ == nullptr ? nullptr : else_.release()) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class WhileStatement : public Statement {
-  public:
-	ExpPtr  condition;
-	StmtPtr thenBlock;
-	bool    isDo;
-	WhileStatement(Token w, ExpPtr &cond, StmtPtr &then, bool isd)
-	    : Statement(w, WHILE), condition(cond.release()),
-	      thenBlock(then.release()), isDo(isd) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class FnBodyStatement : public Statement {
-  public:
-	std::vector<Token> args;
-	StmtPtr            body;
-	bool               isva;
-	FnBodyStatement(Token t, std::vector<Token> &ar, StmtPtr &b, bool isv)
-	    : Statement(t, FNBODY), args(ar.begin(), ar.end()),
-	      body(b == nullptr ? nullptr : b.release()), isva(isv) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class FnStatement : public Statement {
-  public:
-	Token                            name;
-	std::unique_ptr<FnBodyStatement> body;
-	bool       isMethod, isStatic, isNative, isConstructor;
-	Visibility visibility;
-	size_t     arity;
-	FnStatement(Token fn, Token n, std::unique_ptr<FnBodyStatement> &fnBody,
-	            bool ism, bool iss, bool isn, bool isc, Visibility vis)
-	    : Statement(fn, FN), name(n), body(fnBody.release()), isMethod(ism),
-	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
-	      arity(body->args.size() - body->isva) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class VardeclStatement : public Statement {
-  public:
-	ExpPtr     expr;
-	Visibility vis;
-	VardeclStatement(Token name, ExpPtr &e, Visibility v)
-	    : Statement(name, VARDECL), expr(e.release()), vis(v) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class ClassStatement : public Statement {
-  public:
-	Token                name;
-	Visibility           vis;
-	bool                 isDerived;
-	Token                derived;
-	std::vector<StmtPtr> declarations;
-	ClassStatement(Token c, Token n, std::vector<StmtPtr> &decl, Visibility v)
-	    : Statement(c, CLASS), name(n), vis(v), isDerived(false) {
-		for(auto i = decl.begin(), j = decl.end(); i != j; i++) {
-			declarations.push_back(StmtPtr(i->release()));
-		}
+	Expr *     condition;
+	Statement *thenBlock;
+	Statement *elseBlock;
+	IfStatement(Token it, Expr *cond, Statement *then, Statement *else_)
+	    : Statement(it, STMT_If), condition(cond), thenBlock(then),
+	      elseBlock(else_) {}
+	void mark() {
+		GcObject::mark(condition);
+		GcObject::mark(thenBlock);
+		GcObject::mark(elseBlock);
 	}
-	ClassStatement(Token c, Token n, std::vector<StmtPtr> &decl, Visibility v,
-	               bool isd, Token d)
+	void        release() {}
+	static void init();
+};
+
+struct WhileStatement : public Statement {
+  public:
+	Expr *     condition;
+	Statement *thenBlock;
+	bool       isDo;
+	WhileStatement(Token w, Expr *cond, Statement *then, bool isd)
+	    : Statement(w, STMT_While), condition(cond), thenBlock(then),
+	      isDo(isd) {}
+	void mark() {
+		GcObject::mark(condition);
+		GcObject::mark(thenBlock);
+	}
+	void        release() {}
+	static void init();
+};
+
+struct FnBodyStatement : public Statement {
+  public:
+	Array *    args;
+	Statement *body;
+	bool       isva;
+	FnBodyStatement(Token t, Array *ar, Statement *b, bool isv)
+	    : Statement(t, STMT_FnBody), args(ar), body(b == nullptr ? nullptr : b),
+	      isva(isv) {}
+	void mark() {
+		GcObject::mark(args);
+		GcObject::mark(body);
+	}
+	void        release() {}
+	static void init();
+};
+
+struct FnStatement : public Statement {
+  public:
+	Token            name;
+	FnBodyStatement *body;
+	bool             isMethod, isStatic, isNative, isConstructor;
+	Visibility       visibility;
+	size_t           arity;
+	FnStatement(Token fn, Token n, FnBodyStatement *fnBody, bool ism, bool iss,
+	            bool isn, bool isc, Visibility vis)
+	    : Statement(fn, STMT_Fn), name(n), body(fnBody), isMethod(ism),
+	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
+	      arity(body->args->size - body->isva) {}
+	void        mark() { GcObject::mark(body); }
+	void        release() {}
+	static void init();
+};
+
+struct VardeclStatement : public Statement {
+  public:
+	Expr *     expr;
+	Visibility vis;
+	VardeclStatement(Token name, Expr *e, Visibility v)
+	    : Statement(name, STMT_Vardecl), expr(e), vis(v) {}
+	void        mark() { GcObject::mark(expr); }
+	void        release() {}
+	static void init();
+};
+
+struct ClassStatement : public Statement {
+  public:
+	Token      name;
+	Visibility vis;
+	bool       isDerived;
+	Token      derived;
+	Array *    declarations;
+	ClassStatement(Token c, Token n, Array *decl, Visibility v)
+	    : Statement(c, STMT_Class), name(n), vis(v), isDerived(false),
+	      declarations(decl) {}
+	ClassStatement(Token c, Token n, Array *decl, Visibility v, bool isd,
+	               Token d)
 	    : ClassStatement(c, n, decl, v) {
 		isDerived = isd;
 		derived   = d;
 	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
+	void        mark() { GcObject::mark(declarations); }
+	void        release() {}
+	static void init();
 };
 
-class VisibilityStatement : public Statement {
+struct VisibilityStatement : public Statement {
   public:
-	VisibilityStatement(Token t) : Statement(t, VISIBILITY) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
+	VisibilityStatement(Token t) : Statement(t, STMT_Visibility) {}
+	void        mark() {}
+	void        release() {}
+	static void init();
 };
 
-class MemberVariableStatement : public Statement {
+struct MemberVariableStatement : public Statement {
   public:
-	std::vector<Token> members;
-	bool               isStatic;
-	MemberVariableStatement(Token t, std::vector<Token> &mem, bool iss)
-	    : Statement(t, MEMVAR), members(mem.begin(), mem.end()), isStatic(iss) {
+	Array *members;
+	bool   isStatic;
+	MemberVariableStatement(Token t, Array *mem, bool iss)
+	    : Statement(t, STMT_MemberVariable), members(mem), isStatic(iss) {}
+	void        mark() { GcObject::mark(members); }
+	void        release() {}
+	static void init();
+};
+
+struct ImportStatement : public Statement {
+  public:
+	Array *import_;
+	ImportStatement(Token t, Array *imp)
+	    : Statement(t, STMT_Import), import_(imp) {}
+	void        mark() { GcObject::mark(import_); }
+	void        release() {}
+	static void init();
+};
+
+struct TryStatement : public Statement {
+  public:
+	Statement *tryBlock;
+	Array *    catchBlocks;
+	TryStatement(Token t, Statement *tr, Array *catches)
+	    : Statement(t, STMT_Try), tryBlock(tr), catchBlocks(catches) {}
+	void mark() {
+		GcObject::mark(tryBlock);
+		GcObject::mark(catchBlocks);
 	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
+	void        release() {}
+	static void init();
 };
 
-class ImportStatement : public Statement {
+struct CatchStatement : public Statement {
   public:
-	std::vector<Token> import;
-	ImportStatement(Token t, std::vector<Token> &imp)
-	    : Statement(t, IMPORT), import(imp.begin(), imp.end()) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
+	Token      typeName, varName;
+	Statement *block;
+	CatchStatement(Token c, Token typ, Token var, Statement *b)
+	    : Statement(c, STMT_Catch), typeName(typ), varName(var), block(b) {}
+	void        mark() { GcObject::mark(block); }
+	void        release() {}
+	static void init();
 };
 
-class TryStatement : public Statement {
+struct BlockStatement : public Statement {
   public:
-	StmtPtr              tryBlock;
-	std::vector<StmtPtr> catchBlocks;
-	TryStatement(Token t, StmtPtr &tr, std::vector<StmtPtr> &catches)
-	    : Statement(t, TRY), tryBlock(tr.release()) {
-		for(auto i = catches.begin(), j = catches.end(); i != j; i++) {
-			catchBlocks.push_back(StmtPtr(i->release()));
-		}
+	Array *statements;
+	bool   isStatic;
+	BlockStatement(Token t)
+	    : Statement(t, STMT_Block), statements(nullptr), isStatic(false) {}
+	BlockStatement(Token t, Array *sts, bool iss = false)
+	    : Statement(t, STMT_Block), statements(sts), isStatic(iss) {}
+	void        mark() { GcObject::mark(statements); }
+	void        release() {}
+	static void init();
+};
+
+struct ExpressionStatement : public Statement {
+  public:
+	Array *exprs;
+	ExpressionStatement(Token t)
+	    : Statement(t, STMT_Expression), exprs(nullptr) {}
+	ExpressionStatement(Token t, Array *e)
+	    : Statement(t, STMT_Expression), exprs(e) {}
+	void        mark() { GcObject::mark(exprs); }
+	void        release() {}
+	static void init();
+};
+
+struct ThrowStatement : public Statement {
+  public:
+	Expr *expr;
+	ThrowStatement(Token t, Expr *e) : Statement(t, STMT_Throw), expr(e) {}
+	void        mark() { GcObject::mark(expr); }
+	void        release() {}
+	static void init();
+};
+
+struct ReturnStatement : public Statement {
+  public:
+	Expr *expr;
+	ReturnStatement(Token t, Expr *e) : Statement(t, STMT_Return), expr(e) {}
+	void        mark() { GcObject::mark(expr); }
+	void        release() {}
+	static void init();
+};
+
+struct ForStatement : public Statement {
+  public:
+	bool       is_iterator;
+	Expr *     cond;
+	Array *    initializer, *incr;
+	Statement *body;
+	ForStatement(Token t, bool isi, Array *ini, Expr *c, Array *inc,
+	             Statement *b)
+	    : Statement(t, STMT_For), is_iterator(isi), cond(c), initializer(ini),
+	      incr(inc), body(b) {}
+	void mark() {
+		GcObject::mark(cond);
+		GcObject::mark(initializer);
+		GcObject::mark(incr);
+		GcObject::mark(body);
 	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
+	void        release() {}
+	static void init();
 };
 
-class CatchStatement : public Statement {
+struct BreakStatement : public Statement {
   public:
-	Token   typeName, varName;
-	StmtPtr block;
-	CatchStatement(Token c, Token typ, Token var, StmtPtr &b)
-	    : Statement(c, CATCH), typeName(typ), varName(var), block(b.release()) {
-	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class BlockStatement : public Statement {
-  public:
-	std::vector<StmtPtr> statements;
-	bool                 isStatic;
-	BlockStatement(Token t) : Statement(t, BLOCK), isStatic(false) {}
-	BlockStatement(Token t, std::vector<StmtPtr> &sts, bool iss = false)
-	    : Statement(t, BLOCK), isStatic(iss) {
-		for(auto i = sts.begin(), j = sts.end(); i != j; i++) {
-			statements.push_back(StmtPtr(i->release()));
-		}
-	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class ExpressionStatement : public Statement {
-  public:
-	std::vector<ExpPtr> exprs;
-	ExpressionStatement(Token t) : Statement(t, EXPRESSION) {}
-	ExpressionStatement(Token t, std::vector<ExpPtr> &e)
-	    : Statement(t, EXPRESSION) {
-		for(auto i = e.begin(), j = e.end(); i != j; i++) {
-			exprs.push_back(ExpPtr(i->release()));
-		}
-	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class ThrowStatement : public Statement {
-  public:
-	ExpPtr expr;
-	ThrowStatement(Token t, ExpPtr &e)
-	    : Statement(t, THROW), expr(e.release()) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class ReturnStatement : public Statement {
-  public:
-	ExpPtr expr;
-	ReturnStatement(Token t, ExpPtr &e)
-	    : Statement(t, RETURN), expr(e == NULL ? NULL : e.release()) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class ForStatement : public Statement {
-  public:
-	bool                is_iterator;
-	ExpPtr              cond;
-	std::vector<ExpPtr> init, incr;
-	StmtPtr             body;
-	ForStatement(Token t, bool isi, std::vector<ExpPtr> &i, ExpPtr &c,
-	             std::vector<ExpPtr> &inc, StmtPtr &b)
-	    : Statement(t, FOR), is_iterator(isi), cond(c.release()),
-	      body(b.release()) {
-		for(auto &ini : i) {
-			init.push_back(ExpPtr(ini.release()));
-		}
-		for(auto &inc : inc) {
-			incr.push_back(ExpPtr(inc.release()));
-		}
-	}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
-};
-
-class BreakStatement : public Statement {
-  public:
-	BreakStatement(Token t) : Statement(t, BREAK) {}
-	void accept(StatementVisitor *vis) { vis->visit(this); }
+	BreakStatement(Token t) : Statement(t, STMT_Break) {}
+	void        mark() {}
+	void        release() {}
+	static void init();
 };
 
 #ifdef DEBUG
-class StatementPrinter : public StatementVisitor {
+struct StatementPrinter : public StatementVisitor {
   private:
 	std::ostream &    os;
 	ExpressionPrinter ep;

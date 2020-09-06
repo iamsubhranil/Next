@@ -40,4 +40,11 @@ OBJTYPE(FiberIterator)
 // Map and set iterators
 OBJTYPE(MapIterator)
 OBJTYPE(SetIterator)
+
+// expression types
+#define EXPRTYPE(x) OBJTYPE(x##Expression)
+#include "exprtypes.h"
+// statement types
+#define STMTTYPE(x) OBJTYPE(x##Statement)
+#include "stmttypes.h"
 #undef OBJTYPE

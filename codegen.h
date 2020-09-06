@@ -145,7 +145,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	                                 Visibility vis       = VIS_DEFAULT);
 	VarInfo          lookForVariable2(String *name, bool declare = false,
 	                                  Visibility vis = VIS_DEFAULT);
-	void             compileAll(const std::vector<StmtPtr> &statements);
+	void             compileAll(Array *statements);
 	void             initFtx(FunctionCompilationContext *f, Token t);
 	void             popFrame();
 	CompilationState getState();
@@ -154,6 +154,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	int  pushScope();
 	void popScope(); // discard all variables in present frame with
 	                 // scopeID >= present scope
+	Array *currentlyCompiling;
 
   public:
 	// if this code generator was invoked by another, this pointer holds
@@ -162,9 +163,8 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	CodeGenerator *parentGenerator;
 
 	CodeGenerator(CodeGenerator *parent);
-	Class *compile(String *name, const std::vector<StmtPtr> &statements);
-	void   compile(ClassCompilationContext *   compileIn,
-	               const std::vector<StmtPtr> &statements);
+	Class *compile(String *name, Array *statements);
+	void   compile(ClassCompilationContext *compileIn, Array *statements);
 	void   mark();
 };
 

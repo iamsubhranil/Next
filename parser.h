@@ -27,33 +27,33 @@ class Parser;
 
 class PrefixParselet {
   public:
-	virtual ExpPtr parse(Parser *parser, Token t) = 0;
+	virtual Expr *parse(Parser *parser, Token t) = 0;
 	virtual ~PrefixParselet() {}
 };
 
 class NameParselet : public PrefixParselet {
   public:
-	ExpPtr parse(Parser *parser, Token t);
+	Expr *parse(Parser *parser, Token t);
 };
 
 class ThisOrSuperParselet : public PrefixParselet {
   public:
-	ExpPtr parse(Parser *parser, Token t);
+	Expr *parse(Parser *parser, Token t);
 };
 
 class LiteralParselet : public PrefixParselet {
   public:
-	ExpPtr parse(Parser *parser, Token t);
+	Expr *parse(Parser *parser, Token t);
 };
 
 class ArrayLiteralParselet : public PrefixParselet {
   public:
-	ExpPtr parse(Parser *parser, Token t);
+	Expr *parse(Parser *parser, Token t);
 };
 
 class HashmapLiteralParselet : public PrefixParselet {
   public:
-	ExpPtr parse(Parser *parser, Token t);
+	Expr *parse(Parser *parser, Token t);
 };
 
 class PrefixOperatorParselet : public PrefixParselet {
@@ -62,13 +62,13 @@ class PrefixOperatorParselet : public PrefixParselet {
 
   public:
 	PrefixOperatorParselet(int prec) : precedence(prec) {}
-	ExpPtr parse(Parser *parser, Token t);
-	int    getPrecedence() { return precedence; }
+	Expr *parse(Parser *parser, Token t);
+	int   getPrecedence() { return precedence; }
 };
 
 class GroupParselet : public PrefixParselet {
   public:
-	ExpPtr parse(Parser *parser, Token t);
+	Expr *parse(Parser *parser, Token t);
 };
 
 class InfixParselet {
@@ -77,9 +77,9 @@ class InfixParselet {
 
   public:
 	InfixParselet(int prec) : precedence(prec) {}
-	virtual ExpPtr parse(Parser *parser, ExpPtr &left, Token t) = 0;
-	int            getPrecedence() { return precedence; }
-	virtual bool   isAssignment() { return false; }
+	virtual Expr *parse(Parser *parser, const Expr2 &left, Token t) = 0;
+	int           getPrecedence() { return precedence; }
+	virtual bool  isAssignment() { return false; }
 	virtual ~InfixParselet() {}
 };
 
@@ -90,14 +90,14 @@ class BinaryOperatorParselet : public InfixParselet {
   public:
 	BinaryOperatorParselet(int precedence, bool isr)
 	    : InfixParselet(precedence), isRight(isr) {}
-	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+	Expr *parse(Parser *parser, const Expr2 &left, Token t);
 };
 
 class PostfixOperatorParselet : public InfixParselet {
   public:
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
-	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
-	bool   isAssignment() {
+	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	bool  isAssignment() {
         return true; // only ++/--
 	}
 };
@@ -105,162 +105,159 @@ class PostfixOperatorParselet : public InfixParselet {
 class AssignParselet : public InfixParselet {
   public:
 	AssignParselet() : InfixParselet(Precedence::ASSIGNMENT) {}
-	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
-	bool   isAssignment() { return true; }
+	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	bool  isAssignment() { return true; }
 };
 
 class CallParselet : public InfixParselet {
   public:
 	CallParselet() : InfixParselet(Precedence::CALL) {}
-	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+	Expr *parse(Parser *parser, const Expr2 &left, Token t);
 };
 
 class ReferenceParselet : public InfixParselet {
   public:
 	ReferenceParselet() : InfixParselet(Precedence::REFERENCE) {}
-	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+	Expr *parse(Parser *parser, const Expr2 &left, Token t);
 };
 
 class SubscriptParselet : public InfixParselet {
   public:
 	SubscriptParselet() : InfixParselet(Precedence::REFERENCE) {}
-	ExpPtr parse(Parser *parser, ExpPtr &left, Token t);
+	Expr *parse(Parser *parser, const Expr2 &left, Token t);
 };
 
 class DeclarationParselet {
   public:
-	StmtPtr parse(Parser *p, Token t) { return this->parse(p, t, VIS_DEFAULT); }
-	virtual StmtPtr parse(Parser *p, Token t, Visibility vis) = 0;
+	Statement *parse(Parser *p, Token t) {
+		return this->parse(p, t, VIS_DEFAULT);
+	}
+	virtual Statement *parse(Parser *p, Token t, Visibility vis) = 0;
 	virtual ~DeclarationParselet() {}
 };
 
 class StatementParselet {
   public:
-	virtual StmtPtr parse(Parser *p, Token t) = 0;
+	virtual Statement *parse(Parser *p, Token t) = 0;
 	virtual ~StatementParselet() {}
 };
 
 class ImportDeclaration : public DeclarationParselet {
   public:
-	StmtPtr
+	Statement *
 	parse(Parser *p, Token t,
 	      Visibility vis); // vis_priv will throw an exception for import
 };
 
 class ClassDeclaration : public DeclarationParselet {
   private:
-	StmtPtr                                        parseClassBody(Parser *p);
+	Statement *                                    parseClassBody(Parser *p);
 	static HashMap<TokenType, StatementParselet *> classBodyParselets;
 
   public:
 	static void registerParselet(TokenType t, StatementParselet *parselet);
 	Visibility  memberVisibility;
-	StmtPtr     parse(Parser *p, Token t, Visibility vis);
+	Statement * parse(Parser *p, Token t, Visibility vis);
 };
 
 class FnDeclaration : public DeclarationParselet {
   public:
-	virtual StmtPtr parse(Parser *p, Token t, Visibility vis);
-	static std::unique_ptr<FnBodyStatement>
-	               parseFnBody(Parser *p, Token t, bool isNative = false, int numArgs = -1);
-	static StmtPtr parseFnStatement(Parser *p, Token t, bool ism, bool iss,
-	                                Visibility vis);
+	virtual Statement *parse(Parser *p, Token t, Visibility vis);
+	static FnBodyStatement *
+	                  parseFnBody(Parser *p, Token t, bool isNative = false, int numArgs = -1);
+	static Statement *parseFnStatement(Parser *p, Token t, bool ism, bool iss,
+	                                   Visibility vis);
 };
 
 class VarDeclaration : public DeclarationParselet {
-	StmtPtr parse(Parser *p, Token t, Visibility vis);
+	Statement *parse(Parser *p, Token t, Visibility vis);
 };
 
 class IfStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class WhileStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class DoStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class TryStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class ThrowStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class ReturnStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class ForStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class BreakStatementParselet : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 // Class Body Statements
 
 class ConstructorDeclaration : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class VisibilityDeclaration : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 // it can either be a static block, or a static function,
 // or a static variable
 class StaticDeclaration : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class MethodDeclaration : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class OpMethodDeclaration : public StatementParselet {
   public:
-	StmtPtr parse(Parser *p, Token t);
+	Statement *parse(Parser *p, Token t);
 };
 
 class MemberDeclaration : public StatementParselet {
   public:
-	StmtPtr        parse(Parser *p, Token t);
-	static StmtPtr parse(Parser *p, Token t, bool isStatic);
+	Statement *       parse(Parser *p, Token t);
+	static Statement *parse(Parser *p, Token t, bool isStatic);
 };
 
 // Parser
 
-using PrefixParseletPtr      = std::unique_ptr<PrefixParselet>;
-using InfixParseletPtr       = std::unique_ptr<InfixParselet>;
-using DeclarationParseletPtr = std::unique_ptr<DeclarationParselet>;
-using StatementParseletPtr   = std::unique_ptr<StatementParselet>;
-
 class Parser {
   private:
-	HashMap<TokenType, PrefixParseletPtr>      prefixParselets;
-	HashMap<TokenType, InfixParseletPtr>       infixParselets;
-	HashMap<TokenType, DeclarationParseletPtr> declarationParselets;
-	HashMap<TokenType, StatementParseletPtr>   statementParselets;
-	Scanner &                                  scanner;
-	std::deque<Token>                          tokenCache;
+	HashMap<TokenType, PrefixParselet *>      prefixParselets;
+	HashMap<TokenType, InfixParselet *>       infixParselets;
+	HashMap<TokenType, DeclarationParselet *> declarationParselets;
+	HashMap<TokenType, StatementParselet *>   statementParselets;
+	Scanner &                                 scanner;
+	std::deque<Token>                         tokenCache;
 
 	int getPrecedence();
 
@@ -277,15 +274,15 @@ class Parser {
 	// if silent is true, the parser won't trigger an
 	// exception if it cannot find a suitable expression
 	// to parse. it will bail out and return null
-	ExpPtr  parseExpression(Token token, bool silent = false);
-	ExpPtr  parseExpression(bool silent = false);
-	ExpPtr  parseExpression(int precedence, Token token, bool silent = false);
-	ExpPtr  parseExpression(int precedence, bool silent = false);
-	StmtPtr parseDeclaration();
-	std::vector<StmtPtr> parseAllDeclarations();
-	StmtPtr              parseStatement();
-	StmtPtr              parseBlock(bool isStatic = false);
-	std::string          buildNextString(Token &t);
+	Expr *parseExpression(Token token, bool silent = false);
+	Expr *parseExpression(bool silent = false);
+	Expr *parseExpression(int precedence, Token token, bool silent = false);
+	Expr *parseExpression(int precedence, bool silent = false);
+	Statement *parseDeclaration();
+	Array *    parseAllDeclarations();
+	Statement *parseStatement();
+	Statement *parseBlock(bool isStatic = false);
+	String *   buildNextString(Token &t);
 
 	// release the parselets
 	void releaseAll();
