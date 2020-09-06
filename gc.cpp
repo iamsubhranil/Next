@@ -93,10 +93,10 @@ void *GcObject::malloc(size_t bytes) {
 }
 
 void *GcObject::calloc(size_t num, size_t bytes) {
-	void *m = ::calloc(num, bytes);
+	void *m = MemoryManager::calloc(num, bytes);
 #ifdef GC_STORE_SIZE
 	// realloc to store the size
-	m = ::realloc(m, (num * bytes) + sizeof(size_t));
+	m = MemoryManager::realloc(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
 #endif
 	totalAllocated += (num * bytes);
