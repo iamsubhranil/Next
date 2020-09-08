@@ -1,4 +1,5 @@
 #include "stmt.h"
+#include "display.h"
 #include "objects/class.h"
 #include "objects/string.h"
 
@@ -9,15 +10,54 @@ void Statement::accept(StatementVisitor *visitor) {
 		visitor->visit((x##Statement *)this); \
 		break;
 #include "stmttypes.h"
+		default:
+			panic("[Internal Error] Invalid statement type %d!", type);
+			break;
 	}
 }
 
-#define STMTTYPE(x)                                                         \
-	void x##Statement::init() {                                             \
-		Class *x##StatementClass = GcObject::x##StatementClass;             \
-		x##StatementClass->init(#x "Statement", Class::ClassType::BUILTIN); \
-	}
+void Statement::mark() {
+	switch(type) {
+#define STMTTYPE(x)                     \
+	case STMT_##x:                      \
+		((x##Statement *)this)->mark(); \
+		break;
 #include "stmttypes.h"
+		default:
+			panic("[Internal Error] Invalid statement type %d!", type);
+			break;
+	}
+}
+
+size_t Statement::getSize() {
+	switch(type) {
+#define STMTTYPE(x)                  \
+	case STMT_##x:                   \
+		return sizeof(x##Statement); \
+		break;
+#include "stmttypes.h"
+		default:
+			panic("[Internal Error] Invalid statement type %d!", type);
+			break;
+	}
+}
+
+void Statement::init() {
+	Class *StatementClass = GcObject::StatementClass;
+	StatementClass->init("statement", Class::ClassType::BUILTIN);
+}
+
+#ifdef DEBUG_GC
+const char *Statement::gc_repr() {
+	switch(type) {
+#define STMTTYPE(x)            \
+	case STMT_##x:             \
+		return #x "Statement"; \
+		break;
+#include "stmttypes.h"
+	}
+}
+#endif
 
 #ifdef DEBUG
 using namespace std;
@@ -105,9 +145,9 @@ void StatementPrinter::visit(CatchStatement *ifs) {
 void StatementPrinter::visit(ImportStatement *ifs) {
 	printTabs();
 	os << "import ";
-	os << ifs->import_->values[0].toString();
+	os << ifs->import_->values[0].toString()->str();
 	for(int i = 1; i < ifs->import_->size; i++) {
-		os << "." << ifs->import_->values[i].toString();
+		os << "." << ifs->import_->values[i].toString()->str();
 	}
 }
 
@@ -128,10 +168,10 @@ void StatementPrinter::visit(BlockStatement *ifs) {
 
 void StatementPrinter::visit(ExpressionStatement *ifs) {
 	printTabs();
-	ep.print(ifs->exprs->values[0].toExpression());
+	ep.print(ifs->exprs->values[0].toExpr());
 	for(int i = 1; i < ifs->exprs->size; i++) {
 		os << ", ";
-		ep.print(ifs->exprs->values[i].toExpression());
+		ep.print(ifs->exprs->values[i].toExpr());
 	}
 }
 
@@ -195,10 +235,10 @@ void StatementPrinter::visit(ForStatement *ifs) {
 	printTabs();
 	os << "for(";
 	if(ifs->initializer->size > 0) {
-		ep.print(ifs->initializer->values[0].toExpression());
+		ep.print(ifs->initializer->values[0].toExpr());
 		for(int i = 1; i < ifs->initializer->size; i++) {
 			os << ", ";
-			ep.print(ifs->initializer->values[i].toExpression());
+			ep.print(ifs->initializer->values[i].toExpr());
 		}
 	}
 	if(!ifs->is_iterator) {
@@ -207,10 +247,10 @@ void StatementPrinter::visit(ForStatement *ifs) {
 			ep.print(ifs->cond);
 		os << "; ";
 		if(ifs->incr->size > 0) {
-			ep.print(ifs->incr->values[0].toExpression());
+			ep.print(ifs->incr->values[0].toExpr());
 			for(int i = 1; i < ifs->incr->size; i++) {
 				os << ", ";
-				ep.print(ifs->incr->values[i].toExpression());
+				ep.print(ifs->incr->values[i].toExpr());
 			}
 		}
 	}

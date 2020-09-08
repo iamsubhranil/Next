@@ -7,6 +7,10 @@
 #define STMTTYPE(x) struct x##Statement;
 #include "stmttypes.h"
 
+#define NewStatement(x, ...)                                \
+	(::new(GcObject::allocStatement2(sizeof(x##Statement))) \
+	     x##Statement(__VA_ARGS__))
+
 class StatementVisitor {
   public:
 	virtual void visit(IfStatement *ifs)             = 0;
@@ -48,8 +52,15 @@ struct Statement {
 			default: return false;
 		};
 	}
-	bool isImport() { return (type == STMT_Import); }
-	void accept(StatementVisitor *visitor);
+	bool        isImport() { return (type == STMT_Import); }
+	void        accept(StatementVisitor *visitor);
+	void        mark();
+	void        release() {}
+	size_t      getSize(); // returns the actual allocated memory based on type
+	static void init();
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 };
 
 struct IfStatement : public Statement {
@@ -57,7 +68,8 @@ struct IfStatement : public Statement {
 	Expr *     condition;
 	Statement *thenBlock;
 	Statement *elseBlock;
-	IfStatement(Token it, Expr *cond, Statement *then, Statement *else_)
+	IfStatement(Token it, const Expr2 &cond, const Statement2 &then,
+	            const Statement2 &else_)
 	    : Statement(it, STMT_If), condition(cond), thenBlock(then),
 	      elseBlock(else_) {}
 	void mark() {
@@ -65,8 +77,6 @@ struct IfStatement : public Statement {
 		GcObject::mark(thenBlock);
 		GcObject::mark(elseBlock);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct WhileStatement : public Statement {
@@ -74,15 +84,13 @@ struct WhileStatement : public Statement {
 	Expr *     condition;
 	Statement *thenBlock;
 	bool       isDo;
-	WhileStatement(Token w, Expr *cond, Statement *then, bool isd)
+	WhileStatement(Token w, const Expr2 &cond, const Statement2 &then, bool isd)
 	    : Statement(w, STMT_While), condition(cond), thenBlock(then),
 	      isDo(isd) {}
 	void mark() {
 		GcObject::mark(condition);
 		GcObject::mark(thenBlock);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct FnBodyStatement : public Statement {
@@ -90,15 +98,13 @@ struct FnBodyStatement : public Statement {
 	Array *    args;
 	Statement *body;
 	bool       isva;
-	FnBodyStatement(Token t, Array *ar, Statement *b, bool isv)
+	FnBodyStatement(Token t, const Array2 &ar, const Statement2 &b, bool isv)
 	    : Statement(t, STMT_FnBody), args(ar), body(b == nullptr ? nullptr : b),
 	      isva(isv) {}
 	void mark() {
 		GcObject::mark(args);
 		GcObject::mark(body);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct FnStatement : public Statement {
@@ -113,20 +119,16 @@ struct FnStatement : public Statement {
 	    : Statement(fn, STMT_Fn), name(n), body(fnBody), isMethod(ism),
 	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
 	      arity(body->args->size - body->isva) {}
-	void        mark() { GcObject::mark(body); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(body); }
 };
 
 struct VardeclStatement : public Statement {
   public:
 	Expr *     expr;
 	Visibility vis;
-	VardeclStatement(Token name, Expr *e, Visibility v)
+	VardeclStatement(Token name, const Expr2 &e, Visibility v)
 	    : Statement(name, STMT_Vardecl), expr(e), vis(v) {}
-	void        mark() { GcObject::mark(expr); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(expr); }
 };
 
 struct ClassStatement : public Statement {
@@ -136,72 +138,60 @@ struct ClassStatement : public Statement {
 	bool       isDerived;
 	Token      derived;
 	Array *    declarations;
-	ClassStatement(Token c, Token n, Array *decl, Visibility v)
+	ClassStatement(Token c, Token n, const Array2 &decl, Visibility v)
 	    : Statement(c, STMT_Class), name(n), vis(v), isDerived(false),
 	      declarations(decl) {}
-	ClassStatement(Token c, Token n, Array *decl, Visibility v, bool isd,
+	ClassStatement(Token c, Token n, const Array2 &decl, Visibility v, bool isd,
 	               Token d)
 	    : ClassStatement(c, n, decl, v) {
 		isDerived = isd;
 		derived   = d;
 	}
-	void        mark() { GcObject::mark(declarations); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(declarations); }
 };
 
 struct VisibilityStatement : public Statement {
   public:
 	VisibilityStatement(Token t) : Statement(t, STMT_Visibility) {}
-	void        mark() {}
-	void        release() {}
-	static void init();
+	void mark() {}
 };
 
 struct MemberVariableStatement : public Statement {
   public:
 	Array *members;
 	bool   isStatic;
-	MemberVariableStatement(Token t, Array *mem, bool iss)
+	MemberVariableStatement(Token t, const Array2 &mem, bool iss)
 	    : Statement(t, STMT_MemberVariable), members(mem), isStatic(iss) {}
-	void        mark() { GcObject::mark(members); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(members); }
 };
 
 struct ImportStatement : public Statement {
   public:
 	Array *import_;
-	ImportStatement(Token t, Array *imp)
+	ImportStatement(Token t, const Array2 &imp)
 	    : Statement(t, STMT_Import), import_(imp) {}
-	void        mark() { GcObject::mark(import_); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(import_); }
 };
 
 struct TryStatement : public Statement {
   public:
 	Statement *tryBlock;
 	Array *    catchBlocks;
-	TryStatement(Token t, Statement *tr, Array *catches)
+	TryStatement(Token t, const Statement2 &tr, const Array2 &catches)
 	    : Statement(t, STMT_Try), tryBlock(tr), catchBlocks(catches) {}
 	void mark() {
 		GcObject::mark(tryBlock);
 		GcObject::mark(catchBlocks);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct CatchStatement : public Statement {
   public:
 	Token      typeName, varName;
 	Statement *block;
-	CatchStatement(Token c, Token typ, Token var, Statement *b)
+	CatchStatement(Token c, Token typ, Token var, const Statement2 &b)
 	    : Statement(c, STMT_Catch), typeName(typ), varName(var), block(b) {}
-	void        mark() { GcObject::mark(block); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(block); }
 };
 
 struct BlockStatement : public Statement {
@@ -210,11 +200,9 @@ struct BlockStatement : public Statement {
 	bool   isStatic;
 	BlockStatement(Token t)
 	    : Statement(t, STMT_Block), statements(nullptr), isStatic(false) {}
-	BlockStatement(Token t, Array *sts, bool iss = false)
+	BlockStatement(Token t, const Array2 &sts, bool iss = false)
 	    : Statement(t, STMT_Block), statements(sts), isStatic(iss) {}
-	void        mark() { GcObject::mark(statements); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(statements); }
 };
 
 struct ExpressionStatement : public Statement {
@@ -222,29 +210,25 @@ struct ExpressionStatement : public Statement {
 	Array *exprs;
 	ExpressionStatement(Token t)
 	    : Statement(t, STMT_Expression), exprs(nullptr) {}
-	ExpressionStatement(Token t, Array *e)
+	ExpressionStatement(Token t, const Array2 &e)
 	    : Statement(t, STMT_Expression), exprs(e) {}
-	void        mark() { GcObject::mark(exprs); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(exprs); }
 };
 
 struct ThrowStatement : public Statement {
   public:
 	Expr *expr;
-	ThrowStatement(Token t, Expr *e) : Statement(t, STMT_Throw), expr(e) {}
-	void        mark() { GcObject::mark(expr); }
-	void        release() {}
-	static void init();
+	ThrowStatement(Token t, const Expr2 &e)
+	    : Statement(t, STMT_Throw), expr(e) {}
+	void mark() { GcObject::mark(expr); }
 };
 
 struct ReturnStatement : public Statement {
   public:
 	Expr *expr;
-	ReturnStatement(Token t, Expr *e) : Statement(t, STMT_Return), expr(e) {}
-	void        mark() { GcObject::mark(expr); }
-	void        release() {}
-	static void init();
+	ReturnStatement(Token t, const Expr2 &e)
+	    : Statement(t, STMT_Return), expr(e) {}
+	void mark() { GcObject::mark(expr); }
 };
 
 struct ForStatement : public Statement {
@@ -253,8 +237,8 @@ struct ForStatement : public Statement {
 	Expr *     cond;
 	Array *    initializer, *incr;
 	Statement *body;
-	ForStatement(Token t, bool isi, Array *ini, Expr *c, Array *inc,
-	             Statement *b)
+	ForStatement(Token t, bool isi, const Array2 &ini, const Expr2 &c,
+	             const Array2 &inc, const Statement2 &b)
 	    : Statement(t, STMT_For), is_iterator(isi), cond(c), initializer(ini),
 	      incr(inc), body(b) {}
 	void mark() {
@@ -263,16 +247,12 @@ struct ForStatement : public Statement {
 		GcObject::mark(incr);
 		GcObject::mark(body);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct BreakStatement : public Statement {
   public:
 	BreakStatement(Token t) : Statement(t, STMT_Break) {}
-	void        mark() {}
-	void        release() {}
-	static void init();
+	void mark() {}
 };
 
 #ifdef DEBUG

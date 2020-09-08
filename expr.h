@@ -7,7 +7,9 @@
 #define EXPRTYPE(x) struct x##Expression;
 #include "exprtypes.h"
 
-#define unq(x, ...) (::new(GcObject::alloc##x()) x(__VA_ARGS__))
+#define NewExpression(x, ...)                                 \
+	(::new(GcObject::allocExpression2(sizeof(x##Expression))) \
+	     x##Expression(__VA_ARGS__))
 
 class ExpressionVisitor {
   public:
@@ -51,59 +53,58 @@ struct Expr {
 		return (type == EXPR_Get) || (type == EXPR_Set) ||
 		       (type == EXPR_GetThisOrSuper);
 	}
+	size_t      getSize(); // returns actual allocation size based on type
+	void        mark();
+	void        release() {}
+	static void init();
+#ifdef DEBUG_GC
+	const char *gc_repr();
+#endif
 	friend class ExpressionVisitor;
 };
 
 struct ArrayLiteralExpression : public Expr {
   public:
 	Array *exprs;
-	ArrayLiteralExpression(Token t, Array *s)
+	ArrayLiteralExpression(Token t, const Array2 &s)
 	    : Expr(t, EXPR_ArrayLiteral), exprs(s) {}
 
-	void        mark() { GcObject::mark(exprs); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(exprs); }
 };
 
 struct AssignExpression : public Expr {
   public:
 	Expr *target, *val;
-	AssignExpression(Expr *lvalue, Token eq, Expr *rvalue)
+	AssignExpression(const Expr2 &lvalue, Token eq, const Expr2 &rvalue)
 	    : Expr(eq, EXPR_Assign), target(lvalue), val(rvalue) {}
 	void mark() {
 		GcObject::mark(target);
 		GcObject::mark(val);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct BinaryExpression : public Expr {
   public:
 	Expr *left, *right;
-	BinaryExpression(Expr *l, Token op, Expr *r)
+	BinaryExpression(const Expr2 &l, Token op, const Expr2 &r)
 	    : Expr(op, EXPR_Binary), left(l), right(r) {}
 	void mark() {
 		GcObject::mark(left);
 		GcObject::mark(right);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct CallExpression : public Expr {
   public:
 	Expr * callee;
 	Array *arguments;
-	CallExpression(Expr *cle, Token paren, Array *args)
+	CallExpression(const Expr2 &cle, Token paren, Array *args)
 	    : Expr(paren, EXPR_Call), callee(cle), arguments(args) {}
 
 	void mark() {
 		GcObject::mark(callee);
 		GcObject::mark(arguments);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct VariableExpression : public Expr {
@@ -114,35 +115,29 @@ struct VariableExpression : public Expr {
 	VariableExpression(Expr::Type typ, Token t) : Expr(t, typ) {}
 	bool isVariable() { return true; }
 
-	void        mark() {}
-	void        release() {}
-	static void init();
+	void mark() {}
 };
 
 struct GetExpression : public Expr {
   public:
 	Expr *object;
 	Expr *refer;
-	GetExpression(Expr *obj, Token name, Expr *r)
+	GetExpression(const Expr2 &obj, Token name, const Expr2 &r)
 	    : Expr(name, EXPR_Get), object(obj), refer(r) {}
 
 	void mark() {
 		GcObject::mark(refer);
 		GcObject::mark(object);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct GetThisOrSuperExpression : public Expr {
   public:
 	Expr *refer;
-	GetThisOrSuperExpression(Token tos, Expr *r)
+	GetThisOrSuperExpression(Token tos, const Expr2 &r)
 	    : Expr(tos, EXPR_GetThisOrSuper), refer(r) {}
 
-	void        mark() { GcObject::mark(refer); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(refer); }
 };
 
 struct GroupingExpression : public Expr {
@@ -152,9 +147,7 @@ struct GroupingExpression : public Expr {
 	GroupingExpression(Token brace, Array *e, bool ist)
 	    : Expr(brace, EXPR_Grouping), exprs(e), istuple(ist) {}
 
-	void        mark() { GcObject::mark(exprs); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(exprs); }
 };
 
 struct HashmapLiteralExpression : public Expr {
@@ -167,8 +160,6 @@ struct HashmapLiteralExpression : public Expr {
 		GcObject::mark(keys);
 		GcObject::mark(values);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct LiteralExpression : public Expr {
@@ -177,58 +168,50 @@ struct LiteralExpression : public Expr {
 	LiteralExpression(Value val, Token lit)
 	    : Expr(lit, EXPR_Literal), value(val) {}
 
-	void        mark() { GcObject::mark(value); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(value); }
 };
 
 struct SetExpression : public Expr {
   public:
 	Expr *object, *value;
-	SetExpression(Expr *obj, Token name, Expr *val)
+	SetExpression(const Expr2 &obj, Token name, const Expr2 &val)
 	    : Expr(name, EXPR_Set), object(obj), value(val) {}
 
 	void mark() {
 		GcObject::mark(object);
 		GcObject::mark(value);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct PrefixExpression : public Expr {
   public:
 	Expr *right;
-	PrefixExpression(Token op, Expr *r) : Expr(op, EXPR_Prefix), right(r) {}
+	PrefixExpression(Token op, const Expr2 &r)
+	    : Expr(op, EXPR_Prefix), right(r) {}
 
-	void        mark() { GcObject::mark(right); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(right); }
 };
 
 struct PostfixExpression : public Expr {
   public:
 	Expr *left;
-	PostfixExpression(Expr *l, Token t) : Expr(t, EXPR_Postfix), left(l) {}
+	PostfixExpression(const Expr2 &l, Token t)
+	    : Expr(t, EXPR_Postfix), left(l) {}
 
-	void        mark() { GcObject::mark(left); }
-	void        release() {}
-	static void init();
+	void mark() { GcObject::mark(left); }
 };
 
 struct SubscriptExpression : public Expr {
   public:
 	Expr *object;
 	Expr *idx;
-	SubscriptExpression(Expr *obj, Token name, Expr *i)
+	SubscriptExpression(const Expr2 &obj, Token name, const Expr2 &i)
 	    : Expr(name, EXPR_Subscript), object(obj), idx(i) {}
 
 	void mark() {
 		GcObject::mark(object);
 		GcObject::mark(idx);
 	}
-	void        release() {}
-	static void init();
 };
 
 struct MethodReferenceExpression : public Expr {
@@ -237,9 +220,7 @@ struct MethodReferenceExpression : public Expr {
 	MethodReferenceExpression(Token n, int i)
 	    : Expr(n, EXPR_MethodReference), args(i) {}
 
-	void        mark() {}
-	void        release() {}
-	static void init();
+	void mark() {}
 };
 
 #ifdef DEBUG

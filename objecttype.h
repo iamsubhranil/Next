@@ -42,9 +42,7 @@ OBJTYPE(MapIterator)
 OBJTYPE(SetIterator)
 
 // expression types
-#define EXPRTYPE(x) OBJTYPE(x##Expression)
-#include "exprtypes.h"
+OBJTYPE(Expr)
 // statement types
-#define STMTTYPE(x) OBJTYPE(x##Statement)
-#include "stmttypes.h"
+OBJTYPE(Statement)
 #undef OBJTYPE

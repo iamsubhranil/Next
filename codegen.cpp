@@ -222,7 +222,7 @@ void CodeGenerator::visit(GroupingExpression *g) {
 	g->token.highlight();
 #endif
 	for(int j = 0; j < g->exprs->size; j++) {
-		g->exprs->values[j].toExpression()->accept(this);
+		g->exprs->values[j].toExpr()->accept(this);
 	}
 	if(g->istuple) {
 		btx->tuple_build(g->exprs->size);
@@ -383,7 +383,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	bool bak = onRefer;
 	onRefer  = false;
 	for(int j = 0; j < call->arguments->size; j++) {
-		call->arguments->values[j].toExpression()->accept(this);
+		call->arguments->values[j].toExpr()->accept(this);
 	}
 	onRefer = bak;
 	btx->insert_token(call->callee->token);
@@ -587,7 +587,7 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	if(al->exprs->size > 0) {
 		// evalute all the expressions
 		for(int j = 0; j < al->exprs->size; j++) {
-			al->exprs->values[j].toExpression()->accept(this);
+			al->exprs->values[j].toExpr()->accept(this);
 		}
 	}
 	// finally emit opcode to create an
@@ -606,8 +606,8 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 	if(al->keys->size > 0) {
 		// now evalute all the key:value pairs
 		for(int j = 0; j < al->keys->size; j++) {
-			al->keys->values[j].toExpression()->accept(this);
-			al->values->values[j].toExpression()->accept(this);
+			al->keys->values[j].toExpr()->accept(this);
+			al->values->values[j].toExpr()->accept(this);
 		}
 	}
 	btx->map_build(al->keys->size);
@@ -1070,7 +1070,8 @@ void CodeGenerator::visit(ForStatement *ifs) {
 	if(ifs->is_iterator) {
 		// iterators
 		// first, validate the in expression
-		BinaryExpression *it = ifs->initializer->values[0].toBinaryExpression();
+		BinaryExpression *it =
+		    (BinaryExpression *)ifs->initializer->values[0].toExpr();
 		if(it->left->type != Expr::EXPR_Variable) {
 			lnerr_("Iterator assignment is not a variable!", it->left->token);
 		} else {
@@ -1117,7 +1118,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		// evaluate the initializers
 		if(ifs->initializer->size > 0) {
 			for(int j = 0; j < ifs->initializer->size; j++) {
-				ifs->initializer->values[j].toExpression()->accept(this);
+				ifs->initializer->values[j].toExpr()->accept(this);
 				// pop the result
 				btx->pop_();
 			}
@@ -1135,7 +1136,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		// evalute the incrementers
 		if(ifs->incr->size > 0) {
 			for(int j = 0; j < ifs->incr->size; j++) {
-				ifs->incr->values[j].toExpression()->accept(this);
+				ifs->incr->values[j].toExpr()->accept(this);
 				// pop the result
 				btx->pop_();
 			}
@@ -1346,7 +1347,7 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	for(int j = 0; j < ifs->exprs->size; j++) {
-		ifs->exprs->values[j].toExpression()->accept(this);
+		ifs->exprs->values[j].toExpr()->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
 		btx->pop_();

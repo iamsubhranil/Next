@@ -1,4 +1,5 @@
 #include "expr.h"
+#include "display.h"
 #include "objects/array.h"
 #include "objects/class.h"
 
@@ -10,15 +11,57 @@ void Expr::accept(ExpressionVisitor *visitor) {
 		break;
 #include "exprtypes.h"
 		case EXPR_This: visitor->visit((VariableExpression *)this); break;
+		default:
+			panic("[Internal Error] Invalid expression type %d!", type);
+			break;
 	}
 }
 
-#define EXPRTYPE(x)                                                           \
-	void x##Expression::init() {                                              \
-		Class *x##ExpressionClass = GcObject::x##ExpressionClass;             \
-		x##ExpressionClass->init(#x "Expression", Class::ClassType::BUILTIN); \
-	}
+void Expr::mark() {
+	switch(type) {
+#define EXPRTYPE(x)                      \
+	case EXPR_##x:                       \
+		((x##Expression *)this)->mark(); \
+		break;
 #include "exprtypes.h"
+		case EXPR_This: ((VariableExpression *)this)->mark(); break;
+		default:
+			panic("[Internal Error] Invalid expression type %d!", type);
+			break;
+	}
+}
+
+size_t Expr::getSize() {
+	switch(type) {
+#define EXPRTYPE(x)                   \
+	case EXPR_##x:                    \
+		return sizeof(x##Expression); \
+		break;
+#include "exprtypes.h"
+		case EXPR_This: return sizeof(VariableExpression); break;
+		default:
+			panic("[Internal Error] Invalid expression type %d!", type);
+			break;
+	}
+}
+
+void Expr::init() {
+	Class *ExprClass = GcObject::ExprClass;
+	ExprClass->init("expression", Class::ClassType::BUILTIN);
+}
+
+#ifdef DEBUG_GC
+const char *Expr::gc_repr() {
+	switch(type) {
+#define EXPRTYPE(x)             \
+	case EXPR_##x:              \
+		return #x "Expression"; \
+		break;
+#include "exprtypes.h"
+		case EXPR_This: return "ThisVariableExpression"; break;
+	}
+}
+#endif
 
 #ifdef DEBUG
 
@@ -33,12 +76,12 @@ void ExpressionPrinter::print(Expr *e) {
 void ExpressionPrinter::visit(ArrayLiteralExpression *al) {
 	out << "[";
 	if(al->exprs->size > 0) {
-		al->exprs->values[0].toExpression()->accept(this);
+		al->exprs->values[0].toExpr()->accept(this);
 	}
 	int i = 1;
 	while(i < al->exprs->size) {
 		out << ", ";
-		al->exprs->values[i].toExpression()->accept(this);
+		al->exprs->values[i].toExpr()->accept(this);
 		i++;
 	}
 	out << "]";
@@ -60,10 +103,10 @@ void ExpressionPrinter::visit(CallExpression *ce) {
 	ce->callee->accept(this);
 	out << "(";
 	if(ce->arguments->size != 0) {
-		ce->arguments->values[0].toExpression()->accept(this);
+		ce->arguments->values[0].toExpr()->accept(this);
 		for(int i = 1; i < ce->arguments->size; i++) {
 			out << ", ";
-			ce->arguments->values[i].toExpression()->accept(this);
+			ce->arguments->values[i].toExpr()->accept(this);
 		}
 	}
 	out << ")";
@@ -88,7 +131,7 @@ void ExpressionPrinter::visit(GetThisOrSuperExpression *ge) {
 void ExpressionPrinter::visit(GroupingExpression *ge) {
 	out << "(";
 	for(int i = 0; i < ge->exprs->size; i++) {
-		ge->exprs->values[i].toExpression()->accept(this);
+		ge->exprs->values[i].toExpr()->accept(this);
 		if(ge->istuple)
 			out << ", ";
 	}
@@ -98,15 +141,15 @@ void ExpressionPrinter::visit(GroupingExpression *ge) {
 void ExpressionPrinter::visit(HashmapLiteralExpression *hl) {
 	out << "{";
 	if(hl->keys->size > 0) {
-		hl->keys->values[0].toExpression()->accept(this);
+		hl->keys->values[0].toExpr()->accept(this);
 		out << " : ";
-		hl->values->values[0].toExpression()->accept(this);
+		hl->values->values[0].toExpr()->accept(this);
 	}
 	for(int i = 1; i < hl->keys->size; i++) {
 		out << ", ";
-		hl->keys->values[i].toExpression()->accept(this);
+		hl->keys->values[i].toExpr()->accept(this);
 		out << " : ";
-		hl->values->values[i].toExpression()->accept(this);
+		hl->values->values[i].toExpr()->accept(this);
 	}
 	out << "}";
 }

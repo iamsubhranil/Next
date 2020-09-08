@@ -99,7 +99,7 @@ Statement *Parser::parseBlock(bool isStatic) {
 	while(!match(TOKEN_RIGHT_BRACE)) {
 		s->insert(parseStatement());
 	}
-	return unq(BlockStatement, t, s, isStatic);
+	return NewStatement(Block, t, s, isStatic);
 }
 
 Statement *Parser::parseStatement() {
@@ -113,7 +113,7 @@ Statement *Parser::parseStatement() {
 		while(match(TOKEN_COMMA)) {
 			exprs->insert(parseExpression());
 		}
-		return unq(ExpressionStatement, t, exprs);
+		return NewStatement(Expression, t, exprs);
 	}
 
 	return p->parse(this, t);
@@ -200,14 +200,14 @@ Statement *ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
 		String2 s = String::from(t.start, t.length);
 		imports->insert(s);
 	} while(p->match(TOKEN_DOT));
-	return unq(ImportStatement, t, imports);
+	return NewStatement(Import, t, imports);
 }
 
 Statement *VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	p->consume(TOKEN_EQUAL,
 	           "Expected '=' after top level variable declaration!");
 	Expr2 e = p->parseExpression();
-	return unq(VardeclStatement, t, e, vis);
+	return NewStatement(Vardecl, t, e, vis);
 }
 
 FnBodyStatement *FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative,
@@ -261,7 +261,7 @@ FnBodyStatement *FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative,
 			p->consume(TOKEN_fn, "Native functions should not have a body!");
 		}
 	}
-	return unq(FnBodyStatement, t, args, block, isva);
+	return NewStatement(FnBody, t, args, block, isva);
 }
 
 Statement *FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism,
@@ -272,8 +272,9 @@ Statement *FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism,
 	//	isn = true;
 	//}
 	Token name = p->consume(TOKEN_IDENTIFIER, "Expected function name!");
-	FnBodyStatement2 body = FnDeclaration::parseFnBody(p, t, isn);
-	return unq(FnStatement, t, name, body, ism, iss, isn, false, vis);
+	FnBodyStatement *body = FnDeclaration::parseFnBody(p, t, isn);
+	Statement2       hold = body;
+	return NewStatement(Fn, t, name, body, ism, iss, isn, false, vis);
 }
 
 Statement *FnDeclaration::parse(Parser *p, Token t, Visibility vis) {
@@ -301,7 +302,7 @@ Statement *ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
 		classDecl->insert(parseClassBody(p));
 	}
 
-	return unq(ClassStatement, t, name, classDecl, vis, isd, derived);
+	return NewStatement(Class, t, name, classDecl, vis, isd, derived);
 }
 
 HashMap<TokenType, StatementParselet *> ClassDeclaration::classBodyParselets =
@@ -317,14 +318,15 @@ Statement *ClassDeclaration::parseClassBody(Parser *p) {
 }
 
 Statement *ConstructorDeclaration::parse(Parser *p, Token t) {
-	FnBodyStatement2 body = FnDeclaration::parseFnBody(p, t);
+	FnBodyStatement *body = FnDeclaration::parseFnBody(p, t);
+	Statement2       hold = body;
 	// isMethod = true and isConstructor = true
-	return unq(FnStatement, t, t, body, true, false, false, true, VIS_DEFAULT);
+	return NewStatement(Fn, t, t, body, true, false, false, true, VIS_DEFAULT);
 }
 
 Statement *VisibilityDeclaration::parse(Parser *p, Token t) {
 	p->consume(TOKEN_COLON, "Expected ':' after access modifier!");
-	return unq(VisibilityStatement, t);
+	return NewStatement(Visibility, t);
 }
 
 Statement *StaticDeclaration::parse(Parser *p, Token t) {
@@ -349,9 +351,10 @@ Statement *OpMethodDeclaration::parse(Parser *p, Token t) {
 	if(!op.isOperator()) {
 		throw ParseException(op, "Expected operator!");
 	}
-	FnBodyStatement2 body = FnDeclaration::parseFnBody(p, op, false, 1);
-	return unq(FnStatement, t, op, body, true, false, false, false,
-	           VIS_DEFAULT);
+	FnBodyStatement *body = FnDeclaration::parseFnBody(p, op, false, 1);
+	Statement2       hold = body;
+	return NewStatement(Fn, t, op, body, true, false, false, false,
+	                    VIS_DEFAULT);
 }
 
 Statement *MemberDeclaration::parse(Parser *p, Token t) {
@@ -365,7 +368,7 @@ Statement *MemberDeclaration::parse(Parser *p, Token t, bool iss) {
 		t = p->consume(TOKEN_IDENTIFIER, "Expected member name after ','!");
 		members->insert(String::from(t.start, t.length));
 	}
-	return unq(MemberVariableStatement, t, members, iss);
+	return NewStatement(MemberVariable, t, members, iss);
 }
 
 // Statements
@@ -383,20 +386,20 @@ Statement *IfStatementParselet::parse(Parser *p, Token t) {
 			elseBlock = p->parseBlock();
 		}
 	}
-	return unq(IfStatement, t, expr, thenBlock, elseBlock);
+	return NewStatement(If, t, expr, thenBlock, elseBlock);
 }
 
 Statement *WhileStatementParselet::parse(Parser *p, Token t) {
 	Expr2      cond      = p->parseExpression();
 	Statement2 thenBlock = p->parseBlock();
-	return unq(WhileStatement, t, cond, thenBlock, false);
+	return NewStatement(While, t, cond, thenBlock, false);
 }
 
 Statement *DoStatementParselet::parse(Parser *p, Token t) {
 	Statement2 thenBlock = p->parseBlock();
 	p->consume(TOKEN_while, "Expected 'while' after 'do' block!");
 	Expr2 cond = p->parseExpression();
-	return unq(WhileStatement, t, cond, thenBlock, true);
+	return NewStatement(While, t, cond, thenBlock, true);
 }
 
 Statement *TryStatementParselet::parse(Parser *p, Token t) {
@@ -413,19 +416,19 @@ Statement *TryStatementParselet::parse(Parser *p, Token t) {
 		               "Expected variable name after type name to catch!");
 		p->consume(TOKEN_RIGHT_PAREN, "Expected ')' after catch argument!");
 		Statement2 catchBlock = p->parseBlock();
-		catchBlocks->insert(unq(CatchStatement, c, typ, varName, catchBlock));
+		catchBlocks->insert(NewStatement(Catch, c, typ, varName, catchBlock));
 	} while(p->lookAhead(0).type == TOKEN_catch);
-	return unq(TryStatement, t, tryBlock, catchBlocks);
+	return NewStatement(Try, t, tryBlock, catchBlocks);
 }
 
 Statement *ThrowStatementParselet::parse(Parser *p, Token t) {
 	Expr2 th = p->parseExpression();
-	return unq(ThrowStatement, t, th);
+	return NewStatement(Throw, t, th);
 }
 
 Statement *ReturnStatementParselet::parse(Parser *p, Token t) {
 	Expr2 th = p->parseExpression(true); // parse silently
-	return unq(ReturnStatement, t, th);
+	return NewStatement(Return, t, th);
 }
 
 Statement *ForStatementParselet::parse(Parser *p, Token t) {
@@ -438,8 +441,9 @@ Statement *ForStatementParselet::parse(Parser *p, Token t) {
 		is_iterator = false;
 	} else {
 		inits->insert(p->parseExpression());
-		if(inits->values[0].toExpression()->type == Expr::EXPR_Binary &&
-		   (inits->values[0].toBinaryExpression())->token.type == TOKEN_in) {
+		if(inits->values[0].toExpr()->type == Expr::EXPR_Binary &&
+		   ((BinaryExpression *)inits->values[0].toExpr())->token.type ==
+		       TOKEN_in) {
 			is_iterator = true;
 		} else {
 			while(p->match(TOKEN_COMMA)) {
@@ -464,12 +468,12 @@ Statement *ForStatementParselet::parse(Parser *p, Token t) {
 	}
 	p->consume(TOKEN_RIGHT_PAREN, "Expected ')' after for conditions!");
 	Statement2 body = p->parseBlock();
-	return unq(ForStatement, t, is_iterator, inits, cond, incrs, body);
+	return NewStatement(For, t, is_iterator, inits, cond, incrs, body);
 }
 
 Statement *BreakStatementParselet::parse(Parser *p, Token t) {
 	(void)p;
-	return unq(BreakStatement, t);
+	return NewStatement(Break, t);
 }
 
 // Expressions
@@ -486,9 +490,9 @@ Expr *NameParselet::parse(Parser *parser, Token t) {
 		if(end == NULL || end - num.start < num.length) {
 			throw ParseException(num, "Invalid argument count!");
 		}
-		return unq(MethodReferenceExpression, t, count);
+		return NewExpression(MethodReference, t, count);
 	}
-	return unq(VariableExpression, t);
+	return NewExpression(Variable, t);
 }
 
 Expr *ThisOrSuperParselet::parse(Parser *parser, Token t) {
@@ -497,11 +501,11 @@ Expr *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 		Token name =
 		    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
 		Expr2 refer = parser->parseExpression(Precedence::REFERENCE, name);
-		return unq(GetThisOrSuperExpression, t, refer);
+		return NewExpression(GetThisOrSuper, t, refer);
 	}
 
 	// mark the expression as THIS so that it cannot be assigned to
-	Expr2 thisOrSuper = unq(VariableExpression, Expr::EXPR_This, t);
+	Expr2 thisOrSuper = NewExpression(Variable, Expr::EXPR_This, t);
 	// 'this' can be referred all alone, but 'super'
 	// however, must follow a refer or a call.
 	if(t.type == TOKEN_super) {
@@ -542,7 +546,7 @@ Expr *LiteralParselet::parse(Parser *parser, Token t) {
 	switch(t.type) {
 		case TOKEN_STRING: {
 			String2 s = parser->buildNextString(t);
-			return unq(LiteralExpression, s, t);
+			return NewExpression(Literal, s, t);
 		}
 		case TOKEN_NUMBER: {
 			char * end = NULL;
@@ -550,7 +554,7 @@ Expr *LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length) {
 				throw ParseException(t, "Not a valid number!");
 			}
-			return unq(LiteralExpression, Value(val), t);
+			return NewExpression(Literal, Value(val), t);
 		}
 		// for hex bin and octs, 0 followed by specifier
 		// is invalid
@@ -563,7 +567,7 @@ Expr *LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid hexadecimal literal!");
 			}
-			return unq(LiteralExpression, Value(val), t);
+			return NewExpression(Literal, Value(val), t);
 		}
 		case TOKEN_BIN: {
 			char *end = NULL;
@@ -573,7 +577,7 @@ Expr *LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid binary literal!");
 			}
-			return unq(LiteralExpression, Value(val), t);
+			return NewExpression(Literal, Value(val), t);
 		}
 		case TOKEN_OCT: {
 			char *end = NULL;
@@ -583,18 +587,18 @@ Expr *LiteralParselet::parse(Parser *parser, Token t) {
 			if(end == NULL || end - t.start < t.length || t.length == 2) {
 				throw ParseException(t, "Not a valid octal literal!");
 			}
-			return unq(LiteralExpression, Value(val), t);
+			return NewExpression(Literal, Value(val), t);
 		}
-		case TOKEN_nil: return unq(LiteralExpression, ValueNil, t);
-		case TOKEN_true: return unq(LiteralExpression, Value(true), t);
-		case TOKEN_false: return unq(LiteralExpression, Value(false), t);
+		case TOKEN_nil: return NewExpression(Literal, ValueNil, t);
+		case TOKEN_true: return NewExpression(Literal, Value(true), t);
+		case TOKEN_false: return NewExpression(Literal, Value(false), t);
 		default: throw ParseException(t, "Invalid literal value!");
 	}
 }
 
 Expr *PrefixOperatorParselet::parse(Parser *parser, Token t) {
 	Expr2 right = parser->parseExpression(getPrecedence());
-	return unq(PrefixExpression, t, right);
+	return NewExpression(Prefix, t, right);
 }
 
 Expr *GroupParselet::parse(Parser *parser, Token t) {
@@ -614,19 +618,19 @@ Expr *GroupParselet::parse(Parser *parser, Token t) {
 		parser->consume(TOKEN_RIGHT_PAREN,
 		                "Expected ')' at the end of the group expression!");
 	}
-	return unq(GroupingExpression, t, exprs, ist);
+	return NewExpression(Grouping, t, exprs, ist);
 }
 
 Expr *BinaryOperatorParselet::parse(Parser *parser, const Expr2 &left,
                                     Token t) {
 	Expr2 right = parser->parseExpression(getPrecedence() - isRight);
-	return unq(BinaryExpression, left, t, right);
+	return NewExpression(Binary, left, t, right);
 }
 
 Expr *PostfixOperatorParselet::parse(Parser *parser, const Expr2 &left,
                                      Token t) {
 	(void)parser;
-	return unq(PostfixExpression, left, t);
+	return NewExpression(Postfix, left, t);
 }
 
 Expr *AssignParselet::parse(Parser *parser, const Expr2 &lval, Token t) {
@@ -635,9 +639,9 @@ Expr *AssignParselet::parse(Parser *parser, const Expr2 &lval, Token t) {
 		throw ParseException(t, "Unassignable value!");
 	}
 	if(lval->isMemberAccess()) {
-		return unq(SetExpression, lval, t, right);
+		return NewExpression(Set, lval, t, right);
 	}
-	return unq(AssignExpression, lval, t, right);
+	return NewExpression(Assign, lval, t, right);
 }
 
 Expr *CallParselet::parse(Parser *parser, const Expr2 &left, Token t) {
@@ -651,14 +655,14 @@ Expr *CallParselet::parse(Parser *parser, const Expr2 &left, Token t) {
 		                "Expected ')' at the end of the call expression!");
 	}
 
-	return unq(CallExpression, left, t, args);
+	return NewExpression(Call, left, t, args);
 }
 
 Expr *ReferenceParselet::parse(Parser *parser, const Expr2 &obj, Token t) {
 	Token name =
 	    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
 	Expr2 member = parser->parseExpression(Precedence::REFERENCE, name);
-	return unq(GetExpression, obj, t, member);
+	return NewExpression(Get, obj, t, member);
 }
 
 Expr *SubscriptParselet::parse(Parser *parser, const Expr2 &obj, Token t) {
@@ -666,7 +670,7 @@ Expr *SubscriptParselet::parse(Parser *parser, const Expr2 &obj, Token t) {
 	Expr2 idx = parser->parseExpression();
 	parser->consume(TOKEN_RIGHT_SQUARE,
 	                "Expcted ']' at the end of subscript expression!");
-	return unq(SubscriptExpression, obj, t, idx);
+	return NewExpression(Subscript, obj, t, idx);
 }
 
 Expr *ArrayLiteralParselet::parse(Parser *parser, Token t) {
@@ -680,7 +684,7 @@ Expr *ArrayLiteralParselet::parse(Parser *parser, Token t) {
 		parser->consume(TOKEN_RIGHT_SQUARE,
 		                "Expected ']' after array declaration!");
 	}
-	return unq(ArrayLiteralExpression, t, exprs);
+	return NewExpression(ArrayLiteral, t, exprs);
 }
 
 Expr *HashmapLiteralParselet::parse(Parser *parser, Token t) {
@@ -695,7 +699,7 @@ Expr *HashmapLiteralParselet::parse(Parser *parser, Token t) {
 	}
 	parser->consume(TOKEN_RIGHT_BRACE,
 	                "Expected '}' after hashmap declaration!");
-	return unq(HashmapLiteralExpression, t, keys, values);
+	return NewExpression(HashmapLiteral, t, keys, values);
 }
 
 // Exceptions

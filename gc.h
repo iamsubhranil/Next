@@ -106,8 +106,6 @@ struct GcObject {
 	// marking and unmarking functions
 	static void mark(Value v);
 	static void mark(GcObject *p);
-	static void mark(Expr *p) { mark((GcObject *)p); }
-	static void mark(Statement *s) { mark((GcObject *)s); }
 #define OBJTYPE(n) \
 	static void mark(n *val) { mark((GcObject *)val); };
 #include "objecttype.h"
@@ -155,6 +153,9 @@ struct GcObject {
 	static void releaseString2(String *s);
 	// tuple is a contiguous array of fixed size
 	static Tuple *allocTuple2(int numobj);
+	// expressions and statements require custom sizes
+	static Expr *     allocExpression2(size_t size);
+	static Statement *allocStatement2(size_t size);
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;
@@ -233,5 +234,3 @@ template <typename T> struct GcTempObject {
 
 #define OBJTYPE(x) using x##2 = GcTempObject<x>;
 #include "objecttype.h"
-using Expr2      = GcTempObject<Expr>;
-using Statement2 = GcTempObject<Statement>;
