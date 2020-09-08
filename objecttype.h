@@ -40,4 +40,9 @@ OBJTYPE(FiberIterator)
 // Map and set iterators
 OBJTYPE(MapIterator)
 OBJTYPE(SetIterator)
+
+// expression types
+OBJTYPE(Expression)
+// statement types
+OBJTYPE(Statement)
 #undef OBJTYPE

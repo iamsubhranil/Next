@@ -9,6 +9,8 @@
 using size_t = std::size_t;
 
 struct Value;
+struct Expr;
+struct Statement;
 
 #define OBJTYPE(name) struct name;
 #include "objecttype.h"
@@ -151,6 +153,9 @@ struct GcObject {
 	static void releaseString2(String *s);
 	// tuple is a contiguous array of fixed size
 	static Tuple *allocTuple2(int numobj);
+	// expressions and statements require custom sizes
+	static Expression *     allocExpression2(size_t size);
+	static Statement *allocStatement2(size_t size);
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;

@@ -84,6 +84,9 @@ struct ClassCompilationContext {
 		GcObject::mark(private_signatures);
 		GcObject::mark(klass);
 		GcObject::mark(fctxMap);
+		if(metaclass != NULL) {
+			GcObject::mark(metaclass);
+		}
 		if(defaultConstructor != NULL) {
 			GcObject::mark(defaultConstructor);
 		}

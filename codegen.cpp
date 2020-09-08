@@ -40,26 +40,29 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	inLoop               = 0;
 	pendingBreaks        = std::vector<Break>();
 
-	mtx     = NULL;
-	ctx     = NULL;
-	ftx     = NULL;
-	btx     = NULL;
-	corectx = GcObject::CoreContext;
+	mtx                = NULL;
+	ctx                = NULL;
+	ftx                = NULL;
+	btx                = NULL;
+	corectx            = GcObject::CoreContext;
+	currentlyCompiling = nullptr;
 }
 
-Class *CodeGenerator::compile(String *name, const vector<StmtPtr> &stmts) {
+Class *CodeGenerator::compile(String *name, Array *stmts) {
+	currentlyCompiling           = stmts;
 	ClassCompilationContext2 ctx = ClassCompilationContext::create(NULL, name);
 	compile(ctx, stmts);
 	return ctx->get_class();
 }
 
-void CodeGenerator::compile(ClassCompilationContext *compileIn,
-                            const vector<StmtPtr> &  stmts) {
+void CodeGenerator::compile(ClassCompilationContext *compileIn, Array *stmts) {
 	// ExecutionEngine::registermtx(compileIn);
-	ctx = compileIn;
-	mtx = compileIn;
+	currentlyCompiling = stmts;
+	ctx                = compileIn;
+	mtx                = compileIn;
 	initFtx(compileIn->get_default_constructor(),
-	        stmts.size() > 0 ? stmts[0]->token : Token::PlaceholderToken);
+	        stmts->size > 0 ? stmts->values[0].toStatement()->token
+	                        : Token::PlaceholderToken);
 	btx->insert_token(Token::PlaceholderToken);
 	compileAll(stmts);
 	// after everything is done, load the instance,
@@ -88,30 +91,33 @@ void CodeGenerator::popScope() {
 	--scopeID;
 }
 
-void CodeGenerator::compileAll(const vector<StmtPtr> &stmts) {
+void CodeGenerator::compileAll(Array *stmts) {
 	// Backup current state
 	CompilationState bak = state;
 	// First compile all declarations
 	state = COMPILE_DECLARATION;
-	for(auto &i : stmts) {
+	for(int i = 0; i < stmts->size; i++) {
+		Statement *s = stmts->values[i].toStatement();
 		// Pass only declaration statements
-		if(i->isDeclaration())
-			i->accept(this);
+		if(s->isDeclaration())
+			s->accept(this);
 	}
 	// Mark this mtx as already compiled, so that even if a
 	// cyclic import occures, this mtx is not recompiled
 	ctx->isCompiled = true;
-	// mtx->isCompiled = true;
 	// Then compile all imports
 	state = COMPILE_IMPORTS;
-	for(auto &i : stmts) {
-		if(i->isImport())
-			i->accept(this);
+	for(int i = 0; i < stmts->size; i++) {
+		Statement *s = stmts->values[i].toStatement();
+		// Pass only import statements
+		if(s->isImport())
+			s->accept(this);
 	}
 	// Then compile all bodies
 	state = COMPILE_BODY;
-	for(auto &i : stmts) {
-		i->accept(this);
+	for(int i = 0; i < stmts->size; i++) {
+		Statement *s = stmts->values[i].toStatement();
+		s->accept(this);
 	}
 	state = bak;
 }
@@ -215,12 +221,12 @@ void CodeGenerator::visit(GroupingExpression *g) {
 	dinfo("");
 	g->token.highlight();
 #endif
-	for(auto &i : g->exprs) {
-		i->accept(this);
+	for(int j = 0; j < g->exprs->size; j++) {
+		g->exprs->values[j].toExpression()->accept(this);
 	}
 	if(g->istuple) {
-		btx->tuple_build(g->exprs.size());
-		btx->stackEffect(-g->exprs.size() + 1);
+		btx->tuple_build(g->exprs->size);
+		btx->stackEffect(-g->exprs->size + 1);
 	}
 }
 
@@ -300,7 +306,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	dinfo("Generating call for");
 	call->callee->token.highlight();
 #endif
-	int     argSize   = call->arguments.size();
+	int     argSize   = call->arguments->size;
 	String2 signature = generateSignature(call->callee->token, argSize);
 	String2 name =
 	    String::from(call->callee->token.start, call->callee->token.length);
@@ -320,7 +326,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 
 	CallInfo info = {UNDEFINED, 0, true, false};
 
-	if(call->callee->type == Expr::METHOD_REFERENCE) {
+	if(call->callee->type == Expression::EXPR_MethodReference) {
 		call->callee->accept(this);
 		force_soft = true;
 	} else if(thisOrSuper > 0) {
@@ -376,8 +382,8 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	// Reset the referral status for arguments
 	bool bak = onRefer;
 	onRefer  = false;
-	for(auto &i : call->arguments) {
-		i->accept(this);
+	for(int j = 0; j < call->arguments->size; j++) {
+		call->arguments->values[j].toExpression()->accept(this);
 	}
 	onRefer = bak;
 	btx->insert_token(call->callee->token);
@@ -537,7 +543,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 	if(as->target->isMemberAccess())
 		panic("AssignExpression should not contain member access!");
 
-	if(as->target->type == Expr::SUBSCRIPT) {
+	if(as->target->type == Expression::EXPR_Subscript) {
 		// it is a subscript setter
 		// subscript setters are compiled as the
 		// target first, then the value to avoid
@@ -578,18 +584,18 @@ void CodeGenerator::visit(ArrayLiteralExpression *al) {
 	dinfo("");
 	al->token.highlight();
 #endif
-	if(al->exprs.size() > 0) {
+	if(al->exprs->size > 0) {
 		// evalute all the expressions
-		for(auto &i : al->exprs) {
-			i->accept(this);
+		for(int j = 0; j < al->exprs->size; j++) {
+			al->exprs->values[j].toExpression()->accept(this);
 		}
 	}
 	// finally emit opcode to create an
 	// array, assign those
 	// expressions to the array, and leave
 	// the array at the top of the stack
-	btx->array_build(al->exprs.size());
-	btx->stackEffect(-(int)al->exprs.size() + 1);
+	btx->array_build(al->exprs->size);
+	btx->stackEffect(-(int)al->exprs->size + 1);
 }
 
 void CodeGenerator::visit(HashmapLiteralExpression *al) {
@@ -597,17 +603,15 @@ void CodeGenerator::visit(HashmapLiteralExpression *al) {
 	dinfo("");
 	al->token.highlight();
 #endif
-	if(al->keys.size() > 0) {
+	if(al->keys->size > 0) {
 		// now evalute all the key:value pairs
-		int p = 0;
-		for(auto &i : al->keys) {
-			i->accept(this);
-			al->values[p]->accept(this);
-			p++;
+		for(int j = 0; j < al->keys->size; j++) {
+			al->keys->values[j].toExpression()->accept(this);
+			al->values->values[j].toExpression()->accept(this);
 		}
 	}
-	btx->map_build(al->keys.size());
-	btx->stackEffect(-(int)al->keys.size() + 1);
+	btx->map_build(al->keys->size);
+	btx->stackEffect(-(int)al->keys->size + 1);
 }
 
 void CodeGenerator::visit(LiteralExpression *lit) {
@@ -1066,8 +1070,9 @@ void CodeGenerator::visit(ForStatement *ifs) {
 	if(ifs->is_iterator) {
 		// iterators
 		// first, validate the in expression
-		BinaryExpression *it = (BinaryExpression *)ifs->init[0].get();
-		if(it->left->type != Expr::VARIABLE) {
+		BinaryExpression *it =
+		    (BinaryExpression *)ifs->initializer->values[0].toExpression();
+		if(it->left->type != Expression::EXPR_Variable) {
 			lnerr_("Iterator assignment is not a variable!", it->left->token);
 		} else {
 			// create a new scope
@@ -1111,9 +1116,9 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		// the loop
 		pushScope();
 		// evaluate the initializers
-		if(ifs->init.size() > 0) {
-			for(auto &a : ifs->init) {
-				a->accept(this);
+		if(ifs->initializer->size > 0) {
+			for(int j = 0; j < ifs->initializer->size; j++) {
+				ifs->initializer->values[j].toExpression()->accept(this);
 				// pop the result
 				btx->pop_();
 			}
@@ -1121,7 +1126,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		// evalute the condition
 		int cond_at    = btx->getip();
 		int patch_exit = -1;
-		if(ifs->cond.get() != NULL) {
+		if(ifs->cond != NULL) {
 			ifs->cond->accept(this);
 			// exit if the condition is violated
 			patch_exit = btx->jumpiffalse(0);
@@ -1129,9 +1134,9 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		// evalute the body
 		ifs->body->accept(this);
 		// evalute the incrementers
-		if(ifs->incr.size() > 0) {
-			for(auto &a : ifs->incr) {
-				a->accept(this);
+		if(ifs->incr->size > 0) {
+			for(int j = 0; j < ifs->incr->size; j++) {
+				ifs->incr->values[j].toExpression()->accept(this);
 				// pop the result
 				btx->pop_();
 			}
@@ -1310,11 +1315,12 @@ void CodeGenerator::visit(FnBodyStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	for(auto &i : ifs->args) {
+	for(int j = 0; j < ifs->args->size; j++) {
+		Value i = ifs->args->values[j];
 		// body will automatically contain a block statement,
 		// which will obviously push a new scope.
 		// So we speculatively do that here.
-		ftx->create_slot(String::from(i.start, i.length), scopeID + 1);
+		ftx->create_slot(i.toString(), scopeID + 1);
 	}
 	ifs->body->accept(this);
 }
@@ -1327,7 +1333,8 @@ void CodeGenerator::visit(BlockStatement *ifs) {
 	pushScope();
 	// Back up the previous stack specifications
 	int present = btx->code->stackSize;
-	for(auto &i : ifs->statements) i->accept(this);
+	for(int j = 0; j < ifs->statements->size; j++)
+		ifs->statements->values[j].toStatement()->accept(this);
 	// we keep the largest size as present
 	if(present > btx->code->stackSize)
 		btx->code->stackSize = present;
@@ -1339,8 +1346,8 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	for(auto &i : ifs->exprs) {
-		i->accept(this);
+	for(int j = 0; j < ifs->exprs->size; j++) {
+		ifs->exprs->values[j].toExpression()->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
 		btx->pop_();
@@ -1372,8 +1379,8 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		inClass = true;
 		ctx     = c;
 		pushScope();
-		for(auto &i : ifs->declarations) {
-			i->accept(this);
+		for(int j = 0; j < ifs->declarations->size; j++) {
+			ifs->declarations->values[j].toStatement()->accept(this);
 		}
 		popScope();
 		inClass = false;
@@ -1397,8 +1404,8 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 		}
 		inClass = true;
 		ctx     = classctx;
-		for(auto &i : ifs->declarations) {
-			i->accept(this);
+		for(int j = 0; j < ifs->declarations->size; j++) {
+			ifs->declarations->values[j].toStatement()->accept(this);
 		}
 		inClass = false;
 		ctx     = mtx;
@@ -1417,12 +1424,13 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 		// load the core module
 		loadCoreModule();
 		// make each part a string and push to the stack
-		for(auto &i : ifs->import) {
-			btx->push(Value(String::from(i.start, i.length)));
+		for(int j = 0; j < ifs->import_->size; j++) {
+			Value i = ifs->import_->values[j];
+			btx->push(i);
 		}
 		// make a call to ' import(_)'
-		btx->call(SymbolTable2::insert(" import(_)"), ifs->import.size());
-		Token last = *(ifs->import.end() - 1);
+		btx->call(SymbolTable2::insert(" import(_)"), ifs->import_->size);
+		String *last = ifs->import_->values[ifs->import_->size - 1].toString();
 		// The name of the imported module for the
 		// importee module would be the last part
 		// of the import statement
@@ -1433,7 +1441,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 		// Also, if the import is a success, we know
 		// the returned value is the instance of the
 		// module
-		variableInfo = lookForVariable(last, true);
+		variableInfo = lookForVariable2(last, true);
 		// store the result to the declared slot
 		storeVariable(variableInfo);
 		btx->pop_();
@@ -1461,10 +1469,11 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(getState() == COMPILE_DECLARATION) {
-		for(auto &i : ifs->members) {
-			String *name = String::from(i.start, i.length);
+		for(int j = 0; j < ifs->members->size; j++) {
+			Value   i    = ifs->members->values[j];
+			String *name = i.toString();
 			if(ctx->has_mem(name)) {
-				lnerr_("Member '%s' variable already declared!", i,
+				lnerr_("Member variable '%s' already declared!", ifs->token,
 				       name->str());
 				/* TODO: Fix this
 				lnerr("Previously declared at : ",
@@ -1512,8 +1521,8 @@ void CodeGenerator::visit(TryStatement *ifs) {
 	// after one catch block is executed, the control
 	// should get out of remaining catch blocks
 	vector<int> jumpAddresses;
-	for(auto &i : ifs->catchBlocks) {
-		i->accept(this);
+	for(int j = 0; j < ifs->catchBlocks->size; j++) {
+		ifs->catchBlocks->values[j].toStatement()->accept(this);
 		// keep a backup of the jump opcode address
 		jumpAddresses.push_back(btx->jump(0));
 	}
@@ -1570,4 +1579,6 @@ void CodeGenerator::mark() {
 	// mark the parent if that is not empty
 	if(parentGenerator)
 		parentGenerator->mark();
+	// mark the statements
+	GcObject::mark(currentlyCompiling);
 }

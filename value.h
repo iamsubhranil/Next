@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <functional>
 
+struct Statement;
+struct Expr;
+
 struct Value {
 	/*
 	constexpr uint64_t generateMask(size_t s) {

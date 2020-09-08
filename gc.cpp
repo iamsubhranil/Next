@@ -1,6 +1,7 @@
 #include "gc.h"
 #include "display.h"
 #include "engine.h"
+#include "expr.h"
 #include "loader.h"
 #include "memman.h"
 #include "objects/array_iterator.h"
@@ -20,6 +21,7 @@
 #include "objects/symtab.h"
 #include "objects/tuple.h"
 #include "objects/tuple_iterator.h"
+#include "stmt.h"
 #include "utils.h"
 
 #ifdef DEBUG
@@ -91,10 +93,10 @@ void *GcObject::malloc(size_t bytes) {
 }
 
 void *GcObject::calloc(size_t num, size_t bytes) {
-	void *m = ::calloc(num, bytes);
+	void *m = MemoryManager::calloc(num, bytes);
 #ifdef GC_STORE_SIZE
 	// realloc to store the size
-	m = ::realloc(m, (num * bytes) + sizeof(size_t));
+	m = MemoryManager::realloc(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
 #endif
 	totalAllocated += (num * bytes);
@@ -290,6 +292,16 @@ Tuple *GcObject::allocTuple2(int numobj) {
 	return t;
 }
 
+Expression *GcObject::allocExpression2(size_t size) {
+	Expression *e = (Expression *)alloc(size, OBJ_Expression, ExpressionClass);
+	return e;
+}
+
+Statement *GcObject::allocStatement2(size_t size) {
+	Statement *s = (Statement *)alloc(size, OBJ_Statement, StatementClass);
+	return s;
+}
+
 void GcObject::release(GcObject *obj) {
 	// for the types that are allocated contiguously,
 	// we need to pass the total allocated size to
@@ -297,26 +309,52 @@ void GcObject::release(GcObject *obj) {
 	// block to a different pool than the original
 	switch(obj->objType) {
 		case OBJ_String:
+#ifdef DEBUG_GC
+			std::cout << "[GC] [Release] String ("
+			          << sizeof(String) + ((String *)obj)->size + 1 << ") -> "
+			          << ((String *)obj)->gc_repr() << "\n";
+			GcCounters[StringCounter]--;
+#endif
 			((String *)obj)->release();
 			GcObject_free(obj, sizeof(String) +
 			                       (sizeof(char) * ((String *)obj)->size + 1));
-#ifdef DEBUG_GC
-			GcCounters[StringCounter]--;
-#endif
 			return;
 		case OBJ_Tuple:
-			GcObject_free(obj, sizeof(Tuple) +
-			                       (sizeof(Value) * ((Tuple *)obj)->size));
 #ifdef DEBUG_GC
+			std::cout << "[GC] [Release] Tuple ("
+			          << sizeof(Tuple) + sizeof(Value) * ((Tuple *)obj)->size
+			          << ") -> " << ((Tuple *)obj)->gc_repr() << "\n";
 			GcCounters[TupleCounter]--;
 #endif
+			GcObject_free(obj, sizeof(Tuple) +
+			                       (sizeof(Value) * ((Tuple *)obj)->size));
 			return;
 		case OBJ_Object:
-			GcObject_free(obj, sizeof(Object) +
-			                       (sizeof(Value) * obj->klass->numSlots));
 #ifdef DEBUG_GC
+			std::cout << "[GC] [Release] Object ("
+			          << sizeof(Object) + sizeof(Value) * obj->klass->numSlots
+			          << ") -> object of " << obj->klass->name->str() << "\n";
 			GcCounters[ObjectCounter]--;
 #endif
+			GcObject_free(obj, sizeof(Object) +
+			                       (sizeof(Value) * obj->klass->numSlots));
+			return;
+		case OBJ_Expression:
+#ifdef DEBUG_GC
+			std::cout << "[GC] [Release] Expression (" << ((Expression *)obj)->getSize()
+			          << ") -> " << ((Expression *)obj)->gc_repr() << "\n";
+			GcCounters[ExprCounter]--;
+#endif
+			GcObject_free(obj, ((Expression *)obj)->getSize());
+			return;
+		case OBJ_Statement:
+#ifdef DEBUG_GC
+			std::cout << "[GC] [Release] Statement ("
+			          << ((Statement *)obj)->getSize() << ") -> "
+			          << ((Statement *)obj)->gc_repr() << "\n";
+			GcCounters[StatementCounter]--;
+#endif
+			GcObject_free(obj, ((Statement *)obj)->getSize());
 			return;
 		default: break;
 	}
@@ -445,6 +483,7 @@ void GcObject::sweep() {
 		}
 	}
 	trackedObjectCount = lastFilledAt;
+	// shrink the tracker
 	tracker_shrink();
 	// release all unmarked classes
 	while(unmarkedClassesHead) {
@@ -473,6 +512,8 @@ void GcObject::init() {
 	NumberClass      = Class::create();
 	BooleanClass     = Class::create();
 	ErrorObjectClass = Class::create();
+
+	temporaryObjects->obj.klass = ValueSetClass;
 
 	// initialize the string set and symbol table
 	String::init0();
