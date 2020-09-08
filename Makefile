@@ -47,6 +47,12 @@ debug_all_verbose: debug_all
 debug_scanner: CXXFLAGS += -DDEBUG_SCANNER
 debug_scanner: debug_all
 
+coverage: clean 
+	$(RM) *.gcda objects/*.gcda
+coverage: CXXFLAGS += -fprofile-arcs -ftest-coverage
+coverage: LDFLAGS += -lgcov --coverage
+coverage: debug
+
 pgo: merge_profraw pgouse
 
 ifeq ($(CXX),clang++)
