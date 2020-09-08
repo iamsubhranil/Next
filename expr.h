@@ -75,7 +75,8 @@ struct ArrayLiteralExpression : public Expression {
 struct AssignExpression : public Expression {
   public:
 	Expression *target, *val;
-	AssignExpression(const Expression2 &lvalue, Token eq, const Expression2 &rvalue)
+	AssignExpression(const Expression2 &lvalue, Token eq,
+	                 const Expression2 &rvalue)
 	    : Expression(eq, EXPR_Assign), target(lvalue), val(rvalue) {}
 	void mark() {
 		GcObject::mark(target);
@@ -96,8 +97,8 @@ struct BinaryExpression : public Expression {
 
 struct CallExpression : public Expression {
   public:
-	Expression * callee;
-	Array *arguments;
+	Expression *callee;
+	Array *     arguments;
 	CallExpression(const Expression2 &cle, Token paren, Array *args)
 	    : Expression(paren, EXPR_Call), callee(cle), arguments(args) {}
 
@@ -205,7 +206,8 @@ struct SubscriptExpression : public Expression {
   public:
 	Expression *object;
 	Expression *idx;
-	SubscriptExpression(const Expression2 &obj, Token name, const Expression2 &i)
+	SubscriptExpression(const Expression2 &obj, Token name,
+	                    const Expression2 &i)
 	    : Expression(name, EXPR_Subscript), object(obj), idx(i) {}
 
 	void mark() {

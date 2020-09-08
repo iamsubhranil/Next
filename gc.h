@@ -154,8 +154,8 @@ struct GcObject {
 	// tuple is a contiguous array of fixed size
 	static Tuple *allocTuple2(int numobj);
 	// expressions and statements require custom sizes
-	static Expression *     allocExpression2(size_t size);
-	static Statement *allocStatement2(size_t size);
+	static Expression *allocExpression2(size_t size);
+	static Statement * allocStatement2(size_t size);
 	// primitive classes
 	static Class *NumberClass;
 	static Class *BooleanClass;

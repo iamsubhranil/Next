@@ -664,32 +664,32 @@ namespace robin_hood {
 		          typename = typename std::enable_if<
 		              std::is_default_constructible<U1>::value &&
 		              std::is_default_constructible<U2>::value>::type>
-		constexpr pair() noexcept(noexcept(U1()) && noexcept(U2()))
+		constexpr pair() noexcept(noexcept(U1()) &&noexcept(U2()))
 		    : first(), second() {}
 
 		// pair constructors are explicit so we don't accidentally call this
 		// ctor when we don't have to.
 		explicit constexpr pair(std::pair<T1, T2> const &o) noexcept(
-		    noexcept(T1(std::declval<T1 const &>())) &&
-		    noexcept(T2(std::declval<T2 const &>())))
+		    noexcept(T1(std::declval<T1 const &>())) &&noexcept(
+		        T2(std::declval<T2 const &>())))
 		    : first(o.first), second(o.second) {}
 
 		// pair constructors are explicit so we don't accidentally call this
 		// ctor when we don't have to.
 		explicit constexpr pair(std::pair<T1, T2> &&o) noexcept(
-		    noexcept(T1(std::move(std::declval<T1 &&>()))) &&
-		    noexcept(T2(std::move(std::declval<T2 &&>()))))
+		    noexcept(T1(std::move(std::declval<T1 &&>()))) &&noexcept(
+		        T2(std::move(std::declval<T2 &&>()))))
 		    : first(std::move(o.first)), second(std::move(o.second)) {}
 
 		constexpr pair(T1 &&a, T2 &&b) noexcept(
-		    noexcept(T1(std::move(std::declval<T1 &&>()))) &&
-		    noexcept(T2(std::move(std::declval<T2 &&>()))))
+		    noexcept(T1(std::move(std::declval<T1 &&>()))) &&noexcept(
+		        T2(std::move(std::declval<T2 &&>()))))
 		    : first(std::move(a)), second(std::move(b)) {}
 
 		template <typename U1, typename U2>
 		constexpr pair(U1 &&a, U2 &&b) noexcept(
-		    noexcept(T1(std::forward<U1>(std::declval<U1 &&>()))) &&
-		    noexcept(T2(std::forward<U2>(std::declval<U2 &&>()))))
+		    noexcept(T1(std::forward<U1>(std::declval<U1 &&>()))) &&noexcept(
+		        T2(std::forward<U2>(std::declval<U2 &&>()))))
 		    : first(std::forward<U1>(a)), second(std::forward<U2>(b)) {}
 
 		template <typename... U1, typename... U2>
@@ -718,11 +718,11 @@ namespace robin_hood {
 		                                                        std::declval<
 		                                                            std::tuple<
 		                                                                U1...>
-		                                                                &>()))...)) &&
-		                                    noexcept(T2(
-		                                        std::forward<U2>(std::get<I2>(
-		                                            std::declval<std::tuple<
-		                                                U2...> &>()))...)))
+		                                                                &>()))...))
+		                                        &&noexcept(T2(std::forward<U2>(
+		                                            std::get<I2>(
+		                                                std::declval<std::tuple<
+		                                                    U2...> &>()))...)))
 		    : first(std::forward<U1>(std::get<I1>(a))...),
 		      second(std::forward<U2>(std::get<I2>(b))...) {
 			// make visual studio compiler happy about warning about unused a &
@@ -1575,8 +1575,8 @@ namespace robin_hood {
 			    size_t          ROBIN_HOOD_UNUSED(bucket_count) /*unused*/ = 0,
 			    const Hash &    h = Hash{},
 			    const KeyEqual &equal =
-			        KeyEqual{}) noexcept(noexcept(Hash(h)) &&
-			                             noexcept(KeyEqual(equal)))
+			        KeyEqual{}) noexcept(noexcept(Hash(h))
+			                                 &&noexcept(KeyEqual(equal)))
 			    : WHash(h), WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
 			}
@@ -2041,8 +2041,8 @@ namespace robin_hood {
 				return mNumElements;
 			}
 
-			size_type max_size() const
-			    noexcept { // NOLINT(modernize-use-nodiscard)
+			size_type
+			max_size() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this);
 				return static_cast<size_type>(-1);
 			}
@@ -2052,16 +2052,16 @@ namespace robin_hood {
 				return 0 == mNumElements;
 			}
 
-			float max_load_factor() const
-			    noexcept { // NOLINT(modernize-use-nodiscard)
+			float max_load_factor()
+			    const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this);
 				return MaxLoadFactor100 / 100.0F;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per
 			// bucket
-			float load_factor() const
-			    noexcept { // NOLINT(modernize-use-nodiscard)
+			float
+			load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this);
 				return static_cast<float>(size()) /
 				       static_cast<float>(mMask + 1);
@@ -2073,8 +2073,8 @@ namespace robin_hood {
 			}
 
 			ROBIN_HOOD(NODISCARD)
-			size_t calcMaxNumElementsAllowed(size_t maxElements) const
-			    noexcept {
+			size_t
+			calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
 				if(ROBIN_HOOD_LIKELY(maxElements <=
 				                     (std::numeric_limits<size_t>::max)() /
 				                         100)) {
@@ -2094,8 +2094,8 @@ namespace robin_hood {
 			}
 
 			ROBIN_HOOD(NODISCARD)
-			size_t calcNumElementsWithBuffer(size_t numElements) const
-			    noexcept {
+			size_t
+			calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed =
 				    calcMaxNumElementsAllowed(numElements);
 				return numElements + (std::min)(maxNumElementsAllowed,
