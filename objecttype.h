@@ -42,7 +42,7 @@ OBJTYPE(MapIterator)
 OBJTYPE(SetIterator)
 
 // expression types
-OBJTYPE(Expr)
+OBJTYPE(Expression)
 // statement types
 OBJTYPE(Statement)
 #undef OBJTYPE

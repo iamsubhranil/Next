@@ -65,10 +65,10 @@ struct Statement {
 
 struct IfStatement : public Statement {
   public:
-	Expr *     condition;
+	Expression *     condition;
 	Statement *thenBlock;
 	Statement *elseBlock;
-	IfStatement(Token it, const Expr2 &cond, const Statement2 &then,
+	IfStatement(Token it, const Expression2 &cond, const Statement2 &then,
 	            const Statement2 &else_)
 	    : Statement(it, STMT_If), condition(cond), thenBlock(then),
 	      elseBlock(else_) {}
@@ -81,10 +81,10 @@ struct IfStatement : public Statement {
 
 struct WhileStatement : public Statement {
   public:
-	Expr *     condition;
+	Expression *     condition;
 	Statement *thenBlock;
 	bool       isDo;
-	WhileStatement(Token w, const Expr2 &cond, const Statement2 &then, bool isd)
+	WhileStatement(Token w, const Expression2 &cond, const Statement2 &then, bool isd)
 	    : Statement(w, STMT_While), condition(cond), thenBlock(then),
 	      isDo(isd) {}
 	void mark() {
@@ -124,9 +124,9 @@ struct FnStatement : public Statement {
 
 struct VardeclStatement : public Statement {
   public:
-	Expr *     expr;
+	Expression *     expr;
 	Visibility vis;
-	VardeclStatement(Token name, const Expr2 &e, Visibility v)
+	VardeclStatement(Token name, const Expression2 &e, Visibility v)
 	    : Statement(name, STMT_Vardecl), expr(e), vis(v) {}
 	void mark() { GcObject::mark(expr); }
 };
@@ -217,16 +217,16 @@ struct ExpressionStatement : public Statement {
 
 struct ThrowStatement : public Statement {
   public:
-	Expr *expr;
-	ThrowStatement(Token t, const Expr2 &e)
+	Expression *expr;
+	ThrowStatement(Token t, const Expression2 &e)
 	    : Statement(t, STMT_Throw), expr(e) {}
 	void mark() { GcObject::mark(expr); }
 };
 
 struct ReturnStatement : public Statement {
   public:
-	Expr *expr;
-	ReturnStatement(Token t, const Expr2 &e)
+	Expression *expr;
+	ReturnStatement(Token t, const Expression2 &e)
 	    : Statement(t, STMT_Return), expr(e) {}
 	void mark() { GcObject::mark(expr); }
 };
@@ -234,10 +234,10 @@ struct ReturnStatement : public Statement {
 struct ForStatement : public Statement {
   public:
 	bool       is_iterator;
-	Expr *     cond;
+	Expression *     cond;
 	Array *    initializer, *incr;
 	Statement *body;
-	ForStatement(Token t, bool isi, const Array2 &ini, const Expr2 &c,
+	ForStatement(Token t, bool isi, const Array2 &ini, const Expression2 &c,
 	             const Array2 &inc, const Statement2 &b)
 	    : Statement(t, STMT_For), is_iterator(isi), cond(c), initializer(ini),
 	      incr(inc), body(b) {}

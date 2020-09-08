@@ -168,10 +168,10 @@ void StatementPrinter::visit(BlockStatement *ifs) {
 
 void StatementPrinter::visit(ExpressionStatement *ifs) {
 	printTabs();
-	ep.print(ifs->exprs->values[0].toExpr());
+	ep.print(ifs->exprs->values[0].toExpression());
 	for(int i = 1; i < ifs->exprs->size; i++) {
 		os << ", ";
-		ep.print(ifs->exprs->values[i].toExpr());
+		ep.print(ifs->exprs->values[i].toExpression());
 	}
 }
 
@@ -235,10 +235,10 @@ void StatementPrinter::visit(ForStatement *ifs) {
 	printTabs();
 	os << "for(";
 	if(ifs->initializer->size > 0) {
-		ep.print(ifs->initializer->values[0].toExpr());
+		ep.print(ifs->initializer->values[0].toExpression());
 		for(int i = 1; i < ifs->initializer->size; i++) {
 			os << ", ";
-			ep.print(ifs->initializer->values[i].toExpr());
+			ep.print(ifs->initializer->values[i].toExpression());
 		}
 	}
 	if(!ifs->is_iterator) {
@@ -247,10 +247,10 @@ void StatementPrinter::visit(ForStatement *ifs) {
 			ep.print(ifs->cond);
 		os << "; ";
 		if(ifs->incr->size > 0) {
-			ep.print(ifs->incr->values[0].toExpr());
+			ep.print(ifs->incr->values[0].toExpression());
 			for(int i = 1; i < ifs->incr->size; i++) {
 				os << ", ";
-				ep.print(ifs->incr->values[i].toExpr());
+				ep.print(ifs->incr->values[i].toExpression());
 			}
 		}
 	}

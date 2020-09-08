@@ -29,7 +29,7 @@ void Parser::registerParselet(TokenType t, StatementParselet *i) {
 	statementParselets[t] = i;
 }
 
-Expr *Parser::parseExpression(int precedence, Token token, bool silent) {
+Expression *Parser::parseExpression(int precedence, Token token, bool silent) {
 	PrefixParselet *prefix = prefixParselets[token.type];
 
 	if(prefix == NULL) {
@@ -43,7 +43,7 @@ Expr *Parser::parseExpression(int precedence, Token token, bool silent) {
 		consume();
 	}
 
-	Expr2 left = prefix->parse(this, token);
+	Expression2 left = prefix->parse(this, token);
 
 	while(precedence < getPrecedence()) {
 		token = lookAhead(0);
@@ -119,16 +119,16 @@ Statement *Parser::parseStatement() {
 	return p->parse(this, t);
 }
 
-Expr *Parser::parseExpression(Token token, bool silent) {
+Expression *Parser::parseExpression(Token token, bool silent) {
 	return parseExpression(0, token, silent);
 }
 
-Expr *Parser::parseExpression(int precedence, bool silent) {
+Expression *Parser::parseExpression(int precedence, bool silent) {
 	return parseExpression(precedence, silent ? lookAhead(0) : consume(),
 	                       silent);
 }
 
-Expr *Parser::parseExpression(bool silent) {
+Expression *Parser::parseExpression(bool silent) {
 	return parseExpression(0, silent);
 }
 
@@ -206,7 +206,7 @@ Statement *ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
 Statement *VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	p->consume(TOKEN_EQUAL,
 	           "Expected '=' after top level variable declaration!");
-	Expr2 e = p->parseExpression();
+	Expression2 e = p->parseExpression();
 	return NewStatement(Vardecl, t, e, vis);
 }
 
@@ -374,7 +374,7 @@ Statement *MemberDeclaration::parse(Parser *p, Token t, bool iss) {
 // Statements
 
 Statement *IfStatementParselet::parse(Parser *p, Token t) {
-	Expr2      expr      = p->parseExpression();
+	Expression2      expr      = p->parseExpression();
 	Statement2 thenBlock = p->parseBlock();
 	Statement2 elseBlock = nullptr;
 	if(p->lookAhead(0).type == TOKEN_else) {
@@ -390,7 +390,7 @@ Statement *IfStatementParselet::parse(Parser *p, Token t) {
 }
 
 Statement *WhileStatementParselet::parse(Parser *p, Token t) {
-	Expr2      cond      = p->parseExpression();
+	Expression2      cond      = p->parseExpression();
 	Statement2 thenBlock = p->parseBlock();
 	return NewStatement(While, t, cond, thenBlock, false);
 }
@@ -398,7 +398,7 @@ Statement *WhileStatementParselet::parse(Parser *p, Token t) {
 Statement *DoStatementParselet::parse(Parser *p, Token t) {
 	Statement2 thenBlock = p->parseBlock();
 	p->consume(TOKEN_while, "Expected 'while' after 'do' block!");
-	Expr2 cond = p->parseExpression();
+	Expression2 cond = p->parseExpression();
 	return NewStatement(While, t, cond, thenBlock, true);
 }
 
@@ -422,12 +422,12 @@ Statement *TryStatementParselet::parse(Parser *p, Token t) {
 }
 
 Statement *ThrowStatementParselet::parse(Parser *p, Token t) {
-	Expr2 th = p->parseExpression();
+	Expression2 th = p->parseExpression();
 	return NewStatement(Throw, t, th);
 }
 
 Statement *ReturnStatementParselet::parse(Parser *p, Token t) {
-	Expr2 th = p->parseExpression(true); // parse silently
+	Expression2 th = p->parseExpression(true); // parse silently
 	return NewStatement(Return, t, th);
 }
 
@@ -435,14 +435,14 @@ Statement *ForStatementParselet::parse(Parser *p, Token t) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after for!");
 	Array2 inits       = Array::create(1);
 	Array2 incrs       = Array::create(1);
-	Expr2  cond        = NULL;
+	Expression2  cond        = NULL;
 	bool   is_iterator = false;
 	if(p->match(TOKEN_SEMICOLON)) {
 		is_iterator = false;
 	} else {
 		inits->insert(p->parseExpression());
-		if(inits->values[0].toExpr()->type == Expr::EXPR_Binary &&
-		   ((BinaryExpression *)inits->values[0].toExpr())->token.type ==
+		if(inits->values[0].toExpression()->type == Expression::EXPR_Binary &&
+		   ((BinaryExpression *)inits->values[0].toExpression())->token.type ==
 		       TOKEN_in) {
 			is_iterator = true;
 		} else {
@@ -478,7 +478,7 @@ Statement *BreakStatementParselet::parse(Parser *p, Token t) {
 
 // Expressions
 
-Expr *NameParselet::parse(Parser *parser, Token t) {
+Expression *NameParselet::parse(Parser *parser, Token t) {
 	(void)parser;
 	// if the next token is '@', it has to be a
 	// method reference
@@ -495,17 +495,17 @@ Expr *NameParselet::parse(Parser *parser, Token t) {
 	return NewExpression(Variable, t);
 }
 
-Expr *ThisOrSuperParselet::parse(Parser *parser, Token t) {
+Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	// if there is a dot, okay
 	if(parser->match(TOKEN_DOT)) {
 		Token name =
 		    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
-		Expr2 refer = parser->parseExpression(Precedence::REFERENCE, name);
+		Expression2 refer = parser->parseExpression(Precedence::REFERENCE, name);
 		return NewExpression(GetThisOrSuper, t, refer);
 	}
 
 	// mark the expression as THIS so that it cannot be assigned to
-	Expr2 thisOrSuper = NewExpression(Variable, Expr::EXPR_This, t);
+	Expression2 thisOrSuper = NewExpression(Variable, Expression::EXPR_This, t);
 	// 'this' can be referred all alone, but 'super'
 	// however, must follow a refer or a call.
 	if(t.type == TOKEN_super) {
@@ -541,7 +541,7 @@ String *Parser::buildNextString(Token &t) {
 	return String::from(s.data(), s.size());
 }
 
-Expr *LiteralParselet::parse(Parser *parser, Token t) {
+Expression *LiteralParselet::parse(Parser *parser, Token t) {
 	(void)parser;
 	switch(t.type) {
 		case TOKEN_STRING: {
@@ -596,12 +596,12 @@ Expr *LiteralParselet::parse(Parser *parser, Token t) {
 	}
 }
 
-Expr *PrefixOperatorParselet::parse(Parser *parser, Token t) {
-	Expr2 right = parser->parseExpression(getPrecedence());
+Expression *PrefixOperatorParselet::parse(Parser *parser, Token t) {
+	Expression2 right = parser->parseExpression(getPrecedence());
 	return NewExpression(Prefix, t, right);
 }
 
-Expr *GroupParselet::parse(Parser *parser, Token t) {
+Expression *GroupParselet::parse(Parser *parser, Token t) {
 	Array2 exprs = Array::create(1);
 	exprs->insert(parser->parseExpression());
 	bool ist = false;
@@ -621,20 +621,20 @@ Expr *GroupParselet::parse(Parser *parser, Token t) {
 	return NewExpression(Grouping, t, exprs, ist);
 }
 
-Expr *BinaryOperatorParselet::parse(Parser *parser, const Expr2 &left,
+Expression *BinaryOperatorParselet::parse(Parser *parser, const Expression2 &left,
                                     Token t) {
-	Expr2 right = parser->parseExpression(getPrecedence() - isRight);
+	Expression2 right = parser->parseExpression(getPrecedence() - isRight);
 	return NewExpression(Binary, left, t, right);
 }
 
-Expr *PostfixOperatorParselet::parse(Parser *parser, const Expr2 &left,
+Expression *PostfixOperatorParselet::parse(Parser *parser, const Expression2 &left,
                                      Token t) {
 	(void)parser;
 	return NewExpression(Postfix, left, t);
 }
 
-Expr *AssignParselet::parse(Parser *parser, const Expr2 &lval, Token t) {
-	Expr2 right = parser->parseExpression(Precedence::ASSIGNMENT - 1);
+Expression *AssignParselet::parse(Parser *parser, const Expression2 &lval, Token t) {
+	Expression2 right = parser->parseExpression(Precedence::ASSIGNMENT - 1);
 	if(!lval->isAssignable()) {
 		throw ParseException(t, "Unassignable value!");
 	}
@@ -644,7 +644,7 @@ Expr *AssignParselet::parse(Parser *parser, const Expr2 &lval, Token t) {
 	return NewExpression(Assign, lval, t, right);
 }
 
-Expr *CallParselet::parse(Parser *parser, const Expr2 &left, Token t) {
+Expression *CallParselet::parse(Parser *parser, const Expression2 &left, Token t) {
 	Array2 args = Array::create(1);
 
 	if(!parser->match(TOKEN_RIGHT_PAREN)) {
@@ -658,22 +658,22 @@ Expr *CallParselet::parse(Parser *parser, const Expr2 &left, Token t) {
 	return NewExpression(Call, left, t, args);
 }
 
-Expr *ReferenceParselet::parse(Parser *parser, const Expr2 &obj, Token t) {
+Expression *ReferenceParselet::parse(Parser *parser, const Expression2 &obj, Token t) {
 	Token name =
 	    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
-	Expr2 member = parser->parseExpression(Precedence::REFERENCE, name);
+	Expression2 member = parser->parseExpression(Precedence::REFERENCE, name);
 	return NewExpression(Get, obj, t, member);
 }
 
-Expr *SubscriptParselet::parse(Parser *parser, const Expr2 &obj, Token t) {
+Expression *SubscriptParselet::parse(Parser *parser, const Expression2 &obj, Token t) {
 	// allow all expressions inside []
-	Expr2 idx = parser->parseExpression();
+	Expression2 idx = parser->parseExpression();
 	parser->consume(TOKEN_RIGHT_SQUARE,
 	                "Expcted ']' at the end of subscript expression!");
 	return NewExpression(Subscript, obj, t, idx);
 }
 
-Expr *ArrayLiteralParselet::parse(Parser *parser, Token t) {
+Expression *ArrayLiteralParselet::parse(Parser *parser, Token t) {
 	Array2 exprs = Array::create(1);
 	if(t.type != TOKEN_SUBSCRIPT) {
 		if(parser->lookAhead(0).type != TOKEN_RIGHT_SQUARE) {
@@ -687,7 +687,7 @@ Expr *ArrayLiteralParselet::parse(Parser *parser, Token t) {
 	return NewExpression(ArrayLiteral, t, exprs);
 }
 
-Expr *HashmapLiteralParselet::parse(Parser *parser, Token t) {
+Expression *HashmapLiteralParselet::parse(Parser *parser, Token t) {
 	Array2 keys   = Array::create(1);
 	Array2 values = Array::create(1);
 	if(parser->lookAhead(0).type != TOKEN_RIGHT_BRACE) {

@@ -27,33 +27,33 @@ class Parser;
 
 class PrefixParselet {
   public:
-	virtual Expr *parse(Parser *parser, Token t) = 0;
+	virtual Expression *parse(Parser *parser, Token t) = 0;
 	virtual ~PrefixParselet() {}
 };
 
 class NameParselet : public PrefixParselet {
   public:
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 };
 
 class ThisOrSuperParselet : public PrefixParselet {
   public:
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 };
 
 class LiteralParselet : public PrefixParselet {
   public:
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 };
 
 class ArrayLiteralParselet : public PrefixParselet {
   public:
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 };
 
 class HashmapLiteralParselet : public PrefixParselet {
   public:
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 };
 
 class PrefixOperatorParselet : public PrefixParselet {
@@ -62,13 +62,13 @@ class PrefixOperatorParselet : public PrefixParselet {
 
   public:
 	PrefixOperatorParselet(int prec) : precedence(prec) {}
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 	int   getPrecedence() { return precedence; }
 };
 
 class GroupParselet : public PrefixParselet {
   public:
-	Expr *parse(Parser *parser, Token t);
+	Expression *parse(Parser *parser, Token t);
 };
 
 class InfixParselet {
@@ -77,7 +77,7 @@ class InfixParselet {
 
   public:
 	InfixParselet(int prec) : precedence(prec) {}
-	virtual Expr *parse(Parser *parser, const Expr2 &left, Token t) = 0;
+	virtual Expression *parse(Parser *parser, const Expression2 &left, Token t) = 0;
 	int           getPrecedence() { return precedence; }
 	virtual bool  isAssignment() { return false; }
 	virtual ~InfixParselet() {}
@@ -90,13 +90,13 @@ class BinaryOperatorParselet : public InfixParselet {
   public:
 	BinaryOperatorParselet(int precedence, bool isr)
 	    : InfixParselet(precedence), isRight(isr) {}
-	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 };
 
 class PostfixOperatorParselet : public InfixParselet {
   public:
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
-	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 	bool  isAssignment() {
         return true; // only ++/--
 	}
@@ -105,26 +105,26 @@ class PostfixOperatorParselet : public InfixParselet {
 class AssignParselet : public InfixParselet {
   public:
 	AssignParselet() : InfixParselet(Precedence::ASSIGNMENT) {}
-	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 	bool  isAssignment() { return true; }
 };
 
 class CallParselet : public InfixParselet {
   public:
 	CallParselet() : InfixParselet(Precedence::CALL) {}
-	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 };
 
 class ReferenceParselet : public InfixParselet {
   public:
 	ReferenceParselet() : InfixParselet(Precedence::REFERENCE) {}
-	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 };
 
 class SubscriptParselet : public InfixParselet {
   public:
 	SubscriptParselet() : InfixParselet(Precedence::REFERENCE) {}
-	Expr *parse(Parser *parser, const Expr2 &left, Token t);
+	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 };
 
 class DeclarationParselet {
@@ -274,10 +274,10 @@ class Parser {
 	// if silent is true, the parser won't trigger an
 	// exception if it cannot find a suitable expression
 	// to parse. it will bail out and return null
-	Expr *parseExpression(Token token, bool silent = false);
-	Expr *parseExpression(bool silent = false);
-	Expr *parseExpression(int precedence, Token token, bool silent = false);
-	Expr *parseExpression(int precedence, bool silent = false);
+	Expression *parseExpression(Token token, bool silent = false);
+	Expression *parseExpression(bool silent = false);
+	Expression *parseExpression(int precedence, Token token, bool silent = false);
+	Expression *parseExpression(int precedence, bool silent = false);
 	Statement *parseDeclaration();
 	Array *    parseAllDeclarations();
 	Statement *parseStatement();

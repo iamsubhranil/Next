@@ -292,8 +292,8 @@ Tuple *GcObject::allocTuple2(int numobj) {
 	return t;
 }
 
-Expr *GcObject::allocExpression2(size_t size) {
-	Expr *e = (Expr *)alloc(size, OBJ_Expr, ExprClass);
+Expression *GcObject::allocExpression2(size_t size) {
+	Expression *e = (Expression *)alloc(size, OBJ_Expression, ExpressionClass);
 	return e;
 }
 
@@ -339,13 +339,13 @@ void GcObject::release(GcObject *obj) {
 			GcObject_free(obj, sizeof(Object) +
 			                       (sizeof(Value) * obj->klass->numSlots));
 			return;
-		case OBJ_Expr:
+		case OBJ_Expression:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] Expr (" << ((Expr *)obj)->getSize()
-			          << ") -> " << ((Expr *)obj)->gc_repr() << "\n";
+			std::cout << "[GC] [Release] Expression (" << ((Expression *)obj)->getSize()
+			          << ") -> " << ((Expression *)obj)->gc_repr() << "\n";
 			GcCounters[ExprCounter]--;
 #endif
-			GcObject_free(obj, ((Expr *)obj)->getSize());
+			GcObject_free(obj, ((Expression *)obj)->getSize());
 			return;
 		case OBJ_Statement:
 #ifdef DEBUG_GC
