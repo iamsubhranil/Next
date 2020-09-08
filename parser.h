@@ -63,7 +63,7 @@ class PrefixOperatorParselet : public PrefixParselet {
   public:
 	PrefixOperatorParselet(int prec) : precedence(prec) {}
 	Expression *parse(Parser *parser, Token t);
-	int   getPrecedence() { return precedence; }
+	int         getPrecedence() { return precedence; }
 };
 
 class GroupParselet : public PrefixParselet {
@@ -77,9 +77,10 @@ class InfixParselet {
 
   public:
 	InfixParselet(int prec) : precedence(prec) {}
-	virtual Expression *parse(Parser *parser, const Expression2 &left, Token t) = 0;
-	int           getPrecedence() { return precedence; }
-	virtual bool  isAssignment() { return false; }
+	virtual Expression *parse(Parser *parser, const Expression2 &left,
+	                          Token t) = 0;
+	int                 getPrecedence() { return precedence; }
+	virtual bool        isAssignment() { return false; }
 	virtual ~InfixParselet() {}
 };
 
@@ -97,7 +98,7 @@ class PostfixOperatorParselet : public InfixParselet {
   public:
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
 	Expression *parse(Parser *parser, const Expression2 &left, Token t);
-	bool  isAssignment() {
+	bool        isAssignment() {
         return true; // only ++/--
 	}
 };
@@ -106,7 +107,7 @@ class AssignParselet : public InfixParselet {
   public:
 	AssignParselet() : InfixParselet(Precedence::ASSIGNMENT) {}
 	Expression *parse(Parser *parser, const Expression2 &left, Token t);
-	bool  isAssignment() { return true; }
+	bool        isAssignment() { return true; }
 };
 
 class CallParselet : public InfixParselet {
@@ -276,14 +277,16 @@ class Parser {
 	// to parse. it will bail out and return null
 	Expression *parseExpression(Token token, bool silent = false);
 	Expression *parseExpression(bool silent = false);
-	Expression *parseExpression(int precedence, Token token, bool silent = false);
+	Expression *parseExpression(int precedence, Token token,
+	                            bool silent = false);
 	Expression *parseExpression(int precedence, bool silent = false);
-	Statement *parseDeclaration();
-	Array *    parseAllDeclarations();
-	Statement *parseStatement();
-	Statement *parseBlock(bool isStatic = false);
-	String *   buildNextString(Token &t);
-
+	Statement * parseDeclaration();
+	Array *     parseAllDeclarations();
+	Statement * parseStatement();
+	Statement * parseBlock(bool isStatic = false);
+	String *    buildNextString(Token &t);
+	InfixParselet *
+	getInfixParselet(TokenType type); // return an infixparselet for the token
 	// release the parselets
 	void releaseAll();
 };

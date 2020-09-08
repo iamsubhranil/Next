@@ -62,6 +62,10 @@ Expression *Parser::parseExpression(int precedence, Token token, bool silent) {
 	return left;
 }
 
+InfixParselet *Parser::getInfixParselet(TokenType type) {
+	return infixParselets[type];
+}
+
 Statement *Parser::parseDeclaration() {
 	Visibility vis   = VIS_DEFAULT;
 	Token      token = lookAhead(0);
@@ -282,7 +286,10 @@ Statement *FnDeclaration::parse(Parser *p, Token t, Visibility vis) {
 }
 
 void ClassDeclaration::registerParselet(TokenType t, StatementParselet *p) {
-	classBodyParselets[t] = p;
+	if(!classBodyParselets.contains(t))
+		classBodyParselets[t] = p;
+	else
+		delete p;
 }
 
 Statement *ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
@@ -374,9 +381,9 @@ Statement *MemberDeclaration::parse(Parser *p, Token t, bool iss) {
 // Statements
 
 Statement *IfStatementParselet::parse(Parser *p, Token t) {
-	Expression2      expr      = p->parseExpression();
-	Statement2 thenBlock = p->parseBlock();
-	Statement2 elseBlock = nullptr;
+	Expression2 expr      = p->parseExpression();
+	Statement2  thenBlock = p->parseBlock();
+	Statement2  elseBlock = nullptr;
 	if(p->lookAhead(0).type == TOKEN_else) {
 		if(p->lookAhead(1).type == TOKEN_if) {
 			p->consume();
@@ -390,8 +397,8 @@ Statement *IfStatementParselet::parse(Parser *p, Token t) {
 }
 
 Statement *WhileStatementParselet::parse(Parser *p, Token t) {
-	Expression2      cond      = p->parseExpression();
-	Statement2 thenBlock = p->parseBlock();
+	Expression2 cond      = p->parseExpression();
+	Statement2  thenBlock = p->parseBlock();
 	return NewStatement(While, t, cond, thenBlock, false);
 }
 
@@ -433,10 +440,10 @@ Statement *ReturnStatementParselet::parse(Parser *p, Token t) {
 
 Statement *ForStatementParselet::parse(Parser *p, Token t) {
 	p->consume(TOKEN_LEFT_PAREN, "Expected '(' after for!");
-	Array2 inits       = Array::create(1);
-	Array2 incrs       = Array::create(1);
-	Expression2  cond        = NULL;
-	bool   is_iterator = false;
+	Array2      inits       = Array::create(1);
+	Array2      incrs       = Array::create(1);
+	Expression2 cond        = NULL;
+	bool        is_iterator = false;
 	if(p->match(TOKEN_SEMICOLON)) {
 		is_iterator = false;
 	} else {
@@ -500,7 +507,8 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	if(parser->match(TOKEN_DOT)) {
 		Token name =
 		    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
-		Expression2 refer = parser->parseExpression(Precedence::REFERENCE, name);
+		Expression2 refer =
+		    parser->parseExpression(Precedence::REFERENCE, name);
 		return NewExpression(GetThisOrSuper, t, refer);
 	}
 
@@ -510,11 +518,13 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	// however, must follow a refer or a call.
 	if(t.type == TOKEN_super) {
 		parser->consume(TOKEN_LEFT_PAREN, "Expected '.' or '(' after super!");
-		return (new CallParselet())->parse(parser, thisOrSuper, t);
+		return parser->getInfixParselet(TOKEN_LEFT_PAREN)
+		    ->parse(parser, thisOrSuper, t);
 	}
 	// if the token is 'this' and there is a '(', make it a call
 	if(parser->match(TOKEN_LEFT_PAREN)) {
-		return (new CallParselet())->parse(parser, thisOrSuper, t);
+		return parser->getInfixParselet(TOKEN_LEFT_PAREN)
+		    ->parse(parser, thisOrSuper, t);
 	}
 	// otherwise, return the 'this' token as it is
 	return thisOrSuper;
@@ -621,19 +631,20 @@ Expression *GroupParselet::parse(Parser *parser, Token t) {
 	return NewExpression(Grouping, t, exprs, ist);
 }
 
-Expression *BinaryOperatorParselet::parse(Parser *parser, const Expression2 &left,
-                                    Token t) {
+Expression *BinaryOperatorParselet::parse(Parser *           parser,
+                                          const Expression2 &left, Token t) {
 	Expression2 right = parser->parseExpression(getPrecedence() - isRight);
 	return NewExpression(Binary, left, t, right);
 }
 
-Expression *PostfixOperatorParselet::parse(Parser *parser, const Expression2 &left,
-                                     Token t) {
+Expression *PostfixOperatorParselet::parse(Parser *           parser,
+                                           const Expression2 &left, Token t) {
 	(void)parser;
 	return NewExpression(Postfix, left, t);
 }
 
-Expression *AssignParselet::parse(Parser *parser, const Expression2 &lval, Token t) {
+Expression *AssignParselet::parse(Parser *parser, const Expression2 &lval,
+                                  Token t) {
 	Expression2 right = parser->parseExpression(Precedence::ASSIGNMENT - 1);
 	if(!lval->isAssignable()) {
 		throw ParseException(t, "Unassignable value!");
@@ -644,7 +655,8 @@ Expression *AssignParselet::parse(Parser *parser, const Expression2 &lval, Token
 	return NewExpression(Assign, lval, t, right);
 }
 
-Expression *CallParselet::parse(Parser *parser, const Expression2 &left, Token t) {
+Expression *CallParselet::parse(Parser *parser, const Expression2 &left,
+                                Token t) {
 	Array2 args = Array::create(1);
 
 	if(!parser->match(TOKEN_RIGHT_PAREN)) {
@@ -658,14 +670,16 @@ Expression *CallParselet::parse(Parser *parser, const Expression2 &left, Token t
 	return NewExpression(Call, left, t, args);
 }
 
-Expression *ReferenceParselet::parse(Parser *parser, const Expression2 &obj, Token t) {
+Expression *ReferenceParselet::parse(Parser *parser, const Expression2 &obj,
+                                     Token t) {
 	Token name =
 	    parser->consume(TOKEN_IDENTIFIER, "Expected identifier after '.'!");
 	Expression2 member = parser->parseExpression(Precedence::REFERENCE, name);
 	return NewExpression(Get, obj, t, member);
 }
 
-Expression *SubscriptParselet::parse(Parser *parser, const Expression2 &obj, Token t) {
+Expression *SubscriptParselet::parse(Parser *parser, const Expression2 &obj,
+                                     Token t) {
 	// allow all expressions inside []
 	Expression2 idx = parser->parseExpression();
 	parser->consume(TOKEN_RIGHT_SQUARE,
