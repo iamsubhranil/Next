@@ -341,8 +341,9 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Expression:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] Expression (" << ((Expression *)obj)->getSize()
-			          << ") -> " << ((Expression *)obj)->gc_repr() << "\n";
+			std::cout << "[GC] [Release] Expression ("
+			          << ((Expression *)obj)->getSize() << ") -> "
+			          << ((Expression *)obj)->gc_repr() << "\n";
 			GcCounters[ExprCounter]--;
 #endif
 			GcObject_free(obj, ((Expression *)obj)->getSize());
@@ -389,7 +390,7 @@ void GcObject::release(Value v) {
 		release(*v.toPointer());
 }
 
-inline void GcObject::mark(Value v) {
+void GcObject::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
 	else if(v.isPointer() && (*v.toPointer()).isGcObject())
