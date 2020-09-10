@@ -170,8 +170,8 @@ ostream &operator<<(ostream &os, const Token &t) {
 	return os << string(t.start, t.length);
 }
 
-ostream &operator<<(ostream &os, const vector<Token> &tv) {
-	for(auto i = tv.begin(), j = tv.end(); i != j; i++) os << *i;
+ostream &operator<<(ostream &os, const CustomArray<Token> &tv) {
+	for(auto i : tv) os << i;
 	return os;
 }
 
@@ -535,12 +535,12 @@ Token Scanner::scanNextToken() {
 	}
 }
 
-const vector<Token> &Scanner::scanAllTokens() {
+const CustomArray<Token> &Scanner::scanAllTokens() {
 	Token t;
 	while((t = scanNextToken()).type != TOKEN_EOF) {
-		tokenList.push_back(t);
+		tokenList.insert(t);
 	}
-	tokenList.push_back(t);
+	tokenList.insert(t);
 	return tokenList;
 }
 

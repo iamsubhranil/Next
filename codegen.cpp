@@ -38,7 +38,7 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	inThis               = false;
 	inSuper              = false;
 	inLoop               = 0;
-	pendingBreaks        = std::vector<Break>();
+	pendingBreaks        = CustomArray<Break>();
 
 	mtx                = NULL;
 	ctx                = NULL;
@@ -142,14 +142,6 @@ void CodeGenerator::popFrame() {
 		btx = NULL;
 }
 
-/*
-mtx *CodeGenerator::compile(String *name, const vector<StmtPtr> &stmts) {
-    mtx = new mtx(name);
-    frame  = mtx->frame.get();
-    compileAll(stmts);
-    return mtx;
-}
-*/
 int CodeGenerator::createTempSlot() {
 	char tempname[20] = {0};
 	snprintf(&tempname[0], 20, "temp %d", ftx->slotCount);
@@ -173,9 +165,8 @@ void CodeGenerator::loadCoreModule() {
 }
 
 void CodeGenerator::patchBreaks() {
-	while(pendingBreaks.size() > 0 && pendingBreaks.back().scope >= scopeID) {
-		Break b = pendingBreaks.back();
-		pendingBreaks.pop_back();
+	while(!pendingBreaks.isEmpty() && pendingBreaks.last().scope >= scopeID) {
+		Break b = pendingBreaks.popLast();
 		btx->jump(b.ip, btx->getip() - b.ip);
 	}
 }
@@ -1164,7 +1155,7 @@ void CodeGenerator::visit(BreakStatement *ifs) {
 		lnerr_("Cannot use 'break' outside of a loop!", ifs->token);
 	} else {
 		size_t ip = btx->jump(0);
-		pendingBreaks.push_back((Break){ip, scopeID});
+		pendingBreaks.insert((Break){ip, scopeID});
 	}
 }
 
@@ -1520,13 +1511,13 @@ void CodeGenerator::visit(TryStatement *ifs) {
 	btx->code->stackEffect(1);
 	// after one catch block is executed, the control
 	// should get out of remaining catch blocks
-	vector<int> jumpAddresses;
+	CustomArray<int> jumpAddresses;
 	for(int j = 0; j < ifs->catchBlocks->size; j++) {
 		ifs->catchBlocks->values[j].toStatement()->accept(this);
 		// keep a backup of the jump opcode address
-		jumpAddresses.push_back(btx->jump(0));
+		jumpAddresses.insert(btx->jump(0));
 	}
-	for(auto &i : jumpAddresses) {
+	for(auto i : jumpAddresses) {
 		// patch the jump addresses
 		btx->jump(i, btx->getip() - i);
 	}

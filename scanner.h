@@ -1,8 +1,8 @@
 #ifndef scanner_h
 #define scanner_h
 
+#include "objects/customarray.h"
 #include <ostream>
-#include <vector>
 
 typedef enum {
 	TOKEN_LEFT_PAREN,
@@ -69,7 +69,7 @@ typedef struct Token {
 	static Token         errorToken(const char *message, Scanner *s);
 	friend std::ostream &operator<<(std::ostream &os, const Token &t);
 	friend std::ostream &operator<<(std::ostream &            os,
-	                                const std::vector<Token> &tv);
+	                                const CustomArray<Token> &tv);
 	void highlight(bool showFileName = false, const char *prefix = NULL,
 	               HighlightType htype = INFO) const;
 	static const char *TokenNames[];
@@ -86,7 +86,7 @@ class Scanner {
 	const char *       fileName;
 	int                line;
 	int                scanErrors;
-	std::vector<Token> tokenList;
+	CustomArray<Token> tokenList;
 
 	// Returns 1 if `c` is an English letter or underscore.
 	static bool isAlpha(char c);
@@ -114,7 +114,7 @@ class Scanner {
 	Scanner(const char *source, const char *file);
 	Scanner(const char *file);
 	Token                     scanNextToken();
-	const std::vector<Token> &scanAllTokens();
+	const CustomArray<Token> &scanAllTokens();
 	bool                      hasScanErrors();
 
 	friend Token;
