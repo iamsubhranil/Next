@@ -1,8 +1,9 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-#include "scanner.h"
 #include <stdint.h>
+
+struct Token;
 
 #ifdef _WIN32
 #define ANSI_COLOR_RED ""

@@ -4,6 +4,7 @@
 
 #include "objects/classcompilationctx.h"
 #include "objects/common.h"
+#include "objects/customarray.h"
 #include "objects/string.h"
 
 class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
@@ -83,7 +84,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 		int    scope;
 	};
 	// the array of break statements pending patching
-	std::vector<Break> pendingBreaks;
+	CustomArray<Break> pendingBreaks;
 	// after a loop statement finishes, this method
 	// patches all break statements defined in scopes
 	// >= present scope.

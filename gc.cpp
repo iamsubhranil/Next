@@ -10,6 +10,7 @@
 #include "objects/bytecode.h"
 #include "objects/bytecodecompilationctx.h"
 #include "objects/core.h"
+#include "objects/customarray.h"
 #include "objects/errors.h"
 #include "objects/fiber.h"
 #include "objects/fiber_iterator.h"
@@ -30,13 +31,12 @@
 using namespace std;
 #endif
 
-size_t     GcObject::totalAllocated        = 0;
-size_t     GcObject::next_gc               = 1024 * 1024 * 10;
-size_t     GcObject::max_gc                = 1024 * 1024 * 1024;
-size_t     GcObject::trackedObjectCount    = 0;
-size_t     GcObject::trackedObjectCapacity = 0;
-GcObject   GcObject::DefaultGcObject       = {nullptr, GcObject::OBJ_NONE};
-GcObject **GcObject::tracker               = nullptr;
+size_t   GcObject::totalAllocated  = 0;
+size_t   GcObject::next_gc         = 1024 * 1024 * 10;
+size_t   GcObject::max_gc          = 1024 * 1024 * 1024;
+GcObject GcObject::DefaultGcObject = {nullptr, GcObject::OBJ_NONE};
+CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP> *GcObject::tracker =
+    nullptr;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
@@ -202,35 +202,8 @@ void GcObject::untrackTemp(GcObject *g) {
 	temporaryObjects->hset.erase(g);
 }
 
-void GcObject::tracker_init() {
-	trackedObjectCapacity = GC_MIN_TRACKED_OBJECTS_CAP;
-	trackedObjectCount    = 0;
-	tracker               = (GcObject **)GcObject_malloc(sizeof(GcObject *) *
-                                           trackedObjectCapacity);
-}
-
 void GcObject::tracker_insert(GcObject *g) {
-	if(trackedObjectCount == trackedObjectCapacity) {
-		size_t oldCap = trackedObjectCapacity;
-		trackedObjectCapacity *= 2;
-		tracker = (GcObject **)GcObject_realloc(
-		    tracker, sizeof(GcObject *) * oldCap,
-		    sizeof(GcObject *) * trackedObjectCapacity);
-	}
-	tracker[trackedObjectCount++] = g;
-}
-
-void GcObject::tracker_shrink() {
-	// if there are less than half the capacity number of objects in the array,
-	// shrink to reduce memory usage
-	if(trackedObjectCount < trackedObjectCapacity / 2 &&
-	   trackedObjectCapacity > GC_MIN_TRACKED_OBJECTS_CAP) {
-		size_t newCap = Utils::powerOf2Ceil(trackedObjectCount);
-		tracker       = (GcObject **)GcObject_realloc(
-            tracker, sizeof(GcObject *) * trackedObjectCapacity,
-            sizeof(GcObject *) * newCap);
-		trackedObjectCapacity = newCap;
-	}
+	tracker->insert(g);
 }
 
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
@@ -244,7 +217,7 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	obj->objType  = type;
 	obj->klass    = klass;
 
-	tracker_insert(obj);
+	tracker->insert(obj);
 
 	return obj;
 }
@@ -461,8 +434,8 @@ void GcObject::sweep() {
 	// until they are done using this singly
 	// linked list of unmarked classes.
 	Class *unmarkedClassesHead = nullptr;
-	for(size_t i = 0; i < trackedObjectCount; i++) {
-		GcObject *v = tracker[i];
+	for(size_t i = 0; i < tracker->size; i++) {
+		GcObject *v = tracker->at(i);
 		// if it is not marked, release
 		if(!isMarked(v)) {
 			if(v->isClass()) {
@@ -480,12 +453,12 @@ void GcObject::sweep() {
 		// first non empty slot
 		else {
 			unmark(v);
-			tracker[lastFilledAt++] = v;
+			tracker->at(lastFilledAt++) = v;
 		}
 	}
-	trackedObjectCount = lastFilledAt;
+	tracker->size = lastFilledAt;
 	// shrink the tracker
-	tracker_shrink();
+	tracker->shrink();
 	// release all unmarked classes
 	while(unmarkedClassesHead) {
 		Class *next = unmarkedClassesHead->module;
@@ -500,7 +473,7 @@ void GcObject::init() {
 	// initialize the memory manager
 	MemoryManager::init();
 	// initialize the object tracker
-	tracker_init();
+	tracker = CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP>::create();
 	// initialize the temporary tracker
 	// allocate it manually, ValueSet::create
 	// itself uses temporary objects

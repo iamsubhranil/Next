@@ -10,7 +10,6 @@ Parser::Parser(Scanner &s) : scanner(s) {
 	}
 	prefixParselets.clear();
 	infixParselets.clear();
-	tokenCache.clear();
 }
 
 void Parser::registerParselet(TokenType t, PrefixParselet *p) {
@@ -147,8 +146,7 @@ Token Parser::lookAhead(size_t distance) {
 Token Parser::consume() {
 	lookAhead(0);
 
-	Token t = tokenCache.front();
-	tokenCache.pop_front();
+	Token t = tokenCache.pop_front();
 	return t;
 }
 

@@ -11,6 +11,7 @@ using size_t = std::size_t;
 struct Value;
 struct Expr;
 struct Statement;
+template <typename T, size_t n> struct CustomArray;
 
 #define OBJTYPE(name) struct name;
 #include "objecttype.h"
@@ -53,13 +54,8 @@ struct GcObject {
 	static size_t max_gc;
 	// an array to track the allocated
 	// objects
-	static GcObject **tracker;
-	static size_t     trackedObjectCount;
-	static size_t     trackedObjectCapacity;
-
-	static void tracker_init();
+	static CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP> *tracker;
 	static void tracker_insert(GcObject *g);
-	static void tracker_shrink();
 
 	// replacement for manual allocations
 	// to keep track of allocated bytes
