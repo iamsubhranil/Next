@@ -2,8 +2,8 @@
 
 #include "expr.h"
 #include "hashmap.h"
+#include "objects/customdeque.h"
 #include "stmt.h"
-#include <deque>
 
 class Precedence {
 	// Ordered in increasing precedence.
@@ -258,7 +258,7 @@ class Parser {
 	HashMap<TokenType, DeclarationParselet *> declarationParselets;
 	HashMap<TokenType, StatementParselet *>   statementParselets;
 	Scanner &                                 scanner;
-	std::deque<Token>                         tokenCache;
+	CustomDeque<Token>                        tokenCache;
 
 	int getPrecedence();
 
