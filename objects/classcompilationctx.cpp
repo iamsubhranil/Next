@@ -130,6 +130,14 @@ bool ClassCompilationContext::is_static_slot(String *name) {
 	return get_mem_info(name).isStatic;
 }
 
+void ClassCompilationContext::reset_default_constructor() {
+	defaultConstructor =
+	    FunctionCompilationContext::create(String::const_sig_constructor_0, 0);
+	add_public_signature(String::const_sig_constructor_0,
+	                     defaultConstructor->get_fn(), defaultConstructor);
+	defaultConstructor->create_slot(String::from("mod "), 0);
+}
+
 void ClassCompilationContext::add_public_signature(
     const String2 &sig, Function *f, FunctionCompilationContext *fctx) {
 

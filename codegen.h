@@ -90,6 +90,9 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// >= present scope.
 	void patchBreaks();
 
+	// tells expression statement visitor to not pop the result off the stack
+	bool expressionNoPop;
+
 	// Expression generator
 	void visit(ArrayLiteralExpression *as);
 	void visit(AssignExpression *as);

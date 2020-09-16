@@ -28,6 +28,15 @@ class ExecutionEngine {
 
 	static void printRemainingExceptions();
 
+	// denotes whether or not repl is running
+	static bool isRunningRepl;
+
+	// exits if we're running a module directly,
+	// otherwise throws a runtime_error to
+	// denote an unhandled exception.
+	// returns NULL always
+	static Fiber *exitOrThrow();
+
   public:
 	static void      mark();
 	static void      init();
@@ -80,4 +89,6 @@ class ExecutionEngine {
 	// returns false if the hash extraction fails
 	// if succeeds, assigns the pointer to the generated hash
 	static bool getHash(const Value &v, Value *generatedHash);
+
+	static void setRunningRepl(bool status);
 };

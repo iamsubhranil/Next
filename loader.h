@@ -18,11 +18,11 @@ struct Loader {
 	static GcObject *compile_and_load_with_name(const char *fileName,
 	                                            String *    moduleName,
 	                                            bool        execute = false);
-	// Compile and load in an already loaded
-	// module
-	static GcObject *compile_and_load_from_source(const char *source,
-	                                              ClassCompilationContext *m,
-	                                              bool execute = false);
+	// Compile and load in an already loaded module
+	// takes the module, and modifies it
+	static Value compile_and_load_from_source(const char *             source,
+	                                          ClassCompilationContext *m,
+	                                          Value mod, bool execute = false);
 
 	static void mark();
 };

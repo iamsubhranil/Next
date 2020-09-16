@@ -71,6 +71,8 @@ struct ClassCompilationContext {
 	ClassCompilationContext *get_class_ctx(String *name);
 	// called for modules
 	FunctionCompilationContext *get_default_constructor();
+	void reset_default_constructor(); // resets the default constructor
+	                                  // to a new one, called for repl
 
 	Class *get_class();
 

@@ -16,11 +16,24 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	ret.toHighlight = 0;
 
 	auto             it = 0;
-	filesystem::path p  = filesystem::path(currentPath->str()).parent_path();
-
-	while(p.is_directory() && it != size) {
-		p = p / filesystem::path(parts[it].toString()->str());
+	filesystem::path p  = filesystem::path(currentPath->str());
+	if(!p.exists()) {
+		// we take current path from the bytecode source
+		// file itself. so this can only happen in case of
+		// the repl.
+		p = filesystem::path::getcwd();
+	} else {
+		p = p.parent_path();
+	}
+	// if p is not a directory, make the iterator look like 1,
+	// because all the conditions below returns it - 1
+	if(!p.is_directory())
 		it++;
+	else {
+		while(p.is_directory() && it != size) {
+			p = p / filesystem::path(parts[it].toString()->str());
+			it++;
+		}
 	}
 	if(p.is_directory() && it == size) {
 		// cout << "Unable to import whole folder '" << paths << "'!" << endl;

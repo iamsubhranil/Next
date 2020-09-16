@@ -53,6 +53,10 @@ struct Expression {
 		return (type == EXPR_Get) || (type == EXPR_Set) ||
 		       (type == EXPR_GetThisOrSuper);
 	}
+#define EXPRTYPE(x)                                                 \
+	bool           is##x##Expression() { return type == EXPR_##x; } \
+	x##Expression *to##x##Expression() { return (x##Expression *)this; }
+#include "exprtypes.h"
 	size_t      getSize(); // returns actual allocation size based on type
 	void        mark();
 	void        release() {}

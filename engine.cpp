@@ -26,6 +26,7 @@ Fiber * ExecutionEngine::currentFiber          = nullptr;
 Object *ExecutionEngine::CoreObject            = nullptr;
 size_t  ExecutionEngine::maxRecursionLimit     = 1024;
 size_t  ExecutionEngine::currentRecursionDepth = 0;
+bool    ExecutionEngine::isRunningRepl         = false;
 
 void ExecutionEngine::init() {
 	pendingExceptions = Array::create(1);
@@ -62,6 +63,21 @@ bool ExecutionEngine::registerModule(String *name, Function *toplevel,
 		return true;
 	}
 	return false;
+}
+
+void ExecutionEngine::setRunningRepl(bool s) {
+	isRunningRepl = s;
+}
+
+Fiber *ExecutionEngine::exitOrThrow() {
+	if(isRunningRepl) {
+		// pop all frames
+		while(currentFiber->callFramePointer > 0) currentFiber->popFrame();
+		throw std::runtime_error("Unhandled exception thrown!");
+	} else {
+		exit(1);
+	}
+	return NULL;
 }
 
 // using Bytecode::Opcodes
@@ -246,7 +262,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	}
 	if(matched == NULL) {
 		printException(thrown, root);
-		exit(1);
+		return exitOrThrow();
 	} else {
 		// now check whether the caught type is actually a class
 		Class *caughtClass = NULL;
@@ -292,7 +308,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				}
 				printStackTrace(f);
 				printRemainingExceptions();
-				exit(1);
+				return exitOrThrow();
 			}
 			caughtClass = v.toClass();
 			// allow direct matches, as well as subclass matches
@@ -311,7 +327,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			printException(thrown, root);
 			printStackTrace(f);
 			printRemainingExceptions();
-			exit(1);
+			return exitOrThrow();
 		}
 		Fiber *fiber = f;
 		fiber->ensureStack(1);

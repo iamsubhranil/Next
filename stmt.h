@@ -52,6 +52,10 @@ struct Statement {
 			default: return false;
 		};
 	}
+#define STMTTYPE(x)                                               \
+	bool          is##x##Statement() { return type == STMT_##x; } \
+	x##Statement *to##x##Statement() { return (x##Statement *)this; }
+#include "stmttypes.h"
 	bool        isImport() { return (type == STMT_Import); }
 	void        accept(StatementVisitor *visitor);
 	void        mark();

@@ -46,6 +46,8 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	btx                = NULL;
 	corectx            = GcObject::CoreContext;
 	currentlyCompiling = nullptr;
+
+	expressionNoPop = false;
 }
 
 Class *CodeGenerator::compile(String *name, Array *stmts) {
@@ -64,7 +66,25 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn, Array *stmts) {
 	        stmts->size > 0 ? stmts->values[0].toStatement()->token
 	                        : Token::PlaceholderToken);
 	btx->insert_token(Token::PlaceholderToken);
-	compileAll(stmts);
+	// if the number of statements is 1 and the only statement
+	// is an expression statement, then make it an implicit print
+	if(stmts->size == 1 &&
+	   stmts->values[0].toStatement()->isExpressionStatement()) {
+		loadCoreModule();
+		expressionNoPop =
+		    true; // tells the expression statement to not pop the result
+		compileAll(stmts);
+		CallInfo info     = resolveCall(String::from(" printRepl"),
+                                    String::from(" printRepl(_)"));
+		int      numexprs = stmts->values[0]
+		                   .toStatement()
+		                   ->toExpressionStatement()
+		                   ->exprs->size;
+		btx->call(info.frameIdx, numexprs);
+		for(int i = 0; i < numexprs; i++) btx->pop_();
+	} else {
+		compileAll(stmts);
+	}
 	// after everything is done, load the instance,
 	// and return it
 	btx->load_slot_0();
@@ -1341,7 +1361,8 @@ void CodeGenerator::visit(ExpressionStatement *ifs) {
 		ifs->exprs->values[j].toExpression()->accept(this);
 		// An expression should always return a value.
 		// Pop the value to minimize the stack length
-		btx->pop_();
+		if(!expressionNoPop)
+			btx->pop_();
 	}
 }
 

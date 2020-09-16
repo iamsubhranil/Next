@@ -51,6 +51,16 @@ Value next_core_println(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+// called from the repl by the codegen implicitly,
+// does not print implicit 'nil' values
+Value next_core_printRepl(const Value *args, int numargs) {
+	for(int i = 1; i < numargs; i++) {
+		if(!args[i].isNil())
+			next_core_println(&args[i - 1], 2);
+	}
+	return ValueNil;
+}
+
 Value next_core_format(const Value *args, int numargs) {
 	// format is used everywhere in Next, and it does
 	// expect the very first argument to be a string
@@ -94,6 +104,20 @@ Value next_core_input0(const Value *args, int numargs) {
 		buffer.insert(c);
 	}
 	return String::from(buffer.data(), buffer.size());
+}
+
+Value next_core_exit(const Value *args, int numargs) {
+	(void)args;
+	(void)numargs;
+	exit(0);
+	return ValueNil;
+}
+
+Value next_core_exit1(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(core, "exit(_)", 1, Integer);
+	exit(args[1].toInteger());
+	return ValueNil;
 }
 
 Value next_core_input1(const Value *args, int numargs) {
@@ -276,6 +300,8 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("yield(_)", 1, next_core_yield_1, false, true); // can switch
 	add_builtin_fn("gc()", 0, next_core_gc);
 	add_builtin_fn("input()", 0, next_core_input0);
+	add_builtin_fn("exit()", 0, next_core_exit);
+	add_builtin_fn("exit(_)", 1, next_core_exit1);
 	add_builtin_fn("input(_)", 1, next_core_input1, false, true); // can nest
 	add_builtin_fn(" import(_)", 1, next_core_import1, true,
 	               true); // is va, can nest
@@ -285,6 +311,7 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("print()", 0, next_core_print, true, true);
 	add_builtin_fn("println()", 0, next_core_println, true, true);
 	add_builtin_fn("fmt(_)", 1, next_core_format, true, true);
+	add_builtin_fn(" printRepl(_)", 1, next_core_printRepl, true, true);
 }
 
 void addClocksPerSec() {

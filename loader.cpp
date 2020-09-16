@@ -175,8 +175,9 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 	}
 }
 
-GcObject *Loader::compile_and_load_from_source(
-    const char *source, ClassCompilationContext *modulectx, bool execute) {
+Value Loader::compile_and_load_from_source(const char *             source,
+                                           ClassCompilationContext *modulectx,
+                                           Value mod, bool execute) {
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -192,28 +193,41 @@ GcObject *Loader::compile_and_load_from_source(
 			cout << "\n";
 		}
 #endif
+		int slots = modulectx->get_class()->numSlots;
+		modulectx->reset_default_constructor();
 		CodeGenerator c(currentGenerator);
 		currentGenerator = &c;
 		c.compile(modulectx, decls);
+		// if after compilation we have some new slots, we need
+		// to reallocate the object
+		if(mod.isObject()) {
+			if(slots != modulectx->get_class()->numSlots) {
+				Object *bak = GcObject::allocObject(modulectx->get_class());
+				// copy the old values
+				Object *old = mod.toObject();
+				for(int i = 0; i < slots; i++) {
+					bak->slots()[i] = old->slots()[i];
+				}
+				// make it the new module
+				mod = bak;
+			}
+		} else {
+			mod = GcObject::allocObject(modulectx->get_class());
+		}
 		currentGenerator = c.parentGenerator;
 		if(execute) {
-			Value v;
-			if(ExecutionEngine::execute(
-			       ValueNil, modulectx->get_default_constructor()->f, &v, true))
-				return v.toGcObject();
-			return NULL;
+			ExecutionEngine::execute(
+			    mod, modulectx->get_default_constructor()->f, &mod, true);
 		}
 	} catch(ParseException &pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
-		return NULL;
 	} catch(runtime_error &r) {
-		cout << r.what() << "\n";
-		return NULL;
+		cout << r.what() << endl;
 	}
-	return (GcObject *)modulectx->get_class();
+	return mod;
 }
 
 void Loader::mark() {
