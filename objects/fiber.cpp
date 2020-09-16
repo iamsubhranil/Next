@@ -127,7 +127,7 @@ Value Fiber::run() {
 			// a builtin, execute it
 			CallFrame *f = getCurrentFrame();
 			if(f->f->getType() == Function::BUILTIN) {
-				result = f->func(f->stack_, f->f->arity);
+				result = f->func(f->stack_, stackTop - f->stack_);
 				popFrame();
 			}
 			// if don't have any more frames in this
