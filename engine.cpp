@@ -32,19 +32,19 @@ void ExecutionEngine::init() {
 	pendingExceptions = Array::create(1);
 	pendingFibers     = Array::create(1);
 	// create a new fiber
-	Fiber2 f = Fiber::create();
+	currentFiber = Fiber::create();
 	// make slot for core
-	f->stackTop++;
-	// create core instance
-	f->appendMethod(
-	    GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
-	        .toFunction(),
-	    0, false);
+	currentFiber->stackTop++;
+	// register the module
 	Value v;
-	if(execute(f, &v)) {
-		CoreObject = v.toObject();
-	} else {
+	if(!registerModule(
+	       String::const_core,
+	       GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
+	           .toFunction(),
+	       &v)) {
 		panic("Initialization of core module failed");
+	} else {
+		CoreObject = v.toObject();
 	}
 }
 
