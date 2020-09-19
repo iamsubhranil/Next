@@ -56,7 +56,7 @@ GcObject *ExecutionEngine::getRegisteredModule(String *name) {
 	return loadedModules[name];
 }
 
-bool ExecutionEngine::registerModule(String *name, Function *toplevel,
+bool ExecutionEngine::registerModule(const String2 &name, Function *toplevel,
                                      Value *instance) {
 	if(execute(ValueNil, toplevel, instance, true)) {
 		loadedModules[name] = instance->toGcObject();
@@ -148,7 +148,7 @@ void ExecutionEngine::mark() {
 	// and remove the modules themselves
 	for(auto &a : loadedModules) {
 		GcObject::mark(a.first);
-		if(!GcObject::isMarked(a.second))
+		if(a.second != NULL && !GcObject::isMarked(a.second))
 			loadedModules[a.first] = NULL;
 	}
 }

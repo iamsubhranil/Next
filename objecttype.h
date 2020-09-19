@@ -45,4 +45,6 @@ OBJTYPE(SetIterator)
 OBJTYPE(Expression)
 // statement types
 OBJTYPE(Statement)
+// loader
+OBJTYPE(Loader)
 #undef OBJTYPE

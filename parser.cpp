@@ -10,6 +10,7 @@ Parser::Parser(Scanner &s) : scanner(s) {
 	}
 	prefixParselets.clear();
 	infixParselets.clear();
+	declarations = nullptr;
 }
 
 void Parser::registerParselet(TokenType t, PrefixParselet *p) {
@@ -90,9 +91,10 @@ Statement *Parser::parseDeclaration() {
 }
 
 Array *Parser::parseAllDeclarations() {
-	Array2 ret = Array::create(1);
-	while(lookAhead(0).type != TOKEN_EOF) ret->insert(parseDeclaration());
-	return ret;
+	declarations = Array::create(1);
+	while(lookAhead(0).type != TOKEN_EOF)
+		declarations->insert(parseDeclaration());
+	return declarations;
 }
 
 Statement *Parser::parseBlock(bool isStatic) {

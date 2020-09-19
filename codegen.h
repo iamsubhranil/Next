@@ -161,12 +161,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	Array *currentlyCompiling;
 
   public:
-	// if this code generator was invoked by another, this pointer holds
-	// the address of that, so that the objects in use by that generator
-	// can be marked
-	CodeGenerator *parentGenerator;
-
-	CodeGenerator(CodeGenerator *parent);
+	CodeGenerator();
 	Class *compile(String *name, Array *statements);
 	void   compile(ClassCompilationContext *compileIn, Array *statements);
 	void   mark();

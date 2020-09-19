@@ -77,9 +77,11 @@ struct GcObject {
 #define GcObject_realloc(x, y, z)                   \
 	(gc_msg_a("realloc") << y << ", " << z << "\n", \
 	 GcObject::realloc((x), (y), (z)))
-#define GcObject_free(x, y)        \
-	gc_msg_a("free") << y << "\n"; \
-	GcObject::free((x), (y));
+#define GcObject_free(x, y)            \
+	{                                  \
+		gc_msg_a("free") << y << "\n"; \
+		GcObject::free((x), (y));      \
+	}
 	// macros to warn against direct malloc/free calls
 /*#define malloc(x)                                                           \
 	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
@@ -168,6 +170,8 @@ struct GcObject {
 	static ValueSet *temporaryObjects;
 	static void      trackTemp(GcObject *o);
 	static void      untrackTemp(GcObject *o);
+	// returns true if a pointer is already being tracked
+	static bool isTempTracked(GcObject *o);
 
 	// debug information
 #ifdef DEBUG_GC
@@ -178,21 +182,30 @@ struct GcObject {
 
 template <typename T> struct GcTempObject {
   private:
-	T *obj;
+	T *  obj;
+	bool own;
 
 	void track() {
-		if(obj)
-			GcObject::trackTemp((GcObject *)obj);
+		if(obj) {
+			// first check if the object is already being tracked
+			// if it is already being tracked, we're not
+			// the one who started tracking this, so we will
+			// not be the one to do this now.
+			own = !GcObject::isTempTracked((GcObject *)obj);
+			if(own)
+				GcObject::trackTemp((GcObject *)obj);
+		}
 	}
 
 	void untrack() {
-		if(obj)
+		if(obj && own) {
 			GcObject::untrackTemp((GcObject *)obj);
+		}
 	}
 
   public:
-	GcTempObject() : obj(nullptr) {}
-	GcTempObject(T *o) : obj(o) { track(); }
+	GcTempObject() : obj(nullptr), own(false) {}
+	GcTempObject(T *o) : obj(o), own(false) { track(); }
 
 	~GcTempObject() { untrack(); }
 

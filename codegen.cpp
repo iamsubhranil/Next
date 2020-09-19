@@ -22,7 +22,7 @@ using namespace std;
 		errorsOccurred++;                     \
 	}
 
-CodeGenerator::CodeGenerator(CodeGenerator *parent) {
+CodeGenerator::CodeGenerator() {
 	state                = COMPILE_DECLARATION;
 	onLHS                = false;
 	scopeID              = 0;
@@ -34,7 +34,6 @@ CodeGenerator::CodeGenerator(CodeGenerator *parent) {
 	lastMemberReferenced = 0;
 	variableInfo         = {0, VariablePosition::UNDEFINED, false};
 	errorsOccurred       = 0;
-	parentGenerator      = parent;
 	inThis               = false;
 	inSuper              = false;
 	inLoop               = 0;
@@ -1588,9 +1587,6 @@ void CodeGenerator::mark() {
 	// marked by the module that this
 	// compiler is compiling
 	GcObject::mark(mtx);
-	// mark the parent if that is not empty
-	if(parentGenerator)
-		parentGenerator->mark();
 	// mark the statements
 	GcObject::mark(currentlyCompiling);
 }

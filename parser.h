@@ -262,6 +262,7 @@ class Parser {
 
 	int getPrecedence();
 
+	Array *declarations; // root of the tree currently being compiled
   public:
 	Parser(Scanner &sc);
 	Token lookAhead(size_t distance);
@@ -289,6 +290,7 @@ class Parser {
 	getInfixParselet(TokenType type); // return an infixparselet for the token
 	// release the parselets
 	void releaseAll();
+	void mark() { GcObject::mark(declarations); }
 };
 
 class ParseException : public std::runtime_error {

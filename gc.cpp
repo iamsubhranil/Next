@@ -137,10 +137,6 @@ void GcObject::gc(bool force) {
 		mark(ExecutionEngine::CoreObject);
 		mark(CoreContext); // not really needed
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Marking CodeGens via Loader..\n";
-#endif
-		Loader::mark();
-#ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Marking weak strings..\n";
 #endif
 		String::keep();
@@ -200,6 +196,10 @@ void GcObject::untrackTemp(GcObject *g) {
 	// std::cout << "[GC] Untracking " << g << "..\n";
 #endif
 	temporaryObjects->hset.erase(g);
+}
+
+bool GcObject::isTempTracked(GcObject *o) {
+	return temporaryObjects->hset.contains(o);
 }
 
 void GcObject::tracker_insert(GcObject *g) {
@@ -317,7 +317,7 @@ void GcObject::release(GcObject *obj) {
 			std::cout << "[GC] [Release] Expression ("
 			          << ((Expression *)obj)->getSize() << ") -> "
 			          << ((Expression *)obj)->gc_repr() << "\n";
-			GcCounters[ExprCounter]--;
+			GcCounters[ExpressionCounter]--;
 #endif
 			GcObject_free(obj, ((Expression *)obj)->getSize());
 			return;

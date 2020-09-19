@@ -26,12 +26,14 @@ int main(int argc, char *argv[]) {
 	Value::init();
 	ExecutionEngine::init();
 	if(argc > 1) {
-		Loader::compile_and_load(argv[1], true);
+		Loader2 loader = Loader::create();
+		loader->compile_and_load(argv[1], true);
 	} else {
 		ExecutionEngine::setRunningRepl(true);
 		ClassCompilationContext2 replctx =
 		    ClassCompilationContext::create(NULL, String::from("repl"));
-		Value mod = ValueNil;
+		Value   mod    = ValueNil;
+		Loader2 loader = Loader::create();
 		while(true) {
 			cout << ">> ";
 			string line, bak;
@@ -51,7 +53,7 @@ int main(int argc, char *argv[]) {
 				break;
 			if(bak.length() == 0)
 				continue;
-			mod = Value(Loader::compile_and_load_from_source(
+			mod = Value(loader->compile_and_load_from_source(
 			    bak.c_str(), replctx, mod, true));
 		}
 	}

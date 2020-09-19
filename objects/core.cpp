@@ -129,6 +129,7 @@ Value next_core_input1(const Value *args, int numargs) {
 Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 	ImportStatus is        = Importer::import(currentPath, parts, numparts);
 	int          highlight = is.toHighlight;
+	String2      fname     = is.fileName;
 	switch(is.res) {
 		case ImportStatus::BAD_IMPORT: {
 			String *s = Formatter::fmt(
@@ -167,12 +168,13 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			if(s == NULL)
 				return ValueNil;
 			// is.filename contains the strerror message
-			IMPORTERR(String::append(s, is.fileName));
+			IMPORTERR(String::append(s, fname));
 			break;
 		}
 		case ImportStatus::PARTIAL_IMPORT:
 		case ImportStatus::IMPORT_SUCCESS: {
-			GcObject *m = Loader::compile_and_load(is.fileName, true);
+			Loader2   loader = Loader::create();
+			GcObject *m      = loader->compile_and_load(fname, true);
 			if(m == NULL) {
 				// compilation of the module failed
 				IMPORTERR("Compilation of imported module failed!");

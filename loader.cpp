@@ -8,8 +8,6 @@
 
 using namespace std;
 
-CodeGenerator *Loader::currentGenerator = nullptr;
-
 static void prefix(Parser *p, TokenType op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
 }
@@ -102,6 +100,18 @@ void registerParselets(Parser *p) {
 	                                   new MemberDeclaration());
 }
 
+Loader *Loader::create() {
+	Loader *l      = GcObject::allocLoader();
+	l->isCompiling = false;
+	l->replModule  = ValueNil;
+	return l;
+}
+
+void Loader::init() {
+	Class *LoaderClass = GcObject::LoaderClass;
+	LoaderClass->init("loader", Class::ClassType::BUILTIN);
+}
+
 GcObject *Loader::compile_and_load(const String2 &fileName, bool execute) {
 	return compile_and_load(fileName->str(), execute);
 }
@@ -130,7 +140,8 @@ GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
 
 GcObject *Loader::compile_and_load_with_name(const char *fileName,
                                              String *modName, bool execute) {
-	String2 fname = String::from(fileName);
+	String2   fname = String::from(fileName);
+	GcObject *ret   = NULL;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
@@ -138,10 +149,12 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		return ExecutionEngine::getRegisteredModule(fname);
 	Scanner s(fileName);
 	try {
-		Parser p(s);
-		registerParselets(&p);
-		Array2 decls = p.parseAllDeclarations();
-		p.releaseAll();
+		::new(&parser) Parser(s);
+		::new(&generator) CodeGenerator();
+		isCompiling = true;
+		registerParselets(&parser);
+		Array2 decls = parser.parseAllDeclarations();
+		parser.releaseAll();
 #ifdef DEBUG
 		for(int i = 0; i < decls->size; i++) {
 			sp.print(decls->values[i].toStatement());
@@ -151,28 +164,25 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 #endif
 		ClassCompilationContext2 ctx =
 		    ClassCompilationContext::create(NULL, modName);
-		CodeGenerator c(currentGenerator);
-		currentGenerator = &c;
-		c.compile(ctx, decls);
-		currentGenerator = c.parentGenerator;
+		generator.compile(ctx, decls);
+		isCompiling = false;
 		if(execute) {
 			Value v;
 			if(ExecutionEngine::registerModule(
 			       fname, ctx->get_default_constructor()->f, &v))
-				return v.toGcObject();
-			return NULL;
+				ret = v.toGcObject();
+		} else {
+			ret = (GcObject *)ctx->get_class();
 		}
-		return (GcObject *)ctx->get_class();
 	} catch(ParseException &pe) {
 		if(pe.getToken().source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
-		return NULL;
 	} catch(runtime_error &r) {
 		std::cout << r.what() << "\n";
-		return NULL;
 	}
+	return ret;
 }
 
 Value Loader::compile_and_load_from_source(const char *             source,
@@ -182,11 +192,14 @@ Value Loader::compile_and_load_from_source(const char *             source,
 	StatementPrinter sp(cout);
 #endif
 	Scanner s(source, modulectx->get_class()->name->str());
+	replModule = mod;
 	try {
-		Parser p(s);
-		registerParselets(&p);
-		Array *decls = p.parseAllDeclarations();
-		p.releaseAll();
+		::new(&parser) Parser(s);
+		::new(&generator) CodeGenerator();
+		isCompiling = true;
+		registerParselets(&parser);
+		Array2 decls = parser.parseAllDeclarations();
+		parser.releaseAll();
 #ifdef DEBUG
 		for(int i = 0; i < decls->size; i++) {
 			sp.print(decls->values[i].toStatement());
@@ -195,9 +208,8 @@ Value Loader::compile_and_load_from_source(const char *             source,
 #endif
 		int slots = modulectx->get_class()->numSlots;
 		modulectx->reset_default_constructor();
-		CodeGenerator c(currentGenerator);
-		currentGenerator = &c;
-		c.compile(modulectx, decls);
+		generator.compile(modulectx, decls);
+		isCompiling = false;
 		// if after compilation we have some new slots, we need
 		// to reallocate the object
 		if(mod.isObject()) {
@@ -209,12 +221,11 @@ Value Loader::compile_and_load_from_source(const char *             source,
 					bak->slots()[i] = old->slots()[i];
 				}
 				// make it the new module
-				mod = bak;
+				replModule = mod = bak;
 			}
 		} else {
-			mod = GcObject::allocObject(modulectx->get_class());
+			replModule = mod = GcObject::allocObject(modulectx->get_class());
 		}
-		currentGenerator = c.parentGenerator;
 		if(execute) {
 			ExecutionEngine::execute(
 			    mod, modulectx->get_default_constructor()->f, &mod, true);
@@ -228,9 +239,4 @@ Value Loader::compile_and_load_from_source(const char *             source,
 		cout << r.what() << endl;
 	}
 	return mod;
-}
-
-void Loader::mark() {
-	if(currentGenerator != nullptr)
-		currentGenerator->mark();
 }
