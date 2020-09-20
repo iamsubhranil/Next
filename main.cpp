@@ -57,5 +57,8 @@ int main(int argc, char *argv[]) {
 			    bak.c_str(), replctx, mod, true));
 		}
 	}
+#ifdef DEBUG
+	ExecutionEngine::printOpcodeStatistics();
+#endif
 	return 0;
 }

@@ -28,6 +28,26 @@ Object *ExecutionEngine::CoreObject            = nullptr;
 size_t  ExecutionEngine::maxRecursionLimit     = 1024;
 size_t  ExecutionEngine::currentRecursionDepth = 0;
 bool    ExecutionEngine::isRunningRepl         = false;
+#ifdef DEBUG
+static int opcodeCounter[Bytecode::CODE_end] = {0};
+#endif
+
+#ifdef DEBUG
+void ExecutionEngine::printOpcodeStatistics() {
+	int i = 0;
+	std::cout << "\nOpcode statistics\n";
+	std::cout << "=================\n";
+#define PRINT_OPCODE_STAT(name)                                      \
+	if(opcodeCounter[i] > 0) {                                       \
+		std::cout << #name << ": " << opcodeCounter[i] << std::endl; \
+	}                                                                \
+	i++;
+#define OPCODE0(x, y) PRINT_OPCODE_STAT(x)
+#define OPCODE1(x, y, z) PRINT_OPCODE_STAT(x)
+#define OPCODE2(w, x, y, z) PRINT_OPCODE_STAT(w)
+#include "opcodes.h"
+}
+#endif
 
 void ExecutionEngine::init() {
 	pendingExceptions = Array::create(1);
@@ -588,6 +608,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	}
 
 	LOOP() {
+#ifdef DEBUG
+		opcodeCounter[*InstructionPointer]++;
+#endif
 #ifdef DEBUG_INS
 		{
 			int instructionPointer =

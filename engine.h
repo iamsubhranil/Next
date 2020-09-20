@@ -90,4 +90,8 @@ class ExecutionEngine {
 	static bool getHash(const Value &v, Value *generatedHash);
 
 	static void setRunningRepl(bool status);
+
+#ifdef DEBUG
+	static void printOpcodeStatistics();
+#endif
 };
