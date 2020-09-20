@@ -60,8 +60,7 @@ class ExecutionEngine {
 	// number of exceptions generated after.
 
 	// registers and executes a module
-	static bool registerModule(const String2 &fileName,
-	                           Function *defConstructor, Value *ret);
+	static bool registerModule(const String2 &fileName, Class *mod, Value *ret);
 
 	// executes a bound method on v in current fiber
 	static bool execute(Value v, Function *f, Value *args, int numargs,

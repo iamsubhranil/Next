@@ -40,10 +40,6 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		                   ctx->defaultConstructor);
 		// add slot for the module
 		ctx->defaultConstructor->create_slot(String::from("mod "), 0);
-		// initialize the module
-		ctx->defaultConstructor->get_codectx()->construct(
-		    Value(ctx->get_class()));
-		// construct will automatically store it to slot 0
 		// add the class map
 		ctx->cctxMap = Map::create();
 		// a module does not have a metaclass

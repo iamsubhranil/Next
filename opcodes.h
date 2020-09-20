@@ -18,36 +18,6 @@
 #define OPCODE2(name, stackEffect, type1, type2)
 #endif
 
-OPCODE0(add, -1) // 1 pop + inplace add
-OPCODE0(sub, -1) // 1 pop + inplace sub
-OPCODE0(mul, -1)
-OPCODE0(div, -1)
-OPCODE0(power, -1)
-
-// ++ and -- operations are desugared
-// into
-// a) prefix
-//          0) load
-//          1) incr/decr
-//          2) store // the resultant is in TOS
-// b) postfix
-//          0) load
-//          1) copy
-//          2) incr/decr
-//          3) store
-//          4) pop // the first load remains
-// copies the TOS if TOS is a number,
-// otherwise calls ++(_)/--(_) on TOS
-OPCODE1(copy, 1, int) // <sym>
-// if TOS is a number, adds +1, otherwise
-// calls ++ on TOS
-OPCODE0(incr, 0)
-// if TOS is a number, adds -1, otherwise
-// calls -- on TOS
-OPCODE0(decr, 0)
-
-OPCODE0(neg, 0)
-
 // Takes address to jump for short circuiting
 // They do not change the stack size
 OPCODE1(land, 0, int)
@@ -57,10 +27,6 @@ OPCODE0(lnot, 0)
 
 OPCODE0(eq, -1)
 OPCODE0(neq, -1)
-OPCODE0(less, -1)
-OPCODE0(lesseq, -1)
-OPCODE0(greater, -1)
-OPCODE0(greatereq, -1)
 
 // Pushes a Value to the stack
 OPCODE1(push, 1, Value)
@@ -157,9 +123,6 @@ OPCODE2(call_method_super, 0, int, int) // <symbol> <args>
 
 // return
 OPCODE0(ret, -1)
-
-OPCODE1(construct, 0, Value) // <class>
-// OPCODE0(construct_ret, 0)
 
 // Pop the object from TOS and push
 // the required field

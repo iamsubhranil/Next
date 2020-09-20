@@ -86,13 +86,12 @@ Value next_error_construct_1(const Value *args, int numargs) {
 	return Error::create(args[1].toString());
 }
 
-Function2 ErrorObjectClassConstructor(Class *c) {
+Function2 ErrorObjectClassConstructor() {
 	Function2 f = Function::create(String::from("new"), 1);
 	f->code     = Bytecode::create();
 	// new(x) { message = x }
 	f->code->insertSlot(); // this
 	f->code->insertSlot(); // x
-	f->code->construct(c);
 	f->code->load_slot_n(1);
 	f->code->store_object_slot(0);
 	f->code->pop();
@@ -121,7 +120,6 @@ void Error::init() {
 	Class *ErrorObjectClass = GcObject::ErrorObjectClass;
 	ErrorObjectClass->init("error", Class::ClassType::NORMAL);
 	ErrorObjectClass->numSlots = 1; // message
-	ErrorObjectClass->add_fn("(_)",
-	                         ErrorObjectClassConstructor(ErrorObjectClass));
+	ErrorObjectClass->add_fn("(_)", ErrorObjectClassConstructor());
 	ErrorObjectClass->add_fn("str()", ErrorObjectClassStr());
 }

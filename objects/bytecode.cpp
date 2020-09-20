@@ -114,8 +114,8 @@ Bytecode *Bytecode::create_derived(int offset) {
 	for(Opcode *ip = bytecodes; ip - bytecodes < (int64_t)size;) {
 		Opcode o = *(ip++);
 		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
-		   o == CODE_load_module || o == CODE_construct ||
-		   o == CODE_call_intra || o == CODE_call_method_super) {
+		   o == CODE_load_module || o == CODE_call_intra ||
+		   o == CODE_call_method_super) {
 			switch(o) {
 				case CODE_load_object_slot:
 					b->load_object_slot(next_int() + offset);
@@ -124,7 +124,6 @@ Bytecode *Bytecode::create_derived(int offset) {
 					b->store_object_slot(next_int() + offset);
 					break;
 				case CODE_load_module: b->load_module_super(); break;
-				case CODE_construct: next_Value(); break;
 				case CODE_call_intra:
 				case CODE_call_method_super: {
 					String2 sym   = SymbolTable2::getString(next_int());

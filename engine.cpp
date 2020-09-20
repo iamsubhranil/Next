@@ -38,11 +38,7 @@ void ExecutionEngine::init() {
 	currentFiber->stackTop++;
 	// register the module
 	Value v;
-	if(!registerModule(
-	       String::const_core,
-	       GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
-	           .toFunction(),
-	       &v)) {
+	if(!registerModule(String::const_core, GcObject::CoreModule, &v)) {
 		panic("Initialization of core module failed");
 	} else {
 		CoreObject = v.toObject();
@@ -57,9 +53,13 @@ GcObject *ExecutionEngine::getRegisteredModule(String *name) {
 	return loadedModules[name];
 }
 
-bool ExecutionEngine::registerModule(const String2 &name, Function *toplevel,
+bool ExecutionEngine::registerModule(const String2 &name, Class *mod,
                                      Value *instance) {
-	if(execute(ValueNil, toplevel, instance, true)) {
+	Object *ins   = GcObject::allocObject(mod);
+	mod->instance = ins;
+	if(execute(Value(ins),
+	           mod->get_fn(SymbolTable2::const_sig_constructor_0).toFunction(),
+	           instance, true)) {
 		loadedModules[name] = instance->toGcObject();
 		return true;
 	}
@@ -494,31 +494,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	 InstructionPointer += reloc, *(x *)((InstructionPointer - reloc + 1)))
 #define next_int() relocip(int)
 #define next_value() relocip(Value)
-	// std::std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
-	// std::endl;
-
-#define binary_multiway(op, opname, argtype, restype, opcode, doSomething) \
-	{                                                                      \
-		rightOperand = POP();                                              \
-		if(rightOperand.is##argtype() && TOP.is##argtype()) {              \
-			TOP.set##restype(doSomething(op, TOP.to##argtype(),            \
-			                             rightOperand.to##argtype()));     \
-			DISPATCH();                                                    \
-		} else {                                                           \
-			PUSH(rightOperand);                                            \
-			methodToCall      = SymbolTable2::const_sig_##opcode;          \
-			numberOfArguments = 1;                                         \
-			goto methodcall;                                               \
-		}                                                                  \
-	}
-
-#define binary_perform_direct(op, a, b) ((a)op(b))
-#define binary(op, opname, argtype, restype, opcode) \
-	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_direct)
-
-#define binary_perform_pow(op, a, b) (pow((a), (b)))
-#define binary_pow(op, opname, argtype, restype, opcode) \
-	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_pow)
 
 #define is_falsey(v) (v == ValueNil || v == ValueFalse || v == ValueZero)
 
@@ -650,21 +625,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		}
 #endif
 		SWITCH() {
-			CASE(add) : binary(+, addition, Number, Number, add);
-			CASE(sub) : binary(-, subtraction, Number, Number, sub);
-			CASE(mul) : binary(*, multiplication, Number, Number, mul);
-			CASE(div) : binary(/, division, Number, Number, div);
 			CASE(lor) : binary_shortcircuit(!);
 			CASE(land) : binary_shortcircuit();
-			CASE(greater) : binary(>, greater than, Number, Boolean, greater);
-			CASE(greatereq)
-			    : binary(>=, greater than or equals to, Number, Boolean,
-			             greatereq);
-			CASE(less) : binary(<, lesser than, Number, Boolean, less);
-			CASE(lesseq)
-			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
-
-			CASE(power) : binary_pow(^, power of, Number, Number, pow);
 
 			CASE(neq) : {
 				rightOperand = POP();
@@ -697,52 +659,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			CASE(lnot) : {
 				TOP.setBoolean(is_falsey(TOP));
 				DISPATCH();
-			}
-
-			CASE(neg) : {
-				if(TOP.isNumber()) {
-					TOP.setNumber(-TOP.toNumber());
-					DISPATCH();
-				}
-				RERRF("'-' must only be applied over a number!");
-			}
-
-			CASE(copy) : {
-				Value v   = TOP;
-				int   sym = next_int();
-				if(TOP.isNumber()) {
-					PUSH(v);
-					DISPATCH();
-				}
-				// push false to denote postfix
-				PUSH(ValueFalse);
-				methodToCall      = sym;
-				numberOfArguments = 1;
-				goto methodcall;
-			}
-
-			CASE(incr) : {
-				if(TOP.isNumber()) {
-					TOP.setNumber(TOP.toNumber() + 1);
-					DISPATCH();
-				}
-				// push true to denote prefix
-				PUSH(ValueTrue);
-				methodToCall      = SymbolTable2::const_sig_incr;
-				numberOfArguments = 1;
-				goto methodcall;
-			}
-
-			CASE(decr) : {
-				if(TOP.isNumber()) {
-					TOP.setNumber(TOP.toNumber() - 1);
-					DISPATCH();
-				}
-				// push true to denote prefix
-				PUSH(ValueTrue);
-				methodToCall      = SymbolTable2::const_sig_decr;
-				numberOfArguments = 1;
-				goto methodcall;
 			}
 
 			CASE(push) : {
@@ -837,9 +753,10 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						ASSERT(c->has_fn(sym),
 						       "Constructor '@t' not found in class '@s'!", sym,
 						       c->name);
-						// set the receiver to nil so that construct
-						// knows to create a new receiver
-						fiber->stackTop[-numberOfArguments - 1] = ValueNil;
+						Object *o = GcObject::allocObject(c);
+						fiber->stackTop[-numberOfArguments - 1] = Value(o);
+						if(c->module == NULL)
+							c->instance = o;
 						// call the constructor
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
@@ -1174,27 +1091,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				}
 				BoundMethod *b = BoundMethod::from(f, v, t);
 				TOP            = Value(b);
-				DISPATCH();
-			}
-
-			CASE(construct) : {
-				Class *c = next_value().toClass();
-				// if the 0th slot does not have a
-				// receiver yet, create it.
-				// otherwise, it might be the result
-				// of a nested constructor or
-				// super constructor call, in both
-				// cases, we already have an object
-				// allocated for us in the invoking
-				// constructor.
-				if(Stack[0].isNil()) {
-					Object *o = GcObject::allocObject(c);
-					// assign the object to slot 0
-					Stack[0] = Value(o);
-					// if this is a module, store the instance to the class
-					if(c->module == NULL)
-						c->instance = o;
-				}
 				DISPATCH();
 			}
 

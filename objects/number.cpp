@@ -259,6 +259,52 @@ Value next_number_from_str(const Value *args, int numargs) {
 	return Value(d);
 }
 
+#define NUMBER_PRIMITIVE(name, op)                              \
+	Value next_number_##name(const Value *args, int numargs) {  \
+		(void)numargs;                                          \
+		EXPECT(number, #op "(_)", 1, Number);                   \
+		return Value(args[0].toNumber() op args[1].toNumber()); \
+	}
+
+NUMBER_PRIMITIVE(add, +)
+NUMBER_PRIMITIVE(sub, -)
+NUMBER_PRIMITIVE(mul, *)
+NUMBER_PRIMITIVE(div, /)
+NUMBER_PRIMITIVE(less, <)
+NUMBER_PRIMITIVE(lesseq, <=)
+NUMBER_PRIMITIVE(greater, >)
+NUMBER_PRIMITIVE(greatereq, >=)
+
+Value next_number_pow(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(number, "^(_)", 1, Number);
+	return Value(std::pow(args[0].toNumber(), args[1].toNumber()));
+}
+
+Value next_number_neg(const Value *args, int numargs) {
+	(void)args;
+	(void)numargs;
+	return Value(-args[0].toNumber());
+}
+
+Value next_number_incr(const Value *args, int numargs) {
+	(void)numargs;
+	bool isprefix = args[1].toBoolean();
+	if(isprefix) {
+		return Value(args[0].toNumber() + 1);
+	}
+	return args[0];
+}
+
+Value next_number_decr(const Value *args, int numargs) {
+	(void)numargs;
+	bool isprefix = args[1].toBoolean();
+	if(isprefix) {
+		return Value(args[0].toNumber() - 1);
+	}
+	return args[0];
+}
+
 void Number::init() {
 	Class *NumberClass = GcObject::NumberClass;
 
@@ -274,6 +320,19 @@ void Number::init() {
 	NumberClass->add_builtin_fn("str()", 0, next_number_to_str);
 	NumberClass->add_builtin_fn("sqrt()", 0, next_number_sqrt);
 	NumberClass->add_builtin_fn("to_int()", 0, next_number_toint);
+	// basic operations
+	NumberClass->add_builtin_fn("+(_)", 1, next_number_add);
+	NumberClass->add_builtin_fn("-(_)", 1, next_number_sub);
+	NumberClass->add_builtin_fn("*(_)", 1, next_number_mul);
+	NumberClass->add_builtin_fn("/(_)", 1, next_number_div);
+	NumberClass->add_builtin_fn("<(_)", 1, next_number_less);
+	NumberClass->add_builtin_fn("<=(_)", 1, next_number_lesseq);
+	NumberClass->add_builtin_fn(">(_)", 1, next_number_greater);
+	NumberClass->add_builtin_fn(">=(_)", 1, next_number_greatereq);
+	NumberClass->add_builtin_fn("^(_)", 1, next_number_pow);
+	NumberClass->add_builtin_fn("-()", 0, next_number_neg);
+	NumberClass->add_builtin_fn("++(_)", 1, next_number_incr);
+	NumberClass->add_builtin_fn("--(_)", 1, next_number_decr);
 }
 
 Value Number::fmt(FormatSpec *f, double dval) {

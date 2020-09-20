@@ -148,7 +148,6 @@ LANGUAGES = [
     ("lua",            ["lua"],                          ".lua"),
     ("luajit (-joff)", ["luajit", "-joff"],              ".lua"),
     ("python",         ["python"],                       ".py"),
-    ("python3",        ["python3"],                      ".py"),
     ("ruby",           ["ruby"],                         ".rb")
 ]
 

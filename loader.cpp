@@ -168,8 +168,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		isCompiling = false;
 		if(execute) {
 			Value v;
-			if(ExecutionEngine::registerModule(
-			       fname, ctx->get_default_constructor()->f, &v))
+			if(ExecutionEngine::registerModule(fname, ctx->klass, &v))
 				ret = v.toGcObject();
 		} else {
 			ret = (GcObject *)ctx->get_class();
