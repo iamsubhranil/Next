@@ -159,14 +159,6 @@ OPCODE1(store_field, -1, int) // <symbol>
 // found
 OPCODE0(throw_, -1)
 
-// Subscript opcodes.
-// Set takes three arguments, from the TOS they are
-// value, index, object. Pops three, and inserts one.
-OPCODE0(subscript_set, -2)
-// Get takes two arguments, from the TOS they are
-// index, object. Pops two, and inserts one.
-OPCODE0(subscript_get, -1)
-
 // Assigns the N elements from the TOP to the
 // array
 OPCODE1(array_build, 0, int)

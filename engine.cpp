@@ -696,18 +696,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
-			CASE(subscript_get) : {
-				methodToCall      = SymbolTable2::const_sig_subscript_get;
-				numberOfArguments = 1;
-				goto methodcall;
-			}
-
-			CASE(subscript_set) : {
-				methodToCall      = SymbolTable2::const_sig_subscript_set;
-				numberOfArguments = 2;
-				goto methodcall;
-			}
-
 			CASE(lnot) : {
 				TOP.setBoolean(is_falsey(TOP));
 				DISPATCH();

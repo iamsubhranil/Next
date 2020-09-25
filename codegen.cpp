@@ -567,7 +567,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 		btx->insert_token(as->val->token);
 		as->val->accept(this);
 		btx->insert_token(as->token);
-		btx->subscript_set();
+		btx->call_method(SymbolTable2::const_sig_subscript_set, 2);
 	} else {
 		// Resolve the expression
 		btx->insert_token(as->val->token);
@@ -732,7 +732,7 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 	sube->idx->accept(this);
 	onLHS = b;
 	if(!onLHS)
-		btx->subscript_get();
+		btx->call_method(SymbolTable2::const_sig_subscript_get, 1);
 }
 
 void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
