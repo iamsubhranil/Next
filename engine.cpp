@@ -30,6 +30,7 @@ size_t  ExecutionEngine::currentRecursionDepth = 0;
 bool    ExecutionEngine::isRunningRepl         = false;
 #ifdef DEBUG
 static int opcodeCounter[Bytecode::CODE_end] = {0};
+static int actualMethodCalls                 = 0;
 #endif
 
 #ifdef DEBUG
@@ -46,6 +47,7 @@ void ExecutionEngine::printOpcodeStatistics() {
 #define OPCODE1(x, y, z) PRINT_OPCODE_STAT(x)
 #define OPCODE2(w, x, y, z) PRINT_OPCODE_STAT(w)
 #include "opcodes.h"
+	std::cout << "Actual Method Calls: " << actualMethodCalls << "\n";
 }
 #endif
 
@@ -421,10 +423,10 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 	int numberOfExceptions = pendingExceptions->size;
 
-	int       numberOfArguments;
-	Value     rightOperand;
-	int       methodToCall;
-	Function *functionToCall;
+	int       numberOfArguments       = 0;
+	Value     rightOperand            = ValueNil;
+	int       methodToCall            = 0;
+	Function *functionToCall          = nullptr;
 	bool      pendingRuntimeException = false;
 
 	// variable to denote the relocation of instruction
@@ -831,7 +833,76 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 		methodcall : {
-			Value &      v = fiber->stackTop[-numberOfArguments - 1];
+			Value &v = fiber->stackTop[-numberOfArguments - 1];
+			if(v.isNumber()) {
+				if(numberOfArguments == 1) {
+					if(TOP.isNumber()) {
+						// binary operator call
+						int    op = methodToCall - SymbolTable2::const_sig_add;
+						Value  v  = POP();
+						double y  = v.toNumber();
+						double x  = TOP.toNumber();
+						switch(op) {
+							case 0:
+								TOP = Value(x + y);
+								DISPATCH();
+								break;
+							case 1:
+								TOP = Value(x - y);
+								DISPATCH();
+								break;
+							case 2:
+								TOP = Value(x * y);
+								DISPATCH();
+								break;
+							case 3:
+								TOP = Value(x / y);
+								DISPATCH();
+								break;
+							case 4:
+								TOP = Value(x < y);
+								DISPATCH();
+								break;
+							case 5:
+								TOP = Value(x <= y);
+								DISPATCH();
+								break;
+							case 6:
+								TOP = Value(x > y);
+								DISPATCH();
+								break;
+							case 7:
+								TOP = Value(x >= y);
+								DISPATCH();
+								break;
+							case 8:
+								TOP = Value(std::pow(x, y));
+								DISPATCH();
+								break;
+							default: PUSH(v); break;
+						}
+					} else if(TOP.isBoolean()) {
+						int    op = methodToCall - SymbolTable2::const_sig_incr;
+						Value  v  = POP();
+						double add = v.toBoolean();
+						switch(op) {
+							case 0:
+								TOP = Value(TOP.toNumber() + add);
+								DISPATCH();
+								break;
+							case 1:
+								TOP = Value(TOP.toNumber() - add);
+								DISPATCH();
+								break;
+							default: PUSH(v); break;
+						}
+					}
+				} else if(numberOfArguments == 0 &&
+				          methodToCall == SymbolTable2::const_sig_neg) {
+					TOP = Value(-TOP.toNumber());
+					DISPATCH();
+				}
+			}
 			const Class *c = v.getClass();
 			ASSERT_METHOD(methodToCall, c);
 			functionToCall = c->get_fn(methodToCall).toFunction();
@@ -849,6 +920,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 		performcall : {
+#ifdef DEBUG
+			actualMethodCalls++;
+#endif
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
 					Value res;
