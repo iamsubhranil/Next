@@ -205,32 +205,20 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 	bin->right->accept(this);
 	btx->insert_token(bin->token);
 	switch(bin->token.type) {
-		case TOKEN_PLUS:
-			btx->call_method(SymbolTable2::const_sig_add, 1);
-			break;
-		case TOKEN_MINUS:
-			btx->call_method(SymbolTable2::const_sig_sub, 1);
-			break;
-		case TOKEN_STAR:
-			btx->call_method(SymbolTable2::const_sig_mul, 1);
-			break;
-		case TOKEN_SLASH:
-			btx->call_method(SymbolTable2::const_sig_div, 1);
-			break;
-		case TOKEN_CARET:
-			btx->call_method(SymbolTable2::const_sig_pow, 1);
-			break;
-		case TOKEN_LESS:
-			btx->call_method(SymbolTable2::const_sig_less, 1);
-			break;
+		case TOKEN_PLUS: btx->binary_op(SymbolTable2::const_sig_add); break;
+		case TOKEN_MINUS: btx->binary_op(SymbolTable2::const_sig_sub); break;
+		case TOKEN_STAR: btx->binary_op(SymbolTable2::const_sig_mul); break;
+		case TOKEN_SLASH: btx->binary_op(SymbolTable2::const_sig_div); break;
+		case TOKEN_CARET: btx->binary_op(SymbolTable2::const_sig_pow); break;
+		case TOKEN_LESS: btx->binary_op(SymbolTable2::const_sig_less); break;
 		case TOKEN_LESS_EQUAL:
-			btx->call_method(SymbolTable2::const_sig_lesseq, 1);
+			btx->binary_op(SymbolTable2::const_sig_lesseq);
 			break;
 		case TOKEN_GREATER:
-			btx->call_method(SymbolTable2::const_sig_greater, 1);
+			btx->binary_op(SymbolTable2::const_sig_greater);
 			break;
 		case TOKEN_GREATER_EQUAL:
-			btx->call_method(SymbolTable2::const_sig_greatereq, 1);
+			btx->binary_op(SymbolTable2::const_sig_greatereq);
 			break;
 		case TOKEN_BANG: btx->lnot(); break;
 		case TOKEN_EQUAL_EQUAL: btx->eq(); break;
@@ -568,6 +556,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 		as->val->accept(this);
 		btx->insert_token(as->token);
 		btx->call_method(SymbolTable2::const_sig_subscript_set, 2);
+		btx->stackEffect(-2);
 	} else {
 		// Resolve the expression
 		btx->insert_token(as->val->token);
@@ -728,6 +717,7 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 	onLHS = b;
 	if(!onLHS) {
 		btx->call_method(SymbolTable2::const_sig_subscript_get, 1);
+		btx->stackEffect(-1);
 	}
 }
 
@@ -797,7 +787,7 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 		case TOKEN_MINUS:
 			pe->right->accept(this);
 			btx->insert_token(pe->token);
-			btx->call_method(SymbolTable2::const_sig_neg, 0);
+			btx->neg();
 			break;
 		case TOKEN_PLUS_PLUS:
 		case TOKEN_MINUS_MINUS:
@@ -810,9 +800,9 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 				// push true to denote prefix
 				btx->push(ValueTrue);
 				if(pe->token.type == TOKEN_PLUS_PLUS)
-					btx->call_method(SymbolTable2::const_sig_incr, 1);
+					btx->binary_op(SymbolTable2::const_sig_incr);
 				else
-					btx->call_method(SymbolTable2::const_sig_decr, 1);
+					btx->binary_op(SymbolTable2::const_sig_decr);
 				// if this  is a member access, reload the object,
 				// then store
 				if(pe->right->isMemberAccess()) {
@@ -844,18 +834,18 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 			// push false to denote postfix
 			btx->push(ValueFalse);
 			if(pe->token.type == TOKEN_PLUS_PLUS) {
-				btx->call_method(SymbolTable2::const_sig_incr, 1);
+				btx->binary_op(SymbolTable2::const_sig_incr);
 			} else {
-				btx->call_method(SymbolTable2::const_sig_decr, 1);
+				btx->binary_op(SymbolTable2::const_sig_decr);
 			}
 			// perform the load again
 			pe->left->accept(this);
 			// now push true to denote prefix
 			btx->push(ValueTrue);
 			if(pe->token.type == TOKEN_PLUS_PLUS) {
-				btx->call_method(SymbolTable2::const_sig_incr, 1);
+				btx->binary_op(SymbolTable2::const_sig_incr);
 			} else {
-				btx->call_method(SymbolTable2::const_sig_decr, 1);
+				btx->binary_op(SymbolTable2::const_sig_decr);
 			}
 			// if this  is a member access, reload the object,
 			// then store
@@ -1396,6 +1386,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 				loadVariable(d);
 				btx->insert_token(ifs->token);
 				btx->call_method(SymbolTable2::const_sig_derive, 1);
+				btx->stackEffect(-1);
 			}
 		}
 		inClass = true;

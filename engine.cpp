@@ -825,17 +825,10 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				}
 			}
 
-			CASE(call_method_super) : CASE(call_method) : {
+			CASE(binary_op) : {
+				numberOfArguments = 1;
 				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				// goto methodcall;
-				// fallthrough
-			}
-
-		methodcall : {
-			Value &v = fiber->stackTop[-numberOfArguments - 1];
-			if(v.isNumber()) {
-				if(numberOfArguments == 1) {
+				if(fiber->stackTop[-2].isNumber()) {
 					if(TOP.isNumber()) {
 						// binary operator call
 						int    op = methodToCall - SymbolTable2::const_sig_add;
@@ -897,12 +890,29 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 							default: PUSH(v); break;
 						}
 					}
-				} else if(numberOfArguments == 0 &&
-				          methodToCall == SymbolTable2::const_sig_neg) {
+				}
+				goto methodcall;
+			}
+
+			CASE(neg) : {
+				if(TOP.isNumber()) {
 					TOP = Value(-TOP.toNumber());
 					DISPATCH();
 				}
+				numberOfArguments = 0;
+				methodToCall      = SymbolTable2::const_sig_neg;
+				goto methodcall;
 			}
+
+			CASE(call_method_super) : CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				// goto methodcall;
+				// fallthrough
+			}
+
+		methodcall : {
+			Value &      v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
 			ASSERT_METHOD(methodToCall, c);
 			functionToCall = c->get_fn(methodToCall).toFunction();

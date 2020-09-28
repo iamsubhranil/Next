@@ -99,6 +99,14 @@ OPCODE1(iterate_next, 1, int)
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 
+// tries a direct arithmetic op if both
+// operands are numbers, otherwise performs
+// op method call
+OPCODE1(binary_op, -1, int)
+// we need a special opcode for - because this
+// is the only unary operator for now
+OPCODE0(neg, 0)
+
 // performs a call on the method with <argument>
 // receiver is stored at -arity - 1
 // both of these does the exact same thing, the
