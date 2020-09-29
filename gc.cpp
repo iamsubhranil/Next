@@ -122,8 +122,10 @@ void GcObject::gc(bool force) {
 	if(totalAllocated >= next_gc || force) {
 #ifdef GC_PRINT_CLEANUP
 		std::cout << "[GC] Started GC..\n";
-		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
-		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
+		size_t oldAllocated = totalAllocated;
+		std::cout << "[GC] [Before] Allocated: " << totalAllocated
+		          << " bytes\n";
+		std::cout << "[GC] [Before] NextGC: " << next_gc << " bytes\n";
 		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
 		std::cout << "[GC] Marking core classes..\n";
 #endif
@@ -168,10 +170,11 @@ void GcObject::gc(bool force) {
 		if(next_gc < c)
 			next_gc = c;
 #ifdef GC_PRINT_CLEANUP
+		std::cout << "[GC] Released: " << oldAllocated - totalAllocated
+		          << " bytes\n";
+		std::cout << "[GC] [After] Allocated: " << totalAllocated << " bytes\n";
+		std::cout << "[GC] [After] NextGC: " << next_gc << " bytes\n";
 		std::cout << "[GC] Finished GC..\n";
-		std::cout << "[GC] Allocated: " << totalAllocated << " bytes\n";
-		std::cout << "[GC] NextGC: " << next_gc << " bytes\n";
-		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
 #endif
 	}
 }
