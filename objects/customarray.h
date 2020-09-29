@@ -45,7 +45,10 @@ template <typename T, std::size_t mincap = 0> struct CustomArray {
 	}
 	void shrink() {
 		if(size < capacity / 2 && capacity > mincap) {
-			resize(size);
+			size_t newSize = Utils::powerOf2Ceil(size);
+			obj            = (T *)GcObject_realloc(obj, sizeof(T) * capacity,
+                                        sizeof(T) * newSize);
+			capacity       = newSize;
 		}
 	}
 	bool isEmpty() { return size == 0; }
