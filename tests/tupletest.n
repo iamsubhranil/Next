@@ -16,5 +16,9 @@ pub fn test() {
         println("[Error] tuple.str() not working!")
         res = false
     }
+    if(("a", 2.3, true).copy().str() != "(\"a\", 2.3, true)") {
+        println("[Error] tuple.copy() not working!")
+        res = false
+    }
     ret res
 }
