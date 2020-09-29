@@ -1,7 +1,11 @@
 #pragma once
 #include <cstddef>
 
-#ifdef DEBUG
+#if defined(DEBUG_GC) || defined(DEBUG_GC_CLEANUP)
+#define GC_PRINT_CLEANUP
+#endif
+
+#if defined(DEBUG) || defined(GC_PRINT_CLEANUP)
 #include "display.h"
 #include <iostream>
 #endif
@@ -21,10 +25,6 @@ template <typename T, size_t n> struct CustomArray;
 #define GC_STRESS 1
 #else
 #define GC_STRESS 0
-#endif
-
-#if defined(DEBUG_GC) || defined(DEBUG_GC_CLEANUP)
-#define GC_PRINT_CLEANUP
 #endif
 
 #define GC_MIN_TRACKED_OBJECTS_CAP 32
