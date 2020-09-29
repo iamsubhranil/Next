@@ -110,6 +110,9 @@ long lived tree of depth 12 check: -1""")
 
 #BENCHMARK("delta_blue", "14065400")
 
+BENCHMARK("fannkuch_redx", r"""8629
+pfannkuchen 9 = 30""")
+
 BENCHMARK("fib", r"""317811
 317811
 317811
@@ -130,6 +133,8 @@ BENCHMARK("nbody", r"""-0.16907516382852
 
 
 BENCHMARK("map_string", r"""12799920000""")
+
+BENCHMARK("spectral_norm", r"""1.623647098""")
 
 BENCHMARK("string_equals", r"""3000000""")
 

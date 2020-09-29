@@ -1,0 +1,80 @@
+fn fannkuch(n) {
+    maxFlipsCount = 0
+    permSign = true
+    checksum = 0
+
+    perm1 = tuple(n)
+    for(i in range(n)) {
+        perm1[i] = i
+    }
+    count = perm1.copy()
+    nm = n - 1
+    while(true) {
+        k = perm1[0]
+        if(k) {
+            perm = perm1.copy()
+            flipsCount = 1
+            kk = perm[k]
+            while(kk) {
+                j = (k + 1) / 2
+                for(i = 0; i < j; ++i) {
+                    t = perm[i]
+                    perm[i] = perm[k - i]
+                    perm[k - i] = t
+                }
+                flipsCount = flipsCount + 1
+                k = kk
+                kk = perm[kk]
+            }
+            if(maxFlipsCount < flipsCount){
+                maxFlipsCount = flipsCount
+            }
+            if(permSign) {
+                checksum = checksum + flipsCount
+            } else {
+                checksum = checksum - flipsCount
+            }
+        }
+        if(permSign) {
+            t = perm1[0]
+            perm1[0] = perm1[1]
+            perm1[1] = t
+            permSign = false
+        } else {
+            t = perm1[1]
+            perm1[1] = perm1[2]
+            perm1[2] = t
+            permSign = true
+            r = 2
+            for(; r < n - 1; ++r) {
+                if(count[r]) {
+                    break
+                }
+                count[r] = r
+                perm0 = perm1[0]
+                for(i = 0; i < r + 1; ++i) {
+                    perm1[i] = perm1[i + 1]
+                }
+                perm1[r + 1] = perm0
+            }
+            if(r == nm) {
+                if(!count[r]) {
+                    println(checksum)
+                    ret maxFlipsCount
+                }
+            }
+            count[r] = count[r] - 1
+        }
+    }
+}
+
+fn main() {
+    n = 9
+    t = clock()
+    res = fannkuch(n)
+    t = (clock() - t) / clocks_per_sec
+    println("pfannkuchen ", n, " = ", res)
+    print("elapsed: ", t)
+}
+
+main()
