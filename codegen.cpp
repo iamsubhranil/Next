@@ -1151,8 +1151,6 @@ void CodeGenerator::visit(ForStatement *ifs) {
 				btx->pop_();
 			}
 		}
-		// patch pending breaks
-		patchBreaks();
 		// come out to the parent scope
 		popScope();
 		// finally, jump back to the beginning
@@ -1161,6 +1159,8 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		if(patch_exit != -1) {
 			btx->jumpiffalse(patch_exit, btx->getip() - patch_exit);
 		}
+		// patch pending breaks
+		patchBreaks();
 	}
 	inLoop--;
 }
