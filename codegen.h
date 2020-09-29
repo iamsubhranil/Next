@@ -81,7 +81,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// structure to denote a break statement.
 	struct Break {
 		size_t ip;
-		int    scope;
+		int    loopID;
 	};
 	// the array of break statements pending patching
 	CustomArray<Break> pendingBreaks;

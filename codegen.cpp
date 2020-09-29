@@ -184,7 +184,7 @@ void CodeGenerator::loadCoreModule() {
 }
 
 void CodeGenerator::patchBreaks() {
-	while(!pendingBreaks.isEmpty() && pendingBreaks.last().scope >= scopeID) {
+	while(!pendingBreaks.isEmpty() && pendingBreaks.last().loopID == inLoop) {
 		Break b = pendingBreaks.popLast();
 		btx->jump(b.ip, btx->getip() - b.ip);
 	}
@@ -1045,11 +1045,7 @@ void CodeGenerator::visit(WhileStatement *ifs) {
 		btx->insert_token(ifs->token);
 		btx->jumpiftrue(pos - btx->getip());
 	}
-	// manually increment the scope because of the blocks,
-	// and patch the breaks
-	scopeID++;
 	patchBreaks();
-	scopeID--;
 	inLoop--;
 }
 
@@ -1114,10 +1110,10 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			btx->jump(pos - btx->getip());
 			// patch the exit
 			btx->jumpiffalse(exit_, btx->getip() - exit_);
-			// patch pending breaks
-			patchBreaks();
 			// pop the scope
 			popScope();
+			// patch pending breaks
+			patchBreaks();
 		}
 	} else {
 		// push a new scope so that
@@ -1174,7 +1170,7 @@ void CodeGenerator::visit(BreakStatement *ifs) {
 		lnerr_("Cannot use 'break' outside of a loop!", ifs->token);
 	} else {
 		size_t ip = btx->jump(0);
-		pendingBreaks.insert((Break){ip, scopeID});
+		pendingBreaks.insert((Break){ip, inLoop});
 	}
 }
 
