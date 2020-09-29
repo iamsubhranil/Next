@@ -164,6 +164,8 @@ void GcObject::gc(bool force) {
 		// this is our budget
 		if(!force)
 			next_gc *= 2;
+		if(next_gc > max_gc)
+			next_gc = max_gc;
 		// if the ceiling is
 		// greater than our budget, that is our
 		// new budget
