@@ -207,6 +207,17 @@ Value next_number_floor(const Value *args, int numargs) {
 	return Value(std::floor(args[0].toNumber()));
 }
 
+Value next_number_sqrt(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(std::sqrt(args[0].toNumber()));
+}
+
+Value next_number_mod(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(number, "mod(_)", 1, Number);
+	return Value(std::fmod(args[0].toNumber(), args[1].toNumber()));
+}
+
 Value next_number_fmt(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(number, "fmt(_)", 1, FormatSpec);
@@ -259,7 +270,9 @@ void Number::init() {
 	NumberClass->add_builtin_fn("floor()", 0, next_number_floor);
 	NumberClass->add_builtin_fn("fmt(_)", 1, next_number_fmt);
 	NumberClass->add_builtin_fn("is_int()", 0, next_number_isint);
+	NumberClass->add_builtin_fn("mod(_)", 1, next_number_mod);
 	NumberClass->add_builtin_fn("str()", 0, next_number_to_str);
+	NumberClass->add_builtin_fn("sqrt()", 0, next_number_sqrt);
 	NumberClass->add_builtin_fn("to_int()", 0, next_number_toint);
 }
 
