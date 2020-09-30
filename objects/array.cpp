@@ -18,6 +18,15 @@ Value next_array_iterate(const Value *args, int numargs) {
 	return Value(ArrayIterator::from(args[0].toArray()));
 }
 
+Value next_array_pop(const Value *args, int numargs) {
+	(void)numargs;
+	Array *a = args[0].toArray();
+	if(a->size == 0) {
+		RERR("Cannot pop from empty array!");
+	}
+	return a->values[--a->size];
+}
+
 Value next_array_get(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(array, "[](_)", 1, Integer);
@@ -155,6 +164,7 @@ void Array::init() {
 	// insert, iterate, get, set, size
 	ArrayClass->add_builtin_fn("insert(_)", 1, &next_array_insert, true);
 	ArrayClass->add_builtin_fn("iterate()", 0, &next_array_iterate);
+	ArrayClass->add_builtin_fn("pop()", 0, &next_array_pop);
 	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get);
 	ArrayClass->add_builtin_fn("[](_,_)", 2, &next_array_set);
 	ArrayClass->add_builtin_fn("size()", 0, &next_array_size);
