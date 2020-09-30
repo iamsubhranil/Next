@@ -108,7 +108,7 @@ long lived tree of depth 12 check: -1""")
 #32 trees of depth 12 check: -32
 #long lived tree of depth 12 check: -1""")
 
-#BENCHMARK("delta_blue", "14065400")
+BENCHMARK("delta_blue", "14065400")
 
 BENCHMARK("fannkuch_redx", r"""8629
 pfannkuchen 9 = 30""")
