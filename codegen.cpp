@@ -341,26 +341,10 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		force_soft = true;
 	} else if(thisOrSuper > 0) {
 		validateThisOrSuper(call->callee->token);
-		// if its a 'this' call, make sure we resolve it in present class
-		if(thisOrSuper == 1) {
-			if(!ctx->has_fn(signature)) {
-				lnerr_("Constructor '%s' not found in present class!",
-				       call->callee->token, signature->str());
-			} else {
-				info.isStatic = false;
-				info.frameIdx = SymbolTable2::insert(signature);
-				info.type     = CLASS;
-				info.soft     = false;
-				btx->load_slot_n(0);
-			}
-			// make it a intraclass call
-			onRefer = false;
-		} else {
-			// prepare the call, but make it a method call by toggling
-			// onRefer
-			btx->load_slot_n(0);
-			onRefer = true;
-		}
+		// prepare the call, but make it a method call by toggling
+		// onRefer
+		btx->load_slot_n(0);
+		onRefer = true;
 	} else if(!onRefer) { // if this is a method call, we
 		                  // don't need to resolve anything
 		info = resolveCall(name, signature);
@@ -408,16 +392,14 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	}
 	// If this a reference expression, dynamic dispatch will be used
 	else if(onRefer) {
-		if(inThis) {
-			// if its a 'this.' call, make sure we have resolved the
-			// method in the present class itself
-			if(!ctx->has_fn(signature)) {
-				lnerr_("Method '%s' not found in present class!",
-				       call->callee->token, signature->str());
-			} else {
-				btx->call_intra(SymbolTable2::insert(signature), argSize);
-			}
-			inThis = false;
+		if(inThis || thisOrSuper == 1) {
+			// if its a 'this.' call, perform it like a method call
+			// on present object
+			btx->call_method(SymbolTable2::insert(signature), argSize);
+			if(inThis)
+				inThis = false;
+			else if(thisOrSuper == 1)
+				onRefer = false;
 		} else {
 			if(inSuper) {
 				btx->call_method_super(SymbolTable2::insert(signature),
@@ -654,12 +636,7 @@ void CodeGenerator::visit(SetExpression *sete) {
 		bool b = onLHS;
 		onLHS  = true;
 		sete->object->accept(this);
-		// we may be setting to a 'this.' slot
-		if(lastMemberReferenced != -1) {
-			btx->store_field(lastMemberReferenced);
-		} else {
-			storeVariable(variableInfo);
-		}
+		btx->store_field(lastMemberReferenced);
 		onLHS = b;
 	}
 }
@@ -892,38 +869,23 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	} else {
 		if(inThis) {
 			// the field needs to be resolved on the present class
-			if(!ctx->has_mem(name)) {
-				lnerr_("Variable not found in present class!", vis->token);
-			} else {
-				ClassCompilationContext::MemberInfo slot =
-				    ctx->get_mem_info(name);
-				variableInfo.isStatic = slot.isStatic;
-				variableInfo.slot     = slot.slot;
-				variableInfo.position = VariablePosition::CLASS;
-				if(onLHS) {
-					// reset this to denote it needs special care
-					// to SetExpression
-					lastMemberReferenced = -1;
-				} else {
-					loadVariable(variableInfo);
-				}
-			}
+			// at runtime
+			btx->load_slot_0();
 			inThis = false;
-		} else {
-			if(inSuper) {
-				// append "s " in the name
-				name = String::append("s ", name);
-				// we want the name resolution to happen at runtime.
-				// but even if we are setting to a field, we need to load
-				// the object for runtime resolution.
-				btx->load_slot_0();
-				inSuper = false;
-			}
-			if(onLHS)
-				lastMemberReferenced = SymbolTable2::insert(name);
-			else
-				btx->load_field(SymbolTable2::insert(name));
+		} else if(inSuper) {
+			// append "s " in the name
+			name = String::append("s ", name);
+			// we want the name resolution to happen at runtime.
+			// but even if we are setting to a field, we need to load
+			// the object for runtime resolution.
+			btx->load_slot_0();
+			inSuper = false;
 		}
+
+		if(onLHS)
+			lastMemberReferenced = SymbolTable2::insert(name);
+		else
+			btx->load_field(SymbolTable2::insert(name));
 	}
 }
 
