@@ -509,9 +509,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			numberOfArguments = 1;                                         \
 			goto methodcall;                                               \
 		}                                                                  \
-		RERRF("Both of the operands of " #opname " are not " #argtype      \
-		      " (@s and @s)!",                                             \
-		      TOP.getTypeString(), rightOperand.getTypeString());          \
 	}
 
 #define binary_perform_direct(op, a, b) ((a)op(b))
