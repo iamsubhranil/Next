@@ -20,12 +20,7 @@ Value next_array_iterator_construct_1(const Value *args, int numargs) {
 Value next_array_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
 	ArrayIterator *ai = args[0].toArrayIterator();
-	Value          n  = ValueNil;
-	if(ai->idx < ai->arr->size) {
-		n = ai->arr->values[ai->idx++];
-	}
-	ai->hasNext = Value(ai->idx < ai->arr->size);
-	return n;
+	return ai->Next();
 }
 
 Value &ArrayIteratorHasNext(const Class *c, Value v, int field) {

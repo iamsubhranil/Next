@@ -21,17 +21,8 @@ Value next_set_iterator_construct_1(const Value *args, int numargs) {
 
 Value next_set_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
-	SetIterator *mi = args[0].toSetIterator();
-	if(mi->vs->hset.size() != mi->startSize) {
-		RERR("Set size changed while iteration!");
-	}
-	Value v = ValueNil;
-	if(mi->start != mi->end) {
-		v         = *mi->start;
-		mi->start = std::next(mi->start);
-	}
-	mi->hasNext = Value(mi->start != mi->end);
-	return v;
+	SetIterator *si = args[0].toSetIterator();
+	return si->Next();
 }
 
 Value &SetIteratorHasNext(const Class *c, Value v, int field) {

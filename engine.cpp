@@ -6,6 +6,7 @@
 #include "objects/errors.h"
 #include "objects/fiber.h"
 #include "objects/function.h"
+#include "objects/iterator.h"
 #include "objects/object.h"
 #include "objects/symtab.h"
 #include <cmath>
@@ -760,7 +761,10 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 			CASE(iterator_verify) : {
-				Value &      it    = TOP;
+				Value &it = TOP;
+				if(Iterator::is_iterator(it)) {
+					DISPATCH();
+				}
 				int          field = SymbolTable2::const_field_has_next;
 				const Class *c     = it.getClass();
 				ASSERT_FIELD();
@@ -774,8 +778,17 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 			CASE(iterate_next) : {
-				int          offset   = next_int();
-				Value &      it       = TOP;
+				int    offset = next_int();
+				Value &it     = TOP;
+				if(Iterator::is_iterator(it)) {
+					if(!Iterator::has_next(it)) {
+						POP();
+						JUMPTO_OFFSET(offset);
+					} else {
+						TOP = Iterator::next(it);
+						DISPATCH();
+					}
+				}
 				const Class *c        = it.getClass();
 				int          field    = SymbolTable2::const_field_has_next;
 				Value        has_next = c->accessFn(c, it, field);

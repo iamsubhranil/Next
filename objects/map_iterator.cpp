@@ -22,16 +22,7 @@ Value next_map_iterator_construct_1(const Value *args, int numargs) {
 Value next_map_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
 	MapIterator *mi = args[0].toMapIterator();
-	if(mi->vm->vv.size() != mi->startSize) {
-		RERR("Map size changed while iteration!");
-	}
-	Value v = ValueNil;
-	if(mi->start != mi->end) {
-		v         = mi->start->first;
-		mi->start = std::next(mi->start);
-	}
-	mi->hasNext = Value(mi->start != mi->end);
-	return v;
+	return mi->Next();
 }
 
 Value &MapIteratorHasNext(const Class *c, Value v, int field) {
