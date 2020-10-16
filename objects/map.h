@@ -3,18 +3,18 @@
 #include "../hashmap.h"
 #include "../value.h"
 
-struct ValueMap {
+struct Map {
 	GcObject                      obj;
-	typedef HashMap<Value, Value> ValueMapType;
-	ValueMapType                  vv;
-	static ValueMap *             create();
+	typedef HashMap<Value, Value> MapType;
+	MapType                  vv;
+	static Map *             create();
 	static void                   init();
 	Value &                       operator[](const Value &v);
 	Value &                       operator[](Value &&v);
 
 	// to directly create a map from numArg*2 key-value pairs
 	// at runtime
-	static ValueMap *from(const Value *args, int numArg);
+	static Map *from(const Value *args, int numArg);
 
 	// gc functions
 	void mark() const {
@@ -24,7 +24,7 @@ struct ValueMap {
 		}
 	}
 
-	void release() const { vv.~ValueMapType(); }
+	void release() const { vv.~MapType(); }
 #ifdef DEBUG_GC
 	const char *gc_repr() { return "map"; }
 #endif

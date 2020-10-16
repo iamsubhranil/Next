@@ -6,8 +6,8 @@
 struct SetIterator {
 	GcObject obj;
 
-	ValueSet *                       vs;
-	ValueSet::ValueSetType::iterator start, end;
+	Set *                       vs;
+	Set::SetType::iterator start, end;
 	size_t                           startSize;
 	Value                            hasNext;
 
@@ -24,7 +24,7 @@ struct SetIterator {
 		return v;
 	}
 
-	static SetIterator *from(ValueSet *s);
+	static SetIterator *from(Set *s);
 	static void         init();
 	void                mark() { GcObject::mark(vs); }
 	void                release() {}

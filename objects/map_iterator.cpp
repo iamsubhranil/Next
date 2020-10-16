@@ -3,7 +3,7 @@
 #include "errors.h"
 #include "symtab.h"
 
-MapIterator *MapIterator::from(ValueMap *m) {
+MapIterator *MapIterator::from(Map *m) {
 	MapIterator *mi = GcObject::allocMapIterator();
 	mi->vm          = m;
 	mi->startSize   = m->vv.size();
@@ -15,8 +15,8 @@ MapIterator *MapIterator::from(ValueMap *m) {
 
 Value next_map_iterator_construct_1(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(map_iterator, "new(map)", 1, ValueMap);
-	return Value(MapIterator::from(args[1].toValueMap()));
+	EXPECT(map_iterator, "new(map)", 1, Map);
+	return Value(MapIterator::from(args[1].toMap()));
 }
 
 Value next_map_iterator_next(const Value *args, int numargs) {

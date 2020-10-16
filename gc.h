@@ -167,7 +167,7 @@ struct GcObject {
 	static GcObject DefaultGcObject;
 
 	// track temporary objects
-	static ValueSet *temporaryObjects;
+	static Set *temporaryObjects;
 	static void      trackTemp(GcObject *o);
 	static void      untrackTemp(GcObject *o);
 	// returns true if a pointer is already being tracked

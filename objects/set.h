@@ -4,11 +4,11 @@
 #include "../value.h"
 #include "string.h"
 
-struct ValueSet {
+struct Set {
 	GcObject               obj;
-	typedef HashSet<Value> ValueSetType;
-	ValueSetType           hset;
-	static ValueSet *      create();
+	typedef HashSet<Value> SetType;
+	SetType           hset;
+	static Set *      create();
 	static void            init();
 
 	// gc functions
@@ -18,7 +18,7 @@ struct ValueSet {
 		}
 	}
 
-	void release() const { hset.~ValueSetType(); }
+	void release() const { hset.~SetType(); }
 
 #ifdef DEBUG_GC
 	const char *gc_repr() { return "set"; }

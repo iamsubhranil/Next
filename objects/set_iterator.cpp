@@ -3,7 +3,7 @@
 #include "errors.h"
 #include "symtab.h"
 
-SetIterator *SetIterator::from(ValueSet *m) {
+SetIterator *SetIterator::from(Set *m) {
 	SetIterator *mi = GcObject::allocSetIterator();
 	mi->vs          = m;
 	mi->startSize   = m->hset.size();
@@ -15,8 +15,8 @@ SetIterator *SetIterator::from(ValueSet *m) {
 
 Value next_set_iterator_construct_1(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(set_iterator, "new(set)", 1, ValueMap);
-	return Value(SetIterator::from(args[1].toValueSet()));
+	EXPECT(set_iterator, "new(set)", 1, Set);
+	return Value(SetIterator::from(args[1].toSet()));
 }
 
 Value next_set_iterator_next(const Value *args, int numargs) {

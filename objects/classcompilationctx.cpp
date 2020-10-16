@@ -23,10 +23,10 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	// initialize the members
 	ctx->members = (MemberMap *)GcObject_malloc(sizeof(MemberMap));
 	::new(ctx->members) MemberMap();
-	ctx->public_signatures  = ValueMap::create();
-	ctx->private_signatures = ValueMap::create();
+	ctx->public_signatures  = Map::create();
+	ctx->private_signatures = Map::create();
 	ctx->klass              = Class::create();
-	ctx->fctxMap            = ValueMap::create();
+	ctx->fctxMap            = Map::create();
 	if(s == NULL) {
 		// it's a module.
 		// init the module
@@ -45,7 +45,7 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		    Value(ctx->get_class()));
 		// construct will automatically store it to slot 0
 		// add the class map
-		ctx->cctxMap = ValueMap::create();
+		ctx->cctxMap = Map::create();
 		// a module does not have a metaclass
 		ctx->metaclass = NULL;
 	} else {

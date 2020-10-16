@@ -54,7 +54,7 @@ Class *   GcObject::NumberClass      = nullptr;
 Class *   GcObject::BooleanClass     = nullptr;
 Class *   GcObject::ErrorObjectClass = nullptr;
 Class *   GcObject::CoreModule       = nullptr;
-ValueSet *GcObject::temporaryObjects = nullptr;
+Set *GcObject::temporaryObjects = nullptr;
 
 ClassCompilationContext *GcObject::CoreContext = nullptr;
 // when enabled, the garbage collector allocates
@@ -481,10 +481,10 @@ void GcObject::init() {
 	// initialize the object tracker
 	tracker = CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP>::create();
 	// initialize the temporary tracker
-	// allocate it manually, ValueSet::create
+	// allocate it manually, Set::create
 	// itself uses temporary objects
-	temporaryObjects = GcObject::allocValueSet();
-	::new(&temporaryObjects->hset) ValueSet::ValueSetType();
+	temporaryObjects = GcObject::allocSet();
+	::new(&temporaryObjects->hset) Set::SetType();
 
 	// allocate the core classes
 #define OBJTYPE(n) n##Class = Class::create();
@@ -493,7 +493,7 @@ void GcObject::init() {
 	BooleanClass     = Class::create();
 	ErrorObjectClass = Class::create();
 
-	temporaryObjects->obj.klass = ValueSetClass;
+	temporaryObjects->obj.klass = SetClass;
 
 	// initialize the string set and symbol table
 	String::init0();

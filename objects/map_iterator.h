@@ -5,8 +5,8 @@
 struct MapIterator {
 	GcObject obj;
 
-	ValueMap *                       vm;
-	ValueMap::ValueMapType::iterator start, end;
+	Map *                       vm;
+	Map::MapType::iterator start, end;
 	size_t                           startSize;
 	Value                            hasNext;
 
@@ -23,7 +23,7 @@ struct MapIterator {
 		return v;
 	}
 
-	static MapIterator *from(ValueMap *m);
+	static MapIterator *from(Map *m);
 	static void         init();
 	void                mark() { GcObject::mark(vm); }
 	void                release() {}

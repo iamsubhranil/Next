@@ -3,15 +3,15 @@
 #include "class.h"
 #include "set_iterator.h"
 
-ValueSet *ValueSet::create() {
-	ValueSet2 v = GcObject::allocValueSet();
-	::new(&v->hset) ValueSetType();
+Set *Set::create() {
+	Set2 v = GcObject::allocSet();
+	::new(&v->hset) SetType();
 	return v;
 }
 
 Value next_set_clear(const Value *args, int numargs) {
 	(void)numargs;
-	args[0].toValueSet()->hset.clear();
+	args[0].toSet()->hset.clear();
 	return ValueNil;
 }
 
@@ -20,13 +20,13 @@ Value next_set_insert(const Value *args, int numargs) {
 	Value h;
 	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
-	auto res = args[0].toValueSet()->hset.insert(h);
+	auto res = args[0].toSet()->hset.insert(h);
 	return Value(res.second);
 }
 
 Value next_set_iterate(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(SetIterator::from(args[0].toValueSet()));
+	return Value(SetIterator::from(args[0].toSet()));
 }
 
 Value next_set_has(const Value *args, int numargs) {
@@ -34,18 +34,18 @@ Value next_set_has(const Value *args, int numargs) {
 	Value h;
 	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
-	return Value(args[0].toValueSet()->hset.count(h) > 0);
+	return Value(args[0].toSet()->hset.count(h) > 0);
 }
 
 Value next_set_size(const Value *args, int numargs) {
 	(void)numargs;
-	return Value((double)args[0].toValueSet()->hset.size());
+	return Value((double)args[0].toSet()->hset.size());
 }
 
 Value next_set_str(const Value *args, int numargs) {
 	(void)numargs;
 	String2   str = String::from("{");
-	ValueSet *a   = args[0].toValueSet();
+	Set *a   = args[0].toSet();
 	if(a->hset.size() > 0) {
 		auto    v = a->hset.begin();
 		String2 s = String::toStringValue(*v);
@@ -72,12 +72,12 @@ Value next_set_remove(const Value *args, int numargs) {
 	Value h;
 	if(!ExecutionEngine::getHash(args[1], &h))
 		return ValueNil;
-	return Value(args[0].toValueSet()->hset.erase(h) == 1);
+	return Value(args[0].toSet()->hset.erase(h) == 1);
 }
 
 Value next_set_values(const Value *args, int numargs) {
 	(void)numargs;
-	ValueSet *vs = args[0].toValueSet();
+	Set *vs = args[0].toSet();
 	Array2    a  = Array::create(vs->hset.size());
 	for(auto &v : vs->hset) {
 		a->insert(v);
@@ -88,23 +88,23 @@ Value next_set_values(const Value *args, int numargs) {
 Value next_set_construct(const Value *args, int numargs) {
 	(void)numargs;
 	(void)args;
-	return Value(ValueSet::create());
+	return Value(Set::create());
 }
 
-void ValueSet::init() {
-	Class *ValueSetClass = GcObject::ValueSetClass;
+void Set::init() {
+	Class *SetClass = GcObject::SetClass;
 
 	// Initialize set class
-	ValueSetClass->init("set", Class::BUILTIN);
-	ValueSetClass->add_builtin_fn("()", 0, next_set_construct);
-	ValueSetClass->add_builtin_fn("clear()", 0, next_set_clear);
-	ValueSetClass->add_builtin_fn_nest("insert(_)", 1,
+	SetClass->init("set", Class::BUILTIN);
+	SetClass->add_builtin_fn("()", 0, next_set_construct);
+	SetClass->add_builtin_fn("clear()", 0, next_set_clear);
+	SetClass->add_builtin_fn_nest("insert(_)", 1,
 	                                   next_set_insert); // can nest
-	ValueSetClass->add_builtin_fn("iterate()", 0, next_set_iterate);
-	ValueSetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
-	ValueSetClass->add_builtin_fn("size()", 0, next_set_size);
-	ValueSetClass->add_builtin_fn_nest("str()", 0, next_set_str);
-	ValueSetClass->add_builtin_fn_nest("remove(_)", 1,
+	SetClass->add_builtin_fn("iterate()", 0, next_set_iterate);
+	SetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
+	SetClass->add_builtin_fn("size()", 0, next_set_size);
+	SetClass->add_builtin_fn_nest("str()", 0, next_set_str);
+	SetClass->add_builtin_fn_nest("remove(_)", 1,
 	                                   next_set_remove); // can nest
-	ValueSetClass->add_builtin_fn("values()", 0, next_set_values);
+	SetClass->add_builtin_fn("values()", 0, next_set_values);
 }
