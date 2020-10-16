@@ -1,7 +1,5 @@
 #include "array_iterator.h"
-#include "class.h"
-#include "errors.h"
-#include "symtab.h"
+#include "iterator.h"
 
 ArrayIterator *ArrayIterator::from(Array *a) {
 	ArrayIterator *ai = GcObject::allocArrayIterator();
@@ -11,33 +9,7 @@ ArrayIterator *ArrayIterator::from(Array *a) {
 	return ai;
 }
 
-Value next_array_iterator_construct_1(const Value *args, int numargs) {
-	(void)numargs;
-	EXPECT(array_iterator, "array_iterator(arr)", 1, Array);
-	return Value(ArrayIterator::from(args[1].toArray()));
-}
-
-Value next_array_iterator_next(const Value *args, int numargs) {
-	(void)numargs;
-	ArrayIterator *ai = args[0].toArrayIterator();
-	return ai->Next();
-}
-
-Value &ArrayIteratorHasNext(const Class *c, Value v, int field) {
-	(void)c;
-	(void)field;
-	return v.toArrayIterator()->hasNext;
-}
-
 void ArrayIterator::init() {
-	Class *ArrayIteratorClass = GcObject::ArrayIteratorClass;
-
-	ArrayIteratorClass->init("array_iterator", Class::ClassType::BUILTIN);
-	// has_next
-	ArrayIteratorClass->add_sym(SymbolTable2::insert("has_next"), ValueTrue);
-	ArrayIteratorClass->accessFn = ArrayIteratorHasNext;
-
-	ArrayIteratorClass->add_builtin_fn("(_)", 1,
-	                                   next_array_iterator_construct_1);
-	ArrayIteratorClass->add_builtin_fn("next()", 0, next_array_iterator_next);
+	Iterator::initIteratorClass(GcObject::ArrayIteratorClass, "array_iterator",
+	                            Iterator::Type::ArrayIterator);
 }
