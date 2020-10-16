@@ -3,178 +3,35 @@
 #include "../format.h"
 #include "function.h"
 
-TypeError *TypeError::create(const String2 &o, const String2 &m,
-                             const String2 &e, Value r, int arg) {
-	TypeError2 t = GcObject::allocTypeError();
-	t->message   = NULL; // fmt may trigger gc, so mark it null
-	t->message =
-	    Formatter::fmt("Expected argument {} of {}.{} to be {}, Received '{}'!",
-	                   Value(arg), Value(o), Value(m), Value(e), r)
-	        .toString();
-	return t;
-}
-
-Value TypeError::sete(const String2 &o, const String2 &m, const String2 &e,
-                      Value r, int arg) {
-	TypeError *t = TypeError::create(o, m, e, r, arg);
-	ExecutionEngine::setPendingException(Value(t));
-	return ValueNil;
-}
-
-Value TypeError::sete(const char *o, const char *m, const char *e, Value r,
-                      int arg) {
-	return sete(String::from(o), String::from(m), String::from(e), r, arg);
-}
-
 #ifdef DEBUG_GC
-const char *TypeError::gc_repr() {
-	return "<type error>";
-}
+#define ERROR(x, name) \
+	const char *x::gc_repr() { return name; }
+#include "error_types.h"
 #endif
 
-void TypeError::init() {
-	Class *TypeErrorClass = GcObject::TypeErrorClass;
-
-	TypeErrorClass->init("type_error", Class::ClassType::BUILTIN);
-	TypeErrorClass->derive(GcObject::ErrorClass);
-}
-
-RuntimeError *RuntimeError::create(const String2 &m) {
-	RuntimeError *re = GcObject::allocRuntimeError();
-	re->message      = m;
-	return re;
-}
-
-Value RuntimeError::sete(const String2 &m) {
-	ExecutionEngine::setPendingException(create(m));
-	return ValueNil;
-}
-
-Value RuntimeError::sete(const char *m) {
-	return sete(String::from(m));
-}
-
-#ifdef DEBUG_GC
-const char *RuntimeError::gc_repr() {
-	return "<runtime error>";
-}
-#endif
-
-Value next_runtimeerror_construct_1(const Value *args, int numargs) {
-	(void)numargs;
-	EXPECT(runtime_error, "(_)", 1, String);
-	return RuntimeError::create(args[1].toString());
-}
-
-void RuntimeError::init() {
-	Class *RuntimeErrorClass = GcObject::RuntimeErrorClass;
-
-	RuntimeErrorClass->init("runtime_error", Class::ClassType::BUILTIN);
-	RuntimeErrorClass->derive(GcObject::ErrorClass);
-	RuntimeErrorClass->add_builtin_fn("(_)", 1, next_runtimeerror_construct_1);
-}
-
-IndexError *IndexError::create(const String2 &m, int64_t l, int64_t h,
-                               int64_t r) {
-	IndexError2 ie = GcObject::allocIndexError();
-	ie->message    = NULL; // fmt may trigger gc, so mark it null
-	ie->message = Formatter::fmt("{} (expected {} <= index <= {}, received {})",
-	                             Value(m), l, h, r)
-	                  .toString();
-	return ie;
-}
-
-Value IndexError::sete(const String2 &m, int64_t l, int64_t h, int64_t r) {
-	ExecutionEngine::setPendingException(Value(create(m, l, h, r)));
-	return ValueNil;
-}
-
-Value IndexError::sete(const char *m, int64_t l, int64_t h, int64_t r) {
-	return sete(String::from(m), l, h, r);
-}
-
-#ifdef DEBUG_GC
-const char *IndexError::gc_repr() {
-	return "<index error>";
-}
-#endif
-
-void IndexError::init() {
-	Class *IndexErrorClass = GcObject::IndexErrorClass;
-
-	IndexErrorClass->init("index_error", Class::ClassType::BUILTIN);
-	IndexErrorClass->derive(GcObject::ErrorClass);
-}
-
-FormatError *FormatError::create(const String2 &m) {
-	FormatError *re = GcObject::allocFormatError();
-	re->message     = m;
-	return re;
-}
-
-Value FormatError::sete(const String2 &m) {
-	ExecutionEngine::setPendingException(create(m));
-	return ValueNil;
-}
-
-#ifdef DEBUG_GC
-const char *FormatError::gc_repr() {
-	return "<format error>";
-}
-#endif
-
-Value FormatError::sete(const char *m) {
-	return sete(String::from(m));
-}
-
-Value next_formaterror_construct_1(const Value *args, int numargs) {
-	(void)numargs;
-	EXPECT(format_error, "(_)", 1, String);
-	return FormatError::create(args[1].toString());
-}
-
-void FormatError::init() {
-	Class *FormatErrorClass = GcObject::FormatErrorClass;
-
-	FormatErrorClass->init("format_error", Class::ClassType::BUILTIN);
-	FormatErrorClass->derive(GcObject::ErrorClass);
-	FormatErrorClass->add_builtin_fn("(_)", 1, next_formaterror_construct_1);
-}
-
-ImportError *ImportError::create(const String2 &m) {
-	ImportError *re = GcObject::allocImportError();
-	re->message     = m;
-	return re;
-}
-
-Value ImportError::sete(const String2 &m) {
-	ExecutionEngine::setPendingException(create(m));
-	return ValueNil;
-}
-
-#ifdef DEBUG_GC
-const char *ImportError::gc_repr() {
-	return "<import error>";
-}
-#endif
-
-Value ImportError::sete(const char *m) {
-	return sete(String::from(m));
-}
-
-Value next_importerror_construct_1(const Value *args, int numargs) {
-	(void)numargs;
-	EXPECT(import_error, "(_)", 1, String);
-	return ImportError::create(args[1].toString());
-}
-
-void ImportError::init() {
-	Class *ImportErrorClass = GcObject::ImportErrorClass;
-
-	ImportErrorClass->init("import_error", Class::ClassType::BUILTIN);
-	ImportErrorClass->derive(GcObject::ErrorClass);
-	ImportErrorClass->add_builtin_fn("(_)", 1, next_importerror_construct_1);
-}
+#define ERROR(x, name)                                              \
+	x *x::create(const String2 &m) {                                \
+		x *re       = GcObject::alloc##x();                         \
+		re->message = m;                                            \
+		return re;                                                  \
+	}                                                               \
+	Value x::sete(const String2 &m) {                               \
+		ExecutionEngine::setPendingException(create(m));            \
+		return ValueNil;                                            \
+	}                                                               \
+	Value x::sete(const char *m) { return sete(String::from(m)); }  \
+	Value next_##x##_construct_1(const Value *args, int numargs) {  \
+		(void)numargs;                                              \
+		EXPECT(name, "new(_)", 1, String);                          \
+		return x::create(args[1].toString());                       \
+	}                                                               \
+	void x::init() {                                                \
+		Class *x##Class = GcObject::x##Class;                       \
+		x##Class->init(name, Class::ClassType::BUILTIN);            \
+		x##Class->derive(GcObject::ErrorClass);                     \
+		x##Class->add_builtin_fn("(_)", 1, next_##x##_construct_1); \
+	}
+#include "error_types.h"
 
 Error *Error::create(const String2 &m) {
 	Error *re   = GcObject::allocError();
@@ -195,6 +52,27 @@ const char *Error::gc_repr() {
 
 Value Error::sete(const char *m) {
 	return sete(String::from(m));
+}
+
+Value Error::setIndexError(const char *m, int64_t h, int64_t l, int64_t r) {
+	return IndexError::sete(
+	    Formatter::fmt("{} (expected {} <= index <= {}, received {})", Value(m),
+	                   l, h, r)
+	        .toString());
+}
+
+Value Error::setTypeError(const String2 &o, const String2 &m, const String2 &e,
+                          Value r, int arg) {
+	return TypeError::sete(
+	    Formatter::fmt("Expected argument {} of {}.{} to be {}, Received '{}'!",
+	                   Value(arg), Value(o), Value(m), Value(e), r)
+	        .toString());
+}
+
+Value Error::setTypeError(const char *o, const char *m, const char *e, Value r,
+                          int arg) {
+	return setTypeError(String::from(o), String::from(m), String::from(e), r,
+	                    arg);
 }
 
 Value next_error_str(const Value *args, int numargs) {

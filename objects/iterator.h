@@ -77,16 +77,16 @@ struct Iterator {
 		return Iterator::next(args[0]);
 	}
 
-#define ITERATOR(x)                                                        \
-	static Value next_##x##_iterator_construct_1(const Value *args,        \
-	                                             int          numargs) {            \
-		(void)numargs;                                                     \
-		static char itname[] = #x "_iterator";                             \
-		if(itname[0] < 'a')                                                \
-			itname[0] += 32;                                               \
-		if(!args[1].is##x())                                               \
-			return TypeError::sete(itname, "new(" #x ")", #x, args[1], 1); \
-		return x##Iterator::from(args[1].to##x());                         \
+#define ITERATOR(x)                                                            \
+	static Value next_##x##_iterator_construct_1(const Value *args,            \
+	                                             int          numargs) {                \
+		(void)numargs;                                                         \
+		static char itname[] = #x "_iterator";                                 \
+		if(itname[0] < 'a')                                                    \
+			itname[0] += 32;                                                   \
+		if(!args[1].is##x())                                                   \
+			return Error::setTypeError(itname, "new(" #x ")", #x, args[1], 1); \
+		return x##Iterator::from(args[1].to##x());                             \
 	}
 #include "iterator_types.h"
 

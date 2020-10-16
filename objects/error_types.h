@@ -1,0 +1,11 @@
+#ifndef ERROR
+#define ERROR(x, name)
+#endif
+
+ERROR(FormatError, "format_error")
+ERROR(ImportError, "import_error")
+ERROR(IndexError, "index_error")
+ERROR(RuntimeError, "runtime_error")
+ERROR(TypeError, "type_error")
+
+#undef ERROR

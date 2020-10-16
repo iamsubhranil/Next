@@ -23,8 +23,13 @@ struct Error {
 	static Error *create(const String2 &message);
 	static Value  sete(const String2 &message);
 	static Value  sete(const char *message);
+	static void   init();
 
-	static void init();
+	static Value setTypeError(const String2 &o, const String2 &m,
+	                          const String2 &e, Value r, int arg);
+	static Value setTypeError(const char *o, const char *m, const char *e,
+	                          Value r, int arg);
+	static Value setIndexError(const char *m, int64_t l, int64_t h, int64_t r);
 
 	void mark() { GcObject::mark(message); }
 	void release() {}
@@ -33,73 +38,29 @@ struct Error {
 #endif
 };
 
-struct TypeError : public Error {
-	static TypeError *create(const String2 &o, const String2 &m,
-	                         const String2 &e, Value r, int arg);
-	static Value      sete(const String2 &o, const String2 &m, const String2 &e,
-	                       Value r, int arg);
-	static Value      sete(const char *o, const char *m, const char *e, Value r,
-	                       int arg);
-
-	static void init();
 #ifdef DEBUG_GC
-	const char *gc_repr();
+#define ERROR_GC_REPR const char *gc_repr();
+#else
+#define ERROR_GC_REPR
 #endif
-};
 
-struct RuntimeError : public Error {
-	static RuntimeError *create(const String2 &msg);
-	static Value         sete(const char *msg);
-	static Value         sete(const String2 &msg);
-
-	static void init();
-#ifdef DEBUG_GC
-	const char *gc_repr();
-#endif
-};
-
-struct IndexError : public Error {
-	static IndexError *create(const String2 &m, int64_t lo, int64_t hi,
-	                          int64_t received);
-	static Value       sete(const String2 &m, int64_t l, int64_t h, int64_t r);
-	static Value       sete(const char *m, int64_t l, int64_t h, int64_t r);
-
-	static void init();
-#ifdef DEBUG_GC
-	const char *gc_repr();
-#endif
-};
-
-struct FormatError : public Error {
-	static FormatError *create(const String2 &msg);
-	static Value        sete(const String2 &msg);
-	static Value        sete(const char *msg);
-
-	static void init();
-
-#ifdef DEBUG_GC
-	const char *gc_repr();
-#endif
-};
-
-struct ImportError : public Error {
-	static ImportError *create(const String2 &msg);
-	static Value        sete(const String2 &msg);
-	static Value        sete(const char *msg);
-
-	static void init();
-
-#ifdef DEBUG_GC
-	const char *gc_repr();
-#endif
-};
+#define ERROR(x, name)                           \
+	struct x : public Error {                    \
+		static x *   create(const String2 &msg); \
+		static Value sete(const String2 &msg);   \
+		static Value sete(const char *msg);      \
+		static void  init();                     \
+		ERROR_GC_REPR                            \
+	};
+#include "error_types.h"
+#undef ERROR_GC_REPR
 
 #define RERR(x) return RuntimeError::sete(x);
-#define IDXERR(m, l, h, r) return IndexError::sete(m, l, h, r);
+#define IDXERR(m, l, h, r) return Error::setIndexError(m, l, h, r);
 
-#define EXPECT(obj, name, idx, type)                               \
-	if(!args[idx].is##type()) {                                    \
-		return TypeError::sete(#obj, name, #type, args[idx], idx); \
+#define EXPECT(obj, name, idx, type)                                   \
+	if(!args[idx].is##type()) {                                        \
+		return Error::setTypeError(#obj, name, #type, args[idx], idx); \
 	}
 
 #define FERR(x) return FormatError::sete(x);

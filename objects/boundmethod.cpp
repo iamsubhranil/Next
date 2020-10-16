@@ -46,7 +46,7 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 	if(type == CLASS_BOUND) {
 		Class *cls = binder.toClass();
 		if(args[0].getClass() != cls) {
-			TypeError::sete(cls->name, func->name, cls->name, args[0], 1);
+			Error::setTypeError(cls->name, func->name, cls->name, args[0], 1);
 			return INVALID_CLASS_INSTANCE;
 		}
 	}
