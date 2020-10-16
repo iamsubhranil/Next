@@ -1,15 +1,15 @@
 #include "range.h"
 #include "class.h"
 #include "errors.h"
+#include "range_iterator.h"
 #include "symtab.h"
 
 Range *Range::create(int64_t from, int64_t to, int64_t step) {
 	Range *r = GcObject::allocRange();
 
-	r->from    = from;
-	r->to      = to;
-	r->step    = step;
-	r->hasNext = Value(from < to);
+	r->from = from;
+	r->to   = to;
+	r->step = step;
 
 	return r;
 }
@@ -72,35 +72,13 @@ Value next_range_step(const Value *args, int numargs) {
 
 Value next_range_iterate(const Value *args, int numargs) {
 	(void)numargs;
-	// range is the iterator of itself
-	return args[0];
-}
-
-Value next_range_next(const Value *args, int numargs) {
-	(void)numargs;
-	Range *r = args[0].toRange();
-
-	int64_t from = r->from;
-	r->from += r->step;
-	r->hasNext = Value(r->from < r->to);
-
-	return Value(from);
-}
-
-Value &RangeHasNext(const Class *c, Value v, int field) {
-	(void)c;
-	(void)field;
-	return v.toRange()->hasNext;
+	return RangeIterator::from(args[0].toRange());
 }
 
 void Range::init() {
 	Class *RangeClass = GcObject::RangeClass;
 
 	RangeClass->init("range", Class::ClassType::BUILTIN);
-	RangeClass->numSlots = 4; // from, to, step, has_next
-	// create the has_next field
-	RangeClass->add_sym(SymbolTable2::insert("has_next"), ValueTrue);
-	RangeClass->accessFn = RangeHasNext;
 	// methods
 	RangeClass->add_builtin_fn("(_)", 1, next_range_construct_1);
 	RangeClass->add_builtin_fn("(_,_)", 2, next_range_construct_2);
@@ -109,5 +87,4 @@ void Range::init() {
 	RangeClass->add_builtin_fn("to()", 0, next_range_to);
 	RangeClass->add_builtin_fn("step()", 0, next_range_step);
 	RangeClass->add_builtin_fn("iterate()", 0, next_range_iterate);
-	RangeClass->add_builtin_fn("next()", 0, next_range_next);
 }

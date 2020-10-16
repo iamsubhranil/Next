@@ -1,0 +1,23 @@
+fn test(l) {
+    sum = 0
+    s = clock()
+    for(i in range(l)) {
+        sum = sum + l
+    }
+    e1 = (clock() - s) / clocks_per_sec
+    sum = 0
+    s = clock()
+    for(i = 0; i < l; ++i) {
+        sum = sum + i
+    }
+    e2 = (clock() - s) / clocks_per_sec
+    ret (e1, e2)
+}
+
+fn main() {
+    res = test(100000000)
+    print("Iterator took: ", res[0], "s\n")
+    print("Loop took: ", res[1], "s")
+}
+
+main()

@@ -21,13 +21,7 @@ Value next_tuple_iterator_construct_1(const Value *args, int numargs) {
 
 Value next_tuple_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
-	TupleIterator *ti  = args[0].toTupleIterator();
-	Value          ret = ValueNil;
-	if(ti->idx < ti->tup->size) {
-		ret = ti->tup->values()[ti->idx++];
-	}
-	ti->hasNext = Value(ti->idx < ti->tup->size);
-	return ret;
+	return args[0].toTupleIterator()->Next();
 }
 
 Value &TupleIteratorHasNext(const Class *c, Value v, int field) {

@@ -45,8 +45,8 @@ start = clock()
 n = 100000
 val = true
 toggle = Toggle(val)
-i = -1
-while(++i < n) {
+
+for(x in range(n)) {
     val = toggle.activate().value()
     val = toggle.activate().value()
     val = toggle.activate().value()

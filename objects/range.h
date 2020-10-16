@@ -9,7 +9,6 @@ struct Range {
 	int64_t from;
 	int64_t to;
 	int64_t step;
-	Value   hasNext;
 
 	static Range *create(int64_t to);
 	static Range *create(int64_t from, int64_t to);

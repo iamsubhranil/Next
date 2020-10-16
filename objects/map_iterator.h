@@ -1,4 +1,5 @@
 #pragma once
+#include "errors.h"
 #include "map.h"
 
 struct MapIterator {
@@ -8,6 +9,19 @@ struct MapIterator {
 	ValueMap::ValueMapType::iterator start, end;
 	size_t                           startSize;
 	Value                            hasNext;
+
+	Value Next() {
+		if(vm->vv.size() != startSize) {
+			RERR("Map size changed while iteration!");
+		}
+		Value v = ValueNil;
+		if(start != end) {
+			v     = start->first;
+			start = std::next(start);
+		}
+		hasNext = Value(start != end);
+		return v;
+	}
 
 	static MapIterator *from(ValueMap *m);
 	static void         init();

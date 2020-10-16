@@ -10,6 +10,15 @@ struct ArrayIterator {
 	int    idx;
 	Value  hasNext;
 
+	Value Next() {
+		Value n = ValueNil;
+		if(idx < arr->size) {
+			n = arr->values[idx++];
+		}
+		hasNext = Value(idx < arr->size);
+		return n;
+	}
+
 	static ArrayIterator *from(Array *a);
 
 	static void init();
