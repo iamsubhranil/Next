@@ -25,10 +25,13 @@ Value next_fiber_iterator_construct_1(const Value *args, int numargs) {
 
 Value next_fiber_iterator_next(const Value *args, int numargs) {
 	(void)numargs;
-	FiberIterator *fi  = args[0].toFiberIterator();
-	Fiber *        f   = fi->fiber;
-	Value          ret = f->run(); // run will set the error if the fiber
-	                               // is finished
+	FiberIterator *fi = args[0].toFiberIterator();
+	if(!fi->hasNext.toBoolean()) {
+		return IteratorError::sete("Fiber already finished!");
+	}
+	Fiber *f   = fi->fiber;
+	Value  ret = f->run(); // run will set the error if the fiber
+	                       // is finished
 	fi->hasNext = Value(f->state != Fiber::FINISHED);
 	return ret;
 }

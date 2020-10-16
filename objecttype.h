@@ -33,6 +33,7 @@ OBJTYPE(RuntimeError)
 OBJTYPE(IndexError)
 OBJTYPE(FormatError)
 OBJTYPE(ImportError)
+OBJTYPE(IteratorError)
 // A fiber is also a collectable gc object
 // When a fiber is not marked by the engine,
 // the gc is free to collect it.

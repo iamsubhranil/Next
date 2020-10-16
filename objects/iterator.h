@@ -30,7 +30,7 @@ struct Iterator {
 		}
 	}
 
-	static bool has_next(Value &v) {
+	static bool has_next(Value v) {
 		switch(v.toGcObject()->objType) {
 #define ITERATOR(x)                                      \
 	case GcObject::OBJ_##x##Iterator: {                  \
@@ -74,6 +74,8 @@ struct Iterator {
 
 	static Value IteratorNextFn(const Value *args, int numargs) {
 		(void)numargs;
+		if(!Iterator::has_next(args[0]))
+			return IteratorError::sete("Iterator doesn't have a next item!");
 		return Iterator::next(args[0]);
 	}
 
