@@ -18,6 +18,7 @@
 #include "objects/map_iterator.h"
 #include "objects/number.h"
 #include "objects/range.h"
+#include "objects/range_iterator.h"
 #include "objects/set_iterator.h"
 #include "objects/symtab.h"
 #include "objects/tuple.h"

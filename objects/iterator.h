@@ -4,6 +4,7 @@
 #include "array_iterator.h"
 #include "fiber_iterator.h"
 #include "map_iterator.h"
+#include "range_iterator.h"
 #include "set_iterator.h"
 #include "tuple_iterator.h"
 

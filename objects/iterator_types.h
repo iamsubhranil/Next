@@ -8,5 +8,6 @@ ITERATOR(Tuple)
 //                  so we handle it as a standard builtin call
 ITERATOR(Map)
 ITERATOR(Set)
+ITERATOR(Range)
 
 #undef ITERATOR
