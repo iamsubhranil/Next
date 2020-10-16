@@ -1,7 +1,7 @@
 fn test() {
     size = 1000000
     arr = tuple(size)
-    for(i = 0; i < size; ++i) {
+    for(i in range(size)) {
         arr[i] = i + 1
     }
 

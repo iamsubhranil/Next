@@ -1,5 +1,5 @@
 fn oniterator(arr, size) {
-    for(i = 0; i < size; ++i) {
+    for(i in range(size)) {
         arr[i] = i + 1
     }
     sum = 0
@@ -9,11 +9,11 @@ fn oniterator(arr, size) {
 }
 
 fn onindex(arr, size) {
-    for(i = 0; i < size; ++i) {
+    for(i in range(size)) {
         arr[i] = i + 1
     }
     sum = 0
-    for(i = 0; i < size; ++i){
+    for(i in range(size)){
         sum = sum + arr[i]
     }
 }

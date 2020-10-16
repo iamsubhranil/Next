@@ -52,7 +52,7 @@ fn fannkuch(n) {
                 }
                 count[r] = r
                 perm0 = perm1[0]
-                for(i = 0; i < r + 1; ++i) {
+                for(i in range(r + 1)) {
                     perm1[i] = perm1[i + 1]
                 }
                 perm1[r + 1] = perm0
