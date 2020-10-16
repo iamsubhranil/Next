@@ -49,6 +49,8 @@ SCONSTANT(sig_hash, "hash()")
 SCONSTANT(sig_str, "str()")
 SCONSTANT(sig_fmt, "fmt(_)")
 SCONSTANT(sig_derive, " derive(_)")
+SCONSTANT(sig_next, "next()")
+SCONSTANT(field_has_next, "has_next")
 
 SYMCONSTANT(sig_add)
 SYMCONSTANT(sig_sub)
@@ -73,5 +75,7 @@ SYMCONSTANT(sig_hash)
 SYMCONSTANT(sig_str)
 SYMCONSTANT(sig_fmt)
 SYMCONSTANT(sig_derive)
+SYMCONSTANT(field_has_next)
+SYMCONSTANT(sig_next)
 #undef SCONSTANT
 #undef SYMCONSTANT

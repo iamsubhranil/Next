@@ -759,9 +759,35 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+			CASE(iterator_verify) : {
+				Value &      it    = TOP;
+				int          field = SymbolTable2::const_field_has_next;
+				const Class *c     = it.getClass();
+				ASSERT_FIELD();
+				ASSERT_METHOD(SymbolTable2::const_sig_next, c);
+				DISPATCH();
+			}
+
 			CASE(jump) : {
 				int offset = next_int();
 				JUMPTO_OFFSET(offset); // offset the relative jump address
+			}
+
+			CASE(iterate_next) : {
+				int          offset   = next_int();
+				Value &      it       = TOP;
+				const Class *c        = it.getClass();
+				int          field    = SymbolTable2::const_field_has_next;
+				Value        has_next = c->accessFn(c, it, field);
+				if(is_falsey(has_next)) {
+					POP();
+					JUMPTO_OFFSET(offset);
+				} else {
+					functionToCall =
+					    c->get_fn(SymbolTable2::const_sig_next).toFunction();
+					numberOfArguments = 0;
+					goto performcall;
+				}
 			}
 
 			CASE(jumpiftrue) : {

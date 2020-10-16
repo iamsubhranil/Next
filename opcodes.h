@@ -113,8 +113,22 @@ OPCODE1(store_object_slot, 0, int)
 // carries the class with itself.
 OPCODE2(store_static_slot, 1, int, Value) // <slot> <class>
 
+// verifies if the TOS is an iterator by checking
+// for has_next and next()
+// we do this once in the beginning of each for-in loop,
+// so that we don't have to do this at each iteration
+// of the loop. this should be safe, since in a for-in
+// loop, whatever is returned by the iterate(), is stored
+// in a temp slot and cannot be changed.
+OPCODE0(iterator_verify, 0)
+
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
+// TOS is the iterator object
+// takes the offset to jump to in case
+// has_next is false
+OPCODE1(iterate_next, 1, int)
+
 // Pop, verify and jump
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>

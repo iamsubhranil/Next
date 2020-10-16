@@ -1045,33 +1045,33 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		} else {
 			// create a new scope
 			pushScope();
-			// create a temporary slot to store the iterator
-			int slot = createTempSlot();
 			// get info about the assignment variable
 			VarInfo var = lookForVariable(it->left->token, true);
 			// then, evalute the RHS
 			it->right->accept(this);
 			// initialize the iterator by calling iterate() on RHS
 			btx->call_method(SymbolTable2::insert("iterate()"), 0);
-			// store the returned object in the temporary slot
+			// check if this is a valid iterator
+			btx->iterator_verify();
+			// create a temp slot to store the iterator
+			int slot = createTempSlot();
 			btx->store_slot_pop(slot);
-			// check slot.has_next
-			int pos = btx->load_slot_n(slot);
-			btx->load_field(SymbolTable2::insert("has_next"));
-			// if has_next returns false, exit
-			int exit_ = btx->jumpiffalse(0);
-			// otherwise, call next() on the iterator
-			btx->load_slot_n(slot);
-			btx->call_method(SymbolTable2::insert("next()"), 0);
+			// load the iterator in the beginning of the loop
+			int start = btx->load_slot_n(slot);
+			// iterate_next will check has_next on TOS
+			// if has_next is false, it will jump to the given offset
+			// else, it will call next() on TOS
+			// this will also pop the iterator when has_next is false
+			int exit_ = btx->iterate_next(0);
 			// store the next value in the given variable
 			storeVariable(var);
 			btx->pop_();
 			// execute the body
 			ifs->body->accept(this);
 			// jump back to iterate
-			btx->jump(pos - btx->getip());
+			btx->jump(start - btx->getip());
 			// patch the exit
-			btx->jumpiffalse(exit_, btx->getip() - exit_);
+			btx->iterate_next(exit_, btx->getip() - exit_);
 			// pop the scope
 			popScope();
 			// patch pending breaks
