@@ -205,7 +205,7 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	} else {
 		err("Uncaught exception occurred of type '%s'!", c->name->str());
 	}
-	std::cout << c->name->str() << ": ";
+	std::cout << ANSI_FONT_BOLD << c->name->str() << ANSI_COLOR_RESET << ": ";
 	String *s = String::toString(v);
 	if(s == NULL)
 		std::cout << "<error>\nAn exception occurred while converting the "
