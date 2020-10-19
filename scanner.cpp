@@ -117,7 +117,10 @@ void Token::highlight(bool showFileName, const char *prefix,
 	cout << endl;
 	while(extra--) cout << " ";
 	while(tokenStart < start) {
-		cout << (type == TOKEN_EOF ? "~" : " ");
+		char spacechar = ' ';
+		if(*tokenStart == '\t')
+			spacechar = '\t';
+		cout << (type == TOKEN_EOF ? '~' : spacechar);
 		tokenStart++;
 	}
 	if(type == TOKEN_EOF)
