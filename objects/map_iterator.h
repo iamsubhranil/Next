@@ -5,10 +5,10 @@
 struct MapIterator {
 	GcObject obj;
 
-	Map *                       vm;
+	Map *                  vm;
 	Map::MapType::iterator start, end;
-	size_t                           startSize;
-	Value                            hasNext;
+	size_t                 startSize;
+	Value                  hasNext;
 
 	Value Next() {
 		if(vm->vv.size() != startSize) {

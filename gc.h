@@ -168,8 +168,8 @@ struct GcObject {
 
 	// track temporary objects
 	static Set *temporaryObjects;
-	static void      trackTemp(GcObject *o);
-	static void      untrackTemp(GcObject *o);
+	static void trackTemp(GcObject *o);
+	static void untrackTemp(GcObject *o);
 	// returns true if a pointer is already being tracked
 	static bool isTempTracked(GcObject *o);
 

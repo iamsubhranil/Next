@@ -50,11 +50,11 @@ static size_t counterCounter = 0;
 #endif
 #define OBJTYPE(n) Class *GcObject::n##Class = nullptr;
 #include "objecttype.h"
-Class *   GcObject::NumberClass      = nullptr;
-Class *   GcObject::BooleanClass     = nullptr;
-Class *   GcObject::ErrorObjectClass = nullptr;
-Class *   GcObject::CoreModule       = nullptr;
-Set *GcObject::temporaryObjects = nullptr;
+Class *GcObject::NumberClass      = nullptr;
+Class *GcObject::BooleanClass     = nullptr;
+Class *GcObject::ErrorObjectClass = nullptr;
+Class *GcObject::CoreModule       = nullptr;
+Set *  GcObject::temporaryObjects = nullptr;
 
 ClassCompilationContext *GcObject::CoreContext = nullptr;
 // when enabled, the garbage collector allocates

@@ -25,10 +25,10 @@ Value next_map_iterate(const Value *args, int numargs) {
 
 Value next_map_keys(const Value *args, int numargs) {
 	(void)numargs;
-	Map *m = args[0].toMap();
-	Array2    a = Array::create(m->vv.size());
-	a->size     = m->vv.size();
-	size_t i    = 0;
+	Map *  m = args[0].toMap();
+	Array2 a = Array::create(m->vv.size());
+	a->size  = m->vv.size();
+	size_t i = 0;
 	for(auto kv : m->vv) {
 		a->values[i++] = kv.first;
 	}
@@ -51,10 +51,10 @@ Value next_map_remove(const Value *args, int numargs) {
 
 Value next_map_values(const Value *args, int numargs) {
 	(void)numargs;
-	Map *m = args[0].toMap();
-	Array2    a = Array::create(m->vv.size());
-	a->size     = m->vv.size();
-	size_t i    = 0;
+	Map *  m = args[0].toMap();
+	Array2 a = Array::create(m->vv.size());
+	a->size  = m->vv.size();
+	size_t i = 0;
 	for(auto kv : m->vv) {
 		a->values[i++] = kv.second;
 	}
@@ -82,8 +82,8 @@ Value next_map_set(const Value *args, int numargs) {
 
 Value next_map_str(const Value *args, int numargs) {
 	(void)numargs;
-	String2   str = String::from("{");
-	Map *a   = args[0].toMap();
+	String2 str = String::from("{");
+	Map *   a   = args[0].toMap();
 	if(a->vv.size() > 0) {
 		auto    v = a->vv.begin();
 		String2 s = String::toStringValue(v->first);
@@ -136,7 +136,7 @@ void Map::init() {
 	MapClass->add_builtin_fn("size()", 0, next_map_size);
 	MapClass->add_builtin_fn_nest("str()", 0, next_map_str);
 	MapClass->add_builtin_fn_nest("remove(_)", 1,
-	                                   next_map_remove); // can nest
+	                              next_map_remove); // can nest
 	MapClass->add_builtin_fn("values()", 0, next_map_values);
 	MapClass->add_builtin_fn_nest("[](_)", 1, next_map_get);   // can nest
 	MapClass->add_builtin_fn_nest("[](_,_)", 2, next_map_set); // can nest

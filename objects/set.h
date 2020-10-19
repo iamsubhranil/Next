@@ -7,8 +7,8 @@
 struct Set {
 	GcObject               obj;
 	typedef HashSet<Value> SetType;
-	SetType           hset;
-	static Set *      create();
+	SetType                hset;
+	static Set *           create();
 	static void            init();
 
 	// gc functions

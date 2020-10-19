@@ -44,8 +44,8 @@ Value next_set_size(const Value *args, int numargs) {
 
 Value next_set_str(const Value *args, int numargs) {
 	(void)numargs;
-	String2   str = String::from("{");
-	Set *a   = args[0].toSet();
+	String2 str = String::from("{");
+	Set *   a   = args[0].toSet();
 	if(a->hset.size() > 0) {
 		auto    v = a->hset.begin();
 		String2 s = String::toStringValue(*v);
@@ -77,8 +77,8 @@ Value next_set_remove(const Value *args, int numargs) {
 
 Value next_set_values(const Value *args, int numargs) {
 	(void)numargs;
-	Set *vs = args[0].toSet();
-	Array2    a  = Array::create(vs->hset.size());
+	Set *  vs = args[0].toSet();
+	Array2 a  = Array::create(vs->hset.size());
 	for(auto &v : vs->hset) {
 		a->insert(v);
 	}
@@ -99,12 +99,12 @@ void Set::init() {
 	SetClass->add_builtin_fn("()", 0, next_set_construct);
 	SetClass->add_builtin_fn("clear()", 0, next_set_clear);
 	SetClass->add_builtin_fn_nest("insert(_)", 1,
-	                                   next_set_insert); // can nest
+	                              next_set_insert); // can nest
 	SetClass->add_builtin_fn("iterate()", 0, next_set_iterate);
 	SetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
 	SetClass->add_builtin_fn("size()", 0, next_set_size);
 	SetClass->add_builtin_fn_nest("str()", 0, next_set_str);
 	SetClass->add_builtin_fn_nest("remove(_)", 1,
-	                                   next_set_remove); // can nest
+	                              next_set_remove); // can nest
 	SetClass->add_builtin_fn("values()", 0, next_set_values);
 }

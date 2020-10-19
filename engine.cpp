@@ -1113,9 +1113,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 			CASE(map_build) : {
-				int       numArg = next_int();
-				Map *v =
-				    Map::from(&fiber->stackTop[-(numArg * 2)], numArg);
+				int  numArg = next_int();
+				Map *v = Map::from(&fiber->stackTop[-(numArg * 2)], numArg);
 				fiber->stackTop -= (numArg * 2);
 				PUSH(Value(v));
 				DISPATCH();

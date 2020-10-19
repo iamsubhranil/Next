@@ -6,8 +6,8 @@
 struct Map {
 	GcObject                      obj;
 	typedef HashMap<Value, Value> MapType;
-	MapType                  vv;
-	static Map *             create();
+	MapType                       vv;
+	static Map *                  create();
 	static void                   init();
 	Value &                       operator[](const Value &v);
 	Value &                       operator[](Value &&v);

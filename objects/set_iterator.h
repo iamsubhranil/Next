@@ -6,10 +6,10 @@
 struct SetIterator {
 	GcObject obj;
 
-	Set *                       vs;
+	Set *                  vs;
 	Set::SetType::iterator start, end;
-	size_t                           startSize;
-	Value                            hasNext;
+	size_t                 startSize;
+	Value                  hasNext;
 
 	Value Next() {
 		if(vs->hset.size() != startSize) {
