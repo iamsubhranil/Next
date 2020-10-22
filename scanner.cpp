@@ -287,34 +287,21 @@ Token Scanner::identifier() {
 	return Token::from(type, this);
 }
 
-bool ishex(char c) {
-	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') ||
-	       (c >= 'a' && c <= 'f');
-}
-
-bool isoct(char c) {
-	return c >= '0' && c <= '7';
-}
-
-bool isbin(char c) {
-	return c >= '0' && c <= '1';
-}
-
 Token Scanner::hexadecimal() {
 	advance(); // x/X
-	while(ishex(peek())) advance();
+	while(isAlphaNumeric(peek())) advance();
 	return Token::from(TOKEN_HEX, this);
 }
 
 Token Scanner::octal() {
 	advance(); // o/O
-	while(isoct(peek())) advance();
+	while(isAlphaNumeric(peek())) advance();
 	return Token::from(TOKEN_OCT, this);
 }
 
 Token Scanner::binary() {
 	advance(); // b/B
-	while(isbin(peek())) advance();
+	while(isAlphaNumeric(peek())) advance();
 	return Token::from(TOKEN_BIN, this);
 }
 
@@ -350,9 +337,12 @@ Token Scanner::number() {
 		if(peek() == '+' || peek() == '-') {
 			advance();
 		}
-		// cosume the exponent
+		// consume the exponent
 		while(isDigit(peek())) advance();
 	}
+
+	// consume all consecutive characters, if there is any
+	while(isAlphaNumeric(peek())) advance();
 
 	return Token::from(TOKEN_NUMBER, this);
 }
