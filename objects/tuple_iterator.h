@@ -10,11 +10,8 @@ struct TupleIterator {
 	Value  hasNext;
 
 	Value Next() {
-		Value ret = ValueNil;
-		if(idx < tup->size) {
-			ret = tup->values()[idx++];
-		}
-		hasNext = Value(idx < tup->size);
+		Value ret = tup->values()[idx++];
+		hasNext   = Value(idx < tup->size);
 		return ret;
 	}
 

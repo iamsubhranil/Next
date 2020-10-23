@@ -15,11 +15,8 @@ struct SetIterator {
 		if(vs->hset.size() != startSize) {
 			RERR("Set size changed while iteration!");
 		}
-		Value v = ValueNil;
-		if(start != end) {
-			v     = *start;
-			start = std::next(start);
-		}
+		Value v = *start;
+		start   = std::next(start);
 		hasNext = Value(start != end);
 		return v;
 	}

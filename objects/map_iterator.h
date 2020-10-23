@@ -14,11 +14,8 @@ struct MapIterator {
 		if(vm->vv.size() != startSize) {
 			RERR("Map size changed while iteration!");
 		}
-		Value v = ValueNil;
-		if(start != end) {
-			v     = start->first;
-			start = std::next(start);
-		}
+		Value v = start->first;
+		start   = std::next(start);
 		hasNext = Value(start != end);
 		return v;
 	}
