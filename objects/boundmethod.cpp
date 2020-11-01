@@ -19,10 +19,23 @@ Value next_boundmethod_str(const Value *args, int numargs) {
 	}
 }
 
+Value next_boundmethod_fn(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(args[0].toBoundMethod()->func);
+}
+
+Value next_boundmethod_binder(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(args[0].toBoundMethod()->binder);
+}
+
 void BoundMethod::init() {
 	Class *BoundMethodClass = GcObject::BoundMethodClass;
 
-	BoundMethodClass->init("bound_method", Class::ClassType::BUILTIN);
+	BoundMethodClass->init("boundmethod", Class::ClassType::BUILTIN);
+	BoundMethodClass->add_builtin_fn("get_fn()", 0, next_boundmethod_fn);
+	BoundMethodClass->add_builtin_fn("get_binder()", 0,
+	                                 next_boundmethod_binder);
 	BoundMethodClass->add_builtin_fn_nest("str()", 0, next_boundmethod_str);
 }
 

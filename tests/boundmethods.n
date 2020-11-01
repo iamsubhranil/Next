@@ -46,6 +46,19 @@ pub fn test() {
         print("[Error] Object bound methods not working!\n")
         res = false
     }
+    if(e.get_binder() != d) {
+        print("[Error] boundmethod.get_binder() not working!\n")
+    }
+    func = e.get_fn()
+    if(func.name() != "display") {
+        print("[Error] function.name() not working!")
+    }
+    if(func.arity() != 0) {
+        print("[Error] function.arity() not working!")
+    }
+    if(func.type() != 0) {
+        print("[Error] function.type() not working!")
+    }
     try {
         e(1)
         print("[Error] Expected error on calling with wrong arity!\n")
