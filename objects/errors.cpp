@@ -64,8 +64,9 @@ Value Error::setIndexError(const char *m, int64_t h, int64_t l, int64_t r) {
 Value Error::setTypeError(const String2 &o, const String2 &m, const String2 &e,
                           Value r, int arg) {
 	return TypeError::sete(
-	    Formatter::fmt("Expected argument {} of {}.{} to be {}, Received '{}'!",
-	                   Value(arg), Value(o), Value(m), Value(e), r)
+	    Formatter::fmt(
+	        "Expected argument {} of {}.{} to be '{}', received '{}'!",
+	        Value(arg), Value(o), Value(m), Value(e), Value(r.getClass()->name))
 	        .toString());
 }
 
