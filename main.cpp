@@ -5,12 +5,20 @@ using namespace std;
 
 // checks if { are terminated
 bool isTerminated(string &s) {
-	int counter = 0;
+	int  counter  = 0;
+	bool instring = false;
+	char prevchar = ' ';
 	for(auto c : s) {
-		if(c == '{')
-			counter++;
-		else if(c == '}')
-			counter--;
+		if(c == '"' && prevchar != '\\') {
+			instring = !instring;
+		}
+		if(!instring) {
+			if(c == '{')
+				counter++;
+			else if(c == '}')
+				counter--;
+		}
+		prevchar = c;
 	}
 	return counter <= 0;
 }
