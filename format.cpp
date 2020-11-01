@@ -292,7 +292,13 @@ Value Formatter::fmt(const char *source, const Value *args, int size) {
 		}
 
 		if(*end != '}') {
-			FERR("Unclosed format string!");
+			if(*end != 0) {
+				char msg[] = "Expected '}' in place of 'c'!";
+				msg[26]    = *end;
+				FERR(msg);
+			} else {
+				FERR("Unclosed format string!");
+			}
 		}
 		end++;
 
