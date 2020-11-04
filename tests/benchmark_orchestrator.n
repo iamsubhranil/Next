@@ -1,0 +1,28 @@
+println("Running all tests..")
+
+import_file("orchestrator")
+
+benchmarks = [
+    "arrays",
+    "binary_trees",
+    "delta_blue",
+    "fannkuch_redx",
+    "fib",
+    "fibers",
+    "garbage_test",
+    "map_numeric",
+    "map_string",
+    "method_call",
+    "nbody",
+    "spectral_norm",
+    "string_equals",
+    "tuples",
+    "while"
+]
+
+println("Running all benchmarks..")
+
+for(file in benchmarks) {
+    println("\nRunning ", file, "..")
+    import_file("benchmark." + file)
+}
