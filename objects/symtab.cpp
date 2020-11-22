@@ -1,38 +1,42 @@
 #include "symtab.h"
+#include "map.h"
 
-int    SymbolTable2::counter = 0;
-Array *SymbolTable2::symbols = nullptr;
+int64_t SymbolTable2::counter   = 0;
+Map *   SymbolTable2::stringMap = nullptr;
+Map *   SymbolTable2::intMap    = nullptr;
 #define SYMCONSTANT(n) int SymbolTable2::const_##n = 0;
 #include "../stringvalues.h"
 
 void SymbolTable2::init() {
-	symbols = Array::create(10);
+	stringMap = Map::create();
+	intMap    = Map::create();
 #define SYMCONSTANT(n) SymbolTable2::const_##n = insert(String::const_##n);
 #include "../stringvalues.h"
 }
 
-int SymbolTable2::insert(const char *str) {
+int64_t SymbolTable2::insert(const char *str) {
 	return insert(String::from(str));
 }
 
-int SymbolTable2::insert(const String2 &str) {
+int64_t SymbolTable2::insert(const String2 &str) {
 	Value s = Value(str);
-	for(int i = 0; i < counter; i++) {
-		if(symbols[0][i] == s)
-			return i;
-	}
-	symbols->insert(s);
-	return counter++;
+	if(stringMap->vv.contains(s))
+		return stringMap->vv[s].toInteger();
+	Value id         = Value(counter++);
+	stringMap->vv[s] = id;
+	intMap->vv[id]   = s;
+	return id.toInteger();
 }
 
-String *SymbolTable2::getString(int id) {
-	return symbols->values[id].toString();
+String *SymbolTable2::getString(int64_t id) {
+	return intMap->vv[Value(id)].toString();
 }
 
-const char *SymbolTable2::get(int id) {
+const char *SymbolTable2::get(int64_t id) {
 	return getString(id)->str();
 }
 
 void SymbolTable2::mark() {
-	GcObject::mark(symbols);
+	GcObject::mark(stringMap);
+	GcObject::mark(intMap);
 }

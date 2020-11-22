@@ -1,17 +1,17 @@
 #pragma once
-#include "array.h"
 #include "string.h"
 
 struct SymbolTable2 {
-	static Array *symbols;
-	static int    counter;
+	static Map *   stringMap;
+	static Map *   intMap;
+	static int64_t counter;
 
-	static void init();
-	static int  insert(const char *str);
-	static int  insert(const String2 &str);
+	static void    init();
+	static int64_t insert(const char *str);
+	static int64_t insert(const String2 &str);
 
-	static const char *get(int id);
-	static String *    getString(int id);
+	static const char *get(int64_t id);
+	static String *    getString(int64_t id);
 
 	static void mark();
 
