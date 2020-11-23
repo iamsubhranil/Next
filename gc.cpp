@@ -38,6 +38,8 @@ size_t   GcObject::max_gc          = 1024 * 1024 * 1024;
 GcObject GcObject::DefaultGcObject = {nullptr, GcObject::OBJ_NONE};
 CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP> *GcObject::tracker =
     nullptr;
+GcObject::CacheObject *GcObject::objectCache[]      = {nullptr};
+size_t                 GcObject::objectCacheCount[] = {0};
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
@@ -245,8 +247,19 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 Object *GcObject::allocObject(const Class *klass) {
 	// perform the whole allocation (object + slots)
 	// at once
-	Object *o = (Object *)alloc(
-	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
+	Object *o;
+	int     i = klass->numSlots;
+	if(i < MAX_OBJECT_CACHE_SLOT && objectCache[i]) {
+		o              = (Object *)objectCache[i];
+		objectCache[i] = objectCache[i]->next;
+		o->obj.klass   = klass;
+		o->obj.objType = OBJ_Object;
+		objectCacheCount[i]--;
+		tracker->insert((GcObject *)o);
+	} else {
+		o = (Object *)alloc(sizeof(Object) + sizeof(Value) * klass->numSlots,
+		                    OBJ_Object, klass);
+	}
 	Utils::fillNil(o->slots(), klass->numSlots);
 	return o;
 }
@@ -308,15 +321,24 @@ void GcObject::release(GcObject *obj) {
 			GcObject_free(obj, sizeof(Tuple) +
 			                       (sizeof(Value) * ((Tuple *)obj)->size));
 			return;
-		case OBJ_Object:
+		case OBJ_Object: {
 #ifdef DEBUG_GC
 			std::cout << "[GC] [Release] Object ("
 			          << sizeof(Object) + sizeof(Value) * obj->klass->numSlots
 			          << ") -> object of " << obj->klass->name->str() << "\n";
 			GcCounters[ObjectCounter]--;
 #endif
-			GcObject_free(obj, sizeof(Object) +
-			                       (sizeof(Value) * obj->klass->numSlots));
+			int i = obj->klass->numSlots;
+			if(i < MAX_OBJECT_CACHE_SLOT &&
+			   objectCacheCount[i] < OBJECT_CACHE_LIMIT) {
+				CacheObject *o = (CacheObject *)obj;
+				o->next        = objectCache[i];
+				objectCache[i] = o;
+				objectCacheCount[i]++;
+			} else {
+				GcObject_free(obj, sizeof(Object) + (sizeof(Value) * i));
+			}
+		}
 			return;
 		case OBJ_Expression:
 #ifdef DEBUG_GC

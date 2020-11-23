@@ -64,6 +64,16 @@ struct GcObject {
 	static void  free(void *mem, size_t bytes);
 	static void *realloc(void *mem, size_t oldb, size_t newb);
 
+	struct CacheObject {
+		CacheObject *next;
+	};
+
+	// cache of objects upto 8 slots
+	static const int    MAX_OBJECT_CACHE_SLOT = 8;
+	static const size_t OBJECT_CACHE_LIMIT    = 128; // cache upto 10 objects
+	static CacheObject *objectCache[MAX_OBJECT_CACHE_SLOT];
+	static size_t       objectCacheCount[MAX_OBJECT_CACHE_SLOT];
+
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC
 #define gc_msg_a(m)                                                            \
