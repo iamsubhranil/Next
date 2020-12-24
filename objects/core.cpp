@@ -126,7 +126,74 @@ Value next_core_input1(const Value *args, int numargs) {
 	return next_core_input0(args, numargs);
 }
 
+Value next_core_resolve_partial(Value m, const Value *parts, int numparts,
+                                int idx, Value *res, bool silent = false) {
+	Value mod = Value(m);
+	// perform load_field on rest of the parts
+	while(idx < numparts) {
+		if(mod.getClass()->has_fn(parts[idx].toString())) {
+			mod = mod.getClass()->accessFn(
+			    mod.getClass(), mod,
+			    SymbolTable2::insert(parts[idx].toString()));
+		} else {
+			if(!silent) {
+				String *s = Formatter::fmt("Unable to import '{}' from '{}'!",
+				                           parts[idx], parts[idx - 1])
+				                .toString();
+				if(s == NULL) {
+					*res = ValueNil;
+				} else {
+					*res = ImportError::sete(s);
+				}
+			}
+			return ValueFalse;
+		}
+		idx++;
+	}
+	*res = mod;
+	return ValueTrue;
+}
+
 Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
+	// before performing import, check if the module, or a part of it,
+	// is already loaded
+	int       loaded       = -1;
+	String2   current      = nullptr;
+	GcObject *loadedModule = nullptr;
+	for(int i = 0; i < numparts; i++) {
+		if(current == nullptr) {
+			current = parts[0].toString();
+		} else {
+			current = String::append(current, ".");
+			current = String::append(current, parts[i].toString());
+		}
+		if(ExecutionEngine::isModuleRegistered(current)) {
+			loaded       = i;
+			loadedModule = ExecutionEngine::getRegisteredModule(current);
+		} else {
+			break;
+		}
+	}
+
+	// if we have some of it already loaded, we'll try for partial
+	// load first, silently.
+	if(loaded > -1) {
+		// if we already have all of it registered, then good news
+		if(loaded == numparts - 1) {
+			return Value(loadedModule);
+		} else {
+			// try for silent partial import
+			Value ret = ValueNil;
+			if(next_core_resolve_partial(loadedModule, parts, numparts,
+			                             loaded + 1, &ret, true) == ValueTrue) {
+				return ret;
+			}
+			// the partial import failed, but that might also be
+			// because of nested packages we have not yet loaded.
+			// so leave the rest of it to the importer
+		}
+	}
+
 	ImportStatus is        = Importer::import(currentPath, parts, numparts);
 	int          highlight = is.toHighlight;
 	String2      fname     = is.fileName;
@@ -183,26 +250,10 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			// if it is a partial import, load the rest
 			// of the parts
 			if(is.res == ImportStatus::PARTIAL_IMPORT) {
-				int   h   = is.toHighlight;
-				Value mod = Value(m);
-				// perform load_field on rest of the parts
-				while(h < numparts) {
-					if(mod.getClass()->has_fn(parts[h].toString())) {
-						mod = mod.getClass()->accessFn(
-						    mod.getClass(), mod,
-						    SymbolTable2::insert(parts[h].toString()));
-					} else {
-						String *s =
-						    Formatter::fmt("Unable to import '{}' from '{}'!",
-						                   parts[h], parts[h - 1])
-						        .toString();
-						if(s == NULL)
-							return ValueNil;
-						IMPORTERR(s);
-					}
-					h++;
-				}
-				return mod;
+				Value v = ValueNil;
+				next_core_resolve_partial(m, parts, numparts, is.toHighlight,
+				                          &v);
+				return v;
 			}
 			return m;
 		}

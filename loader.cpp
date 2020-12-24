@@ -140,13 +140,12 @@ GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
 
 GcObject *Loader::compile_and_load_with_name(const char *fileName,
                                              String *modName, bool execute) {
-	String2   fname = String::from(fileName);
-	GcObject *ret   = NULL;
+	GcObject *ret = NULL;
 #ifdef DEBUG
 	StatementPrinter sp(cout);
 #endif
-	if(ExecutionEngine::isModuleRegistered(fname))
-		return ExecutionEngine::getRegisteredModule(fname);
+	if(ExecutionEngine::isModuleRegistered(modName))
+		return ExecutionEngine::getRegisteredModule(modName);
 	Scanner s(fileName);
 	try {
 		::new(&parser) Parser(s);
@@ -169,7 +168,7 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 		if(execute) {
 			Value v;
 			if(ExecutionEngine::registerModule(
-			       fname, ctx->get_default_constructor()->f, &v))
+			       modName, ctx->get_default_constructor()->f, &v))
 				ret = v.toGcObject();
 		} else {
 			ret = (GcObject *)ctx->get_class();
