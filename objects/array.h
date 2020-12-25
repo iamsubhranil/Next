@@ -10,7 +10,7 @@ struct Array {
 	int      size;
 
 	// array functions
-	static Array *create(int size);
+	static Array *create(int capacity);
 	const Value & operator[](size_t idx) const;
 	Value &       operator[](size_t idx);
 	Value &       insert(Value v);

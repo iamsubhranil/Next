@@ -1,7 +1,7 @@
 #include "import.h"
 #include "filesystem/path.h"
 #include "objects/array.h"
-#include <sys/stat.h>
+#include "objects/builtin_module.h"
 #ifdef DEBUG
 #include <iostream>
 #endif
@@ -44,8 +44,17 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	p = filesystem::path(p.str() + ".n");
 	if(!p.exists()) {
 		// cout << "Unable to open file : '" << path_ << "'!" << endl;
-		ret.res         = ImportStatus::FILE_NOT_FOUND;
-		ret.fileName    = String::from(p.str().c_str());
+
+		// check if it is a builtin module
+		int idx = -1;
+		if((idx = BuiltinModule::hasBuiltinModule(parts[0].toString())) != -1) {
+			ret.res      = ImportStatus::BUILTIN_IMPORT;
+			ret.fileName = nullptr;
+			ret.builtin  = BuiltinModule::initBuiltinModule(idx);
+		} else {
+			ret.res      = ImportStatus::FILE_NOT_FOUND;
+			ret.fileName = String::from(p.str().c_str());
+		}
 		ret.toHighlight = it - 1;
 		return ret;
 	}
@@ -70,8 +79,8 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	// if the whole path was resolved, it was a valid module
 	// import, else, there are some parts we need to resolve
 	// at runtime
-	ret.res = it == size ? ImportStatus::IMPORT_SUCCESS
-	                     : ImportStatus::PARTIAL_IMPORT;
+	ret.res         = it == size ? ImportStatus::IMPORT_SUCCESS
+	                             : ImportStatus::PARTIAL_IMPORT;
 	ret.fileName    = String::from(absolutep.c_str());
 	ret.toHighlight = it;
 #ifdef DEBUG

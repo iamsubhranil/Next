@@ -7,6 +7,7 @@
 #include "objects/array_iterator.h"
 #include "objects/boolean.h"
 #include "objects/boundmethod.h"
+#include "objects/builtin_module.h"
 #include "objects/bytecode.h"
 #include "objects/bytecodecompilationctx.h"
 #include "objects/core.h"

@@ -49,4 +49,7 @@ OBJTYPE(Expression)
 OBJTYPE(Statement)
 // loader
 OBJTYPE(Loader)
+
+// builtin module initializer
+OBJTYPE(BuiltinModule)
 #undef OBJTYPE

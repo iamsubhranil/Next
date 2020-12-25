@@ -3,7 +3,6 @@
 #include "array.h"
 #include "common.h"
 #include "map.h"
-#include "module.h"
 
 // maximum number of allowed variadic args
 #define MAX_VARARG_COUNT 32
