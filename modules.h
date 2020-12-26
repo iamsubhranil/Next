@@ -5,5 +5,6 @@
 MODULE(core, Core)
 MODULE(random, Random)
 MODULE(math, Math)
+MODULE(io, IO)
 
 #undef MODULE

@@ -152,7 +152,7 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 	String2      fname     = is.fileName;
 	switch(is.res) {
 		case ImportStatus::BAD_IMPORT: {
-			String *s = Formatter::fmt(
+			String2 s = Formatter::fmt(
 			                "Folder '{}' does not exist or is not accessible!",
 			                parts[highlight])
 			                .toString();
@@ -162,7 +162,7 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			break;
 		}
 		case ImportStatus::FOLDER_IMPORT: {
-			String *s =
+			String2 s =
 			    Formatter::fmt("Importing folder '{}' is not supported!",
 			                   parts[highlight])
 			        .toString();
@@ -172,7 +172,7 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			break;
 		}
 		case ImportStatus::FILE_NOT_FOUND: {
-			String *s =
+			String2 s =
 			    Formatter::fmt("No such module '{}' found in the given folder!",
 			                   parts[highlight])
 			        .toString();

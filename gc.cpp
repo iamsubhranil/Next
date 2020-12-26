@@ -15,6 +15,7 @@
 #include "objects/errors.h"
 #include "objects/fiber.h"
 #include "objects/fiber_iterator.h"
+#include "objects/file.h"
 #include "objects/functioncompilationctx.h"
 #include "objects/map_iterator.h"
 #include "objects/number.h"

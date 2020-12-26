@@ -52,4 +52,7 @@ OBJTYPE(Loader)
 
 // builtin module initializer
 OBJTYPE(BuiltinModule)
+// file object
+OBJTYPE(File)
+OBJTYPE(FileError)
 #undef OBJTYPE

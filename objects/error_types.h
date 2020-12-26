@@ -8,5 +8,6 @@ ERROR(IndexError, "index_error")
 ERROR(IteratorError, "iterator_error")
 ERROR(RuntimeError, "runtime_error")
 ERROR(TypeError, "type_error")
+ERROR(FileError, "file_error")
 
 #undef ERROR
