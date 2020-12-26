@@ -23,7 +23,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 		// the repl.
 		p = filesystem::path::getcwd();
 	} else {
-		p = p.parent_path();
+		p = p.make_absolute().parent_path();
 	}
 	// if p is not a directory, make the iterator look like 1,
 	// because all the conditions below returns it - 1
