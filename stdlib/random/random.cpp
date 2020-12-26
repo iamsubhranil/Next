@@ -79,11 +79,19 @@ Value next_random_rand_n(const Value *args, int numargs) {
 	return Value(a);
 }
 
+Value next_random_seed(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(random, "seed(value)", 1, Number);
+	Random::Generator.seed(args[1].toNumber());
+	return ValueNil;
+}
+
 void Random::init(BuiltinModule *m) {
 	m->add_builtin_fn("randint(_,_)", 2, next_random_randint);
 	m->add_builtin_fn("randint(_,_,_)", 3, next_random_randint_n);
 	m->add_builtin_fn("rand()", 0, next_random_rand0);
 	m->add_builtin_fn("rand(_,_)", 2, next_random_rand);
 	m->add_builtin_fn("rand(_,_,_)", 3, next_random_rand_n);
+	m->add_builtin_fn("seed(_)", 1, next_random_seed);
 	m->add_builtin_variable("RAND_MAX", Value(RAND_MAX));
 }
