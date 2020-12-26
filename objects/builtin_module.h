@@ -26,8 +26,10 @@ struct BuiltinModule {
 	// use this to register builtin modules
 	static Value initBuiltinModule(int idx);
 
+	static BuiltinModule *create();
+
 	static void init();
-	void        mark();
+	void        mark() { GcObject::mark(ctx); }
 	void        release() {}
 #ifdef DEBUG_GC
 	const char *gc_repr() { return "builtin_module"; }

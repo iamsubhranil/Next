@@ -54,7 +54,7 @@ Value BuiltinModule::initBuiltinModule(int idx) {
 	if(ExecutionEngine::isModuleRegistered(name)) {
 		return ExecutionEngine::getRegisteredModule(name);
 	}
-	BuiltinModule2 b = GcObject::allocBuiltinModule();
+	BuiltinModule2 b = create();
 	b->ctx           = ClassCompilationContext::create(NULL, name);
 	ModuleInits[idx](b);
 	b->ctx->finalize();
@@ -70,13 +70,12 @@ void BuiltinModule::init() {
 	Class *BuiltinModuleClass = GcObject::BuiltinModuleClass;
 	BuiltinModuleClass->init("builtin_module", Class::ClassType::BUILTIN);
 
-#define MODULE(x, y) ModuleNames[ModuleCount++] = String::from(x);
+#define MODULE(x, y) ModuleNames[ModuleCount++] = String::from(#x);
 #include "../modules.h"
 }
 
-void BuiltinModule::mark() {
-	GcObject::mark(ctx);
-	for(String *s : ModuleNames) {
-		GcObject::mark(s);
-	}
+BuiltinModule *BuiltinModule::create() {
+	BuiltinModule *bm = GcObject::allocBuiltinModule();
+	bm->ctx           = nullptr;
+	return bm;
 }
