@@ -85,4 +85,5 @@ void Random::init(BuiltinModule *m) {
 	m->add_builtin_fn("rand()", 0, next_random_rand0);
 	m->add_builtin_fn("rand(_,_)", 2, next_random_rand);
 	m->add_builtin_fn("rand(_,_,_)", 3, next_random_rand_n);
+	m->add_builtin_variable("RAND_MAX", Value(RAND_MAX));
 }
