@@ -32,6 +32,7 @@ NEXT_MATH_FN1(isnan)
 NEXT_MATH_FN1(isfinite)
 NEXT_MATH_FN1(erf)
 NEXT_MATH_FN1(tgamma)
+NEXT_MATH_FN1(abs)
 
 NEXT_MATH_FN2(pow)
 NEXT_MATH_FN2(fmod)
