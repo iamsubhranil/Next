@@ -59,6 +59,11 @@ Value next_file_flush(const Value *args, int numargs) {
 		return FileError::sete(s);                                            \
 	}
 
+#define CHECK_FOR_EOF()                                 \
+	if(feof(args[0].toFile()->file)) {                  \
+		return FileError::sete("End of file reached!"); \
+	}
+
 Value next_file_seek(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(file, "seek(offset, origin)", 1, Integer);
@@ -100,6 +105,7 @@ Value next_file_readbyte(const Value *args, int numargs) {
 	CHECK_IF_VALID();
 	uint8_t byte;
 	if(fread(&byte, 1, 1, args[0].toFile()->file) != 1) {
+		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbyte() failed");
 	}
 	return Value(byte);
@@ -117,6 +123,7 @@ Value next_file_readbytes(const Value *args, int numargs) {
 	uint8_t *bytes = (uint8_t *)GcObject::malloc(count);
 	if(fread(bytes, 1, count, args[0].toFile()->file) != count) {
 		GcObject::free(bytes, count);
+		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbytes(count) failed");
 	}
 	Array2 arr = Array::create(count);
@@ -176,6 +183,7 @@ Value next_file_read(const Value *args, int numargs) {
 	int ret;
 	CHECK_IF_VALID();
 	if((ret = fgetc(args[0].toFile()->file)) == EOF) {
+		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read() failed");
 	}
 	char c = ret;
@@ -194,6 +202,7 @@ Value next_file_read_n(const Value *args, int numargs) {
 	char *bytes = (char *)GcObject::malloc(count);
 	if(fread(bytes, 1, count, args[0].toFile()->file) != count) {
 		GcObject::free(bytes, count);
+		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read(count) failed");
 	}
 	String2 s = String::from(bytes, count);
@@ -226,6 +235,7 @@ Value next_file_readall(const Value *args, int numargs) {
 	char *buffer = (char *)GcObject::malloc(length);
 	if(fread(buffer, 1, length, f) != length) {
 		GcObject::free(buffer, length);
+		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readall() failed: reading failed");
 	}
 	String2 s = String::from(buffer, length);
