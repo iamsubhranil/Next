@@ -14,6 +14,11 @@ class foo {
             setMem(x, y)
         }
 
+        new(x, y, z) {
+            print("This should never be called!")
+            mem = x
+        }
+
         new() {
             this(100, 50)
             if(mem != 100 or value != 50) {
@@ -135,6 +140,11 @@ pub fn test() {
     if(o.c() != 12) {
         throw error("expected 12 from baz.c!")
     }
+
+    try {
+        b = bar(2, 3, 4)
+        println("inheritance: error: constructors should not be derived!")
+    } catch(runtime_error r) {}
 
     ret true
 }

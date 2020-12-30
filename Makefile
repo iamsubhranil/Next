@@ -4,7 +4,7 @@ override LDFLAGS +=
 RM=rm -f
 NUM_TRIALS=10
 # $(wildcard *.cpp /xxx/xxx/*.cpp): get all .cpp files from the current directory and dir "/xxx/xxx/"
-SRCS := $(wildcard objects/*.cpp *.cpp)
+SRCS := $(wildcard objects/*.cpp stdlib/*/*.cpp *.cpp)
 # $(patsubst %.cpp,%.o,$(SRCS)): substitute all ".cpp" file name strings to ".o" file name strings
 OBJS := $(patsubst %.cpp,%.o,$(SRCS))
 

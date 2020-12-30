@@ -5,7 +5,7 @@
 #define SYMCONSTANT(name)
 #endif
 
-SCONSTANT(core, "core")
+SCONSTANT(EmptyString, "")
 SCONSTANT(RuntimeException, "RuntimeException")
 SCONSTANT(any_, "any")
 SCONSTANT(error, "error")
@@ -23,6 +23,9 @@ SCONSTANT(str, "str")
 SCONSTANT(nil, "nil")
 #define TYPE(r, n) SCONSTANT(type_##n, #n)
 #include "valuetypes.h"
+
+#define MODULE(x, y) SCONSTANT(x, #x)
+#include "modules.h"
 
 SCONSTANT(sym_dot, ".")
 SCONSTANT(sig_array_1, "array(_)")

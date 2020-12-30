@@ -126,13 +126,33 @@ Value next_core_input1(const Value *args, int numargs) {
 	return next_core_input0(args, numargs);
 }
 
+Value next_core_resolve_partial_import(Value mod, const Value *parts,
+                                       int numparts, int h) {
+	// perform load_field on rest of the parts
+	while(h < numparts) {
+		if(mod.getClass()->has_fn(parts[h].toString())) {
+			mod = mod.getClass()->accessFn(
+			    mod.getClass(), mod, SymbolTable2::insert(parts[h].toString()));
+		} else {
+			String *s = Formatter::fmt("Unable to import '{}' from '{}'!",
+			                           parts[h], parts[h - 1])
+			                .toString();
+			if(s == NULL)
+				return ValueNil;
+			IMPORTERR(s);
+		}
+		h++;
+	}
+	return mod;
+}
+
 Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 	ImportStatus is        = Importer::import(currentPath, parts, numparts);
 	int          highlight = is.toHighlight;
 	String2      fname     = is.fileName;
 	switch(is.res) {
 		case ImportStatus::BAD_IMPORT: {
-			String *s = Formatter::fmt(
+			String2 s = Formatter::fmt(
 			                "Folder '{}' does not exist or is not accessible!",
 			                parts[highlight])
 			                .toString();
@@ -142,7 +162,7 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			break;
 		}
 		case ImportStatus::FOLDER_IMPORT: {
-			String *s =
+			String2 s =
 			    Formatter::fmt("Importing folder '{}' is not supported!",
 			                   parts[highlight])
 			        .toString();
@@ -152,7 +172,7 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			break;
 		}
 		case ImportStatus::FILE_NOT_FOUND: {
-			String *s =
+			String2 s =
 			    Formatter::fmt("No such module '{}' found in the given folder!",
 			                   parts[highlight])
 			        .toString();
@@ -171,6 +191,14 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			IMPORTERR(String::append(s, fname));
 			break;
 		}
+		case ImportStatus::BUILTIN_IMPORT: {
+			Value mod = is.builtin;
+			if(numparts > 1) {
+				return next_core_resolve_partial_import(mod, parts, numparts,
+				                                        1);
+			}
+			return mod;
+		};
 		case ImportStatus::PARTIAL_IMPORT:
 		case ImportStatus::IMPORT_SUCCESS: {
 			Loader2   loader = Loader::create();
@@ -183,26 +211,8 @@ Value next_core_import_(String *currentPath, const Value *parts, int numparts) {
 			// if it is a partial import, load the rest
 			// of the parts
 			if(is.res == ImportStatus::PARTIAL_IMPORT) {
-				int   h   = is.toHighlight;
-				Value mod = Value(m);
-				// perform load_field on rest of the parts
-				while(h < numparts) {
-					if(mod.getClass()->has_fn(parts[h].toString())) {
-						mod = mod.getClass()->accessFn(
-						    mod.getClass(), mod,
-						    SymbolTable2::insert(parts[h].toString()));
-					} else {
-						String *s =
-						    Formatter::fmt("Unable to import '{}' from '{}'!",
-						                   parts[h], parts[h - 1])
-						        .toString();
-						if(s == NULL)
-							return ValueNil;
-						IMPORTERR(s);
-					}
-					h++;
-				}
-				return mod;
+				return next_core_resolve_partial_import(m, parts, numparts,
+				                                        is.toHighlight);
 			}
 			return m;
 		}
@@ -326,4 +336,8 @@ void addClocksPerSec() {
 
 void Core::addCoreVariables() {
 	addClocksPerSec();
+}
+
+void Core::init(BuiltinModule *m) {
+	(void)m;
 }

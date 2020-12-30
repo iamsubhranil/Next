@@ -26,23 +26,6 @@ pub fn test() {
         print("[Error] number.to_int() is broken\n")
         res = false
     }
-    if(a.floor() != 2919) {
-        print("[Error] number.floor() is broken\n")
-        res = false
-    }
-    if(a.ceil() != 2920) {
-        print("[Error] number.ceil() is broken\n")
-        res = false
-    }
-    a = 4
-    if(a.sqrt() != 2) {
-        print("[Error] number.sqrt() is broken\n")
-        res = false
-    }
-    if(a.mod(3) != 1) {
-        print("[Error] number.mod(_) is broken\n")
-        res = false
-    }
 
     s = "Hello World!"
     if(s.str() != "Hello World!") {

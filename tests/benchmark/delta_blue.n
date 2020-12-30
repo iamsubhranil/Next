@@ -44,6 +44,8 @@
 
 ORDERED = nil
 
+import math
+
 class Strength {
     pub:
         value, name
@@ -365,7 +367,7 @@ class ScaleConstraint is BinaryConstraint {
                 super.v2.value = super.v1.value * _scale.value + _offset.value
             } else {
                 // TODO: Is this the same semantics as ~/?
-                super.v1.value = ((super.v2.value - _offset.value) / _scale.value).floor()
+                super.v1.value = math.floor((super.v2.value - _offset.value) / _scale.value)
             }
         }
 

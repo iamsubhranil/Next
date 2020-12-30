@@ -394,6 +394,13 @@ String *String::append(const String2 &s1, const char *val2, size_t size2) {
 	return append(s1->str(), s1->size, val2, size2);
 }
 
+String2 objectOrModule(const Class *c) {
+	if(c->module == NULL) {
+		return String::append("<module '", c->name);
+	}
+	return String::append("<object of '", c->name);
+}
+
 String *String::toString(Value v) {
 	while(true) {
 		if(v.isString())
@@ -413,8 +420,7 @@ String *String::toString(Value v) {
 			if(!ExecutionEngine::execute(v, f, &v, true))
 				return nullptr;
 		} else {
-			String2 s = append("<object of '", c->name);
-			s         = append(s, "'>");
+			String2 s = append(objectOrModule(c), "'>");
 			return s;
 		}
 	}
@@ -451,8 +457,7 @@ String *String::toStringValue(Value v) {
 			if(!ExecutionEngine::execute(v, f, &v, true))
 				return nullptr;
 		} else {
-			String2 s = append("<object of '", c->name);
-			s         = append(s, "'>");
+			String2 s = append(objectOrModule(c), c->name);
 			return s;
 		}
 	}

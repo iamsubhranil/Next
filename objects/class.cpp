@@ -181,10 +181,19 @@ void Class::derive(Class *superclass) {
 		// append an 's '
 		String2 modified = String::append("s ", s);
 		// insert the new string to the table
-		int ns = SymbolTable2::insert(modified);
-
+		int  ns            = SymbolTable2::insert(modified);
+		bool isConstructor = false;
 		if(v.isFunction()) {
 			// if it is a function, create a modified function
+			// only when this is not a constructor. we don't
+			// want to pass direct constructors of parent to the base.
+			// we check this by checking first the character not
+			// to be a '(', which what constructors start with.
+			// we will still add the constructor with a "s "
+			// prepend though.
+			if(s->str()[0] == '(') {
+				isConstructor = true;
+			}
 			Function2 f = v.toFunction()->create_derived(numSlots);
 			v           = Value(f);
 			add_sym(ns, v);
@@ -199,7 +208,7 @@ void Class::derive(Class *superclass) {
 		// pointers to static slots will point to the original class
 		// now check if present class already had a symbol
 		// named 's' in its table or not
-		if(!has_fn(i)) {
+		if(!has_fn(i) && !isConstructor) {
 			// it did not, so register it as the original symbol too
 			add_sym(i, v);
 		}

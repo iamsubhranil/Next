@@ -392,14 +392,23 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	}
 	// If this a reference expression, dynamic dispatch will be used
 	else if(onRefer) {
-		if(inThis || thisOrSuper == 1) {
+		if(inThis) {
 			// if its a 'this.' call, perform it like a method call
 			// on present object
 			btx->call_method(SymbolTable2::insert(signature), argSize);
-			if(inThis)
-				inThis = false;
-			else if(thisOrSuper == 1)
-				onRefer = false;
+			inThis = false;
+		} else if(thisOrSuper == 1) {
+			// this() calls are directly dispatched, intraclass
+			info = resolveCall(String::const_EmptyString, signature);
+			switch(info.type) {
+				case CLASS: btx->call_intra(info.frameIdx, argSize); break;
+				default:
+					lnerr_("No constructor with specified signature found in "
+					       "class '%s'!",
+					       call->callee->token, ctx->get_class()->name->str());
+					break;
+			}
+			onRefer = false;
 		} else {
 			if(inSuper) {
 				btx->call_method_super(SymbolTable2::insert(signature),
