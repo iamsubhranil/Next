@@ -1,0 +1,318 @@
+import random
+import io
+import math
+
+class Vec {
+    pub:
+        x, y, z
+
+        new() { this(0, 0, 0) }
+
+        new(x0, y0, z0) { x = x0, y = y0, z = z0 }
+
+        op +(v) { ret Vec(x + v.x, y + v.y, z + v.z) }
+
+        op -(v) { ret Vec(x - v.x, y - v.y, z - v.z) }
+
+        op *(v) { ret Vec(x * v.x, y * v.y, z * v.z) }
+
+        fn scale_up(fact) { ret Vec(x * fact, y * fact, z * fact) }
+
+        fn scale_down(fact) { ret Vec(x / fact, y / fact, z / fact) }
+
+        fn mult_sum(v) { ret x * v.x + y * v.y + z * v.z }
+
+        fn mult_sum_self() { ret x * x + y * y + z * z }
+
+        fn str() { ret "<" + x.str() + ", " + y.str() + ", " + z.str() + ">" }
+
+        fn copy(v) { x = v.x, y = v.y, z = v.z }
+}
+
+fn norm(v) {
+    ret math.sqrt(v.mult_sum(v))
+}
+
+fn normalize(v) {
+    ret v.scale_down(norm(v))
+}
+
+fn rnd() {
+    ret (random.rand() / random.RAND_MAX) - 0.5
+}
+
+class Ray {
+    pub:
+        origin, dir
+
+        new(x, y) { origin = x, dir = y }
+}
+
+class Box {
+    pub:
+        halfsize
+        center, color, diffuseness, isLamp
+
+        new(center0, size0, color0, diffuseness0) {
+            this(center0, size0, color0, diffuseness0, false)
+        }
+
+	    new(center0, size0, color0, diffuseness0, lamp) {
+	        //print("here")
+	        center = center0
+	        color = color0
+	        diffuseness = diffuseness0
+	        isLamp = lamp
+	        halfsize = size0.scale_down(2)
+	    }
+
+        fn within(x, y, xmin, ymin, xmax, ymax) {
+            ret (x > xmin) and (x < xmax) and (y > ymin) and (y < ymax)
+        }
+
+	    fn intersect(ray, point, normal) {
+            if(math.abs(ray.dir.z) > 1e-9) {
+                side = 1.0
+                if(ray.dir.z > 0) {
+                    side = -1.0
+                }
+                factor = (center.z + side * halfsize.z - ray.origin.z) / ray.dir.z
+                if(factor > 0.1) {
+                    point.copy(ray.origin + ray.dir.scale_up(factor))
+                    if(within(point.x, point.y, center.x - halfsize.x,
+                            center.y - halfsize.y, center.x + halfsize.x,
+                            center.y + halfsize.y)) {
+                        normal.x = 0
+                        normal.y = 0
+                        normal.z = side
+                        ret true
+                    }
+                }
+		    }
+
+
+            if(math.abs(ray.dir.x) > 1e-9) {
+                side = 1.0
+                if(ray.dir.x > 0) {
+                    side = -1.0
+                }
+                factor = (center.x + side * halfsize.x - ray.origin.x) / ray.dir.x
+                if(factor > 0.1) {
+                    point.copy(ray.origin + ray.dir.scale_up(factor))
+                    if(within(point.y, point.z, center.y - halfsize.y,
+                            center.z - halfsize.z, center.y + halfsize.y,
+                            center.z + halfsize.z)) {
+                        normal.x = side
+                        normal.y = 0
+                        normal.z = 0
+                        ret true
+                    }
+                }
+            }
+
+            if(math.abs(ray.dir.y) > 1e-9) {
+                side = 1.0
+                if(ray.dir.y > 0){
+                    side = -1.0
+                }
+                factor = (center.y + side * halfsize.y - ray.origin.y) / ray.dir.y
+                if(factor > 0.1) {
+                    point.copy(ray.origin + ray.dir.scale_up(factor))
+                    if(within(point.z, point.x, center.z - halfsize.z,
+                            center.x - halfsize.x, center.z + halfsize.z,
+                            center.x + halfsize.x)) {
+                        normal.x = 0
+                        normal.y = side
+                        normal.z = 0
+                        ret true
+                    }
+                }
+            }
+
+            ret false
+		}
+        
+        fn lambertFactor(lam) {
+            ret 1.0 - (1.0 - lam) * diffuseness 
+        }
+}
+
+class Sphere {
+    pub:
+        radius
+        center, color, diffuseness, isLamp
+
+        new(center0, radius0, color0, diffuseness0) {
+            this(center0, radius0, color0, diffuseness0, false)
+        }
+
+        new(center0, radius0, color0, diffuseness0, lamp) {
+	        center = center0
+	        color = color0
+	        diffuseness = diffuseness0
+	        isLamp = lamp
+            radius = radius0
+        }
+
+        fn intersect(ray, point, normal) {
+            displacement = center - ray.origin
+            proj         = displacement.mult_sum(ray.dir)
+            discr = radius * radius + proj * proj - displacement.mult_sum_self()
+
+            if(discr > 0) {
+                factor = proj - math.sqrt(discr)
+                if(factor > 0.1) {
+                    point.copy(ray.origin + ray.dir.scale_up(factor))
+                    normal.copy((point - center).scale_down(radius))
+                    //println("here")
+                    ret true
+                }
+            }
+
+            ret false
+        }
+        
+        fn lambertFactor(lam) {
+            ret 1.0 - (1.0 - lam) * diffuseness 
+        }
+}
+
+class Scene {
+    pub:
+        ambientColor, body
+
+        new() { 
+            ambientColor = Vec(0.2, 0.2, 0.2)
+            body = []
+        }
+
+        fn trace(ray) {
+            ret trace(ray, 0)
+        }
+
+        fn trace(ray, depth) {
+            if(depth > 3) {
+                ret ambientColor
+            }
+
+            // find nearest intersection
+            bestDist  = 1e9
+            bestIndex = nil
+            bestPoint = nil
+            bestNormal = nil
+
+            for(b in body) {
+                point = Vec(0, 0, 0)
+                normal = Vec(0, 0, 0)
+                if(b.intersect(ray, point, normal)) {
+                    dist = norm(point - ray.origin)
+                    if(dist < bestDist) {
+                        bestDist   = dist
+                        bestIndex  = b
+                        bestPoint  = point
+                        bestNormal = normal
+                        //println(normal)
+                    }
+                }
+            }
+
+            // reflect rays
+            if(bestIndex != nil) {
+                bestBody = bestIndex
+
+                if(bestBody.isLamp) {
+                    ret bestBody.color
+                }
+                specularDir = ray.dir -
+                                bestNormal.scale_up(2.0 * (ray.dir.mult_sum(bestNormal)))
+                diffuseDir = normalize(specularDir + Vec(rnd(), rnd(), rnd()).scale_up(
+                                                    (2.0 * bestBody.diffuseness)))
+
+                lambert = diffuseDir.mult_sum(bestNormal)
+                if(lambert < 0) {
+                    diffuseDir = diffuseDir - bestNormal.scale_up(2.0 * lambert)
+                    lambert    = -lambert
+                }
+
+                diffuseRay = Ray(bestPoint, diffuseDir)
+
+                ret (trace(diffuseRay, depth + 1).scale_up(
+                        bestBody.lambertFactor(lambert))) *
+                    bestBody.color
+            }
+
+            ret ambientColor
+        }
+}
+
+fn main() {
+	random.seed(1337)
+
+	// define scene
+	scene = Scene()
+
+	box1 = Box(Vec(500, -100, 1200), Vec(400, 600, 300), Vec(0.4, 0.7, 1.0),
+	         0.1)
+
+	scene.body.insert(box1)
+
+	box2 = Box(Vec(550, 210, 1100), Vec(1000, 20, 1000), Vec(0.9, 1.0, 0.6),
+	         0.3)
+
+	scene.body.insert(box2)
+
+	sphere1 = Sphere(Vec(600, 0, 700), 200, Vec(1.0, 0.4, 0.6), 0.2)
+
+	scene.body.insert(sphere1)
+
+	sphere2 = Sphere(Vec(330, 150, 700), 50, Vec(1.0, 1.0, 0.3), 0.15)
+
+	scene.body.insert(sphere2)
+
+	// define light
+	lamp1 = Sphere(Vec(500, -1000, -700), 800, Vec(1.0, 1.0, 1.0), 1.0, true)
+
+	scene.body.insert(lamp1)
+
+	// define eye
+	pos = Vec(0, 0, 0)
+	azimuth = 30.0 * math.pi / 180.0
+	sinAz = math.sin(azimuth)
+	cosAz = math.cos(azimuth)
+
+	width = 640, height = 480
+	focal = 500, antialiasing = 10.0
+
+	// render scene
+	rays = 100
+
+	f = io.open("scene_n_opt.ppm", "wb")
+	f.write(fmt("P6\n{} {}\n255\n", width, height))
+
+	for(i in range(height)) {
+		for(j in range(width)) {
+			dir = Vec(j - width / 2, i - height / 2, focal)
+
+			rotDir = Vec(dir.x * cosAz + dir.z * sinAz, dir.y,
+			           -dir.x * sinAz + dir.z * cosAz)
+			color = Vec(0, 0, 0)
+			for(r in range(rays)) {
+			    randomDir = rotDir + Vec(rnd(), rnd(), rnd()).scale_up(antialiasing)
+			    //println(randomDir)
+				ray = Ray(pos, normalize(randomDir))
+				color = color + scene.trace(ray)
+			}
+			color = color.scale_down(rays).scale_up(255.0)
+
+			f.writebyte(color.x.to_int())
+		    f.writebyte(color.y.to_int())
+			f.writebyte(color.z.to_int())
+		}
+
+		println(fmt("{:3d}/{:3d}", i + 1, height))
+	}
+
+	f.close()
+}
+
+main()
