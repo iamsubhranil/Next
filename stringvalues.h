@@ -5,6 +5,7 @@
 #define SYMCONSTANT(name)
 #endif
 
+SCONSTANT(EmptyString, "")
 SCONSTANT(RuntimeException, "RuntimeException")
 SCONSTANT(any_, "any")
 SCONSTANT(error, "error")
