@@ -122,7 +122,7 @@ Value next_file_readbytes(const Value *args, int numargs) {
 	}
 	// THIS IS REALLY INEFFICIENT, AND REQUIRES 2x MEMORY
 	uint8_t *bytes = (uint8_t *)GcObject::malloc(count);
-	if(fread(bytes, 1, count, args[0].toFile()->file) != count) {
+	if(fread(bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
 		GcObject::free(bytes, count);
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbytes(count) failed");
@@ -141,7 +141,6 @@ Value next_file_writebyte(const Value *args, int numargs) {
 	EXPECT(file, "writebyte(byte)", 1, Integer);
 	CHECK_IF_VALID();
 	int64_t byte = args[1].toInteger();
-	size_t  ret;
 	if(fwrite(&byte, 1, 1, args[0].toFile()->file) != 1) {
 		TRYFORMATERROR("file.writebyte(byte) failed");
 	}
@@ -201,7 +200,7 @@ Value next_file_read_n(const Value *args, int numargs) {
 	}
 	// THIS IS REALLY INEFFICIENT, AND REQUIRES 2x MEMORY
 	char *bytes = (char *)GcObject::malloc(count);
-	if(fread(bytes, 1, count, args[0].toFile()->file) != count) {
+	if(fread(bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
 		GcObject::free(bytes, count);
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read(count) failed");
@@ -234,7 +233,7 @@ Value next_file_readall(const Value *args, int numargs) {
 	}
 	// USES 2x memory
 	char *buffer = (char *)GcObject::malloc(length);
-	if(fread(buffer, 1, length, f) != length) {
+	if(fread(buffer, 1, length, f) != (size_t)length) {
 		GcObject::free(buffer, length);
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readall() failed: reading failed");
@@ -250,8 +249,7 @@ Value next_file_write(const Value *args, int numargs) {
 	CHECK_IF_VALID();
 	String *s = args[1].toString();
 	FILE *  f = args[0].toFile()->file;
-	size_t  ret;
-	if(fwrite(s->str(), 1, s->size, f) != s->size) {
+	if(fwrite(s->str(), 1, s->size, f) != (size_t)s->size) {
 		TRYFORMATERROR("file.write(str) failed");
 	}
 	return Value(s->size);
