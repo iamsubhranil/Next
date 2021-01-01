@@ -4,6 +4,7 @@
 #include "errors.h"
 #include "string.h"
 #include "tuple.h"
+#include <errno.h>
 
 Value File::create(String2 name, String2 mode) {
 	FILE *  f = fopen(name->str(), mode->str());
