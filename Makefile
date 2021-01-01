@@ -48,7 +48,7 @@ debug_scanner: CXXFLAGS += -DDEBUG_SCANNER
 debug_scanner: debug_all
 
 coverage: clean 
-	$(RM) *.gcda objects/*.gcda
+	$(RM) *.gcda objects/*.gcda stdlib/*/*.gcda
 coverage: CXXFLAGS += -fprofile-arcs -ftest-coverage
 coverage: LDFLAGS += -lgcov --coverage
 coverage: debug
@@ -60,7 +60,7 @@ clean_pgodata: clean
 	$(V) rm -f default_*.profraw default.profdata
 else
 clean_pgodata: clean
-	$(V) rm -f *.gcda objects/*.gcda
+	$(V) rm -f *.gcda objects/*.gcda stdlib/*/*.gcda
 endif
 
 pgobuild: CXXFLAGS+=-fprofile-generate -march=native

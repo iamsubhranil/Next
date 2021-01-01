@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 include_directories(.)
 
-file(GLOB sources *.cpp objects/*.cpp)
+file(GLOB sources *.cpp objects/*.cpp stdlib/*/*.cpp)
 
 add_executable(next ${sources})
 
