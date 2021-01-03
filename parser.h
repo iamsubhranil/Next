@@ -8,19 +8,22 @@
 class Precedence {
 	// Ordered in increasing precedence.
   public:
-	static const int ASSIGNMENT = 1;
-	static const int OR         = 2;
-	static const int AND        = 3;
-	static const int EQUALITY   = 4;
-	static const int COMPARISON = 5;
-	static const int SUM        = 6;
-	static const int PRODUCT    = 7;
-	static const int EXPONENT   = 8;
-	static const int PREFIX     = 9;
-	static const int POSTFIX    = 10;
-	static const int REFERENCE  = 11;
-	static const int CALL       = 12;
-	static const int PRIMARY    = 13;
+	static const int ASSIGNMENT    = 1;
+	static const int OR            = 2;
+	static const int AND           = 3;
+	static const int EQUALITY      = 4;
+	static const int COMPARISON    = 5;
+	static const int BITWISE_OR    = 6;
+	static const int BITWISE_XOR   = 7;
+	static const int BITWISE_AND   = 8;
+	static const int BITWISE_SHIFT = 9;
+	static const int SUM           = 10;
+	static const int PRODUCT       = 11;
+	static const int PREFIX        = 12;
+	static const int POSTFIX       = 13;
+	static const int REFERENCE     = 14;
+	static const int CALL          = 15;
+	static const int PRIMARY       = 16;
 };
 
 class Parser;
@@ -165,7 +168,7 @@ class FnDeclaration : public DeclarationParselet {
   public:
 	virtual Statement *parse(Parser *p, Token t, Visibility vis);
 	static FnBodyStatement *
-	                  parseFnBody(Parser *p, Token t, bool isNative = false, int numArgs = -1);
+	parseFnBody(Parser *p, Token t, bool isNative = false, int numArgs = -1);
 	static Statement *parseFnStatement(Parser *p, Token t, bool ism, bool iss,
 	                                   Visibility vis);
 };

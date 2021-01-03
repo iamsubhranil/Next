@@ -53,12 +53,15 @@ bool Token::isOperator() {
 		case TOKEN_STAR:
 		case TOKEN_MINUS:
 		case TOKEN_SLASH:
-		/*case TOKEN_or: AND and OR opmethods are not yet implemented
-		case TOKEN_and:*/
 		case TOKEN_PLUS_PLUS:
 		case TOKEN_MINUS_MINUS:
 		case TOKEN_SUBSCRIPT:
-		case TOKEN_CARET: return true;
+		case TOKEN_CARET:
+		case TOKEN_GREATER_GREATER:
+		case TOKEN_LESS_LESS:
+		case TOKEN_PIPE:
+		case TOKEN_AMPERSAND:
+		case TOKEN_TILDE: return true;
 		default: return false;
 	}
 }
@@ -133,41 +136,71 @@ void Token::highlight(bool showFileName, const char *prefix,
 	cout << endl;
 }
 
-const char *Token::TokenNames[] = {
-    "TOKEN_LEFT_PAREN",    "TOKEN_RIGHT_PAREN", "TOKEN_LEFT_BRACE",
-    "TOKEN_RIGHT_BRACE",   "TOKEN_LEFT_SQUARE", "TOKEN_RIGHT_SQUARE",
-    "TOKEN_SUBSCRIPT",
+const char *Token::TokenNames[] = {"TOKEN_LEFT_PAREN",
+                                   "TOKEN_RIGHT_PAREN",
+                                   "TOKEN_LEFT_BRACE",
+                                   "TOKEN_RIGHT_BRACE",
+                                   "TOKEN_LEFT_SQUARE",
+                                   "TOKEN_RIGHT_SQUARE",
+                                   "TOKEN_SUBSCRIPT",
 
-    "TOKEN_BANG",          "TOKEN_BANG_EQUAL",  "TOKEN_COMMA",
-    "TOKEN_DOT",           "TOKEN_DOT_DOT",     "TOKEN_COLON",
+                                   "TOKEN_BANG",
+                                   "TOKEN_BANG_EQUAL",
+                                   "TOKEN_COMMA",
+                                   "TOKEN_DOT",
+                                   "TOKEN_DOT_DOT",
+                                   "TOKEN_COLON",
 
-    "TOKEN_EQUAL",         "TOKEN_EQUAL_EQUAL", "TOKEN_GREATER",
-    "TOKEN_GREATER_EQUAL", "TOKEN_LESS",        "TOKEN_LESS_EQUAL",
-    "TOKEN_MINUS",         "TOKEN_PLUS",        "TOKEN_SEMICOLON",
-    "TOKEN_SLASH",         "TOKEN_STAR",        "TOKEN_PERCEN",
-    "TOKEN_CARET",         "TOKEN_AT",          "TOKEN_PLUS_PLUS",
-    "TOKEN_MINUS_MINUS",
+                                   "TOKEN_EQUAL",
+                                   "TOKEN_EQUAL_EQUAL",
+                                   "TOKEN_GREATER",
+                                   "TOKEN_GREATER_EQUAL",
+                                   "TOKEN_GREATER_GREATER",
+                                   "TOKEN_LESS",
+                                   "TOKEN_LESS_EQUAL",
+                                   "TOKEN_LESS_LESS",
+                                   "TOKEN_MINUS",
+                                   "TOKEN_PLUS",
+                                   "TOKEN_SEMICOLON",
+                                   "TOKEN_SLASH",
+                                   "TOKEN_STAR",
+                                   "TOKEN_PERCEN",
+                                   "TOKEN_CARET",
+                                   "TOKEN_AT",
 
-    "TOKEN_IDENTIFIER",    "TOKEN_STRING",      "TOKEN_NUMBER",
-    "TOKEN_HEX",           "TOKEN_OCT",         "TOKEN_BIN",
+                                   "TOKEN_PIPE",
+                                   "TOKEN_AMPERSAND",
+                                   "TOKEN_TILDE",
+
+                                   "TOKEN_PLUS_PLUS",
+                                   "TOKEN_MINUS_MINUS",
+
+                                   "TOKEN_IDENTIFIER",
+                                   "TOKEN_STRING",
+                                   "TOKEN_NUMBER",
+                                   "TOKEN_HEX",
+                                   "TOKEN_OCT",
+                                   "TOKEN_BIN",
 
 #define KEYWORD(x, y) "TOKEN_" #x,
 #include "keywords.h"
 #undef KEYWORD
 
-    "TOKEN_ERROR",         "TOKEN_EOF"};
+                                   "TOKEN_ERROR",
+                                   "TOKEN_EOF"};
 
 const char *Token::FormalNames[] = {
-    "(",     ")",          "{",      "}",      "[",          "]",     "[]",
-    "!",     "!=",         ",",      ".",      "..",         ":",     "=",
-    "==",    ">",          ">=",     "<",      "<=",         "-",     "+",
-    ";",     "/",          "*",      "%",      "^",          "@",     "++",
-    "--",    "identifier", "string", "number", "hexdecimal", "octal", "binary",
+    "(",      ")",          "{",          "}",     "[",      "]",  "[]",
+    "!",      "!=",         ",",          ".",     "..",     ":",  "=",
+    "==",     ">",          ">=",         ">>",    "<",      "<=", "<<",
+    "-",      "+",          ";",          "/",     "*",      "%",  "^",
+    "@",      "|",          "&",          "~",     "++",     "--", "identifier",
+    "string", "number",     "hexdecimal", "octal", "binary",
 #define KEYWORD(x, y) #x,
 #include "keywords.h"
 #undef KEYWORD
 
-    "error", "end of file"};
+    "error",  "end of file"};
 
 ostream &operator<<(ostream &os, const Token &t) {
 	return os << string(t.start, t.length);
@@ -451,32 +484,24 @@ Token Scanner::scanNextToken() {
 		case '{': return Token::from(TOKEN_LEFT_BRACE, this);
 		case '}': return Token::from(TOKEN_RIGHT_BRACE, this);
 		case '[':
-			if(peek() == ']') {
-				advance();
+			if(match(']'))
 				return Token::from(TOKEN_SUBSCRIPT, this);
-			}
 			return Token::from(TOKEN_LEFT_SQUARE, this);
 		case ']': return Token::from(TOKEN_RIGHT_SQUARE, this);
 		case ';': return Token::from(TOKEN_SEMICOLON, this);
 		case ':': return Token::from(TOKEN_COLON, this);
 		case ',': return Token::from(TOKEN_COMMA, this);
 		case '.':
-			if(peek() == '.') {
-				advance();
+			if(match('.'))
 				return Token::from(TOKEN_DOT_DOT, this);
-			}
 			return Token::from(TOKEN_DOT, this);
 		case '-':
-			if(peek() == '-') {
-				advance();
+			if(match('-'))
 				return Token::from(TOKEN_MINUS_MINUS, this);
-			}
 			return Token::from(TOKEN_MINUS, this);
 		case '+':
-			if(peek() == '+') {
-				advance();
+			if(match('+'))
 				return Token::from(TOKEN_PLUS_PLUS, this);
-			}
 			return Token::from(TOKEN_PLUS, this);
 		case '/':
 			if(match('/')) {
@@ -512,12 +537,20 @@ Token Scanner::scanNextToken() {
 		case '<':
 			if(match('='))
 				return Token::from(TOKEN_LESS_EQUAL, this);
+			if(match('<'))
+				return Token::from(TOKEN_LESS_LESS, this);
 			return Token::from(TOKEN_LESS, this);
 
 		case '>':
 			if(match('='))
 				return Token::from(TOKEN_GREATER_EQUAL, this);
+			if(match('>'))
+				return Token::from(TOKEN_GREATER_GREATER, this);
 			return Token::from(TOKEN_GREATER, this);
+
+		case '|': return Token::from(TOKEN_PIPE, this);
+		case '&': return Token::from(TOKEN_AMPERSAND, this);
+		case '~': return Token::from(TOKEN_TILDE, this);
 
 		case '"': return str();
 		default:

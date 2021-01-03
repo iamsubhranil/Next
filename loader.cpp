@@ -20,10 +20,6 @@ static void infixLeft(Parser *p, TokenType t, int prec) {
 	p->registerParselet(t, new BinaryOperatorParselet(prec, false));
 }
 
-static void infixRight(Parser *p, TokenType t, int prec) {
-	p->registerParselet(t, new BinaryOperatorParselet(prec, true));
-}
-
 void registerParselets(Parser *p) {
 	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
 	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
@@ -50,6 +46,7 @@ void registerParselets(Parser *p) {
 	prefix(p, TOKEN_BANG, Precedence::PREFIX);
 	prefix(p, TOKEN_PLUS, Precedence::PREFIX);
 	prefix(p, TOKEN_MINUS, Precedence::PREFIX);
+	prefix(p, TOKEN_TILDE, Precedence::PREFIX);
 	prefix(p, TOKEN_PLUS_PLUS, Precedence::PREFIX);
 	prefix(p, TOKEN_MINUS_MINUS, Precedence::PREFIX);
 
@@ -71,7 +68,11 @@ void registerParselets(Parser *p) {
 	infixLeft(p, TOKEN_STAR, Precedence::PRODUCT);
 	infixLeft(p, TOKEN_SLASH, Precedence::PRODUCT);
 
-	infixRight(p, TOKEN_CARET, Precedence::EXPONENT);
+	infixLeft(p, TOKEN_AMPERSAND, Precedence::BITWISE_AND);
+	infixLeft(p, TOKEN_PIPE, Precedence::BITWISE_OR);
+	infixLeft(p, TOKEN_CARET, Precedence::BITWISE_XOR);
+	infixLeft(p, TOKEN_GREATER_GREATER, Precedence::BITWISE_SHIFT);
+	infixLeft(p, TOKEN_LESS_LESS, Precedence::BITWISE_SHIFT);
 
 	// Top level declarations
 	p->registerParselet(TOKEN_fn, new FnDeclaration());

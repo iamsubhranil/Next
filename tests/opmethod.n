@@ -41,15 +41,15 @@ class List {
         op <=(x) {
             ret mem <= x
         }
-        /* AND and OR opmethods are not yet implemented
-        op or(x) {
-            ret mem > 0 or x > 0
+
+        op <<(x) {
+            ret mem << x
         }
 
-        op and(x) {
-            ret mem > 0 and x > 0
+        op >>(x) {
+            ret mem >> x
         }
-        */
+
         op ==(x) {
             ret mem == x
         }
@@ -60,6 +60,14 @@ class List {
 
         op ^(x) {
             ret mem ^ x
+        }
+
+        op |(x) {
+            ret mem | x
+        }
+
+        op &(x) {
+            ret mem & x
         }
 
         // postfix is desugared as
@@ -132,18 +140,6 @@ pub fn test() {
         print(">=(_) is not working\n")
         res = false
     }
-    /* AND and OR op methods are not yet implemented
-    something = obj or 4
-    if(!something) {
-        print("or(_) is not working\n")
-        res = false
-    }
-    something = obj and -8
-    if(something) {
-        print("and(_) is not working\n")
-        res = false
-    }
-    */
     something = obj == 19
     if(something) {
         print("==(_) is not working\n")
@@ -155,8 +151,28 @@ pub fn test() {
         res = false
     }
     something = obj ^ 2
-    if(something != 324) {
+    if(something != 16) {
         print("^(_) is not working\n")
+        res = false
+    }
+    something = obj | 2
+    if(something != 18) {
+        print("|(_) is not working\n")
+        res = false
+    }
+    something = obj & 2
+    if(something != 2) {
+        print("&(_) is not working\n")
+        res = false
+    }
+    something = obj >> 2
+    if(something != 4) {
+        print(">>(_) is not working\n")
+        res = false
+    }
+    something = obj << 2
+    if(something != 72) {
+        print("<<(_) is not working\n")
         res = false
     }
     something = ++obj

@@ -209,14 +209,18 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_MINUS: btx->sub(); break;
 		case TOKEN_STAR: btx->mul(); break;
 		case TOKEN_SLASH: btx->div(); break;
-		case TOKEN_CARET: btx->power(); break;
+		case TOKEN_CARET: btx->bxor(); break;
+		case TOKEN_PIPE: btx->bor(); break;
+		case TOKEN_AMPERSAND: btx->band(); break;
 		case TOKEN_BANG: btx->lnot(); break;
 		case TOKEN_EQUAL_EQUAL: btx->eq(); break;
 		case TOKEN_BANG_EQUAL: btx->neq(); break;
 		case TOKEN_LESS: btx->less(); break;
 		case TOKEN_LESS_EQUAL: btx->lesseq(); break;
+		case TOKEN_LESS_LESS: btx->blshift(); break;
 		case TOKEN_GREATER: btx->greater(); break;
 		case TOKEN_GREATER_EQUAL: btx->greatereq(); break;
+		case TOKEN_GREATER_GREATER: btx->brshift(); break;
 		case TOKEN_and: btx->land(jumpto, btx->getip() - jumpto); break;
 		case TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
 
@@ -788,6 +792,11 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 			pe->right->accept(this);
 			btx->insert_token(pe->token);
 			btx->neg();
+			break;
+		case TOKEN_TILDE:
+			pe->right->accept(this);
+			btx->insert_token(pe->token);
+			btx->bnot();
 			break;
 		case TOKEN_PLUS_PLUS:
 		case TOKEN_MINUS_MINUS:

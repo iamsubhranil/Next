@@ -22,7 +22,15 @@ OPCODE0(add, -1) // 1 pop + inplace add
 OPCODE0(sub, -1) // 1 pop + inplace sub
 OPCODE0(mul, -1)
 OPCODE0(div, -1)
-OPCODE0(power, -1)
+
+// binary operations,
+// applicable only on integers
+OPCODE0(band, -1)
+OPCODE0(bor, -1)
+OPCODE0(blshift, -1)
+OPCODE0(brshift, -1)
+OPCODE0(bxor, -1)
+OPCODE0(bnot, 0)
 
 // ++ and -- operations are desugared
 // into

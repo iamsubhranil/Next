@@ -9,7 +9,6 @@
 #include "objects/iterator.h"
 #include "objects/object.h"
 #include "objects/symtab.h"
-#include <cmath>
 #include <iostream>
 
 //#define DEBUG_INS
@@ -516,10 +515,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 #define binary(op, opname, argtype, restype, opcode) \
 	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_direct)
 
-#define binary_perform_pow(op, a, b) (pow((a), (b)))
-#define binary_pow(op, opname, argtype, restype, opcode) \
-	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_pow)
-
 #define is_falsey(v) (v == ValueNil || v == ValueFalse || v == ValueZero)
 
 #define binary_shortcircuit(...)                  \
@@ -664,7 +659,13 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			CASE(lesseq)
 			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
 
-			CASE(power) : binary_pow(^, power of, Number, Number, pow);
+			CASE(band) : binary(&, binary AND, Integer, Number, band);
+			CASE(bor) : binary(|, binary OR, Integer, Number, bor);
+			CASE(bxor) : binary(^, binary XOR, Integer, Number, bxor);
+			CASE(blshift)
+			    : binary(<<, binary left shift, Integer, Number, blshift);
+			CASE(brshift)
+			    : binary(>>, binary right shift, Integer, Number, brshift);
 
 			CASE(neq) : {
 				rightOperand = POP();
@@ -705,6 +706,14 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 					DISPATCH();
 				}
 				RERRF("'-' must only be applied over a number!");
+			}
+
+			CASE(bnot) : {
+				if(TOP.isInteger()) {
+					TOP.setNumber(~TOP.toInteger());
+					DISPATCH();
+				}
+				RERRF("'~' must only be applied over an integer!");
 			}
 
 			CASE(copy) : {
