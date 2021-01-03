@@ -1,0 +1,67 @@
+import io
+
+fn compute_row(n, size, fac, shift, buffer) {
+    bits = 0
+    ci = (n * fac) - 1.0
+    res = 0
+    for(x in range(size)) {
+        zr = 0, zi = 0, cr = (x * fac) - 1.5, i = 50, zrn = 0, zin = 0
+        do {
+            zi = 2.0 * zr * zi + ci
+            zr = zrn - zin + cr
+            zin = zi * zi
+            zrn = zr * zr
+        } while(!(zin + zrn > 4.0) and --i > 0)
+
+        bits = bits << 1
+        if(i == 0) {
+            bits++
+        }
+
+        if(x & 7 == 7) {
+            res = res + bits
+            buffer.insert(bits)
+            bits = 0
+            seven = -1
+        }
+    }
+    if(shift != 0) {
+        bits = bits << shift
+        res = res + bits
+        buffer.insert(bits)
+    }
+    ret res
+}
+
+fn compute(size) {
+    fac = 2.0 / size
+    shift = 0
+    // % 8 replacement
+    if(size & 7 != 0) {
+        shift = 8 - size & 7
+    }
+    buffer = []
+    res = 0
+    for(n in range(size)) {
+        res = res + compute_row(n, size, fac, shift, buffer)
+    }
+    ret (buffer, res)
+}
+
+fn main() {
+    size = 500
+    start = clock()
+    output = compute(size)
+    end = clock()
+    println(output[1])
+    println("elapsed: ", (end - start) / clocks_per_sec)
+    /*
+    buffer = output[0]
+    f = io.open("mandelbrot.ppm", "w")
+    f.write(fmt("P4\n{} {}\n", size, size))
+    f.writebytes(buffer)
+    f.close()
+    */
+}
+
+main()

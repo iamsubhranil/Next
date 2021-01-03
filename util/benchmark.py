@@ -123,16 +123,17 @@ BENCHMARK("fibers", r"""4999950000""")
 
 BENCHMARK("garbage_test", r"""Final object : <object of 'MyClass'> {2000000, 2000002, 2000002, 2000000}""")
 
+BENCHMARK("mandelbrot", r"""3165191""")
+
 BENCHMARK("map_numeric", r"""2000001000000""")
+
+BENCHMARK("map_string", r"""12799920000""")
 
 BENCHMARK("method_call", r"""true
 false""")
 
 BENCHMARK("nbody", r"""-0.16907516382852
 -0.16907807065935""")
-
-
-BENCHMARK("map_string", r"""12799920000""")
 
 BENCHMARK("spectral_norm", r"""1.623647098""")
 
