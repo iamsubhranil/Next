@@ -157,7 +157,7 @@ Value next_file_writebytes(const Value *args, int numargs) {
 	} else {
 		EXPECT(file, "writebytes(bytes)", 1, Array);
 		arr  = args[1].toArray()->values;
-		size = args[1].toTuple()->size;
+		size = args[1].toArray()->size;
 	}
 	for(size_t i = 0; i < size; i++) {
 		if(!arr[i].isInteger()) {
