@@ -65,11 +65,11 @@ struct Class {
 	// has to perform some extra checks before and after
 	// the builtin is executed.
 	void add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
-	                     bool isvarg, bool cannest);
+	                     bool isvarg, bool cannest, bool isstatic);
 	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
-	                    bool isvarg = false);
+	                    bool isvarg = false, bool isstatic = false);
 	void add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
-	                         bool isvarg = false);
+	                         bool isvarg = false, bool isstatic = false);
 	inline bool has_fn(int sym) const {
 		return functions->capacity > sym && functions->values[sym] != ValueNil;
 	}

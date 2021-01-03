@@ -75,10 +75,14 @@ void Class::add_fn(const char *str, Function *f) {
 }
 
 void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
-                            bool isva, bool cannest) {
+                            bool isva, bool cannest, bool isstatic) {
 	Function2 f = Function::from(str, arity, fn, isva);
 	f->cannest  = cannest;
+	f->static_  = isstatic;
 	add_fn(str, f);
+	if(isstatic && metaclass) {
+		metaclass->add_fn(str, f);
+	}
 	if(isva) {
 		// sig contains the base signature, without
 		// the vararg. so get the base without ')'
@@ -94,19 +98,23 @@ void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
 			} else {
 				base = String::append(base, ",_");
 			}
-			add_fn(String::append(base, ")"), f);
+			String2 res = String::append(base, ")");
+			add_fn(res, f);
+			if(isstatic && metaclass) {
+				metaclass->add_fn(res, f);
+			}
 		}
 	}
 }
 
 void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
-                           bool isva) {
-	add_builtin_fn2(str, arity, fn, isva, false);
+                           bool isva, bool isstatic) {
+	add_builtin_fn2(str, arity, fn, isva, false, isstatic);
 }
 
 void Class::add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
-                                bool isva) {
-	add_builtin_fn2(str, arity, fn, isva, true);
+                                bool isva, bool isstatic) {
+	add_builtin_fn2(str, arity, fn, isva, true, isstatic);
 }
 
 bool Class::has_fn(const char *sig) const {
