@@ -20,7 +20,7 @@ Value &FieldAccessFunction(const Class *c, Value v, int field) {
 	}
 }
 
-void Class::init(String *s, ClassType typ, Class *mc) {
+void Class::init(String2 s, ClassType typ, Class *mc) {
 	name              = s;
 	type              = typ;
 	numSlots          = 0;
@@ -33,6 +33,14 @@ void Class::init(String *s, ClassType typ, Class *mc) {
 	isMetaClass       = false;
 	superclass        = NULL;
 	accessFn          = FieldAccessFunction;
+	if(typ == BUILTIN && mc == nullptr) {
+		// for builtin classes with no defined metaclass,
+		// create a default metaclass
+		mc        = GcObject::ClassClass->copy();
+		obj.klass = mc;
+		mc->name  = String::append(s, " metaclass");
+		metaclass = mc;
+	}
 	if(mc)
 		mc->isMetaClass = true;
 	functions = Array::create(1);
@@ -325,12 +333,14 @@ Value next_class_name(const Value *args, int numargs) {
 
 void Class::init() {
 	Class *ClassClass = GcObject::ClassClass;
-
-	// bind itself as its class
-	ClassClass->obj.klass = ClassClass;
+	// create a metaclass by hand
+	Class2 ClassMetaClass     = Class::create();
+	ClassMetaClass->type      = Class::ClassType::BUILTIN;
+	ClassMetaClass->name      = String::from("class metaclass");
+	ClassMetaClass->accessFn  = FieldAccessFunction;
+	ClassMetaClass->functions = Array::create(1);
 	// initialize
-	ClassClass->init("class", BUILTIN);
-
+	ClassClass->init("class", BUILTIN, ClassMetaClass);
 	// make this class a subclass of the argument class
 	ClassClass->add_builtin_fn(" derive(_)", 1, next_class_derive);
 	// only returns true if sig is available and public

@@ -43,7 +43,7 @@ struct Class {
 
 	static void init();
 	void        init(const char *name, ClassType typ, Class *metaclass = NULL);
-	void        init(String *s, ClassType typ, Class *metaclass = NULL);
+	void        init(String2 s, ClassType typ, Class *metaclass = NULL);
 	// add_sym adds a symbol to the method buffer
 	// which holds a particular value, typically,
 	// the slot number.

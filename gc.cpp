@@ -5,6 +5,7 @@
 #include "loader.h"
 #include "memman.h"
 #include "objects/array_iterator.h"
+#include "objects/bitarray.h"
 #include "objects/boolean.h"
 #include "objects/boundmethod.h"
 #include "objects/builtin_module.h"
@@ -501,9 +502,6 @@ void GcObject::init() {
 	String::init0();
 	SymbolTable2::init();
 
-	// initialize the primitive classes
-	Number::init();
-	Boolean::init();
 	// initialize the core classes
 #ifdef DEBUG_GC
 #define OBJTYPE(n)                                     \
@@ -514,6 +512,9 @@ void GcObject::init() {
 #define OBJTYPE(n) n::init();
 #endif
 #include "objecttype.h"
+	// initialize the primitive classes
+	Number::init();
+	Boolean::init();
 
 	CoreContext = ClassCompilationContext::create(NULL, String::const_core);
 	// register all the classes to core
