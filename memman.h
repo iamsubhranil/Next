@@ -307,7 +307,11 @@ struct MemoryManager {
 			arenaList    = a;
 			return a->allocateBlock(size); // we're sure we can do this
 		}
-		return std::malloc(size);
+		void *m = std::malloc(size);
+		if(m == NULL) {
+			err("Memory unavailable for allocation!");
+		}
+		return m;
 	}
 
 	static void *realloc(void *mem, size_t oldb, size_t newb) {
