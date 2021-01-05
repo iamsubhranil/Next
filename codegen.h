@@ -148,7 +148,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	                                 bool       showError = true,
 	                                 Visibility vis       = VIS_DEFAULT);
 	VarInfo          lookForVariable2(String *name, bool declare = false,
-	                                  Visibility vis = VIS_DEFAULT);
+	                                  Visibility vis = VIS_DEFAULT, bool force = false);
 	void             compileAll(Array *statements);
 	void             initFtx(FunctionCompilationContext *f, Token t);
 	void             popFrame();

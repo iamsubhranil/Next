@@ -473,31 +473,35 @@ void CodeGenerator::visit(CallExpression *call) {
 	emitCall(call);
 }
 
-CodeGenerator::VarInfo
-CodeGenerator::lookForVariable2(String *name, bool declare, Visibility vis) {
+CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
+                                                       bool       declare,
+                                                       Visibility vis,
+                                                       bool       force) {
 	int slot = 0;
-	// first check the present context
-	if(ftx->has_slot(name, scopeID)) {
-		slot = ftx->get_slot(name);
-		return (VarInfo){slot, LOCAL, false};
-	} else { // It's in an enclosing class, or parent frame or another mtx
-		// Check if it is in present class
-		if(ctx->has_mem(name)) {
-			return (VarInfo){ctx->get_mem_slot(name), CLASS,
-			                 ctx->is_static_slot(name)};
-		}
+	if(!force) {
+		// first check the present context
+		if(ftx->has_slot(name, scopeID)) {
+			slot = ftx->get_slot(name);
+			return (VarInfo){slot, LOCAL, false};
+		} else { // It's in an enclosing class, or parent frame or another mtx
+			// Check if it is in present class
+			if(ctx->has_mem(name)) {
+				return (VarInfo){ctx->get_mem_slot(name), CLASS,
+				                 ctx->is_static_slot(name)};
+			}
 
-		// Check if it is in the parent module
-		if(mtx->has_mem(name)) {
-			return (VarInfo){mtx->get_mem_slot(name), MODULE, false};
-		}
-		// Check if it is in core
-		if(corectx->has_mem(name)) {
-			return (VarInfo){corectx->get_mem_slot(name), CORE, false};
+			// Check if it is in the parent module
+			if(mtx->has_mem(name)) {
+				return (VarInfo){mtx->get_mem_slot(name), MODULE, false};
+			}
+			// Check if it is in core
+			if(corectx->has_mem(name)) {
+				return (VarInfo){corectx->get_mem_slot(name), CORE, false};
+			}
 		}
 	}
 
-	if(declare) {
+	if(declare || force) {
 		// Finally, declare the variable in the present frame
 		// If we're in the default constructor of a module,
 		// make the variable a class member
@@ -574,13 +578,12 @@ void CodeGenerator::visit(AssignExpression *as) {
 		// target of an assignment expression cannot be a
 		// builtin constant
 		if(variableInfo.position == CORE) {
-			lnerr_("Built-in variable '%.*s' cannot be "
-			       "reassigned!",
-			       as->target->token, as->target->token.length,
-			       as->target->token.start);
-		} else {
-			storeVariable(variableInfo);
+			// force declare in present scope
+			variableInfo = lookForVariable2(
+			    String::from(as->target->token.start, as->target->token.length),
+			    true, currentVisibility, true);
 		}
+		storeVariable(variableInfo);
 	}
 }
 
@@ -1443,8 +1446,12 @@ void CodeGenerator::visit(VardeclStatement *ifs) {
 	ifs->expr->accept(this);
 	VarInfo info = lookForVariable(ifs->token, true, false, ifs->vis);
 	if(info.position == CORE) {
-		lnerr_("Built-in constant '%.*s' cannot be reassigned!", ifs->token,
-		       ifs->token.length, ifs->token.start);
+		// we don't allow reassignment of core module variables/classes,
+		// which are default imported in all modules.
+		// so force declare the variable in present scope.
+		info =
+		    lookForVariable2(String::from(ifs->token.start, ifs->token.length),
+		                     true, ifs->vis, true);
 	}
 	storeVariable(info);
 	btx->pop_();
