@@ -1,5 +1,6 @@
 #include "file.h"
 #include "../format.h"
+#include "bits.h"
 #include "class.h"
 #include "errors.h"
 #include "string.h"
@@ -120,20 +121,13 @@ Value next_file_readbytes(const Value *args, int numargs) {
 	if(count < 1) {
 		return FileError::sete("number of bytes to be read must be > 0!");
 	}
-	// THIS IS REALLY INEFFICIENT, AND REQUIRES 2x MEMORY
-	uint8_t *bytes = (uint8_t *)GcObject::malloc(count);
-	if(fread(bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
-		GcObject::free(bytes, count);
+	Bits *b = Bits::create(count);
+	if(fread(b->bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbytes(count) failed");
 	}
-	Array2 arr = Array::create(count);
-	for(int64_t i = 0; i < count; i++) {
-		arr->values[i] = Value(bytes[i]);
-	}
-	arr->size = count;
-	GcObject::free(bytes, count);
-	return Value(arr);
+	b->resize(count);
+	return Value(b);
 }
 
 Value next_file_writebyte(const Value *args, int numargs) {
@@ -149,33 +143,15 @@ Value next_file_writebyte(const Value *args, int numargs) {
 
 Value next_file_writebytes(const Value *args, int numargs) {
 	(void)numargs;
-	Value *arr  = nullptr;
-	size_t size = 0;
-	if(args[1].isTuple()) {
-		arr  = args[1].toTuple()->values();
-		size = args[1].toTuple()->size;
-	} else {
-		EXPECT(file, "writebytes(bytes)", 1, Array);
-		arr  = args[1].toArray()->values;
-		size = args[1].toArray()->size;
-	}
-	for(size_t i = 0; i < size; i++) {
-		if(!arr[i].isInteger()) {
-			return FileError::sete("Invalid value present in byte array!");
-		}
-	}
+	EXPECT(file, "writebytes(bytes)", 1, Bits);
 	CHECK_IF_VALID();
-	// THIS IS INEFFICIENT AND REQUIRES 2x space
-	uint8_t *bytearray = (uint8_t *)GcObject::malloc(size);
-	for(size_t i = 0; i < size; i++) {
-		bytearray[i] = arr[i].toNumber();
-	}
-	if(fwrite(bytearray, 1, size, args[0].toFile()->file) != size) {
-		GcObject::free(bytearray, size);
+	Bits * b   = args[1].toBits();
+	size_t res = fwrite(b->bytes, Bits::ChunkSizeByte, b->chunkcount,
+	                    args[0].toFile()->file);
+	if(res != (size_t)b->chunkcount) {
 		TRYFORMATERROR("file.writebytes(bytes) failed");
 	}
-	GcObject::free(bytearray, size);
-	return Value(size);
+	return Value(b->chunkcount);
 }
 
 Value next_file_read(const Value *args, int numargs) {

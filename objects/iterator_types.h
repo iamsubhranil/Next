@@ -9,5 +9,6 @@ ITERATOR(Tuple)
 ITERATOR(Map)
 ITERATOR(Set)
 ITERATOR(Range)
+ITERATOR(Bits)
 
 #undef ITERATOR

@@ -55,4 +55,8 @@ OBJTYPE(BuiltinModule)
 // file object
 OBJTYPE(File)
 OBJTYPE(FileError)
+
+// bit arrays
+OBJTYPE(Bits)
+OBJTYPE(BitsIterator)
 #undef OBJTYPE

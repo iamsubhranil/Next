@@ -106,15 +106,17 @@ struct Value {
 	inline bool isInteger() const {
 		return isNumber() && floor(toNumber()) == toNumber();
 	}
+	inline bool isBit() const {
+		return isInteger() && ((toInteger() == 0) || (toInteger() == 1));
+	}
 #define TYPE(r, n) \
 	inline r to##n() const { return (r)(VAL_MASK & value); }
 #include "valuetypes.h"
 #define OBJTYPE(r) \
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
-	inline double   toNumber() const { return dvalue; }
-	inline int64_t  toInteger() const { return (int64_t)toNumber(); }
-	inline uint64_t toBits() const { return value; }
+	inline double  toNumber() const { return dvalue; }
+	inline int64_t toInteger() const { return (int64_t)toNumber(); }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"
@@ -173,7 +175,7 @@ constexpr Value ValueZero  = Value(0.0);
 
 namespace std {
 	template <> struct hash<Value> {
-		std::size_t operator()(const Value &v) const { return v.toBits(); }
+		std::size_t operator()(const Value &v) const { return v.value; }
 	};
 
 	template <> struct equal_to<Value> {

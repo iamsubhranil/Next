@@ -4,6 +4,7 @@
 #include "symtab.h"
 
 #include "array_iterator.h"
+#include "bits_iterator.h"
 #include "fiber_iterator.h"
 #include "map_iterator.h"
 #include "range_iterator.h"

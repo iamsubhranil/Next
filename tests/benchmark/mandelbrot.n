@@ -20,7 +20,7 @@ fn compute_row(n, size, fac, shift, buffer) {
 
         if(x & 7 == 7) {
             res = res + bits
-            buffer.insert(bits)
+            buffer.insert_byte(bits)
             bits = 0
             seven = -1
         }
@@ -28,7 +28,7 @@ fn compute_row(n, size, fac, shift, buffer) {
     if(shift != 0) {
         bits = bits << shift
         res = res + bits
-        buffer.insert(bits)
+        buffer.insert_byte(bits)
     }
     ret res
 }
@@ -40,7 +40,7 @@ fn compute(size) {
     if(size & 7 != 0) {
         shift = 8 - size & 7
     }
-    buffer = []
+    buffer = bits()
     res = 0
     for(n in range(size)) {
         res = res + compute_row(n, size, fac, shift, buffer)
@@ -55,6 +55,7 @@ fn main() {
     end = clock()
     println(output[1])
     println("elapsed: ", (end - start) / clocks_per_sec)
+
     /*
     buffer = output[0]
     f = io.open("mandelbrot.ppm", "w")

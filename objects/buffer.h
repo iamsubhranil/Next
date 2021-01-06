@@ -17,16 +17,22 @@ template <typename T> class Buffer {
 		buf = (T *)GcObject_malloc(sizeof(T) * cap);
 	}
 
-	void reserve(std::size_t res) {
+	// conservative denotes whether to allocate only
+	// the required amount of memory or not. useful
+	// for applications where the memory requirement
+	// is already known.
+	void reserve(std::size_t res, bool conservative = false) {
 		if(res > cap) {
-			size_t ns = Utils::powerOf2Ceil(res);
+			size_t ns = res + 1;
+			if(!conservative)
+				ns = Utils::powerOf2Ceil(res);
 			buf = (T *)GcObject_realloc(buf, sizeof(T) * cap, sizeof(T) * ns);
 			cap = ns;
 		}
 	}
 
-	void resize(std::size_t res) {
-		reserve(res + 1);
+	void resize(std::size_t res, bool conservative = false) {
+		reserve(res + 1, conservative);
 		s = res;
 	}
 

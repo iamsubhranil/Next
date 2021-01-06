@@ -1,7 +1,24 @@
 #include "random.h"
+#include "../../objects/bits.h"
 #include "../../objects/errors.h"
 
 std::default_random_engine Random::Generator = std::default_random_engine();
+
+Value next_random_randbits(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(random, "randbits(n)", 1, Integer);
+	int64_t n = args[1].toInteger();
+	if(n <= 0) {
+		RERR("Number of bits must be > 0!");
+	}
+	Bits *                                 b = Bits::create(n);
+	std::uniform_int_distribution<int64_t> dist(0, INT64_MAX);
+	for(int64_t i = 0; i < b->chunkcount; i++) {
+		b->bytes[i] = dist(Random::Generator);
+	}
+	b->resize(n);
+	return Value(b);
+}
 
 // returns a random integer between [x, y]
 Value next_random_randint(const Value *args, int numargs) {
@@ -87,6 +104,7 @@ Value next_random_seed(const Value *args, int numargs) {
 }
 
 void Random::init(BuiltinModule *m) {
+	m->add_builtin_fn("randbits(_)", 1, next_random_randbits);
 	m->add_builtin_fn("randint(_,_)", 2, next_random_randint);
 	m->add_builtin_fn("randint(_,_,_)", 3, next_random_randint_n);
 	m->add_builtin_fn("rand()", 0, next_random_rand0);
