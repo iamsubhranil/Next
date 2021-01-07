@@ -1,0 +1,25 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+        target: [debug, debug_gc_stress, all, cgoto]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: ${{ matrix.target }} 
+      env:
+        CXX: ${{ matrix.compiler }}
+        TARGET: ${{ matrix.target }}
+      run: eval "${CXX}" -v && make clean && make "${TARGET}" -j && make tests && make benchmark

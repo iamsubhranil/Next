@@ -55,7 +55,7 @@ coverage: debug
 
 pgo: merge_profraw pgouse
 
-ifeq ($(CXX),clang++)
+ifeq ($(findstring clang++,$(CXX)),clang++)
 clean_pgodata: clean
 	$(V) rm -f default_*.profraw default.profdata
 else
@@ -65,14 +65,14 @@ endif
 
 pgobuild: CXXFLAGS+=-fprofile-generate -march=native
 pgobuild: LDFLAGS+=-fprofile-generate -flto
-ifeq ($(CXX),clang++)
+ifeq ($(findstring clang++,$(CXX)),clang++)
 pgobuild: CXXFLAGS+=-mllvm -vp-counters-per-site=5
 endif
 pgobuild: | clean_pgodata cgoto
 
 pgorun: | pgobuild benchmark tests
 
-ifeq ($(CXX),clang++)
+ifeq ($(findstring clang++,$(CXX)),clang++)
 merge_profraw: pgorun
 	$(V) llvm-profdata merge --output=default.profdata default_*.profraw
 else

@@ -1,0 +1,58 @@
+os: linux
+dist: bionic
+language: cpp
+
+addons:
+  apt:
+    sources:
+      - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-11 main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+      - ubuntu-toolchain-r-test
+    packages:
+      - clang-11
+      - libclang-11-dev
+      - llvm-11-tools
+      - llvm-11-dev
+      - gcc-10
+      - g++-10
+
+jobs:
+  include:
+      - env:
+        - MATRIX_EVAL="CC=clang-11 && CXX=clang++-11"
+        - MAKE_TARGET="all"
+        - MAKE_BECNHMARK="make benchmark"
+      - env:
+        - MATRIX_EVAL="CC=clang-11 && CXX=clang++-11"
+        - MAKE_TARGET="cgoto"
+        - MAKE_BECNHMARK="make benchmark"
+      - env:
+        - MATRIX_EVAL="CC=clang-11 && CXX=clang++-11"
+        - MAKE_TARGET="debug"
+        - MAKE_BECNHMARK="./next tests/benchmark_orchestrator.n"
+      - env:
+        - MATRIX_EVAL="CC=gcc-10 && CXX=g++-10"
+        - MAKE_TARGET="all"
+        - MAKE_BECNHMARK="make benchmark"
+      - env:
+        - MATRIX_EVAL="CC=gcc-10 && CXX=g++-10"
+        - MAKE_TARGET="cgoto"
+        - MAKE_BECNHMARK="make benchmark"
+      - env:
+        - MATRIX_EVAL="CC=gcc-10 && CXX=g++-10"
+        - MAKE_TARGET="pgo"
+        - MAKE_BECNHMARK="make benchmark"
+      - env:
+        - MATRIX_EVAL="CC=gcc-10 && CXX=g++-10"
+        - MAKE_TARGET="debug"
+        - MAKE_BECNHMARK="./next tests/benchmark_orchestrator.n"
+
+before_script:
+  - eval "${MATRIX_EVAL}"
+  - eval "${CC}" -v
+  - eval "${CXX}" -v
+  - echo "${MAKE_TARGET}"
+  - echo "${MAKE_BECNHMARK}"
+  - alias llvm-profdata=llvm-profdata-11
+
+script: make clean && make "${MAKE_TARGET}" -j && make tests && eval "${MAKE_BECNHMARK}"
