@@ -63,7 +63,7 @@ Exception *Function::create_exception_block(int from, int to) {
 		if(exceptions[i].from == from && exceptions[i].to == to)
 			return &exceptions[i];
 	}
-	exceptions = (Exception *)GcObject::realloc(
+	exceptions = (Exception *)GcObject_realloc(
 	    exceptions, sizeof(Exception) * numExceptions,
 	    sizeof(Exception) * (numExceptions + 1));
 	exceptions[numExceptions].from       = from;
@@ -78,7 +78,7 @@ bool Exception::add_catch(int slot, CatchBlock::SlotType type, int jump) {
 		if(catches[i].slot == slot && catches[i].type == type)
 			return false;
 	}
-	catches = (CatchBlock *)GcObject::realloc(
+	catches = (CatchBlock *)GcObject_realloc(
 	    catches, sizeof(CatchBlock) * numCatches,
 	    sizeof(CatchBlock) * (numCatches + 1));
 	catches[numCatches].jump   = jump;

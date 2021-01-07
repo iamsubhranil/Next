@@ -6,7 +6,7 @@ BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	BytecodeCompilationContext2 bcc =
 	    GcObject::allocBytecodeCompilationContext();
 	bcc->code              = NULL;
-	bcc->ranges_           = (TokenRange *)GcObject::malloc(sizeof(TokenRange));
+	bcc->ranges_           = (TokenRange *)GcObject_malloc(sizeof(TokenRange));
 	bcc->ranges_[0].token  = Token::PlaceholderToken;
 	bcc->ranges_[0].range_ = 0;
 	bcc->size              = 0;
@@ -28,7 +28,7 @@ void BytecodeCompilationContext::init() {
 void BytecodeCompilationContext::insert_token(Token t) {
 	if(size == capacity) {
 		size_t n = Utils::powerOf2Ceil(size + 1);
-		ranges_  = (TokenRange *)GcObject::realloc(
+		ranges_  = (TokenRange *)GcObject_realloc(
             ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * n);
 		std::fill_n(&ranges_[capacity], n - capacity,
 		            (TokenRange){Token::PlaceholderToken, 0});
@@ -57,7 +57,7 @@ Token BytecodeCompilationContext::get_token(size_t ip) {
 
 void BytecodeCompilationContext::finalize() {
 	if(size != capacity) {
-		ranges_ = (TokenRange *)GcObject::realloc(
+		ranges_ = (TokenRange *)GcObject_realloc(
 		    ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * size);
 		capacity = size;
 	}

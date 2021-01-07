@@ -671,7 +671,7 @@ Bits *Bits::create(int64_t number_of_bits) {
 	b->chunkcapacity = b->chunkcount * Bits::ChunkSize;
 	if(b->chunkcapacity == 0)
 		b->chunkcapacity = Bits::ChunkSize;
-	b->bytes = (Bits::ChunkType *)GcObject::malloc(
+	b->bytes = (Bits::ChunkType *)GcObject_malloc(
 	    (b->chunkcapacity >> Bits::ChunkCountShift) * Bits::ChunkSizeByte);
 	return b;
 }

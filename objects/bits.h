@@ -24,7 +24,7 @@ struct Bits {
 	void resize(int64_t newsize);
 
 	void mark() {}
-	void release() { GcObject::free(bytes, chunkcapacity); }
+	void release() { GcObject_free(bytes, chunkcapacity); }
 #ifdef DEBUG_GC
 	const char *gc_repr() { return "<bits>"; }
 #endif

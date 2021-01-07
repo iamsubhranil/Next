@@ -40,7 +40,7 @@ struct FunctionCompilationContext {
 
 	void release() const {
 		slotmap->~SlotMap();
-		GcObject::free(slotmap, sizeof(SlotMap));
+		GcObject_free(slotmap, sizeof(SlotMap));
 	}
 
 #ifdef DEBUG

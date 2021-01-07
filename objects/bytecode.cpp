@@ -16,7 +16,7 @@ const char *Bytecode::OpcodeNames[] = {
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
 		size_t newcap = Utils::powerOf2Ceil(size + 1);
-		bytecodes     = (Opcode *)GcObject::realloc(
+		bytecodes     = (Opcode *)GcObject_realloc(
             bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * newcap);
 		capacity = newcap;
 	}
@@ -25,7 +25,7 @@ void Bytecode::push_back(Opcode code) {
 
 void Bytecode::finalize() {
 	if(size != capacity - 1) {
-		bytecodes = (Opcode *)GcObject::realloc(
+		bytecodes = (Opcode *)GcObject_realloc(
 		    bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * size);
 		capacity = size;
 	}
@@ -87,7 +87,7 @@ void Bytecode::init() {
 
 Bytecode *Bytecode::create() {
 	Bytecode2 code     = GcObject::allocBytecode();
-	code->bytecodes    = (Opcode *)GcObject::malloc(sizeof(Opcode) * 1);
+	code->bytecodes    = (Opcode *)GcObject_malloc(sizeof(Opcode) * 1);
 	code->size         = 0;
 	code->capacity     = 1;
 	code->stackSize    = 1;

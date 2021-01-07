@@ -140,7 +140,7 @@ struct Bytecode {
 	}
 
 	void release() const {
-		GcObject::free(bytecodes, sizeof(Opcode) * capacity);
+		GcObject_free(bytecodes, sizeof(Opcode) * capacity);
 	}
 
 #ifdef DEBUG

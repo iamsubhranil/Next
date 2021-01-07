@@ -175,14 +175,14 @@ Value next_file_read_n(const Value *args, int numargs) {
 		return FileError::sete("Number of characters to be read must be > 0!");
 	}
 	// THIS IS REALLY INEFFICIENT, AND REQUIRES 2x MEMORY
-	char *bytes = (char *)GcObject::malloc(count);
+	char *bytes = (char *)GcObject_malloc(count);
 	if(fread(bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
-		GcObject::free(bytes, count);
+		GcObject_free(bytes, count);
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read(count) failed");
 	}
 	String2 s = String::from(bytes, count);
-	GcObject::free(bytes, count);
+	GcObject_free(bytes, count);
 	return Value(s);
 }
 
@@ -208,14 +208,14 @@ Value next_file_readall(const Value *args, int numargs) {
 		    "file.readall() failed: unable to seek back to current position");
 	}
 	// USES 2x memory
-	char *buffer = (char *)GcObject::malloc(length);
+	char *buffer = (char *)GcObject_malloc(length);
 	if(fread(buffer, 1, length, f) != (size_t)length) {
-		GcObject::free(buffer, length);
+		GcObject_free(buffer, length);
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readall() failed: reading failed");
 	}
 	String2 s = String::from(buffer, length);
-	GcObject::free(buffer, length);
+	GcObject_free(buffer, length);
 	return Value(s);
 }
 

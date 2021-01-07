@@ -98,7 +98,7 @@ struct BytecodeCompilationContext {
 	void mark() const { GcObject::mark(code); }
 
 	void release() const {
-		GcObject::free(ranges_, sizeof(TokenRange) * capacity);
+		GcObject_free(ranges_, sizeof(TokenRange) * capacity);
 	}
 
 #ifdef DEBUG_GC
