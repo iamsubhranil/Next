@@ -10,6 +10,7 @@ benchmarks = [
     "fib",
     "fibers",
     "garbage_test",
+    "mandelbrot",
     "map_numeric",
     "map_string",
     "method_call",
