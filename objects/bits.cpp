@@ -635,6 +635,34 @@ Value next_bits_insert_int(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_bits_equal(const Value *args, int numargs) {
+	(void)numargs;
+	if(args[1].isBits()) {
+		Bits *a = args[0].toBits();
+		Bits *b = args[1].toBits();
+		if(a->size != b->size) {
+			return ValueFalse;
+		}
+		return Value(std::memcmp(a->bytes, b->bytes,
+		                         Bits::ChunkSizeByte * a->chunkcount) == 0);
+	}
+	return ValueFalse;
+}
+
+Value next_bits_unequal(const Value *args, int numargs) {
+	(void)numargs;
+	if(args[1].isBits()) {
+		Bits *a = args[0].toBits();
+		Bits *b = args[1].toBits();
+		if(a->size != b->size) {
+			return ValueTrue;
+		}
+		return Value(std::memcmp(a->bytes, b->bytes,
+		                         Bits::ChunkSizeByte * a->chunkcount) != 0);
+	}
+	return ValueTrue;
+}
+
 Bits *Bits::create(int64_t number_of_bits) {
 	Bits *b       = GcObject::allocBits();
 	b->size       = number_of_bits;
@@ -728,4 +756,9 @@ void Bits::init() {
 	BitsClass->add_builtin_fn("insert(_)", 1, next_bits_insert);
 	BitsClass->add_builtin_fn("insert_byte(_)", 1, next_bits_insert_byte);
 	BitsClass->add_builtin_fn("insert_int(_)", 1, next_bits_insert_int);
+	// equality and inequality
+	BitsClass->add_builtin_fn("==(_)", 1, next_bits_equal);
+	BitsClass->add_builtin_fn("!=(_)", 1, next_bits_unequal);
+	// replace
+	// BitsClass->add_builtin_fn("replace(_,_)", 2, next_bits_replace);
 }
