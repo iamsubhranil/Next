@@ -65,12 +65,12 @@ struct BytecodeCompilationContext {
 	Token  get_token(size_t ip);
 
 #ifdef DEBUG
-#define btx_stackEffect(x)                                           \
-	{                                                                \
-		std::cout << ANSI_COLOR_GREEN << __PRETTY_FUNCTION__ << ": " \
-		          << ANSI_COLOR_RESET << __FILE__ << ":" << __LINE__ \
-		          << ": StackEffect -> " << x << "\n";               \
-		btx->stackEffect(x);                                         \
+#define btx_stackEffect(x)                                          \
+	{                                                               \
+		Printer::print(ANSI_COLOR_GREEN, __PRETTY_FUNCTION__, ": ", \
+		               ANSI_COLOR_RESET, __FILE__, ":", __LINE__,   \
+		               ": StackEffect -> ", x, "\n");               \
+		btx->stackEffect(x);                                        \
 	}
 #endif
 	void stackEffect(int effect) { code->stackEffect(effect); }

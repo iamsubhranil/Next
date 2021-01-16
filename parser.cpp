@@ -492,9 +492,10 @@ Expression *NameParselet::parse(Parser *parser, Token t) {
 	if(parser->match(TOKEN_AT)) {
 		Token num =
 		    parser->consume(TOKEN_NUMBER, "Expected argument count after '@'!");
-		char *end   = NULL;
-		int   count = strtol(num.start, &end, 10);
-		if(end == NULL || end - num.start < num.length) {
+		char *      end   = NULL;
+		const char *start = (const char *)num.start.source;
+		int         count = strtol(start, &end, 10);
+		if(end == NULL || end - start < num.length) {
 			throw ParseException(num, "Invalid argument count!");
 		}
 		return NewExpression(MethodReference, t, count);
@@ -530,25 +531,27 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	return thisOrSuper;
 }
 
+// Fix THIS
 String *Parser::buildNextString(Token &t) {
-	Buffer<char> s;
-	for(int i = 1; i < t.length - 1; i++) {
-		char c = t.start[i];
-		if(c == '\\') {
-			switch(t.start[i + 1]) {
+	String2    s     = String::from("");
+	Utf8Source start = t.start;
+	while(*start) {
+		if(*start == '\\') {
+			switch(start + 1) {
 				case 'n':
-					s.insert('\n');
-					i++;
+					s = String::append(s, '\n');
+					start++;
 					break;
 				case 't':
-					s.insert('\t');
-					i++;
+					s = String::append(s, '\t');
+					start++;
 					break;
 			}
 		} else
-			s.insert(t.start[i]);
+			s = String::append(s, *start);
+		start++;
 	}
-	return String::from(s.data(), s.size());
+	return s;
 }
 
 Expression *LiteralParselet::parse(Parser *parser, Token t) {
@@ -559,9 +562,10 @@ Expression *LiteralParselet::parse(Parser *parser, Token t) {
 			return NewExpression(Literal, s, t);
 		}
 		case TOKEN_NUMBER: {
-			char * end = NULL;
-			double val = strtod(t.start, &end);
-			if(end == NULL || end - t.start < t.length) {
+			char *      end   = NULL;
+			const char *start = (const char *)t.start.source;
+			double      val   = strtod(start, &end);
+			if(end == NULL || end - start < t.length) {
 				throw ParseException(t, "Not a valid number!");
 			}
 			return NewExpression(Literal, Value(val), t);
@@ -572,9 +576,10 @@ Expression *LiteralParselet::parse(Parser *parser, Token t) {
 		case TOKEN_HEX: {
 			char *end = NULL;
 			// start after 0x
-			const char *start = &t.start[2];
+			const char *start = (const char *)t.start.source + 2;
 			int64_t     val   = strtoll(start, &end, 16);
-			if(end == NULL || end - t.start < t.length || t.length == 2) {
+			if(end == NULL || end - (const char *)t.start.source < t.length ||
+			   t.length == 2) {
 				throw ParseException(t, "Not a valid hexadecimal literal!");
 			}
 			return NewExpression(Literal, Value(val), t);
@@ -582,19 +587,21 @@ Expression *LiteralParselet::parse(Parser *parser, Token t) {
 		case TOKEN_BIN: {
 			char *end = NULL;
 			// start after 0b
-			const char *start = &t.start[2];
+			const char *start = (const char *)t.start.source + 2;
 			int64_t     val   = strtoll(start, &end, 2);
-			if(end == NULL || end - t.start < t.length || t.length == 2) {
+			if(end == NULL || end - (const char *)t.start.source < t.length ||
+			   t.length == 2) {
 				throw ParseException(t, "Not a valid binary literal!");
 			}
 			return NewExpression(Literal, Value(val), t);
 		}
 		case TOKEN_OCT: {
 			char *end = NULL;
-			// start after 0x
-			const char *start = &t.start[2];
+			// start after 0o
+			const char *start = (const char *)t.start.source + 2;
 			int64_t     val   = strtoll(start, &end, 8);
-			if(end == NULL || end - t.start < t.length || t.length == 2) {
+			if(end == NULL || end - (const char *)t.start.source < t.length ||
+			   t.length == 2) {
 				throw ParseException(t, "Not a valid octal literal!");
 			}
 			return NewExpression(Literal, Value(val), t);

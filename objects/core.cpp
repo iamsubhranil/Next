@@ -1,8 +1,8 @@
 #include "core.h"
 #include "../engine.h"
-#include "../format.h"
 #include "../import.h"
 #include "../loader.h"
+#include "../printer.h"
 #include "buffer.h"
 #include "bytecodecompilationctx.h"
 #include "classcompilationctx.h"
@@ -10,7 +10,7 @@
 #include "fiber.h"
 #include "functioncompilationctx.h"
 #include "symtab.h"
-#include <iostream>
+
 #include <time.h>
 
 Value next_core_clock(const Value *args, int numargs) {
@@ -40,14 +40,14 @@ Value next_core_print(const Value *args, int numargs) {
 		// bail
 		if(s == NULL)
 			return ValueNil;
-		std::cout << s->str();
+		Printer::print(s);
 	}
 	return ValueNil;
 }
 
 Value next_core_println(const Value *args, int numargs) {
 	next_core_print(args, numargs);
-	std::cout << std::endl;
+	Printer::print("\n");
 	return ValueNil;
 }
 
@@ -62,9 +62,10 @@ Value next_core_printRepl(const Value *args, int numargs) {
 }
 
 Value next_core_format(const Value *args, int numargs) {
+	EXPECT(fmt, "fmt(_)", 1, String);
 	// format is used everywhere in Next, and it does
 	// expect the very first argument to be a string
-	return Formatter::fmt(&args[1], numargs - 1);
+	return Formatter::valuefmt(&args[1], numargs - 1);
 }
 
 Value next_core_yield_0(const Value *args, int numargs) {
@@ -134,9 +135,10 @@ Value next_core_resolve_partial_import(Value mod, const Value *parts,
 			mod = mod.getClass()->accessFn(
 			    mod.getClass(), mod, SymbolTable2::insert(parts[h].toString()));
 		} else {
-			String *s = Formatter::fmt("Unable to import '{}' from '{}'!",
-			                           parts[h], parts[h - 1])
-			                .toString();
+			String *s =
+			    Formatter::fmt<Value>("Unable to import '{}' from '{}'!",
+			                          parts[h], parts[h - 1])
+			        .toString();
 			if(s == NULL)
 				return ValueNil;
 			IMPORTERR(s);
@@ -263,30 +265,32 @@ Value next_core_import2(const Value *args, int numargs) {
 	Array2 parts = Array::create(1);
 	// insert the core as object to the array
 	parts->insert(args[0]);
-	const char *s    = imp->str();
-	int         size = imp->size;
-	for(int i = 0; i < size; i++) {
+	Utf8Source s    = imp->str();
+	int        size = imp->len();
+	for(int i = 0; i < size; i++, s++) {
 		// the first character must be an alphabet
-		if(!isAlpha(s[i])) {
+		if(!isAlpha(*s)) {
 			IMPORTERR("Part of an import string must start with a valid "
 			          "alphabet or '_'!");
 		}
-		int j = i++;
-		while(i < size && s[i] != '.') {
-			if(!isAlphaNumeric(s[i])) {
+		int         j   = i++;
+		const void *bak = s.source;
+		while(i < size && *s != '.') {
+			if(!isAlphaNumeric(*s)) {
 				IMPORTERR("Import string contains invalid character!");
 			}
 			i++;
+			s++;
 		}
 		// create a part, and insert
-		String *part = String::from(&s[j], i - j);
+		String *part = String::from(bak, i - j);
 		parts->insert(part);
 		// if we're at the end, we're good
 		if(i == size)
 			break;
 		// if we stumbled upon a '.', there must
 		// be some more part to it
-		else if(s[i] == '.') {
+		else if(*s == '.') {
 			if(i == size - 1) {
 				IMPORTERR("Unexpected end of import string!");
 			}

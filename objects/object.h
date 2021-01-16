@@ -37,6 +37,6 @@ struct Object {
 	void release() const {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	const char *gc_repr() { return "<object>"; }
 #endif
 };

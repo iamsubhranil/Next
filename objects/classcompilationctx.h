@@ -105,9 +105,9 @@ struct ClassCompilationContext {
 		GcObject_free(members, sizeof(MemberMap));
 	}
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(OutputStream &o);
 #endif
 #ifdef DEBUG_GC
-	const char *gc_repr() { return klass->name->str(); }
+	const Utf8Source gc_repr() { return klass->name->str(); }
 #endif
 };

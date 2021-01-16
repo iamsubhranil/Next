@@ -4,9 +4,8 @@
 #include "objects/fiber.h"
 #include "objects/functioncompilationctx.h"
 #include "parser.h"
-#include <iostream>
-
-using namespace std;
+#include "printer.h"
+#include <stdexcept>
 
 static void prefix(Parser *p, TokenType op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
@@ -114,37 +113,47 @@ void Loader::init() {
 }
 
 GcObject *Loader::compile_and_load(const String2 &fileName, bool execute) {
-	return compile_and_load(fileName->str(), execute);
+	return compile_and_load(fileName->strb(), execute);
 }
 
-String *generateModuleName(const char *inp) {
-	size_t len  = strlen(inp);
-	int    last = len - 1;
+String *generateModuleName(const Utf8Source inp) {
+	size_t       len      = inp.len();
+	int          last     = len - 1;
+	utf8_int32_t lastchar = inp + last;
 	// find the '.'
-	while(inp[last] != '.' && inp[last] != '\0') last--;
-	if(inp[last] == '\0')
-		return String::from(inp);
+	while(lastchar != '.' && lastchar != '\0') {
+		lastchar = inp + (--last);
+	}
+	if((inp + last) == '\0')
+		return String::from(inp.source, utf8size(inp.source));
 	// escape the '.'
 	--last;
+	Utf8Source a = inp;
+	a += last;
 	int first = last;
-	while(inp[first] != '\\' && inp[first] != '/' && inp[first] != '\0')
-		--first;
-	if(inp[first] != '\0')
+	lastchar  = inp + first;
+	while(lastchar != '\\' && lastchar != '/' && lastchar != '\0') {
+		lastchar = inp + (--first);
+	}
+	if(lastchar != '\0')
 		first++;
-	return String::from(&inp[first], (last - first) + 1);
+	Utf8Source s = inp;
+	s += first;
+
+	return String::from(s.source, (a - s) + 1);
 }
 
-GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
-	String2 modName = generateModuleName(fileName);
+GcObject *Loader::compile_and_load(const void *fileName, bool execute) {
+	String2 modName = generateModuleName(Utf8Source(fileName));
 	return compile_and_load_with_name(fileName, modName, execute);
 }
 
-GcObject *Loader::compile_and_load_with_name(const char *fileName,
+GcObject *Loader::compile_and_load_with_name(const void *fileName,
                                              String *modName, bool execute) {
 	String2   fname = String::from(fileName);
 	GcObject *ret   = NULL;
 #ifdef DEBUG
-	StatementPrinter sp(cout);
+	StatementPrinter sp(Printer::StdOutStream);
 #endif
 	if(ExecutionEngine::isModuleRegistered(fname))
 		return ExecutionEngine::getRegisteredModule(fname);
@@ -159,9 +168,9 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 #ifdef DEBUG
 		for(int i = 0; i < decls->size; i++) {
 			sp.print(decls->values[i].toStatement());
-			cout << "\n";
+			Printer::print("\n");
 		}
-		cout << "Parsed successfully!" << endl;
+		Printer::println("Parsed successfully!");
 #endif
 		ClassCompilationContext2 ctx =
 		    ClassCompilationContext::create(NULL, modName);
@@ -180,19 +189,19 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
-	} catch(runtime_error &r) {
-		std::cout << r.what() << "\n";
+	} catch(std::runtime_error &r) {
+		Printer::println(r.what());
 	}
 	return ret;
 }
 
-Value Loader::compile_and_load_from_source(const char *             source,
+Value Loader::compile_and_load_from_source(const void *             source,
                                            ClassCompilationContext *modulectx,
                                            Value mod, bool execute) {
 #ifdef DEBUG
-	StatementPrinter sp(cout);
+	StatementPrinter sp(Printer::StdOutStream);
 #endif
-	Scanner s(source, modulectx->get_class()->name->str());
+	Scanner s(source, modulectx->get_class()->name->strb());
 	replModule = mod;
 	try {
 		::new(&parser) Parser(s);
@@ -204,7 +213,7 @@ Value Loader::compile_and_load_from_source(const char *             source,
 #ifdef DEBUG
 		for(int i = 0; i < decls->size; i++) {
 			sp.print(decls->values[i].toStatement());
-			cout << "\n";
+			Printer::print("\n");
 		}
 #endif
 		int slots = modulectx->get_class()->numSlots;
@@ -236,8 +245,8 @@ Value Loader::compile_and_load_from_source(const char *             source,
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
-	} catch(runtime_error &r) {
-		cout << r.what() << endl;
+	} catch(std::runtime_error &r) {
+		Printer::println(r.what());
 	}
 	return mod;
 }

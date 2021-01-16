@@ -11,11 +11,11 @@ Value next_boundmethod_str(const Value *args, int numargs) {
 		case BoundMethod::CLASS_BOUND:
 			return Formatter::fmt("<class bound method {}.{}@{}>",
 			                      b->binder.toClass()->name, b->func->name,
-			                      Value(b->func->arity));
+			                      b->func->arity);
 		default:
 			return Formatter::fmt("<object bound method {}.{}@{}>",
 			                      b->binder.getClass()->name, b->func->name,
-			                      Value(b->func->arity));
+			                      b->func->arity);
 	}
 }
 
@@ -91,7 +91,7 @@ BoundMethod *BoundMethod::from(Function *f, Value v, Type t) {
 }
 
 #ifdef DEBUG_GC
-const char *BoundMethod::gc_repr() {
+const Utf8Source BoundMethod::gc_repr() {
 	return func->name->str();
 }
 #endif

@@ -8,9 +8,10 @@ struct SymbolTable2 {
 
 	static void    init();
 	static int64_t insert(const char *str);
+	static int64_t insert(const void *str, size_t bytes);
 	static int64_t insert(const String2 &str);
 
-	static const char *get(int64_t id);
+	static const void *get(int64_t id);
 	static String *    getString(int64_t id);
 
 	static void mark();

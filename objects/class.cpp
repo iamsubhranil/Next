@@ -101,7 +101,7 @@ void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
 			// if base contains only (, i.e. the function
 			// does not have any necessary arguments, initially
 			// append it with _
-			if(i == 0 && base->str()[base->size - 1] == '(') {
+			if(i == 0 && (base->str() + base->len() - 1) == '(') {
 				base = String::append(base, "_");
 			} else {
 				base = String::append(base, ",_");
@@ -207,7 +207,7 @@ void Class::derive(Class *superclass) {
 			// to be a '(', which what constructors start with.
 			// we will still add the constructor with a "s "
 			// prepend though.
-			if(s->str()[0] == '(') {
+			if(*s->str() == '(') {
 				isConstructor = true;
 			}
 			Function2 f = v.toFunction()->create_derived(numSlots);
@@ -353,7 +353,7 @@ void Class::init() {
 }
 
 #ifdef DEBUG_GC
-const char *Class::gc_repr() {
+const Utf8Source Class::gc_repr() {
 	return name->str();
 }
 #endif

@@ -57,18 +57,19 @@ int FunctionCompilationContext::get_slot(String *s) {
 }
 
 #ifdef DEBUG
-void FunctionCompilationContext::disassemble(std::ostream &o) {
-	o << "Slots: ";
+#include "../format.h"
+void FunctionCompilationContext::disassemble(OutputStream &os) {
+	os.write("Slots: ");
 	for(auto &a : slotmap[0]) {
-		o << a.first->str() << "(" << a.second.slot << "), ";
+		os.write(a.first->str(), "(", a.second.slot, "), ");
 	}
-	o << "\n";
-	f->disassemble(o);
+	os.write("\n");
+	f->disassemble(os);
 }
 #endif
 
 #ifdef DEBUG_GC
-const char *FunctionCompilationContext::gc_repr() {
+const Utf8Source FunctionCompilationContext::gc_repr() {
 	return f->name->str();
 }
 #endif

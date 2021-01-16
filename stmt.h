@@ -263,14 +263,14 @@ struct BreakStatement : public Statement {
 #ifdef DEBUG
 struct StatementPrinter : public StatementVisitor {
   private:
-	std::ostream &    os;
+	OutputStream &    os;
 	ExpressionPrinter ep;
 	int               tabCount;
 	void              printTabs();
 	bool              onElse;
 
   public:
-	StatementPrinter(std::ostream &o)
+	StatementPrinter(OutputStream &o)
 	    : os(o), ep(o), tabCount(0), onElse(false) {}
 	void print(Statement *s);
 	void visit(IfStatement *ifs);

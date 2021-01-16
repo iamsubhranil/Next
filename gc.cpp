@@ -27,14 +27,9 @@
 #include "objects/symtab.h"
 #include "objects/tuple.h"
 #include "objects/tuple_iterator.h"
+#include "printer.h"
 #include "stmt.h"
 #include "utils.h"
-
-#ifdef DEBUG
-#include <iomanip>
-#include <iostream>
-using namespace std;
-#endif
 
 size_t   GcObject::totalAllocated  = 0;
 size_t   GcObject::next_gc         = 1024 * 1024 * 10;
@@ -126,13 +121,12 @@ void GcObject::gc(bool force) {
 	// check for gc
 	if(totalAllocated >= next_gc || force) {
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Started GC..\n";
+		Printer::println("[GC] Started GC..");
 		size_t oldAllocated = totalAllocated;
-		std::cout << "[GC] [Before] Allocated: " << totalAllocated
-		          << " bytes\n";
-		std::cout << "[GC] [Before] NextGC: " << next_gc << " bytes\n";
-		std::cout << "[GC] MaxGC: " << max_gc << " bytes\n";
-		std::cout << "[GC] Marking core classes..\n";
+		Printer::println("[GC] [Before] Allocated: ", totalAllocated, " bytes");
+		Printer::println("[GC] [Before] NextGC: ", next_gc, " bytes");
+		Printer::println("[GC] MaxGC: ", max_gc, " bytes");
+		Printer::println("[GC] Marking core classes..");
 #endif
 #define OBJTYPE(n) mark(n##Class);
 #include "objecttype.h"
@@ -144,23 +138,23 @@ void GcObject::gc(bool force) {
 		mark(ExecutionEngine::CoreObject);
 		mark(CoreContext); // not really needed
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Marking weak strings..\n";
+		Printer::println("[GC] Marking weak strings..");
 #endif
 		String::keep();
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Marking symbol table..\n";
+		Printer::println("[GC] Marking symbol table..");
 #endif
 		SymbolTable2::mark();
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Marking temporary objects..\n";
+		Printer::println("[GC] Marking temporary objects..");
 #endif
 		mark(temporaryObjects);
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Marking Engine..\n";
+		Printer::println("[GC] Marking Engine..");
 #endif
 		ExecutionEngine::mark();
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Sweeping..\n";
+		Printer::println("[GC] Sweeping..");
 #endif
 		sweep();
 		// check the ceiling of where the program
@@ -177,11 +171,11 @@ void GcObject::gc(bool force) {
 		if(next_gc < c)
 			next_gc = c;
 #ifdef GC_PRINT_CLEANUP
-		std::cout << "[GC] Released: " << oldAllocated - totalAllocated
-		          << " bytes\n";
-		std::cout << "[GC] [After] Allocated: " << totalAllocated << " bytes\n";
-		std::cout << "[GC] [After] NextGC: " << next_gc << " bytes\n";
-		std::cout << "[GC] Finished GC..\n";
+		Printer::println("[GC] Released: ", oldAllocated - totalAllocated,
+		                 " bytes");
+		Printer::println("[GC] [After] Allocated: ", totalAllocated, " bytes");
+		Printer::println("[GC] [After] NextGC: ", next_gc, " bytes");
+		Printer::println("[GC] Finished GC..");
 #endif
 	}
 }
@@ -196,14 +190,14 @@ void GcObject::setMaxGC(size_t v) {
 
 void GcObject::trackTemp(GcObject *g) {
 #ifdef DEBUG
-	// std::cout << "[GC] Tracking " << g << "..\n";
+	// std::wcout << "[GC] Tracking " << g << "..\n";
 #endif
 	temporaryObjects->hset.insert(g);
 }
 
 void GcObject::untrackTemp(GcObject *g) {
 #ifdef DEBUG
-	// std::cout << "[GC] Untracking " << g << "..\n";
+	// std::wcout << "[GC] Untracking " << g << "..\n";
 #endif
 	temporaryObjects->hset.erase(g);
 }
@@ -233,12 +227,12 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 }
 
 #ifdef DEBUG_GC
-#define OBJTYPE(n)                                                             \
-	n *GcObject::alloc##n() {                                                  \
-		return (std::cout << "[GC] TA: " << totalAllocated << " alloc: " << #n \
-		                  << " (" << sizeof(n) << ")\n",                       \
-		        GcCounters[n##Counter]++,                                      \
-		        (n *)alloc(sizeof(n), OBJ_##n, n##Class));                     \
+#define OBJTYPE(n)                                                            \
+	n *GcObject::alloc##n() {                                                 \
+		return (Printer::println("[GC] TA: ", totalAllocated, " alloc: ", #n, \
+		                         " (", sizeof(n), ")"),                       \
+		        GcCounters[n##Counter]++,                                     \
+		        (n *)alloc(sizeof(n), OBJ_##n, n##Class));                    \
 	}
 #else
 #define OBJTYPE(n) \
@@ -293,9 +287,9 @@ void GcObject::release(GcObject *obj) {
 	switch(obj->objType) {
 		case OBJ_String:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] String ("
-			          << sizeof(String) + ((String *)obj)->size + 1 << ") -> "
-			          << ((String *)obj)->gc_repr() << "\n";
+			Printer::println("[GC] [Release] String (",
+			                 sizeof(String) + ((String *)obj)->size + 1,
+			                 ") -> ", ((String *)obj)->gc_repr());
 			GcCounters[StringCounter]--;
 #endif
 			((String *)obj)->release();
@@ -304,9 +298,10 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Tuple:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] Tuple ("
-			          << sizeof(Tuple) + sizeof(Value) * ((Tuple *)obj)->size
-			          << ") -> " << ((Tuple *)obj)->gc_repr() << "\n";
+			Printer::println("[GC] [Release] Tuple (",
+			                 sizeof(Tuple) +
+			                     sizeof(Value) * ((Tuple *)obj)->size,
+			                 ") -> ", ((Tuple *)obj)->gc_repr());
 			GcCounters[TupleCounter]--;
 #endif
 			GcObject_free(obj, sizeof(Tuple) +
@@ -314,9 +309,10 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Object:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] Object ("
-			          << sizeof(Object) + sizeof(Value) * obj->klass->numSlots
-			          << ") -> object of " << obj->klass->name->str() << "\n";
+			Printer::println("[GC] [Release] Object (",
+			                 sizeof(Object) +
+			                     sizeof(Value) * obj->klass->numSlots,
+			                 ") -> object of ", obj->klass->name->str());
 			GcCounters[ObjectCounter]--;
 #endif
 			GcObject_free(obj, sizeof(Object) +
@@ -324,18 +320,18 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Expression:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] Expression ("
-			          << ((Expression *)obj)->getSize() << ") -> "
-			          << ((Expression *)obj)->gc_repr() << "\n";
+			Printer::println("[GC] [Release] Expression (",
+			                 ((Expression *)obj)->getSize(), ") -> ",
+			                 ((Expression *)obj)->gc_repr());
 			GcCounters[ExpressionCounter]--;
 #endif
 			GcObject_free(obj, ((Expression *)obj)->getSize());
 			return;
 		case OBJ_Statement:
 #ifdef DEBUG_GC
-			std::cout << "[GC] [Release] Statement ("
-			          << ((Statement *)obj)->getSize() << ") -> "
-			          << ((Statement *)obj)->gc_repr() << "\n";
+			Printer::println("[GC] [Release] Statement (",
+			                 ((Statement *)obj)->getSize(), ") -> ",
+			                 ((Statement *)obj)->gc_repr());
 			GcCounters[StatementCounter]--;
 #endif
 			GcObject_free(obj, ((Statement *)obj)->getSize());
@@ -347,13 +343,13 @@ void GcObject::release(GcObject *obj) {
 			err("Object type NONE should not be present in the list!");
 			break;
 #ifdef DEBUG_GC
-#define OBJTYPE(name)                                                   \
-	case OBJ_##name:                                                    \
-		std::cout << "[GC] [Release] " << #name << " (" << sizeof(name) \
-		          << ") -> " << ((name *)obj)->gc_repr() << "\n";       \
-		((name *)obj)->release();                                       \
-		GcObject_free(obj, sizeof(name));                               \
-		GcCounters[name##Counter]--;                                    \
+#define OBJTYPE(name)                                                  \
+	case OBJ_##name:                                                   \
+		Printer::println("[GC] [Release] ", #name, " (", sizeof(name), \
+		                 ") -> ", ((name *)obj)->gc_repr());           \
+		((name *)obj)->release();                                      \
+		GcObject_free(obj, sizeof(name));                              \
+		GcCounters[name##Counter]--;                                   \
 		break;
 #else
 #define OBJTYPE(name)                     \
@@ -505,10 +501,10 @@ void GcObject::init() {
 
 	// initialize the core classes
 #ifdef DEBUG_GC
-#define OBJTYPE(n)                                     \
-	std::cout << "[GC] Initializing " << #n << "..\n"; \
-	n::init();                                         \
-	std::cout << "[GC] Initialized " << #n << "..\n";
+#define OBJTYPE(n)                                    \
+	Printer::println("[GC] Initializing ", #n, ".."); \
+	n::init();                                        \
+	Printer::println("[GC] Initialized ", #n, "..");
 #else
 #define OBJTYPE(n) n::init();
 #endif
@@ -534,16 +530,14 @@ void GcObject::init() {
 #ifdef DEBUG_GC
 
 void GcObject::print_stat() {
-	cout << "[GC] Object allocation counters\n";
+	Printer::println("[GC] Object allocation counters");
 	size_t i = 0;
-#define OBJTYPE(r)                                                     \
-	cout << setw(26) << #r << setw(0) << "\t" << setw(3) << sizeof(r)  \
-	     << setw(0) << "  *  " << setw(3) << GcCounters[i] << setw(0)  \
-	     << "  =  " << setw(5) << sizeof(r) * GcCounters[i] << setw(0) \
-	     << " bytes" << endl;                                          \
+#define OBJTYPE(r)                                                       \
+	Printer::fmt("{:26}\t{:3}  *  {:3}  =  {:5} bytes\n", #r, sizeof(r), \
+	             GcCounters[i], sizeof(r) * GcCounters[i]);              \
 	i++;
 #include "objecttype.h"
-	cout << "[GC] Total memory allocated : " << totalAllocated << " bytes"
-	     << endl;
+	Printer::println("[GC] Total memory allocated : ", totalAllocated,
+	                 " bytes");
 }
 #endif

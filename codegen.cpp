@@ -4,16 +4,18 @@
 #include "import.h"
 #include "loader.h"
 
+#ifdef DEBUG
+#include "printer.h"
+#endif
+
 #include "objects/bytecodecompilationctx.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
 #include "objects/symtab.h"
 
 #ifdef DEBUG
-#include <iostream>
-#endif
 
-using namespace std;
+#endif
 
 #define lnerr_(str, t, ...)                   \
 	{                                         \
@@ -90,9 +92,9 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn, Array *stmts) {
 	btx->ret();
 	popFrame();
 #ifdef DEBUG
-	cout << "Code generated for mtx " << compileIn->get_class()->name->str()
-	     << endl;
-	compileIn->disassemble(cout);
+	Printer::println("Code generated for mtx ",
+	                 compileIn->get_class()->name->str());
+	compileIn->disassemble(Printer::StdOutStream);
 #endif
 	if(errorsOccurred)
 		throw CodeGeneratorException(errorsOccurred);
@@ -1178,7 +1180,7 @@ String *CodeGenerator::generateSignature(const String2 &name, int arity) {
 		}
 	}
 #ifdef DEBUG_CODEGEN
-	cout << "Signature generated : " << sig->str() << "\n";
+	Printer::print("Signature generated : ", sig->str(), "\n");
 #endif
 	return sig;
 }

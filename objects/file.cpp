@@ -7,8 +7,12 @@
 #include "tuple.h"
 #include <errno.h>
 
+#ifdef _WIN32
+#include <stringapiset.h>
+#endif
+
 Value File::create(String2 name, String2 mode) {
-	FILE *  f = fopen(name->str(), mode->str());
+	FILE *  f = fopen(name->strb(), mode->strb());
 	String *n = name;
 	if(f == NULL) {
 		String2 msg = Formatter::fmt("Unable to open '{}': {}", n,
@@ -24,6 +28,19 @@ Value File::create(String2 name, String2 mode) {
 	file->file    = f;
 	file->is_open = true;
 	return Value(file);
+}
+
+FILE *File::fopen(const void *name, const void *mode) {
+	const char *finalname = (const char *)name;
+#ifdef _WIN32
+	int size = MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, NULL, 0);
+	Buffer<char> buffer;
+	buffer.resize(size);
+	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, buffer.data(),
+	                    size);
+	finalname = (const char *)buffer.data();
+#endif
+	return ::fopen(finalname, (const char *)mode);
 }
 
 Value File::create(FILE *f) {

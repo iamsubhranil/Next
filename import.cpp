@@ -3,10 +3,8 @@
 #include "objects/array.h"
 #include "objects/builtin_module.h"
 #ifdef DEBUG
-#include <iostream>
+#include "printer.h"
 #endif
-
-using namespace std;
 
 ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
                               int size) {
@@ -16,7 +14,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	ret.toHighlight = 0;
 
 	auto             it = 0;
-	filesystem::path p  = filesystem::path(currentPath->str());
+	filesystem::path p  = filesystem::path((const char *)currentPath->strb());
 	if(!p.exists()) {
 		// we take current path from the bytecode source
 		// file itself. so this can only happen in case of
@@ -31,19 +29,20 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 		it++;
 	else {
 		while(p.is_directory() && it != size) {
-			p = p / filesystem::path(parts[it].toString()->str());
+			p = p /
+			    filesystem::path((const char *)parts[it].toString()->strb());
 			it++;
 		}
 	}
 	if(p.is_directory() && it == size) {
-		// cout << "Unable to import whole folder '" << paths << "'!" << endl;
+		// wcout << "Unable to import whole folder '" << paths << "'!" << "\n";
 		ret.res         = ImportStatus::FOLDER_IMPORT;
 		ret.toHighlight = size - 1;
 		return ret;
 	}
 	p = filesystem::path(p.str() + ".n");
 	if(!p.exists()) {
-		// cout << "Unable to open file : '" << path_ << "'!" << endl;
+		// wcout << "Unable to open file : '" << path_ << "'!" << "";
 
 		// check if it is a builtin module
 		int idx = -1;
@@ -65,7 +64,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 		return ret;
 	}
 #ifdef DEBUG
-	cout << "File path generated : " << p.str() << endl;
+	Printer::print("File path generated : ", p.str(), "\n");
 #endif
 	p                     = p.make_absolute();
 	std::string absolutep = p.str();
@@ -84,7 +83,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	ret.fileName    = String::from(absolutep.c_str());
 	ret.toHighlight = it;
 #ifdef DEBUG
-	cout << absolutep << " imported successfully!" << endl;
+	Printer::print(absolutep, " imported successfully!", "");
 #endif
 	fclose(f);
 	return ret;

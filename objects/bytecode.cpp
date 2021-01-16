@@ -4,7 +4,9 @@
 #include "string.h"
 #include "symtab.h"
 
-#include <iomanip>
+#ifdef DEBUG
+#include "../format.h"
+#endif
 
 const char *Bytecode::OpcodeNames[] = {
 #define OPCODE0(x, y) #x,
@@ -167,89 +169,74 @@ Bytecode *Bytecode::create_derived(int offset) {
 
 #ifdef DEBUG
 
-void Bytecode::disassemble_int(std::ostream &os, const Opcode *o) {
-	os << " " << *(int *)o;
+void Bytecode::disassemble_int(OutputStream &os, const Opcode *o) {
+	os.write(" ", *(int *)o);
 }
 
-void Bytecode::disassemble_Value(std::ostream &os, const Opcode *o) {
+void Bytecode::disassemble_Value(OutputStream &os, const Opcode *o) {
 	Value v = *(Value *)o;
-	os << " ";
+	os.write(" ");
 	switch(v.getType()) {
-		case Value::VAL_NIL: os << "nil"; break;
-		case Value::VAL_Boolean:
-			if(v.toBoolean())
-				os << "true";
-			else
-				os << "false";
-			break;
-		case Value::VAL_Number:
-			os << std::setprecision(16) << v.toNumber() << std::setprecision(6);
-			break;
+		case Value::VAL_NIL: os.write("nil"); break;
+		case Value::VAL_Boolean: os.write(v.toBoolean()); break;
+		case Value::VAL_Number: os.fmt("{:.16}", v.toNumber()); break;
 		case Value::VAL_Pointer:
-			os << "<pointer at " << v.toPointer() << ">";
+			os.write("<pointer at ", v.toPointer(), ">");
 			break;
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
-			if(v.isString()) {
-				os << v.toString()->str();
-				return;
-			}
 			switch(o->objType) {
-#define OBJTYPE(n)                          \
-	case GcObject::OBJ_##n:                 \
-		os << "<" << #n << "@" << o << ">"; \
+#define OBJTYPE(n)                      \
+	case GcObject::OBJ_##n:             \
+		os.write("<", #n, "@", o, ">"); \
 		break;
 #include "../objecttype.h"
-				case GcObject::OBJ_NONE: os << "NONE (THIS IS AN ERROR)"; break;
+				case GcObject::OBJ_NONE:
+					os.write("NONE (THIS IS AN ERROR)");
+					break;
 			}
 		}
 	}
 }
 
-void Bytecode::disassemble(std::ostream &o) {
-	o << "StackSize: " << stackMaxSize << "\n";
-	o << "Bytecodes: \n";
+void Bytecode::disassemble(OutputStream &os) {
+	os.write("StackSize: ", stackMaxSize, "\n");
+	os.write("Bytecodes: \n");
 	for(size_t i = 0; i < size;) {
-		disassemble(o, bytecodes, &i);
+		disassemble(os, bytecodes, &i);
 	}
 }
 
-void Bytecode::disassemble(std::ostream &o, const Opcode *data, size_t *p) {
+void Bytecode::disassemble(OutputStream &os, const Opcode *data, size_t *p) {
 	size_t i = 0;
 	if(p != NULL)
 		i = *p;
-	o << std::setw(3);
 	if(p != NULL)
-		o << i << ": ";
+		os.fmt("{:3}: ", i);
 	else
-		o << " -> ";
-	o << std::setw(20) << OpcodeNames[data[i]];
+		os.write(" -> ");
+	os.fmt("{:20}", OpcodeNames[data[i]]);
 	switch(data[i]) {
 #define OPCODE1(x, y, z)                 \
 	case CODE_##x:                       \
 		i++;                             \
-		disassemble_##z(o, &data[i]);    \
+		disassemble_##z(os, &data[i]);   \
 		i += sizeof(z) / sizeof(Opcode); \
 		break;
 #define OPCODE2(w, x, y, z)              \
 	case CODE_##w:                       \
 		i++;                             \
-		disassemble_##y(o, &data[i]);    \
+		disassemble_##y(os, &data[i]);   \
 		i += sizeof(y) / sizeof(Opcode); \
-		disassemble_##z(o, &data[i]);    \
+		disassemble_##z(os, &data[i]);   \
 		i += sizeof(z) / sizeof(Opcode); \
 		break;
 #include "../opcodes.h"
 		default: i++; break;
 	}
-	o << "\n";
+	os.write("\n");
 	if(p != NULL)
 		*p = i;
-}
-
-std::ostream &operator<<(std::ostream &o, const Bytecode &a) {
-	(void)a;
-	return o << "<bytecode object>";
 }
 
 #endif

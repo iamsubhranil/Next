@@ -56,8 +56,8 @@ Value Error::sete(const char *m) {
 
 Value Error::setIndexError(const char *m, int64_t h, int64_t l, int64_t r) {
 	return IndexError::sete(
-	    Formatter::fmt("{} (expected {} <= index <= {}, received {})", Value(m),
-	                   l, h, r)
+	    Formatter::fmt("{} (expected {} <= index <= {}, received {})", m, l, h,
+	                   r)
 	        .toString());
 }
 

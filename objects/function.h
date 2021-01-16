@@ -96,10 +96,10 @@ struct Function {
 	}
 
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(OutputStream &o);
 #endif
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	const void *gc_repr();
 #endif
 };

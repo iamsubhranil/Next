@@ -19,6 +19,6 @@ struct FormatSpec {
 	void release() {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	const char *gc_repr() { return "format_spec"; }
 #endif
 };

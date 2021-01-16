@@ -44,9 +44,9 @@ struct FunctionCompilationContext {
 	}
 
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(OutputStream &o);
 #endif
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	const Utf8Source gc_repr();
 #endif
 };

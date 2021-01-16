@@ -1,5 +1,8 @@
 #include "value.h"
+#include "engine.h"
+#include "objects/class.h"
 #include "objects/string.h"
+#include "objects/symtab.h"
 
 String *Value::ValueTypeStrings[] = {
     0,

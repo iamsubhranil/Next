@@ -10,15 +10,12 @@
 Value next_boolean_fmt(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(boolean, "fmt(_)", 1, FormatSpec);
-	FormatSpec *f    = args[1].toFormatSpec();
-	char        type = f->type == 0 ? 's' : f->type;
-	if(type == 's') {
-		String *val =
-		    args[0].toBoolean() ? String::const_true_ : String::const_false_;
-		return String::fmt(f, val);
-	} else {
-		return Number::fmt(f, args[0].toBoolean() * 1.0);
-	}
+	FormatSpec *       f = args[1].toFormatSpec();
+	StringOutputStream s;
+	Value ret = Format<Value, bool>().fmt(args[0].toBoolean(), f, s);
+	if(ret != ValueTrue)
+		return ret;
+	return s.toString();
 }
 
 Value next_boolean_str(const Value *args, int numargs) {

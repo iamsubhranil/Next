@@ -230,12 +230,13 @@ struct MethodReferenceExpression : public Expression {
 };
 
 #ifdef DEBUG
+struct OutputStream;
 struct ExpressionPrinter : public ExpressionVisitor {
   private:
-	std::ostream &out;
+	OutputStream &os;
 
   public:
-	ExpressionPrinter(std::ostream &os);
+	ExpressionPrinter(OutputStream &os);
 	void print(Expression *e);
 	void visit(ArrayLiteralExpression *al);
 	void visit(AssignExpression *as);

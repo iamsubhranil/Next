@@ -18,6 +18,10 @@ int64_t SymbolTable2::insert(const char *str) {
 	return insert(String::from(str));
 }
 
+int64_t SymbolTable2::insert(const void *str, size_t bytes) {
+	return insert(String::from(str, bytes));
+}
+
 int64_t SymbolTable2::insert(const String2 &str) {
 	Value s = Value(str);
 	if(stringMap->vv.contains(s))
@@ -32,8 +36,8 @@ String *SymbolTable2::getString(int64_t id) {
 	return intMap->vv[Value(id)].toString();
 }
 
-const char *SymbolTable2::get(int64_t id) {
-	return getString(id)->str();
+const void *SymbolTable2::get(int64_t id) {
+	return getString(id)->strb();
 }
 
 void SymbolTable2::mark() {

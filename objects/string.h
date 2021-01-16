@@ -2,24 +2,29 @@
 
 #include "../gc.h"
 #include "../hashmap.h"
-#include "formatspec.h"
-#include <cstring>
-#include <string>
+#include "../utf8.h"
 
 struct StringSet;
+struct OutputStream;
 
 // performs a string transformation.
 // dest is a new buffer allocated to be
 // same size as 'size', with space for
 // a NULL character at the end.
-typedef void(string_transform)(char *dest, const char *source, size_t size);
+typedef void(string_transform)(void *dest, size_t size);
 
 struct String {
 	GcObject obj;
-	int      size; // excluding the \0
+	int      size; // size in bytes, excluding the \0
 	int      hash_;
 
-	inline char *str() const { return (char *)(this + 1); }
+	inline Utf8Source str() const { return Utf8Source((void *)(this + 1)); }
+
+	// returns bytes
+	inline void *strb() const { return (void *)(this + 1); }
+	// adds \0 in the end
+	inline void terminate() { *(char *)(this + size) = 0; }
+	inline int  len() const { return utf8len(strb()); }
 
 	// gc functions
 	void release();
@@ -33,25 +38,31 @@ struct String {
 	static StringSet *string_set;
 	static void       init0();
 	static void       init();
-	static String *   from(const char *val, size_t size);
-	static String *   from(const char *val);
+	static String *   from(utf8_int32_t c);
+	static String *   from(const void *val) { return from(val, utf8size(val)); }
+	static String *   from(const void *val, size_t size);
+	static String *   from(const void *start, const void *end, size_t len);
 	static String *   fromParser(const char *val);
-	static String *   from(const char *val, size_t size,
+	static String *   from(const void *val, size_t size,
 	                       string_transform transform);
 	static String *   from(const String2 &val, string_transform transform);
-	static String *   append(const char *val1, size_t size1, const char *val2,
+	static String *   append(const void *val1, size_t size1, const void *val2,
 	                         size_t size2);
-	static String *   append(const char *val1, const char *val2);
-	static String *   append(const char *val1, const String2 &val2);
-	static String *   append(const String2 &val1, const char *val2);
-	static String *   append(const String2 &val1, const String2 &val2);
-	static String *append(const String2 &val1, const char *val2, size_t size2);
-	static int     hash_string(const char *val, size_t size);
+	static String *   append(const String2 &val1, utf8_int32_t val2) {
+        return append(val1, &val2, utf8codepointsize(val2));
+	}
+	static String *append(const char *val1, const char *val2);
+	static String *append(const char *val1, const String2 &val2);
+	static String *append(const String2 &val1, const char *val2);
+	static String *append(const String2 &val1, const String2 &val2);
+	static String *append(const String2 &val1, const void *val2, size_t size2);
+	static int     hash_string(const void *val, size_t size);
 	// removes a value from the keep_set
 	static void unkeep(String *s);
 	// various string transformation functions
-	static void transform_lower(char *dest, const char *source, size_t size);
-	static void transform_upper(char *dest, const char *source, size_t size);
+	// dest must already contain the original string
+	static void transform_lower(void *dest, size_t size);
+	static void transform_upper(void *dest, size_t size);
 
 	// converts a value to a string
 	// will return null if an unhandled
@@ -63,8 +74,8 @@ struct String {
 	static String *toStringValue(Value v);
 	// applies f on val
 	// creates a new string to return
-	static Value fmt(FormatSpec *f, const char *val, int size);
-	static Value fmt(FormatSpec *f, const String2 &s);
+	static Value fmt(const String *&s, FormatSpec *f, OutputStream &stream);
+	static Value fmt(const String *&s, FormatSpec *f);
 
 	// release all
 	static void release_all();
@@ -76,11 +87,11 @@ struct String {
 	static void keep();
 
 #ifdef DEBUG_GC
-	const char *gc_repr() { return str(); }
+	const Utf8Source gc_repr() { return str(); }
 #endif
 
   private:
-	static String *insert(char *val, size_t size, int hash_);
+	static String *insert(const void *val, size_t size, int hash_);
 	static String *insert(String *val);
 };
 
@@ -91,7 +102,7 @@ struct StringHash {
 struct StringEquals {
 	bool operator()(const String *a, const String *b) const {
 		return a->hash_ == b->hash_ && a->size == b->size &&
-		       strncmp(a->str(), b->str(), a->size) == 0;
+		       utf8ncmp(a->strb(), b->strb(), a->size) == 0;
 	}
 };
 

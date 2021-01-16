@@ -4,6 +4,10 @@
 #include "common.h"
 #include "map.h"
 
+#ifdef DEBUG_GC
+struct Utf8Source;
+#endif
+
 // maximum number of allowed variadic args
 #define MAX_VARARG_COUNT 32
 
@@ -118,6 +122,6 @@ struct Class {
 	static Class *create(); // allocates a class and sets everything to NULL
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	const Utf8Source gc_repr();
 #endif
 };

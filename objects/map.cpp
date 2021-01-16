@@ -1,6 +1,8 @@
 #include "map.h"
 #include "../engine.h"
+#include "array.h"
 #include "boundmethod.h"
+#include "class.h"
 #include "map_iterator.h"
 #include "symtab.h"
 

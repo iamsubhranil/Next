@@ -64,129 +64,128 @@ const char *Expression::gc_repr() {
 #endif
 
 #ifdef DEBUG
+#include "format.h"
 
-using namespace std;
-
-ExpressionPrinter::ExpressionPrinter(ostream &os) : out(os) {}
+ExpressionPrinter::ExpressionPrinter(OutputStream &o) : os(o) {}
 
 void ExpressionPrinter::print(Expression *e) {
 	e->accept(this);
 }
 
 void ExpressionPrinter::visit(ArrayLiteralExpression *al) {
-	out << "[";
+	os.write("[");
 	if(al->exprs->size > 0) {
 		al->exprs->values[0].toExpression()->accept(this);
 	}
 	int i = 1;
 	while(i < al->exprs->size) {
-		out << ", ";
+		os.write(", ");
 		al->exprs->values[i].toExpression()->accept(this);
 		i++;
 	}
-	out << "]";
+	os.write("]");
 }
 
 void ExpressionPrinter::visit(AssignExpression *as) {
 	as->target->accept(this);
-	out << " = ";
+	os.write(" = ");
 	as->val->accept(this);
 }
 
 void ExpressionPrinter::visit(BinaryExpression *be) {
 	be->left->accept(this);
-	out << " " << be->token << " ";
+	os.write(" ", be->token, " ");
 	be->right->accept(this);
 }
 
 void ExpressionPrinter::visit(CallExpression *ce) {
 	ce->callee->accept(this);
-	out << "(";
+	os.write("(");
 	if(ce->arguments->size != 0) {
 		ce->arguments->values[0].toExpression()->accept(this);
 		for(int i = 1; i < ce->arguments->size; i++) {
-			out << ", ";
+			os.write(", ");
 			ce->arguments->values[i].toExpression()->accept(this);
 		}
 	}
-	out << ")";
+	os.write(")");
 }
 
 void ExpressionPrinter::visit(GetExpression *ge) {
 	ge->object->accept(this);
-	out << ".";
+	os.write(".");
 	ge->refer->accept(this);
 }
 
 void ExpressionPrinter::visit(GetThisOrSuperExpression *ge) {
 	if(ge->token.type == TOKEN_this) {
-		out << "this";
+		os.write("this");
 	} else {
-		out << "super";
+		os.write("super");
 	}
-	out << ".";
+	os.write(".");
 	ge->refer->accept(this);
 }
 
 void ExpressionPrinter::visit(GroupingExpression *ge) {
-	out << "(";
+	os.write("(");
 	for(int i = 0; i < ge->exprs->size; i++) {
 		ge->exprs->values[i].toExpression()->accept(this);
 		if(ge->istuple)
-			out << ", ";
+			os.write(", ");
 	}
-	out << ")";
+	os.write(")");
 }
 
 void ExpressionPrinter::visit(HashmapLiteralExpression *hl) {
-	out << "{";
+	os.write("{");
 	if(hl->keys->size > 0) {
 		hl->keys->values[0].toExpression()->accept(this);
-		out << " : ";
+		os.write(" : ");
 		hl->values->values[0].toExpression()->accept(this);
 	}
 	for(int i = 1; i < hl->keys->size; i++) {
-		out << ", ";
+		os.write(", ");
 		hl->keys->values[i].toExpression()->accept(this);
-		out << " : ";
+		os.write(" : ");
 		hl->values->values[i].toExpression()->accept(this);
 	}
-	out << "}";
+	os.write("}");
 }
 
 void ExpressionPrinter::visit(LiteralExpression *le) {
-	out << le->token;
+	os.write(le->token);
 }
 
 void ExpressionPrinter::visit(MethodReferenceExpression *me) {
-	out << me->token << "@" << me->args;
+	os.write(me->token, "@", me->args);
 }
 
 void ExpressionPrinter::visit(PrefixExpression *pe) {
-	out << pe->token;
+	os.write(pe->token);
 	pe->right->accept(this);
 }
 
 void ExpressionPrinter::visit(PostfixExpression *pe) {
 	pe->left->accept(this);
-	out << pe->token;
+	os.write(pe->token);
 }
 
 void ExpressionPrinter::visit(SetExpression *se) {
 	se->object->accept(this);
-	out << " = ";
+	os.write(" = ");
 	se->value->accept(this);
 }
 
 void ExpressionPrinter::visit(SubscriptExpression *sube) {
 	sube->object->accept(this);
-	out << "[";
+	os.write("[");
 	sube->idx->accept(this);
-	out << "]";
+	os.write("]");
 }
 
 void ExpressionPrinter::visit(VariableExpression *v) {
-	out << v->token;
+	os.write(v->token);
 }
 
 #endif

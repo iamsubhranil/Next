@@ -4,6 +4,10 @@
 #include "../value.h"
 #include "array.h"
 
+#ifdef DEBUG
+struct OutputStream;
+#endif
+
 struct Bytecode {
 	GcObject obj;
 
@@ -144,11 +148,11 @@ struct Bytecode {
 	}
 
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(OutputStream &o);
 
-	static void disassemble_int(std::ostream &os, const Opcode *o);
-	static void disassemble_Value(std::ostream &os, const Opcode *o);
-	static void disassemble(std::ostream &os, const Opcode *o,
+	static void disassemble_int(OutputStream &os, const Opcode *o);
+	static void disassemble_Value(OutputStream &os, const Opcode *o);
+	static void disassemble(OutputStream &os, const Opcode *o,
 	                        size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];

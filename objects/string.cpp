@@ -1,5 +1,7 @@
 #include "string.h"
 #include "../engine.h"
+#include "../format.h"
+#include "class.h"
 #include "errors.h"
 #include "set.h"
 #include "symtab.h"
@@ -39,7 +41,9 @@ Value next_string_at(const Value *args, int numargs) {
 	if(i < 0) {
 		i += s->size;
 	}
-	return String::from(&(s->str()[i]));
+	Utf8Source source(s->strb());
+	source += i;
+	return String::from(source.source, utf8codepointsize(*source));
 }
 
 Value next_string_contains(const Value *args, int numargs) {
@@ -60,41 +64,15 @@ Value next_string_contains(const Value *args, int numargs) {
 	// and the container string has
 	// enough space to contain the
 	// second one, so check
-	const char *bak          = source->str();
-	const char *c            = check->str();
-	bool        keepChecking = true;
-	while(keepChecking) {
-		keepChecking = false;
-		while(*bak && *bak != *c) bak++;
-		if(*bak == 0)
-			return ValueFalse;
-		// if the length of the remaining
-		// string is lesser than the
-		// string to check, return false
-		int rem = source->size - (bak - source->str());
-		if(rem < check->size)
-			return ValueFalse;
-		// check the remaining characters
-		while(*bak && *c) {
-			if(*bak != *c) {
-				// it may so happen that we guessed the
-				// beginning of the match wrong, so try again
-				keepChecking = true;
-				break;
-			}
-			bak++;
-			c++;
-		}
-	}
-	return ValueTrue;
+	return Value(utf8str(source->strb(), check->strb()) != NULL);
 }
 
 Value next_string_fmt(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(string, "fmt(_)", 1, FormatSpec);
-	String *    s = args[0].toString();
-	FormatSpec *f = args[1].toFormatSpec();
-	return String::fmt(f, s);
+	const String *s = args[0].toString();
+	FormatSpec *  f = args[1].toFormatSpec();
+	return String::fmt(s, f);
 }
 
 Value next_string_hash(const Value *args, int numargs) {
@@ -132,8 +110,11 @@ Value next_string_substr(const Value *args, int numargs) {
 	if(from > to) {
 		IDXERR("'from' index is greater than 'to' index", 0, to, from);
 	}
-
-	return String::from(&(s->str()[from]), to - from + 1);
+	Utf8Source source(s->strb());
+	source += from;
+	const void *start = source.source;
+	source += (to - from) + 1;
+	return String::from(start, (uintptr_t)start - (uintptr_t)source.source + 1);
 }
 
 Value next_string_str(const Value *args, int numargs) {
@@ -163,106 +144,32 @@ void String::init() {
 	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
 }
 
-Value String::fmt(FormatSpec *f, const char *s, int size) {
-
-	if(f->type != 0 && f->type != 's') {
-		FERR("Invalid type specifier for string!");
-	}
-	if(f->sign) {
-		FERR("Sign is invalid for string!");
-	}
-	if(f->isalt) {
-		FERR("'#' is invalid for string!");
-	}
-	if(f->signaware) {
-		FERR("'0' is invalid for string!");
-	}
-	int width     = size;
-	int precision = size;
-	if(f->width != -1) {
-		width = f->width;
-	}
-	if(f->precision != -1 && f->precision < precision) {
-		precision = f->precision;
-	}
-	char fill  = ' ';
-	char align = '<';
-	if(f->fill)
-		fill = f->fill;
-	if(f->align)
-		align = f->align;
-	if(width > precision) {
-		// if numfill > 0, we have space to fill
-		int numfill = width - precision;
-		// allocate a buffer of width bytes
-		char *buf  = (char *)GcObject_malloc(width + 1);
-		buf[width] = 0;
-		// if the string is left aligned, first fill
-		// 'precision' characters from string, then fill
-		// the rest with 'fill'
-		if(align == '<') {
-			for(int i = 0; i < precision; i++) {
-				buf[i] = s[i];
-			}
-			for(int i = precision; i < width; i++) {
-				buf[i] = fill;
-			}
-		} else if(align == '>') {
-			// if the string is right aligned, first fill
-			// 'numfill' characters with fill, then fill
-			// the 'precision' characters with string
-			for(int i = 0; i < numfill; i++) {
-				buf[i] = fill;
-			}
-			for(int i = numfill; i < width; i++) {
-				buf[i] = s[i - numfill];
-			}
-		} else {
-			// centered
-			// fill numfill/2 characters from the left
-			// precision from the string
-			// the rest from the right
-			int j = 0;
-			int k = numfill / 2;
-			for(int i = 0; i < k; i++) {
-				buf[j++] = fill;
-			}
-			for(int i = 0; i < precision; i++) {
-				buf[j++] = s[i];
-			}
-			for(int i = k; i < numfill; i++) {
-				buf[j++] = fill;
-			}
-		}
-		String *ret = String::from(buf, width);
-		// free the buffer
-		GcObject_free(buf, width + 1);
-		return ret;
-	} else if(precision < size) {
-		return String::from(s, precision);
-	}
-
-	return String::from(s, size);
+Value String::fmt(const String *&s, FormatSpec *f, OutputStream &stream) {
+	return Format<Value, String *>().fmt(s, f, stream);
 }
 
-Value String::fmt(FormatSpec *f, const String2 &s) {
-	return fmt(f, s->str(), s->size);
+Value String::fmt(const String *&s, FormatSpec *f) {
+	StringOutputStream st;
+	Value              v = String::fmt(s, f, st);
+	if(v != FormatHandler<Value>::Success())
+		return v;
+	return st.toString();
 }
 
-void String::transform_lower(char *dest, const char *source, size_t size) {
-	for(size_t i = 0; i < size; i++) {
-		dest[i] = tolower(source[i]);
-	}
+void String::transform_lower(void *dest, size_t size) {
+	(void)size;
+	utf8lwr(dest);
 }
 
-void String::transform_upper(char *dest, const char *source, size_t size) {
-	for(size_t i = 0; i < size; i++) {
-		dest[i] = toupper(source[i]);
-	}
+void String::transform_upper(void *dest, size_t size) {
+	(void)size;
+	utf8upr(dest);
 }
 
-int String::hash_string(const char *s, size_t size) {
+int String::hash_string(const void *sr, size_t size) {
 	int hash_ = 0;
+
+	const char *s = (const char *)sr;
 
 	for(size_t i = 0; i < size; ++i) {
 		hash_ += s[i];
@@ -278,9 +185,9 @@ int String::hash_string(const char *s, size_t size) {
 }
 
 // val MUST be mallocated elsewhere
-String *String::insert(char *val, size_t size, int hash_) {
+String *String::insert(const void *val, size_t size, int hash_) {
 	String *s = GcObject::allocString2(size);
-	memcpy(s->str(), val, size);
+	memcpy(s->strb(), val, size);
 	s->size  = size;
 	s->hash_ = hash_;
 	// track the string from now on
@@ -296,15 +203,16 @@ String *String::insert(String *s) {
 	return s;
 }
 
-String *String::from(const char *v, size_t size, string_transform transform) {
+String *String::from(const void *v, size_t size, string_transform transform) {
 	// before allocating, first check whether the
 	// string already exists
 	String *val = GcObject::allocString2(size + 1);
 	val->size   = size;
-	transform(val->str(), v, size);
-	val->str()[size] = 0;
-	val->hash_       = hash_string(val->str(), size);
-	auto res         = string_set->hset.find(val);
+	memcpy(val->strb(), v, size);
+	transform(val->strb(), size);
+	val->terminate();
+	val->hash_ = hash_string(val->strb(), size);
+	auto res   = string_set->hset.find(val);
 	if(res != string_set->hset.end()) {
 		// free the duplicate string
 		GcObject::releaseString2(val);
@@ -315,15 +223,15 @@ String *String::from(const char *v, size_t size, string_transform transform) {
 	return insert(val);
 }
 
-String *String::from(const char *val, size_t size) {
+String *String::from(const void *val, size_t size) {
 	// before allocating, first check whether the
 	// string already exists
 	String *check = GcObject::allocString2(size + 1);
-	memcpy(check->str(), val, size);
-	check->str()[size] = 0;
-	check->size        = size;
-	check->hash_       = hash_string(check->str(), size);
-	auto res           = string_set->hset.find(check);
+	memcpy(check->strb(), val, size);
+	check->size = size;
+	check->terminate();
+	check->hash_ = hash_string(check->strb(), size);
+	auto res     = string_set->hset.find(check);
 	if(res != string_set->hset.end()) {
 		// free the duplicate string
 		GcObject::releaseString2(check);
@@ -334,12 +242,8 @@ String *String::from(const char *val, size_t size) {
 	return insert(check);
 }
 
-String *String::from(const char *val) {
-	return from(val, strlen(val));
-}
-
 String *String::from(const String2 &s, string_transform transform) {
-	return from(s->str(), s->size, transform);
+	return from(s->strb(), s->size, transform);
 }
 
 String *String::fromParser(const char *val) {
@@ -351,16 +255,16 @@ String *String::fromParser(const char *val) {
 // we create a separate method for append because
 // we don't want two mallocs to take place, one
 // for append, and one for insert.
-String *String::append(const char *val1, size_t size1, const char *val2,
+String *String::append(const void *val1, size_t size1, const void *val2,
                        size_t size2) {
 	// first create the new string
 	size_t  size = size1 + size2;
 	String *ns   = GcObject::allocString2(size + 1);
 	ns->size     = size;
-	memcpy(ns->str(), val1, size1);
-	memcpy(ns->str() + size1, val2, size2);
-	ns->str()[size] = 0;
-	ns->hash_       = hash_string(ns->str(), size);
+	memcpy(ns->strb(), val1, size1);
+	memcpy((void *)((uintptr_t)ns->strb() + size1), val2, size2);
+	ns->terminate();
+	ns->hash_ = hash_string(ns->strb(), size);
 	// now check whether this one already exists
 	auto res = string_set->hset.find(ns);
 	if(res != string_set->hset.end()) {
@@ -379,19 +283,19 @@ String *String::append(const char *val1, const char *val2) {
 }
 
 String *String::append(const char *val1, const String2 &val2) {
-	return append(val1, strlen(val1), val2->str(), val2->size);
+	return append(val1, strlen(val1), val2->strb(), val2->size);
 }
 
 String *String::append(const String2 &val1, const char *val2) {
-	return append(val1->str(), val1->size, val2, strlen(val2));
+	return append(val1->strb(), val1->size, val2, strlen(val2));
 }
 
 String *String::append(const String2 &s1, const String2 &s2) {
-	return append(s1->str(), s1->size, s2->str(), s2->size);
+	return append(s1->strb(), s1->size, s2->strb(), s2->size);
 }
 
-String *String::append(const String2 &s1, const char *val2, size_t size2) {
-	return append(s1->str(), s1->size, val2, size2);
+String *String::append(const String2 &s1, const void *val2, size_t size2) {
+	return append(s1->strb(), s1->size, val2, size2);
 }
 
 String2 objectOrModule(const Class *c) {

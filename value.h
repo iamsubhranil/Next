@@ -55,23 +55,25 @@ struct Value {
 	constexpr Value(int64_t l) : dvalue((double)l) {}
 	constexpr Value(int i) : dvalue((double)i) {}
 #ifdef DEBUG
-#define TYPE(r, n)                                                             \
-	Value(const r s) {                                                         \
-		encode##n(s);                                                          \
-		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
-		          << " (Magic : " << QNAN_##n << ")\n"                         \
-		          << std::dec;*/                                               \
+#define TYPE(r, n)                                                        \
+	Value(const r s) {                                                    \
+		encode##n(s);                                                     \
+		/*std::wcout << std::hex << #n << " " << s << " encoded to : " << \
+		   value                                                          \
+		          << " (Magic : " << QNAN_##n << ")\n"                    \
+		          << std::dec;*/                                          \
 	}
-#define OBJTYPE(r)                                                             \
-	Value(const r *s) {                                                        \
-		encodeGcObject((GcObject *)s);                                         \
-		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
-		          << " (Magic : " << QNAN_GcObject << ")\n"                    \
-		          << std::dec; */                                              \
-	}                                                                          \
-	Value(GcTempObject<r> &s) {                                                \
-		r *temp = s;                                                           \
-		encodeGcObject((GcObject *)temp);                                      \
+#define OBJTYPE(r)                                                        \
+	Value(const r *s) {                                                   \
+		encodeGcObject((GcObject *)s);                                    \
+		/*std::wcout << std::hex << #n << " " << s << " encoded to : " << \
+		   value                                                          \
+		          << " (Magic : " << QNAN_GcObject << ")\n"               \
+		          << std::dec; */                                         \
+	}                                                                     \
+	Value(GcTempObject<r> &s) {                                           \
+		r *temp = s;                                                      \
+		encodeGcObject((GcObject *)temp);                                 \
 	}
 #else
 #define TYPE(r, n) \

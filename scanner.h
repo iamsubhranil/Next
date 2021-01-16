@@ -1,8 +1,7 @@
-#ifndef scanner_h
-#define scanner_h
+#pragma once
 
 #include "objects/customarray.h"
-#include <ostream>
+#include "utf8.h"
 
 typedef enum {
 	TOKEN_LEFT_PAREN,
@@ -63,20 +62,20 @@ class Scanner;
 
 typedef struct Token {
 	typedef enum { INFO = 0, WARN = 1, ERROR = 2 } HighlightType;
-	TokenType   type;
-	const char *start;
-	const char *source;
-	int         length;
-	int         line;
-	const char *fileName;
+	TokenType  type;
+	Utf8Source start;
+	Utf8Source source;
+	int        length;
+	int        line;
+	Utf8Source fileName;
 
-	static Token         from(TokenType t, Scanner *s);
-	static Token         errorToken(const char *message, Scanner *s);
-	friend std::ostream &operator<<(std::ostream &os, const Token &t);
-	friend std::ostream &operator<<(std::ostream &            os,
-	                                const CustomArray<Token> &tv);
-	void highlight(bool showFileName = false, const char *prefix = NULL,
-	               HighlightType htype = INFO) const;
+	Token(TokenType t, Utf8Source s, Utf8Source r, int l, int ln, Utf8Source f)
+	    : type(t), start(s), source(r), length(l), line(ln), fileName(f) {}
+	Token() : start(NULL), source(NULL), fileName(NULL) {}
+	static Token from(TokenType t, Scanner *s);
+	static Token errorToken(const char *message, Scanner *s);
+	void         highlight(bool showFileName = false, const char *prefix = NULL,
+	                       HighlightType htype = INFO) const;
 	static const char *TokenNames[];
 	static const char *FormalNames[];
 	bool               isOperator();
@@ -85,44 +84,42 @@ typedef struct Token {
 
 class Scanner {
   private:
-	const char *       source;
-	const char *       tokenStart;
-	const char *       current;
-	const char *       fileName;
+	Utf8Source         source;
+	Utf8Source         tokenStart;
+	Utf8Source         current;
+	Utf8Source         fileName;
 	int                line;
 	int                scanErrors;
 	CustomArray<Token> tokenList;
 
 	// Returns 1 if `c` is an English letter or underscore.
-	static bool isAlpha(char c);
+	static bool isAlpha(utf8_int32_t c);
 
 	// Returns 1 if `c` is a digit.
-	static bool isDigit(char c);
+	static bool isDigit(utf8_int32_t c);
 
 	// Returns 1 if `c` is an English letter, underscore, or digit.
-	static bool isAlphaNumeric(char c);
+	static bool isAlphaNumeric(utf8_int32_t c);
 
-	bool  isAtEnd();
-	char  advance();
-	char  peek();
-	char  peekNext();
-	bool  match(char expected);
-	Token identifier();
-	Token number();
-	Token hexadecimal();
-	Token octal();
-	Token binary();
-	Token str();
-	int   skipEmptyLine();
+	bool         isAtEnd();
+	utf8_int32_t advance();
+	utf8_int32_t peek();
+	utf8_int32_t peekNext();
+	bool         match(utf8_int32_t expected);
+	Token        identifier();
+	Token        number();
+	Token        hexadecimal();
+	Token        octal();
+	Token        binary();
+	Token        str();
+	int          skipEmptyLine();
 
   public:
-	Scanner(const char *source, const char *file);
-	Scanner(const char *file);
+	Scanner(const void *source, const void *file);
+	Scanner(const void *file);
 	Token                     scanNextToken();
 	const CustomArray<Token> &scanAllTokens();
 	bool                      hasScanErrors();
 
 	friend Token;
 };
-
-#endif

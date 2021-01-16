@@ -166,7 +166,7 @@ bool ClassCompilationContext::add_public_fn(const String2 &sig, Function *f,
 			// if base contains only (, i.e. the function
 			// does not have any necessary arguments, initially
 			// append it with _
-			if(i == 0 && base->str()[base->size - 1] == '(') {
+			if(i == 0 && (base->str() + base->len() - 1) == '(') {
 				base = String::append(base, "_");
 			} else {
 				base = String::append(base, ",_");
@@ -205,7 +205,7 @@ bool ClassCompilationContext::add_private_fn(const String2 &sig, Function *f,
 			// if base contains only (, i.e. the function
 			// does not have any necessary arguments, initially
 			// append it with _
-			if(i == 0 && base->str()[base->size - 1] == '(') {
+			if(i == 0 && (base->str() + base->len() - 1) == '(') {
 				base = String::append(base, "_");
 			} else {
 				base = String::append(base, ",_");
@@ -298,53 +298,53 @@ void ClassCompilationContext::finalize() {
 }
 
 #ifdef DEBUG
-void ClassCompilationContext::disassemble(std::ostream &o) {
+#include "../format.h"
+
+void ClassCompilationContext::disassemble(OutputStream &os) {
 	if(moduleContext == NULL) {
-		o << "Module: " << klass->name->str() << "\n";
+		os.write("Module: ", klass->name->str(), "\n");
 	} else {
-		o << "Class: " << klass->name->str() << "\n";
+		os.write("Class: ", klass->name->str(), "\n");
 	}
-	o << "Members: ";
+	os.write("Members: ");
 	for(auto &a : *members) {
-		o << a.first->str() << "(slot=" << a.second.slot
-		  << ",static=" << a.second.isStatic << "), ";
+		os.write(a.first->str(), "(slot=", a.second.slot,
+		         ",static=", a.second.isStatic, "), ");
 	}
-	o << "\n";
-	o << "Functions: " << fctxMap->vv.size() << "\n";
+	os.write("\n");
+	os.write("Functions: ", fctxMap->vv.size(), "\n");
 	HashSet<FunctionCompilationContext *> vaFuncs;
 	size_t                                i = 0;
 	for(auto &a : fctxMap->vv) {
 		FunctionCompilationContext *f = a.second.toFunctionCompilationContext();
 		if(!vaFuncs.contains(f)) {
-			o << "\nFunction #" << i++ << ": ";
+			os.write("\nFunction #", i++, ": ");
 			String *name = a.first.toString();
 			// if this is a vararg function, print the minimum
 			// signature
 			if(f->get_fn()->isVarArg()) {
-				int         idx = 0;
-				const char *str = name->str();
-				while(str[idx] != '(') o << str[idx++];
-				o << "(";
+				Utf8Source str = name->str();
+				while(*str != '(') os.write(str++);
+				os.write("(");
 				if(f->get_fn()->arity > 0)
-					o << "_,";
-				for(int i = 1; i < f->get_fn()->arity; i++) o << "_,";
-				o << "..)\n";
+					os.write("_,");
+				for(int i = 1; i < f->get_fn()->arity; i++) os.write("_,");
+				os.write("..)\n");
 			} else {
-				o << name->str() << "\n";
+				os.write(name->str(), "\n");
 			}
-			f->disassemble(o);
+			f->disassemble(os);
 		}
 		if(f->get_fn()->isVarArg()) {
 			vaFuncs.insert(f);
 		}
 	}
 	if(cctxMap != NULL) {
-		o << "\nClasses: " << cctxMap->vv.size() << "\n";
+		os.write("\nClasses: ", cctxMap->vv.size(), "\n");
 		i = 0;
 		for(auto &a : cctxMap->vv) {
-			o << "\nClass #" << i++ << ": " << a.first.toString()->str()
-			  << "\n";
-			a.second.toClassCompilationContext()->disassemble(o);
+			os.write("\nClass #", i++, ": ", a.first.toString()->str(), "\n");
+			a.second.toClassCompilationContext()->disassemble(os);
 		}
 	}
 }

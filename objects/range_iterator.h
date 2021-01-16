@@ -26,6 +26,6 @@ struct RangeIterator {
 	void        release() {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr() { return "range_iterator"; }
+	const Utf8Source gc_repr() { return "range_iterator"; }
 #endif
 };

@@ -5,6 +5,7 @@
 struct Function;
 struct Class;
 struct Object;
+struct Utf8Source;
 
 struct BoundMethod {
 	GcObject  ob;
@@ -35,6 +36,6 @@ struct BoundMethod {
 	void release() {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	const Utf8Source gc_repr();
 #endif
 };
