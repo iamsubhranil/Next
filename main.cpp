@@ -20,21 +20,23 @@ bool isTerminated(const String2 &s) {
 				counter--;
 		}
 		prevchar = *c;
+		++c;
 	}
 	return counter <= 0;
 }
 
-int getline(String2 &line) {
+String *getline() {
 	if(feof(stdin))
 		return 0;
 	if(ferror(stdin))
 		return 0;
-	line = String::from("");
+	String2      line = String::from("");
 	utf8_int32_t c;
 	while((c = fgetwc(stdin)) != '\n' && c != 0) {
+		printf("%c", c);
 		line = String::append(line, c);
 	}
-	return 1;
+	return line;
 }
 
 int main(int argc, char *argv[]) {
@@ -43,7 +45,7 @@ int main(int argc, char *argv[]) {
 	Printer::init();
 #ifdef DEBUG
 	Printer::println("sizeof(Value) : ", sizeof(Value));
-#define TYPE(r, n) Printer::fmt(#n, "{:x}", QNAN_##n);
+#define TYPE(r, n) Printer::println(#n "\t:", QNAN_##n);
 #include "valuetypes.h"
 #endif
 	GcObject::init();
@@ -62,8 +64,11 @@ int main(int argc, char *argv[]) {
 			Printer::print(">> ");
 			String2 line, bak;
 			bool    terminated = false;
-			while(getline(line)) {
-				bak = String::append(bak, line);
+			while((line = getline())) {
+				if(bak == NULL)
+					bak = (String *)line;
+				else
+					bak = String::append(bak, line);
 				if(isTerminated(bak)) {
 					terminated = true;
 					break;

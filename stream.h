@@ -25,47 +25,6 @@ struct Stream {
 	std::size_t write(const void *data, std::size_t bytes);
 };
 
-struct OutputStream {
-
-  private:
-	Stream *stream;
-
-  public:
-	// init the stream before write
-	explicit OutputStream() : stream(0) {}
-	explicit OutputStream(Stream *f) : stream(f) {}
-
-	template <typename F, typename... T>
-	std::size_t write(const F &arg, const T &...args) {
-		std::size_t sum = write<F>(arg) + write<T...>(args...);
-		return sum;
-	}
-	template <typename... T>
-	std::size_t fmt(const void *fmt, const T &...args); // defined in format.h
-	template <typename T> std::size_t write(const T &val) {
-		return Writer<T>().write(val, *this);
-	}
-
-	std::size_t writebytes(const void *data, std::size_t bytes) {
-		return stream->write(data, bytes);
-	}
-
-	void setStream(Stream *s) { stream = s; }
-
-#define OS_DIRECT_WRITE(type) std::size_t write(type val);
-#define OS_BYPASS_WRITE(type, with) std::size_t write(type val);
-	OS_DIRECT_WRITE(int64_t)
-	OS_BYPASS_WRITE(int, int64_t)
-	OS_DIRECT_WRITE(double)
-	OS_DIRECT_WRITE(char)
-	OS_DIRECT_WRITE(utf8_int32_t)
-	OS_DIRECT_WRITE(size_t)
-#undef OS_DIRECT_WRITE
-#undef OS_BYPASS_WRITE
-	std::size_t write(Utf8Source const &val);
-	std::size_t write(const char *const &val);
-};
-
 struct FileStream : Stream {
 	FILE *file;
 
@@ -89,6 +48,9 @@ struct FileStream : Stream {
 	}
 	std::size_t write(const utf8_int32_t &val);
 	std::size_t write(const Utf8Source &val);
+	std::size_t write(const bool &val) {
+		return write(val ? "true" : "false", val ? 4 : 5);
+	}
 };
 
 struct String;
@@ -106,13 +68,10 @@ struct StringStream : Stream {
 	std::size_t write(const utf8_int32_t &val);
 	std::size_t write(const std::size_t &val);
 	std::size_t write(const Utf8Source &val);
+	std::size_t write(const bool &val) {
+		return write(val ? "true" : "false", val ? 4 : 5);
+	}
 
-	Value toString();
-};
-
-struct StringOutputStream : public OutputStream {
-	StringStream ss;
-	StringOutputStream() : OutputStream(), ss() { setStream(&ss); }
 	Value toString();
 };
 

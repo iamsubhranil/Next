@@ -279,15 +279,15 @@ String *String::append(const void *val1, size_t size1, const void *val2,
 }
 
 String *String::append(const char *val1, const char *val2) {
-	return append(val1, strlen(val1), val2, strlen(val2));
+	return append(val1, utf8size(val1), val2, utf8size(val2));
 }
 
 String *String::append(const char *val1, const String2 &val2) {
-	return append(val1, strlen(val1), val2->strb(), val2->size);
+	return append(val1, utf8size(val1), val2->strb(), val2->size);
 }
 
 String *String::append(const String2 &val1, const char *val2) {
-	return append(val1->strb(), val1->size, val2, strlen(val2));
+	return append(val1->strb(), val1->size, val2, utf8size(val2));
 }
 
 String *String::append(const String2 &s1, const String2 &s2) {

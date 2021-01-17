@@ -23,7 +23,7 @@ struct String {
 	// returns bytes
 	inline void *strb() const { return (void *)(this + 1); }
 	// adds \0 in the end
-	inline void terminate() { *(char *)(this + size) = 0; }
+	inline void terminate() { *((char *)strb() + size) = 0; }
 	inline int  len() const { return utf8len(strb()); }
 
 	// gc functions

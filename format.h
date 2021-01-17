@@ -1,5 +1,6 @@
 #pragma once
 
+#include "display.h"
 #include "engine.h"
 #include "format_templates.h"
 #include "objects/class.h"
@@ -13,11 +14,60 @@
 #include <cstdint>
 #include <typeinfo>
 
+struct OutputStream {
+
+  private:
+	Stream *stream;
+
+  public:
+	// init the stream before write
+	explicit OutputStream() : stream(0) {}
+	explicit OutputStream(Stream *f) : stream(f) {}
+
+	template <typename F, typename... T>
+	std::size_t write(const F &arg, const T &...args) {
+		std::size_t sum = write<F>(arg) + write<T...>(args...);
+		return sum;
+	}
+	template <typename... T>
+	std::size_t fmt(const void *fmt, const T &...args); // defined in format.h
+	template <typename T> std::size_t write(const T &val) {
+		return Writer<T>().write(val, *this);
+	}
+
+	std::size_t writebytes(const void *data, std::size_t bytes) {
+		return stream->write(data, bytes);
+	}
+
+	void setStream(Stream *s) { stream = s; }
+
+#define OS_DIRECT_WRITE(type) std::size_t write(type const &val);
+#define OS_BYPASS_WRITE(type, with) std::size_t write(type const &val);
+	OS_DIRECT_WRITE(int64_t)
+	OS_BYPASS_WRITE(int, int64_t)
+	OS_DIRECT_WRITE(double)
+	OS_DIRECT_WRITE(char)
+	OS_DIRECT_WRITE(utf8_int32_t)
+	OS_DIRECT_WRITE(size_t)
+	OS_DIRECT_WRITE(bool)
+#undef OS_DIRECT_WRITE
+#undef OS_BYPASS_WRITE
+	std::size_t write(Utf8Source const &val);
+	// std::size_t write(const char *const &val);
+	template <size_t n> std::size_t write(const char val[n]) {
+		return writebytes(val, n);
+	}
+};
+
+struct StringOutputStream : public OutputStream {
+	StringStream ss;
+	StringOutputStream() : OutputStream(), ss() { setStream(&ss); }
+	Value toString();
+};
+
 template <typename T> struct Writer {
 	Writer() {}
-	std::size_t write(const T &val, OutputStream &stream) {
-		return stream.write(val);
-	}
+	std::size_t write(const T &val, OutputStream &stream);
 };
 
 template <> struct Writer<String const *> {
@@ -625,3 +675,6 @@ template <typename... K>
 size_t OutputStream::fmt(const void *fmt, const K &...args) {
 	return Formatter::fmt1(*this, fmt, args...);
 }
+
+#include "objects/boolean.h"
+#include "objects/number.h"

@@ -757,7 +757,7 @@ size_t utf8size(const void *str) {
 	}
 
 	// we are including the null terminating byte in the size calculation
-	size++;
+	// size++;
 	return size;
 }
 

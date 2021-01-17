@@ -90,19 +90,20 @@ std::size_t FileStream::write(const Utf8Source &val) {
 	return write(val.source, utf8size(val.source));
 }
 
+/*
 std::size_t OutputStream::write(const char *const &val) {
-	return writebytes(val, strlen(val));
-}
+    return writebytes(val, utf8size(val));
+}*/
 std::size_t OutputStream::write(Utf8Source const &val) {
 	return stream->write(val);
 }
-#define OS_DIRECT_WRITE(type)                   \
-	std::size_t OutputStream::write(type val) { \
-		return stream->write<type>(val);        \
+#define OS_DIRECT_WRITE(type)                          \
+	std::size_t OutputStream::write(type const &val) { \
+		return stream->write<type>(val);               \
 	};
-#define OS_BYPASS_WRITE(type, with)             \
-	std::size_t OutputStream::write(type val) { \
-		return stream->write<with>(val);        \
+#define OS_BYPASS_WRITE(type, with)                    \
+	std::size_t OutputStream::write(type const &val) { \
+		return stream->write<with>(val);               \
 	};
 OS_DIRECT_WRITE(int64_t)
 OS_BYPASS_WRITE(int, int64_t)
@@ -110,5 +111,6 @@ OS_DIRECT_WRITE(double)
 OS_DIRECT_WRITE(char)
 OS_DIRECT_WRITE(utf8_int32_t)
 OS_DIRECT_WRITE(size_t)
+OS_DIRECT_WRITE(bool)
 #undef OS_DIRECT_WRITE
 #undef OS_BYPASS_WRITE
