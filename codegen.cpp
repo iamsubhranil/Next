@@ -432,7 +432,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			lnerr_(call->callee->token,
 			       "No function with the specified signature found "
 			       "in module '",
-			       mtx->get_class()->name->str(), "'!");
+			       mtx->get_class()->name, "'!");
 			// String *s = String::from(call->callee->token.start,
 			//                        call->callee->token.length);
 			// TODO: Error reporting

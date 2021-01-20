@@ -159,14 +159,14 @@ bool ClassCompilationContext::add_public_fn(const String2 &sig, Function *f,
 	if(f->isVarArg()) {
 		// sig contains the base signature, without
 		// the vararg. so get the base without ')'
-		String2 base = String::from(sig->str(), sig->size - 1);
+		String2 base = String::from(sig->strb(), sig->size - 1);
 		// now starting from 1 upto MAX_VARARG_COUNT, generate
 		// a signature and register
 		for(int i = 0; i < MAX_VARARG_COUNT; i++) {
 			// if base contains only (, i.e. the function
 			// does not have any necessary arguments, initially
 			// append it with _
-			if(i == 0 && (base->str() + base->len() - 1) == '(') {
+			if(i == 0 && (base->str() + (base->len() - 1)) == '(') {
 				base = String::append(base, "_");
 			} else {
 				base = String::append(base, ",_");
@@ -205,7 +205,7 @@ bool ClassCompilationContext::add_private_fn(const String2 &sig, Function *f,
 			// if base contains only (, i.e. the function
 			// does not have any necessary arguments, initially
 			// append it with _
-			if(i == 0 && (base->str() + base->len() - 1) == '(') {
+			if(i == 0 && (base->str() + (base->len() - 1)) == '(') {
 				base = String::append(base, "_");
 			} else {
 				base = String::append(base, ",_");

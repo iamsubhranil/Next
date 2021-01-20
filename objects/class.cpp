@@ -101,7 +101,7 @@ void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
 			// if base contains only (, i.e. the function
 			// does not have any necessary arguments, initially
 			// append it with _
-			if(i == 0 && (base->str() + base->len() - 1) == '(') {
+			if(i == 0 && (base->str() + (base->len() - 1)) == '(') {
 				base = String::append(base, "_");
 			} else {
 				base = String::append(base, ",_");

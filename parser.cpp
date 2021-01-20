@@ -533,9 +533,10 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 
 // Fix THIS
 String *Parser::buildNextString(Token &t) {
-	String2    s     = String::from("");
 	Utf8Source start = t.start;
-	while(*start) {
+	start++;
+	String2 s = String::from("");
+	while(*start != '"') {
 		if(*start == '\\') {
 			switch(start + 1) {
 				case 'n':
@@ -544,6 +545,14 @@ String *Parser::buildNextString(Token &t) {
 					break;
 				case 't':
 					s = String::append(s, '\t');
+					start++;
+					break;
+				case '"':
+					s = String::append(s, '"');
+					start++;
+					break;
+				case '\\':
+					s = String::append(s, '\\');
 					start++;
 					break;
 			}

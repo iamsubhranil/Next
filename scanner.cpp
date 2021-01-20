@@ -73,19 +73,26 @@ void Token::highlight(bool showFileName, const char *prefix,
 	Utf8Source         tokenEnd = start, tokenStart = source;
 	int                curLine = 1;
 	while(curLine < line) {
-		while(*tokenStart != '\n') tokenStart++;
+		while(*tokenStart != '\n') ++tokenStart;
+		tokenStart++;
 		curLine++;
 	}
 	if(*tokenStart == '\n')
-		tokenStart++;
+		++tokenStart;
 	Utf8Source bak = tokenStart;
 	while(*tokenEnd != '\0' && *tokenEnd != '\n') {
-		tokenEnd++;
+		++tokenEnd;
 	}
 	// we need to find the number of codepoints from start to
 	// tokenStart, and this is not exactly the correct method for
 	// that
-	int ch    = tokenStart.len() - start.len() + 1;
+
+	int        ch   = 1;
+	Utf8Source bak2 = tokenStart;
+	while(bak2 != start) {
+		bak2++;
+		ch++;
+	}
 	int extra = 4; // [:]<space>
 
 	if(showFileName) {
