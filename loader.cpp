@@ -1,5 +1,4 @@
 #include "loader.h"
-#include "display.h"
 #include "engine.h"
 #include "objects/fiber.h"
 #include "objects/functioncompilationctx.h"
@@ -186,7 +185,7 @@ GcObject *Loader::compile_and_load_with_name(const void *fileName,
 		}
 	} catch(ParseException &pe) {
 		if(pe.getToken().source.source != NULL) {
-			lnerr(pe.what(), pe.getToken());
+			Printer::LnErr(pe.getToken(), pe.what());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
 	} catch(std::runtime_error &r) {
@@ -242,7 +241,7 @@ Value Loader::compile_and_load_from_source(const void *             source,
 		}
 	} catch(ParseException &pe) {
 		if(pe.getToken().source.source != NULL) {
-			lnerr(pe.what(), pe.getToken());
+			Printer::LnErr(pe.getToken(), pe.what());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
 	} catch(std::runtime_error &r) {

@@ -1,7 +1,7 @@
 #include "stmt.h"
-#include "display.h"
 #include "objects/class.h"
 #include "objects/string.h"
+#include "printer.h"
 
 void Statement::accept(StatementVisitor *visitor) {
 	switch(type) {
@@ -11,7 +11,7 @@ void Statement::accept(StatementVisitor *visitor) {
 		break;
 #include "stmttypes.h"
 		default:
-			panic("[Internal Error] Invalid statement type %d!", type);
+			panic("[Internal Error] Invalid statement type ", (int)type, "!");
 			break;
 	}
 }
@@ -24,7 +24,7 @@ void Statement::mark() {
 		break;
 #include "stmttypes.h"
 		default:
-			panic("[Internal Error] Invalid statement type %d!", type);
+			panic("[Internal Error] Invalid statement type ", (int)type, "!");
 			break;
 	}
 }
@@ -37,7 +37,7 @@ size_t Statement::getSize() {
 		break;
 #include "stmttypes.h"
 		default:
-			panic("[Internal Error] Invalid statement type %d!", type);
+			panic("[Internal Error] Invalid statement type ", (int)type, "!");
 			break;
 	}
 }

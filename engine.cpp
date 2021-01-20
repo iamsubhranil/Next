@@ -1,5 +1,4 @@
 #include "engine.h"
-#include "display.h"
 #include "format.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecodecompilationctx.h"
@@ -153,10 +152,10 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 	const Class *c = v.getClass();
 	Printer::print("\n");
 	if(c->module != NULL) {
-		err("Uncaught exception occurred of type '%s.%s'!",
-		    c->module->name->str(), c->name->str());
+		Printer::Err("Uncaught exception occurred of type '", c->module->name,
+		             ".", c->name, "'!");
 	} else {
-		err("Uncaught exception occurred of type '%s'!", c->name->str());
+		Printer::Err("Uncaught exception occurred of type '", c->name, "'!");
 	}
 	Printer::print(ANSI_FONT_BOLD, c->name->str(), ANSI_COLOR_RESET, ": ");
 	String *s = String::toString(v);
@@ -1187,10 +1186,10 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			CASE(end) : DEFAULT() : {
 				uint8_t code = *InstructionPointer;
 				if(code >= Bytecode::CODE_end) {
-					panic("Invalid bytecode %d!", code);
+					panic("Invalid bytecode ", (int)code, "!");
 				} else {
-					panic("Bytecode not implemented : '%s'!",
-					      Bytecode::OpcodeNames[code])
+					panic("Bytecode not implemented : '",
+					      Bytecode::OpcodeNames[code], "'!");
 				}
 			}
 		}

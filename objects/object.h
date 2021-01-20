@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../display.h"
 #include "../gc.h"
 #include "../hashmap.h"
 #include "../value.h"

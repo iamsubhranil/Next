@@ -1,7 +1,7 @@
 #include "format.h"
-#include "display.h"
 #include "objects/errors.h"
 #include "objects/string.h"
+#include "printer.h"
 #include "value.h"
 // see https://fmt.dev/latest/syntax.html
 
@@ -37,7 +37,7 @@ Value FormatHandler<Value>::Success() {
 }
 
 size_t FormatHandler<size_t>::Error(const void *e) {
-	err((const char *)e);
+	Printer::Err((const char *)e);
 	return 0;
 }
 

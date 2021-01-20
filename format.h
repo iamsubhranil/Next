@@ -1,6 +1,5 @@
 #pragma once
 
-#include "display.h"
 #include "engine.h"
 #include "format_templates.h"
 #include "objects/class.h"

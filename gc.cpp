@@ -1,5 +1,4 @@
 #include "gc.h"
-#include "display.h"
 #include "engine.h"
 #include "expr.h"
 #include "loader.h"
@@ -69,14 +68,14 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 	}
 #define MALLOC(x) ::malloc(x + sizeof(size_t))
 #define REALLOC(x, y) ::realloc((size_t *)x - 1, y)
-#define FREE(x, y)                                                           \
-	{                                                                        \
-		size_t *s = (size_t *)x - 1;                                         \
-		if(*s != y) {                                                        \
-			err("Invalid pointer size! Expected '%zu', received '%zu'!", *s, \
-			    y);                                                          \
-		}                                                                    \
-		::free(s);                                                           \
+#define FREE(x, y)                                               \
+	{                                                            \
+		size_t *s = (size_t *)x - 1;                             \
+		if(*s != y) {                                            \
+			Printer::Err("Invalid pointer size! Expected '", *s, \
+			             "', received '", y, "'!");              \
+		}                                                        \
+		::free(s);                                               \
 	}
 #else
 #define STORE_SIZE(x, y)
@@ -340,7 +339,7 @@ void GcObject::release(GcObject *obj) {
 	}
 	switch(obj->objType) {
 		case OBJ_NONE:
-			err("Object type NONE should not be present in the list!");
+			Printer::Err("Object type NONE should not be present in the list!");
 			break;
 #ifdef DEBUG_GC
 #define OBJTYPE(name)                                                  \
@@ -402,7 +401,7 @@ void GcObject::mark(GcObject *p) {
 	// finally, let it mark its members
 	switch(p->objType) {
 		case OBJ_NONE:
-			err("Object type NONE should not be present in the list!");
+			Printer::Err("Object type NONE should not be present in the list!");
 			break;
 #define OBJTYPE(name)        \
 	case OBJ_##name:         \

@@ -8,11 +8,6 @@
 #define GC_PRINT_CLEANUP
 #endif
 
-#if defined(DEBUG) || defined(GC_PRINT_CLEANUP)
-#include "display.h"
-
-#endif
-
 using size_t = std::size_t;
 
 struct Value;

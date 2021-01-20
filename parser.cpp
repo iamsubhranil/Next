@@ -1,7 +1,7 @@
 #include "parser.h"
-#include "display.h"
 #include "objects/buffer.h"
 #include "objects/string.h"
+#include "printer.h"
 
 Parser::Parser(Scanner &s) : scanner(s) {
 	if(s.hasScanErrors()) {

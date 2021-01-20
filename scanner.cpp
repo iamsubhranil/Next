@@ -1,5 +1,4 @@
 #include "scanner.h"
-#include "display.h"
 #include "objects/file.h"
 #include "printer.h"
 
@@ -86,7 +85,7 @@ void Token::highlight(bool showFileName, const char *prefix,
 	// we need to find the number of codepoints from start to
 	// tokenStart, and this is not exactly the correct method for
 	// that
-	int ch    = start.len() - tokenStart.len() + 1;
+	int ch    = tokenStart.len() - start.len() + 1;
 	int extra = 4; // [:]<space>
 
 	if(showFileName) {
@@ -242,7 +241,7 @@ Scanner::Scanner(const void *file)
 	FILE *source = File::fopen(file, "rb");
 	scanErrors   = 0;
 	if(source == NULL) {
-		err("Unable to open file : '%s'", file);
+		Printer::Err("Unable to open file : '", Utf8Source(file), "'");
 		scanErrors++;
 	} else {
 		fseek(source, 0, SEEK_END);
@@ -559,8 +558,9 @@ Token Scanner::scanNextToken() {
 
 		case '"': return str();
 		default:
-			lnerr("Unexpected character %c!",
-			      (Token){TOKEN_EOF, tokenStart, source, 0, line, fileName}, c);
+			Printer::LnErr(
+			    (Token){TOKEN_EOF, tokenStart, source, 0, line, fileName},
+			    "Unexpected character ", c, "!");
 			scanErrors++;
 			return Token::from(TOKEN_EOF, this);
 	}

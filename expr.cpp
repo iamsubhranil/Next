@@ -1,7 +1,7 @@
 #include "expr.h"
-#include "display.h"
 #include "objects/array.h"
 #include "objects/class.h"
+#include "printer.h"
 
 void Expression::accept(ExpressionVisitor *visitor) {
 	switch(type) {
@@ -12,7 +12,7 @@ void Expression::accept(ExpressionVisitor *visitor) {
 #include "exprtypes.h"
 		case EXPR_This: visitor->visit((VariableExpression *)this); break;
 		default:
-			panic("[Internal Error] Invalid expression type %d!", type);
+			panic("[Internal Error] Invalid expression type ", (int)type, "!");
 			break;
 	}
 }
@@ -26,7 +26,7 @@ void Expression::mark() {
 #include "exprtypes.h"
 		case EXPR_This: ((VariableExpression *)this)->mark(); break;
 		default:
-			panic("[Internal Error] Invalid expression type %d!", type);
+			panic("[Internal Error] Invalid expression type ", (int)type, "!");
 			break;
 	}
 }
@@ -40,7 +40,7 @@ size_t Expression::getSize() {
 #include "exprtypes.h"
 		case EXPR_This: return sizeof(VariableExpression); break;
 		default:
-			panic("[Internal Error] Invalid expression type %d!", type);
+			panic("[Internal Error] Invalid expression type ", (int)type, "!");
 			break;
 	}
 }

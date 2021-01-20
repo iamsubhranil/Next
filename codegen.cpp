@@ -1,12 +1,8 @@
 #include "codegen.h"
-#include "display.h"
 #include "engine.h"
 #include "import.h"
 #include "loader.h"
-
-#ifdef DEBUG
 #include "printer.h"
-#endif
 
 #include "objects/bytecodecompilationctx.h"
 #include "objects/function.h"
@@ -17,9 +13,9 @@
 
 #endif
 
-#define lnerr_(str, t, ...)                   \
+#define lnerr_(t, ...)                        \
 	{                                         \
-		lnerr(str, t, ##__VA_ARGS__);         \
+		Printer::LnErr(t, ##__VA_ARGS__);     \
 		t.highlight(false, "", Token::ERROR); \
 		errorsOccurred++;                     \
 	}
@@ -227,8 +223,8 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
 
 		default:
-			panic("Invalid binary operator '%s'!",
-			      Token::FormalNames[bin->token.type]);
+			panic("Invalid binary operator '",
+			      Token::FormalNames[bin->token.type], "'!");
 	}
 }
 
@@ -409,9 +405,10 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			switch(info.type) {
 				case CLASS: btx->call_intra(info.frameIdx, argSize); break;
 				default:
-					lnerr_("No constructor with specified signature found in "
-					       "class '%s'!",
-					       call->callee->token, ctx->get_class()->name->str());
+					lnerr_(call->callee->token,
+					       "No constructor with specified signature found in "
+					       "class '",
+					       ctx->get_class()->name, "'!");
 					break;
 			}
 			onRefer = false;
@@ -432,9 +429,10 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		// this call can be resolved compile time
 		if(info.type == UNDEFINED) {
 			// Function is not found
-			lnerr_("No function with the specified signature found "
-			       "in module '%s'!",
-			       call->callee->token, mtx->get_class()->name->str());
+			lnerr_(call->callee->token,
+			       "No function with the specified signature found "
+			       "in module '",
+			       mtx->get_class()->name->str(), "'!");
 			// String *s = String::from(call->callee->token.start,
 			//                        call->callee->token.length);
 			// TODO: Error reporting
@@ -459,9 +457,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			// the receiver is already loaded
 			if(ftx->get_fn()->isStatic() && !info.isStatic &&
 			   info.type == CLASS) {
-				lnerr_("Cannot call a non static function from a static "
-				       "function!",
-				       call->token);
+				lnerr_(call->token,
+				       "Cannot call a non static function from a static "
+				       "function!");
 			}
 			if(info.type == CLASS)
 				btx->call_intra(info.frameIdx, argSize);
@@ -531,15 +529,16 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
 	String *name = String::from(t.start, t.length);
 	VarInfo var  = lookForVariable2(name, declare, vis);
 	if(var.position == UNDEFINED && showError) {
-		lnerr_("No such variable found : '%s'", t, name->str());
+		lnerr_(t, "No such variable found : '", name, "'");
 
 	} else if(var.position == CLASS) {
 		// check if non static variable is used in a static method
 		ClassCompilationContext::MemberInfo m = ctx->get_mem_info(name);
 		if(ftx->f->isStatic() && !m.isStatic) {
-			lnerr_("Non-static variable '%s' cannot be accessed from static "
-			       "method '%s'!",
-			       t, name->str(), ftx->f->name->str());
+			lnerr_(t, "Non-static variable '", name,
+			       "' cannot be accessed from static "
+			       "method '",
+			       ftx->f->name, "'!");
 		}
 	}
 
@@ -677,15 +676,15 @@ void CodeGenerator::visit(GetExpression *get) {
 void CodeGenerator::validateThisOrSuper(Token tos) {
 	// at top level, neither this nor super can be used
 	if(mtx == ctx) {
-		lnerr_("Cannot use this/super in the module scope!", tos);
+		lnerr_(tos, "Cannot use this/super in the module scope!");
 	} else if(ftx->f->isStatic()) {
 		// if we're inside a static method, we cannot use this/super
-		lnerr_("Cannot use this/super inside a static method!", tos);
+		lnerr_(tos, "Cannot use this/super inside a static method!");
 	} else if(!ctx->isDerived && tos.type == TOKEN_super) {
 		// we cannot use super inside a class which is not derived
-		lnerr_("Cannot use 'super' inside class '%s' which is not derived "
-		       "from anything!",
-		       tos, ctx->klass->name->str());
+		lnerr_(tos, "Cannot use 'super' inside class '", ctx->klass->name,
+		       "' which is not derived "
+		       "from anything!");
 	}
 }
 
@@ -806,8 +805,8 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 		case TOKEN_PLUS_PLUS:
 		case TOKEN_MINUS_MINUS:
 			if(!pe->right->isAssignable()) {
-				lnerr_("Cannot apply '++' on a non-assignable expression!",
-				       pe->token);
+				lnerr_(pe->token,
+				       "Cannot apply '++' on a non-assignable expression!");
 			} else {
 				// perform the load
 				pe->right->accept(this);
@@ -835,8 +834,8 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 	pe->token.highlight();
 #endif
 	if(!pe->left->isAssignable()) {
-		lnerr_("Cannot apply postfix operator on a non-assignable expression!",
-		       pe->token);
+		lnerr_(pe->token,
+		       "Cannot apply postfix operator on a non-assignable expression!");
 	}
 	// perform the load
 	pe->left->accept(this);
@@ -861,8 +860,8 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 			btx->pop_();
 			break;
 		default:
-			panic("Bad postfix operator '%s'!",
-			      Token::TokenNames[pe->token.type]);
+			panic("Bad postfix operator '", Token::TokenNames[pe->token.type],
+			      "'!");
 	}
 }
 
@@ -924,8 +923,8 @@ void CodeGenerator::visit(MethodReferenceExpression *ifs) {
 		// to resolve the signature in present class
 		if(inThis) {
 			if(!ctx->has_fn(sig)) {
-				lnerr_("Method '%s' not found in present class!", ifs->token,
-				       sig->str());
+				lnerr_(ifs->token, "Method '", sig,
+				       "' not found in present class!");
 			} else {
 				btx->load_slot_0();
 				btx->load_method(SymbolTable2::insert(sig));
@@ -974,9 +973,9 @@ void CodeGenerator::visit(MethodReferenceExpression *ifs) {
 				loadCoreModule();
 				break;
 			case UNDEFINED:
-				lnerr_("No such method with siganture '%s' found in present "
-				       "context!",
-				       ifs->token, sig->str());
+				lnerr_(ifs->token, "No such method with siganture '", sig,
+				       "' found in present "
+				       "context!");
 				break;
 		}
 		// load the method
@@ -1046,7 +1045,7 @@ void CodeGenerator::visit(ReturnStatement *ifs) {
 	btx->insert_token(ifs->token);
 	// if this is a return, it is illegal in top scope
 	if(ftx == mtx->get_default_constructor()) {
-		lnerr_("Cannot return from top level scope!", ifs->token);
+		lnerr_(ifs->token, "Cannot return from top level scope!");
 	}
 
 	btx->ret();
@@ -1064,7 +1063,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 		BinaryExpression *it =
 		    (BinaryExpression *)ifs->initializer->values[0].toExpression();
 		if(it->left->type != Expression::EXPR_Variable) {
-			lnerr_("Iterator assignment is not a variable!", it->left->token);
+			lnerr_(it->left->token, "Iterator assignment is not a variable!");
 		} else {
 			// create a new scope
 			pushScope();
@@ -1152,7 +1151,7 @@ void CodeGenerator::visit(BreakStatement *ifs) {
 	ifs->token.highlight();
 #endif
 	if(inLoop == 0) {
-		lnerr_("Cannot use 'break' outside of a loop!", ifs->token);
+		lnerr_(ifs->token, "Cannot use 'break' outside of a loop!");
 	} else {
 		size_t ip = btx->jump(0);
 		pendingBreaks.insert((Break){ip, inLoop});
@@ -1218,12 +1217,13 @@ void CodeGenerator::visit(FnStatement *ifs) {
 	if(getState() == COMPILE_DECLARATION) {
 		if(ctx->has_fn(signature)) {
 			if(inConstructor) {
-				lnerr_("Ambiguous constructor declaration for class '%s'!",
-				       ifs->name, ctx->klass->name);
+				lnerr_(ifs->name,
+				       "Ambiguous constructor declaration for class '",
+				       ctx->klass->name, "'!");
 
 			} else {
-				lnerr_("Redefinition of function with same signature!",
-				       ifs->name);
+				lnerr_(ifs->name,
+				       "Redefinition of function with same signature!");
 			}
 			/* TODO: Fix this
 			lnerr("Previously declared at : ",
@@ -1233,9 +1233,9 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		} else if(inConstructor) {
 			String *cdecl = String::append(ctx->klass->name, signature);
 			if(mtx->has_fn(cdecl)) {
-				lnerr_("Constructor declaration collides with a previously "
-				       "declared function in same module!",
-				       ifs->name);
+				lnerr_(ifs->name,
+				       "Constructor declaration collides with a previously "
+				       "declared function in same module!");
 			}
 		}
 		FunctionCompilationContext2 fctx = FunctionCompilationContext::create(
@@ -1354,8 +1354,9 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 	String2 className = String::from(ifs->name.start, ifs->name.length);
 	if(getState() == COMPILE_DECLARATION) {
 		if(mtx->has_class(className)) {
-			lnerr_("Class '%s' is already declared in mtx '%s'!", ifs->name,
-			       className->str(), mtx->get_class()->name->str());
+			lnerr_(ifs->name, "Class '", (String *)className,
+			       "' is already declared in mtx '", mtx->get_class()->name,
+			       "'!");
 			// TODO: Error reporting
 			// lnerr("Previously declared at : ",
 			// mtx->classes[className]->token);
@@ -1469,8 +1470,8 @@ void CodeGenerator::visit(MemberVariableStatement *ifs) {
 			Value   i    = ifs->members->values[j];
 			String *name = i.toString();
 			if(ctx->has_mem(name)) {
-				lnerr_("Member variable '%s' already declared!", ifs->token,
-				       name->str());
+				lnerr_(ifs->token, "Member variable '", name,
+				       "' already declared!");
 				/* TODO: Fix this
 				lnerr("Previously declared at : ",
 				ctx->members[name].token);
