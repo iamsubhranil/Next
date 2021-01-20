@@ -4,12 +4,13 @@
 
 Token Token::PlaceholderToken = Token();
 
+#define DEBUG_SCANNER
+
 #ifdef DEBUG_SCANNER
 void tokenPrintDebug(const Token &t) {
-	Printer::print(setw(15), std::left, string(t.start, t.length));
-	Printer::println(std::left, " len:", setw(2), t.length, " ", setw(10),
-	                 string(t.fileName), ":", setw(3), t.line, " ",
-	                 Token::TokenNames[t.type]);
+	Printer::fmt("{:<15}", String::from(t.start.source, t.length));
+	Printer::fmt("len:{:2} {:10}:{:3} {}\n", t.length, t.fileName, t.line,
+	             Token::TokenNames[t.type]);
 }
 #endif
 

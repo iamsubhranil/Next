@@ -141,6 +141,12 @@ template <typename R, std::size_t N> struct Format<R, char[N]> {
 	}
 };
 
+template <typename R> struct Format<R, Utf8Source> {
+	R fmt(const Utf8Source &val, FormatSpec *f, OutputStream &stream) {
+		return Format<R, String *>().fmt(String::from(val), f, stream);
+	}
+};
+
 struct Formatter {
 
 	static bool isalign(utf8_int32_t c) {

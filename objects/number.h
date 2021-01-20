@@ -278,6 +278,12 @@ struct Number {
 	static void  init();
 };
 
+template <typename R> struct Format<R, int> {
+	R fmt(const int &val, FormatSpec *spec, OutputStream &stream) {
+		return Number::fmt<R>(val, spec, stream);
+	}
+};
+
 template <typename R> struct Format<R, int64_t> {
 	R fmt(const int64_t &val, FormatSpec *spec, OutputStream &stream) {
 		return Number::fmt<R>(val, spec, stream);

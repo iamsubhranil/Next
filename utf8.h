@@ -1342,7 +1342,7 @@ struct Utf8Source {
 	}
 
 	bool operator==(const Utf8Source &o) { return source == o.source; }
-	bool operator!=(const Utf8Source &o) { return source == o.source; }
+	bool operator!=(const Utf8Source &o) { return source != o.source; }
 	bool operator<(const Utf8Source &o) { return source < o.source; }
 	bool operator<=(const Utf8Source &o) { return source <= o.source; }
 	bool operator>(const Utf8Source &o) { return source > o.source; }
