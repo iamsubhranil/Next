@@ -40,16 +40,20 @@ struct String {
 	static void       init();
 	static String *   from(utf8_int32_t c);
 	static String *   from(const void *val) { return from(val, utf8size(val)); }
+	static String *   from(const Utf8Source &val) { return from(val.source); }
 	static String *   from(const void *val, size_t size);
-	static String *   from(const void *start, const void *end, size_t len);
-	static String *   fromParser(const char *val);
-	static String *   from(const void *val, size_t size,
-	                       string_transform transform);
-	static String *   from(const String2 &val, string_transform transform);
-	static String *   append(const void *val1, size_t size1, const void *val2,
-	                         size_t size2);
-	static String *   append(const String2 &val1, utf8_int32_t val2) {
-        return append(val1, &val2, utf8codepointsize(val2));
+	static String *   from(const Utf8Source &val, size_t size) {
+        return from(val.source, size);
+	}
+	static String *from(const void *start, const void *end, size_t len);
+	static String *fromParser(const char *val);
+	static String *from(const void *val, size_t size,
+	                    string_transform transform);
+	static String *from(const String2 &val, string_transform transform);
+	static String *append(const void *val1, size_t size1, const void *val2,
+	                      size_t size2);
+	static String *append(const String2 &val1, utf8_int32_t val2) {
+		return append(val1, &val2, utf8codepointsize(val2));
 	}
 	static String *append(const char *val1, const char *val2);
 	static String *append(const char *val1, const String2 &val2);

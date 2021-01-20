@@ -1341,9 +1341,14 @@ struct Utf8Source {
 		return *this;
 	}
 
-	size_t len() const { return utf8len(source); }
+	bool operator==(const Utf8Source &o) { return source == o.source; }
+	bool operator!=(const Utf8Source &o) { return source == o.source; }
+	bool operator<(const Utf8Source &o) { return source < o.source; }
+	bool operator<=(const Utf8Source &o) { return source <= o.source; }
+	bool operator>(const Utf8Source &o) { return source > o.source; }
+	bool operator>=(const Utf8Source &o) { return source >= o.source; }
 
-	operator const void *() const { return source; }
+	size_t len() const { return utf8len(source); }
 };
 
 #undef utf8_restrict

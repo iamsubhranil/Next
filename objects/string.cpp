@@ -367,6 +367,10 @@ String *String::toStringValue(Value v) {
 	}
 }
 
+size_t Writer<String>::write(const String &val, OutputStream &stream) {
+	return stream.writebytes(val.strb(), val.size);
+}
+
 void String::release() {
 	string_set->hset.erase(this);
 }

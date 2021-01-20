@@ -186,9 +186,9 @@ void Bytecode::disassemble_Value(OutputStream &os, const Opcode *o) {
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
 			switch(o->objType) {
-#define OBJTYPE(n)                      \
-	case GcObject::OBJ_##n:             \
-		os.write("<", #n, "@", o, ">"); \
+#define OBJTYPE(n)                               \
+	case GcObject::OBJ_##n:                      \
+		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \
 		break;
 #include "../objecttype.h"
 				case GcObject::OBJ_NONE:

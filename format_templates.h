@@ -10,7 +10,7 @@ template <typename R> struct FormatHandler {
 };
 
 template <typename R, typename T> struct Format {
-    R fmt(const T &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const T &val, FormatSpec *spec, OutputStream &stream) {
 		(void)val;
 		(void)spec;
 		(void)stream;

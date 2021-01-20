@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../format_templates.h"
+#include "../stream.h"
 #include "buffer.h"
 #include "formatspec.h"
 

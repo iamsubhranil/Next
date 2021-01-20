@@ -14,120 +14,6 @@
 #include <cstdint>
 #include <typeinfo>
 
-struct OutputStream {
-
-  private:
-	Stream *stream;
-
-  public:
-	// init the stream before write
-	explicit OutputStream() : stream(0) {}
-	explicit OutputStream(Stream *f) : stream(f) {}
-
-	template <typename F, typename... T>
-	std::size_t write(const F &arg, const T &...args) {
-		std::size_t sum = write<F>(arg) + write<T...>(args...);
-		return sum;
-	}
-	template <typename... T>
-	std::size_t fmt(const void *fmt, const T &...args); // defined in format.h
-	template <typename T> std::size_t write(const T &val) {
-		return Writer<T>().write(val, *this);
-	}
-
-	std::size_t writebytes(const void *data, std::size_t bytes) {
-		return stream->write(data, bytes);
-	}
-
-	void setStream(Stream *s) { stream = s; }
-
-#define OS_DIRECT_WRITE(type) std::size_t write(type const &val);
-#define OS_BYPASS_WRITE(type, with) std::size_t write(type const &val);
-	OS_DIRECT_WRITE(int64_t)
-	OS_BYPASS_WRITE(int, int64_t)
-	OS_DIRECT_WRITE(double)
-	OS_DIRECT_WRITE(char)
-	OS_DIRECT_WRITE(utf8_int32_t)
-	OS_DIRECT_WRITE(size_t)
-	OS_DIRECT_WRITE(bool)
-#undef OS_DIRECT_WRITE
-#undef OS_BYPASS_WRITE
-	std::size_t write(Utf8Source const &val);
-	// std::size_t write(const char *const &val);
-	template <size_t n> std::size_t write(const char val[n]) {
-		return writebytes(val, n);
-	}
-};
-
-struct StringOutputStream : public OutputStream {
-	StringStream ss;
-	StringOutputStream() : OutputStream(), ss() { setStream(&ss); }
-	Value toString();
-};
-
-template <typename T> struct Writer {
-	Writer() {}
-	std::size_t write(const T &val, OutputStream &stream);
-};
-
-template <> struct Writer<String const *> {
-	size_t write(const String *const &val, OutputStream &stream) {
-		return stream.writebytes(val->strb(), val->size);
-	}
-};
-
-template <> struct Writer<String *> : Writer<String const *> {};
-
-#define DECLARE_WRITER(type)                                 \
-	template <> struct Writer<type> {                        \
-		size_t write(type const &val, OutputStream &stream); \
-	};
-
-DECLARE_WRITER(Utf8Source)
-DECLARE_WRITER(unsigned long)
-DECLARE_WRITER(long)
-DECLARE_WRITER(char const *)
-DECLARE_WRITER(int)
-#undef DECLARE_WRITER
-
-template <> struct Writer<Value> {
-	size_t write(const Value &val, OutputStream &stream) {
-		const Class *c   = val.getClass();
-		Value        ret = val;
-		while(!ret.isString()) {
-			if(c->has_fn(SymbolTable2::const_sig_str)) {
-				// else if, it provides an str(), call it, and repeat
-				Function *f =
-				    c->get_fn(SymbolTable2::const_sig_str).toFunction();
-				if(!ExecutionEngine::execute(ret, f, &ret, true))
-					return 0; // return nil
-			} else {
-				// convert it to default string
-				String2 s;
-				if(c->module) {
-					s = String::from("<object of '");
-				} else {
-					s = String::from("<module '");
-				}
-				s = String::append(s, c->name);
-				s = String::append(s, "'>");
-				return stream.write((String *)s);
-			}
-		}
-		return stream.write(ret.toString());
-	}
-};
-
-template <> struct Writer<Token> {
-	size_t write(const Token &t, OutputStream &stream) {
-		return stream.writebytes(t.start.source, t.length);
-	}
-};
-
-template <> struct Writer<CustomArray<Token>> {
-	size_t write(const CustomArray<Token> &t, OutputStream &stream);
-};
-
 template <> struct FormatHandler<Value> {
 	static Value Error(const void *error);
 	static Value EngineError();
@@ -244,6 +130,18 @@ template <typename R> struct Format<R, String *> {
 	}
 };
 
+template <typename R> struct Format<R, const char *> {
+	R fmt(const char *const &val, FormatSpec *f, OutputStream &stream) {
+		return Format<R, String *>().fmt(String::from(val), f, stream);
+	}
+};
+
+template <typename R, std::size_t N> struct Format<R, char[N]> {
+	R fmt(const char (&val)[N], FormatSpec *f, OutputStream &stream) {
+		return Format<R, String *>().fmt(String::from(val, N), f, stream);
+	}
+};
+
 struct Formatter {
 
 	static bool isalign(utf8_int32_t c) {
@@ -310,7 +208,7 @@ struct Formatter {
 				if(f)
 					return Format<Out, T>().fmt(val, f, stream);
 				else {
-					stream.write<T>(val);
+					stream.write(val);
 					return FormatHandler<Out>::Success();
 				}
 			}
@@ -383,12 +281,12 @@ struct Formatter {
 					    "Extra arguments for format!");
 				}
 				// we good, return the result string
-				return stream.write(start, end - start);
+				return stream.writebytes(start.source, end - start);
 			} else {
 				// we're not
 				// so copy whatever we consumed
 				if(start != end) {
-					stream.write(start, end - start);
+					stream.writebytes(start.source, end - start);
 				}
 			}
 			// we're halted on a '{'
@@ -398,7 +296,7 @@ struct Formatter {
 			if(*end == '{') {
 				// it's an escape
 				// copy it to the result
-				stream.write(start, end - start);
+				stream.writebytes(start.source, end - start);
 				// proceed and continue
 				end++;
 				continue;

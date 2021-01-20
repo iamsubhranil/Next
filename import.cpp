@@ -64,7 +64,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 		return ret;
 	}
 #ifdef DEBUG
-	Printer::print("File path generated : ", p.str(), "\n");
+	Printer::print("File path generated : ", p.str().c_str(), "\n");
 #endif
 	p                     = p.make_absolute();
 	std::string absolutep = p.str();
@@ -83,7 +83,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 	ret.fileName    = String::from(absolutep.c_str());
 	ret.toHighlight = it;
 #ifdef DEBUG
-	Printer::print(absolutep, " imported successfully!", "");
+	Printer::print(absolutep.c_str(), " imported successfully!", "");
 #endif
 	fclose(f);
 	return ret;

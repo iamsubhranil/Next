@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 			if(bak->len() == 0)
 				continue;
 			mod = Value(loader->compile_and_load_from_source(
-			    bak->str(), replctx, mod, true));
+			    bak->strb(), replctx, mod, true));
 		}
 	}
 	return 0;

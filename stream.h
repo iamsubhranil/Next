@@ -1,13 +1,14 @@
 #pragma once
 
+#include "writer.h"
 #include <cinttypes>
 #include <cstdio>
+#include <cstring>
 
 struct Value;
 struct OutputStream;
 struct Utf8Source;
 typedef uint32_t utf8_int32_t;
-template <typename T> struct Writer;
 
 #define STREAM(x) struct x##Stream;
 #include "stream_types.h"
@@ -85,3 +86,59 @@ template <typename T> std::size_t Stream::write(const T &val) {
 	}
 	return 0;
 }
+struct OutputStream {
+
+  private:
+	Stream *stream;
+
+  public:
+	// init the stream before write
+	explicit OutputStream() : stream(0) {}
+	explicit OutputStream(Stream *f) : stream(f) {}
+
+	template <typename F, typename... T>
+	std::size_t write(const F &arg, const T &...args) {
+		std::size_t sum = write(arg) + write(args...);
+		return sum;
+	}
+
+	// base
+	std::size_t write() { return 0; }
+
+	template <typename... T>
+	std::size_t fmt(const void *fmt, const T &...args); // defined in format.h
+
+	std::size_t writebytes(const void *data, std::size_t bytes) {
+		return stream->write(data, bytes);
+	}
+
+	void setStream(Stream *s) { stream = s; }
+
+#define OS_DIRECT_WRITE(type) std::size_t write(type const &val);
+#define OS_BYPASS_WRITE(type, with) std::size_t write(type const &val);
+	OS_DIRECT_WRITE(int64_t)
+	OS_BYPASS_WRITE(int, int64_t)
+	OS_DIRECT_WRITE(double)
+	OS_DIRECT_WRITE(char)
+	OS_DIRECT_WRITE(utf8_int32_t)
+	OS_DIRECT_WRITE(size_t)
+	OS_DIRECT_WRITE(bool)
+#undef OS_DIRECT_WRITE
+#undef OS_BYPASS_WRITE
+	std::size_t                       write(const Utf8Source &val);
+	template <typename T> std::size_t write(const T &val) {
+		return Writer<T>::write(val, *this);
+	}
+	template <size_t N> std::size_t write(const char (&val)[N]) {
+		return writebytes(val, N);
+	}
+	std::size_t write(const char *const &val) {
+		return writebytes(val, strlen(val));
+	}
+};
+
+struct StringOutputStream : public OutputStream {
+	StringStream ss;
+	StringOutputStream() : OutputStream(), ss() { setStream(&ss); }
+	Value toString();
+};

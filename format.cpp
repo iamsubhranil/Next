@@ -68,14 +68,3 @@ Value Formatter::valuefmt(const Value *args, int numargs) {
 	}
 	return s.toString();
 }
-
-#define DECLARE_WRITER(type)                                            \
-	size_t Writer<type>::write(type const &val, OutputStream &stream) { \
-		return stream.write(val);                                       \
-	}
-
-DECLARE_WRITER(Utf8Source);
-DECLARE_WRITER(long);
-DECLARE_WRITER(unsigned long);
-DECLARE_WRITER(char const *);
-DECLARE_WRITER(int);

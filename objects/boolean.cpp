@@ -1,4 +1,5 @@
 #include "boolean.h"
+#include "../format.h"
 #include "../gc.h"
 #include "../value.h"
 #include "class.h"

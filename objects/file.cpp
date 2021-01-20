@@ -242,7 +242,7 @@ Value next_file_write(const Value *args, int numargs) {
 	CHECK_IF_VALID();
 	String *s = args[1].toString();
 	FILE *  f = args[0].toFile()->file;
-	if(fwrite(s->str(), 1, s->size, f) != (size_t)s->size) {
+	if(fwrite(s->strb(), 1, s->size, f) != (size_t)s->size) {
 		TRYFORMATERROR("file.write(str) failed");
 	}
 	return Value(s->size);

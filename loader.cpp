@@ -185,7 +185,7 @@ GcObject *Loader::compile_and_load_with_name(const void *fileName,
 			ret = (GcObject *)ctx->get_class();
 		}
 	} catch(ParseException &pe) {
-		if(pe.getToken().source != NULL) {
+		if(pe.getToken().source.source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
@@ -241,7 +241,7 @@ Value Loader::compile_and_load_from_source(const void *             source,
 			    mod, modulectx->get_default_constructor()->f, &mod, true);
 		}
 	} catch(ParseException &pe) {
-		if(pe.getToken().source != NULL) {
+		if(pe.getToken().source.source != NULL) {
 			lnerr(pe.what(), pe.getToken());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}

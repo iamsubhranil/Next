@@ -65,7 +65,7 @@ bool Token::isOperator() {
 
 void Token::highlight(bool showFileName, const char *prefix,
                       HighlightType htype) const {
-	if(source == NULL) {
+	if(source.source == NULL) {
 		Printer::print("<source not found>\n");
 		return;
 	}
@@ -90,7 +90,7 @@ void Token::highlight(bool showFileName, const char *prefix,
 	int extra = 4; // [:]<space>
 
 	if(showFileName) {
-		extra += utf8len(fileName) + 1; // <filename>:
+		extra += fileName.len() + 1; // <filename>:
 	}
 	if(prefix != NULL) {
 		extra += strlen(prefix);
@@ -207,6 +207,10 @@ const char *Token::FormalNames[] = {
 
     "error",  "end of file"};
 
+size_t Writer<Token>::write(const Token &t, OutputStream &stream) {
+	return stream.writebytes(t.start.source, t.length);
+}
+
 size_t Writer<CustomArray<Token>>::write(const CustomArray<Token> &tv,
                                          OutputStream &            stream) {
 	size_t res = 0;
@@ -313,7 +317,7 @@ Token Scanner::identifier() {
 	for(size_t i = 0; i < sizeof(keywords) / sizeof(Keyword); i++) {
 		Keyword *keyword = &keywords[i];
 		if(length == keyword->length &&
-		   memcmp(tokenStart, keyword->name, length) == 0) {
+		   memcmp(tokenStart.source, keyword->name, length) == 0) {
 			type = keyword->type;
 			break;
 		}

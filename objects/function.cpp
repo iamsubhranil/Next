@@ -146,7 +146,7 @@ void Function::disassemble(OutputStream &os) {
 	}
 	os.write("Code: ");
 	switch(t) {
-		case Type::BUILTIN: os.write(func, "\n"); break;
+		case Type::BUILTIN: os.fmt("0x{:x}\n", (uintptr_t)func); break;
 		case Type::METHOD:
 			os.write("\n");
 			code->disassemble(os);
