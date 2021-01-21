@@ -187,6 +187,11 @@ struct Formatter {
 		return FormatHandler<R>::Success();
 	}
 
+	template <typename R> static R ConvertToInt(const int &val, int64_t *dest) {
+		*dest = val;
+		return FormatHandler<R>::Success();
+	}
+
 	template <typename R>
 	static R ConvertToInt(const Value &val, int64_t *dest) {
 		if(val.isInteger()) {
@@ -221,9 +226,31 @@ struct Formatter {
 		};
 		Out format_int(int idx, int64_t *v, int at = 0) {
 			if(idx == at) {
-				return ConvertToInt<Out, T>(val, v);
+				return ConvertToInt<Out>(val, v);
 			}
 			return n.format_int(idx, v, at + 1);
+		}
+	};
+
+	template <typename Out> struct FormatArg<Out, Value const *, int> {
+		const Value *const &val;
+		FormatArg<Out, int> n;
+		explicit FormatArg(const Value *const &v, const int &rest)
+		    : val(v), n(FormatArg<Out, int>(rest)) {}
+		const FormatArg<Out, int> &next() { return n; }
+		Out format_nth(OutputStream &stream, FormatSpec *f, int idx,
+		               int at = 0) {
+			(void)at;
+			if(f)
+				return Format<Out, Value>().fmt(val[idx], f, stream);
+			else {
+				stream.write(val[idx]);
+				return FormatHandler<Out>::Success();
+			}
+		};
+		Out format_int(int idx, int64_t *v, int at = 0) {
+			(void)at;
+			return ConvertToInt<Out>(val[idx], v);
 		}
 	};
 
@@ -253,7 +280,7 @@ struct Formatter {
 	static R fmt(OutputStream &stream, const void *source, const T &...args) {
 		FormatArg<R, T...> argvalues = FormatArg<R, T...>(args...);
 		int64_t            size      = sizeof...(args);
-		if(size > 0 && typeid(argvalues.val) == typeid(Value *)) {
+		if(size > 0 && typeid(argvalues.val) == typeid(const Value *&)) {
 			R ret = ConvertToInt<R>(argvalues.next().val, &size);
 			if(ret != FormatHandler<R>::Success()) {
 				return FormatHandler<R>::Error(
