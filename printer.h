@@ -82,11 +82,11 @@ struct Printer {
 	}
 };
 
-#define panic(str, ...)                                                 \
-	{                                                                   \
-		Printer::Err("[Internal Error] [%s:%d:%s] " str "\n", __FILE__, \
-		             __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);     \
-		int *p = NULL;                                                  \
-		int  d = *p;                                                    \
-		exit(d);                                                        \
+#define panic(str, ...)                                                  \
+	{                                                                    \
+		Printer::Err("[Internal Error] [", __FILE__, ":", __LINE__, ":", \
+		             __PRETTY_FUNCTION__, "] ", str, ##__VA_ARGS__);     \
+		int *p = NULL;                                                   \
+		int  d = *p;                                                     \
+		exit(d);                                                         \
 	}
