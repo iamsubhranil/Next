@@ -1325,9 +1325,9 @@ struct Utf8Source {
 	}
 
 	utf8_int32_t operator+(const int offset) const {
-		const void * t = source;
-		utf8_int32_t v = operator*();
-		for(int i = 0; i <= offset; i++) {
+		utf8_int32_t v;
+		const void * t = utf8codepoint(source, &v);
+		for(int i = 0; i < offset; i++) {
 			t = utf8codepoint(t, &v);
 		}
 		return v;
@@ -1335,7 +1335,7 @@ struct Utf8Source {
 
 	Utf8Source &operator+=(const int offset) {
 		utf8_int32_t val;
-		for(int i = 0; i <= offset; i++) {
+		for(int i = 0; i < offset; i++) {
 			source = utf8codepoint(source, &val);
 		}
 		return *this;

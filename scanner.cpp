@@ -4,8 +4,6 @@
 
 Token Token::PlaceholderToken = Token();
 
-#define DEBUG_SCANNER
-
 #ifdef DEBUG_SCANNER
 void tokenPrintDebug(const Token &t) {
 	Printer::fmt("{:<15}", String::from(t.start.source, t.length));
@@ -290,7 +288,7 @@ bool Scanner::isAtEnd() {
 
 utf8_int32_t Scanner::advance() {
 	utf8_int32_t ret = *current;
-	current++;
+	++current;
 	return ret;
 }
 
@@ -310,7 +308,7 @@ bool Scanner::match(utf8_int32_t expected) {
 	if(*current != expected)
 		return 0;
 
-	current++;
+	++current;
 	return 1;
 }
 
