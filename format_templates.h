@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstring>
+#include <typeinfo>
+
 struct FormatSpec;
 struct OutputStream;
 
@@ -14,6 +17,9 @@ template <typename R, typename T> struct Format {
 		(void)val;
 		(void)spec;
 		(void)stream;
-		return FormatHandler<R>::Error("Not implemented!");
+		const char *name          = typeid(T).name();
+		static char message[1000] = "Formatting not implemented for type: ";
+		std::strcat(message, name);
+		return FormatHandler<R>::Error(message);
 	}
 };
