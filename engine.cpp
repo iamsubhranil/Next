@@ -579,6 +579,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	LOOP() {
 #ifdef DEBUG_INS
 		{
+			Printer::println();
 			int instructionPointer =
 			    InstructionPointer - presentFrame->f->code->bytecodes;
 			int   stackPointer = fiber->stackTop - presentFrame->stack_;
@@ -588,26 +589,27 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			if(t.type != TOKEN_ERROR)
 				t.highlight();
 			else
-				Printer::print("<source not found>\n");
-			Printer::print(
-			    " StackMaxSize: ", presentFrame->f->code->stackMaxSize,
-			    " IP: ", std::setw(4), instructionPointer,
-			    " SP: ", stackPointer, " ", std::flush);
+				Printer::println("<source not found>");
+			Printer::fmt("StackMaxSize: {} IP: {:4} SP: {} ",
+			             presentFrame->f->code->stackMaxSize,
+			             instructionPointer, stackPointer);
 			for(int i = 0; i < stackPointer; i++) {
 				Printer::print(" | ");
 				Bytecode::disassemble_Value(
-				    std::wcout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
+				    Printer::StdOutStream,
+				    (Bytecode::Opcode *)&presentFrame->stack_[i]);
 			}
-			Printer::print(" | \n");
+			Printer::println(" | ");
 			Bytecode::disassemble(
-			    std::wcout,
+			    Printer::StdOutStream,
 			    &presentFrame->f->code->bytecodes[instructionPointer]);
 			// +1 to adjust for fiber switch
 			if(stackPointer > presentFrame->f->code->stackMaxSize + 1) {
 				RERRF("Invalid stack access!");
 			}
-			Printer::print("\n\n");
-#ifdef DEBUG_INS fflush(stdout);
+			Printer::println();
+#ifdef DEBUG_INS
+			fflush(stdout);
 			// getchar();
 #endif
 		}

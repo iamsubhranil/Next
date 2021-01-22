@@ -49,24 +49,24 @@ struct Printer {
 	}
 
 	template <typename... T> static std::size_t Warn(const T &...args) {
-		print(ANSI_COLOR_YELLOW, "[Warning] ", ANSI_COLOR_RESET);
-		return println(args...);
+		return print(ANSI_COLOR_YELLOW, "[Warning] ", ANSI_COLOR_RESET) +
+		       println(args...);
 	}
 
 	template <typename... T> static std::size_t Err(const T &...args) {
-		print(ANSI_COLOR_RED, "[Error] ", ANSI_COLOR_RESET);
-		return println(args...);
+		return print(ANSI_COLOR_RED, "[Error] ", ANSI_COLOR_RESET) +
+		       println(args...);
 	}
 
 	template <typename... T> static std::size_t Info(const T &...args) {
-		print(ANSI_COLOR_BLUE, "[Info] ", ANSI_COLOR_RESET);
-		return println(args...);
+		return print(ANSI_COLOR_BLUE, "[Info] ", ANSI_COLOR_RESET) +
+		       println(args...);
 	}
 
 	template <typename... T> static std::size_t Dbg(const T &...args) {
 #ifdef DEBUG
-		print(ANSI_COLOR_GREEN, "[Debug] ", ANSI_COLOR_RESET);
-		return println(args...);
+		return print(ANSI_COLOR_GREEN, "[Debug] ", ANSI_COLOR_RESET) +
+		       println(args...);
 #else
 		auto a = {args...};
 		(void)a;
@@ -76,9 +76,9 @@ struct Printer {
 
 	template <typename... T>
 	static std::size_t LnErr(const Token &t, const T &...args) {
-		print(ANSI_COLOR_RED "[Error] " ANSI_COLOR_RESET ANSI_FONT_BOLD, "<",
-		      t.fileName, ":", t.line, "> " ANSI_COLOR_RESET);
-		return println(args...);
+		return print(ANSI_COLOR_RED "[Error] " ANSI_COLOR_RESET ANSI_FONT_BOLD,
+		             "<", t.fileName, ":", t.line, "> " ANSI_COLOR_RESET) +
+		       println(args...);
 	}
 };
 
@@ -89,4 +89,10 @@ struct Printer {
 		int *p = NULL;                                                   \
 		int  d = *p;                                                     \
 		exit(d);                                                         \
+	}
+
+#define dinfo(str, ...)                                                       \
+	{                                                                         \
+		Printer::Info("[", __FILE__, ":", __LINE__, ":", __PRETTY_FUNCTION__, \
+		              "] ", str, ##__VA_ARGS__);                              \
 	}
