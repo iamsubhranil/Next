@@ -282,6 +282,7 @@ struct Formatter {
 		int64_t            size      = sizeof...(args);
 		if(size > 0 && typeid(argvalues.val) == typeid(const Value *&)) {
 			R ret = ConvertToInt<R>(argvalues.next().val, &size);
+			size--; // ignore the source, which is also counted to size
 			if(ret != FormatHandler<R>::Success()) {
 				return FormatHandler<R>::Error(
 				    "Expected numargs after Value* as first argument!");
@@ -290,10 +291,10 @@ struct Formatter {
 
 		// arguments start from index 1
 		// ids start from 0
-		int        argid           = 0;
-		int        parsedArguments = 0;
-		Utf8Source start           = Utf8Source(source);
-		Utf8Source end             = Utf8Source(start);
+		int        argid        = 0;
+		int        arg_consumed = 0;
+		Utf8Source start        = Utf8Source(source);
+		Utf8Source end          = Utf8Source(start);
 		// argid, once given, cannot be omitted.
 		// so we force that using this flag
 		// -1 denotes the flag is unset
@@ -307,13 +308,9 @@ struct Formatter {
 			// if we're at the end, nothing to format,
 			// copy the rest and return the string
 			if(*end == 0) {
-				// but we still got arguments, not permitted
-				if(parsedArguments > 0) {
-					return FormatHandler<R>::Error(
-					    "Extra arguments for format!");
-				}
 				// we good, return the result string
-				return stream.writebytes(start.source, end - start);
+				stream.writebytes(start.source, end - start);
+				break;
 			} else {
 				// we're not
 				// so copy whatever we consumed
@@ -370,6 +367,7 @@ struct Formatter {
 				arg = next_int(end);
 			else
 				arg = argid++;
+			arg_consumed++;
 			// check if there is actually an argument to format
 			if(arg > size - 1) {
 				if(argid_present) {
@@ -418,8 +416,10 @@ struct Formatter {
 					// we'd expect this to be '}'
 					if(!argid_present) {
 						if(*end == '}') {
-							width    = argid++;
+							width = argid++;
+							arg_consumed++;
 							widtharg = true;
+							end++;
 						} else if(isdigit(*end)) {
 							return FormatHandler<R>::Error(
 							    "Expected '}' for width since implicit argument"
@@ -432,7 +432,8 @@ struct Formatter {
 					} else {
 						// we're specifying argids, so this must be an argid
 						if(isdigit(*end)) {
-							width    = next_int(end);
+							width = next_int(end);
+							arg_consumed++;
 							widtharg = true;
 							if(*end == '}') {
 								end++;
@@ -469,7 +470,9 @@ struct Formatter {
 						if(!argid_present) {
 							if(*end == '}') {
 								precision = argid++;
-								precarg   = true;
+								arg_consumed++;
+								precarg = true;
+								end++;
 							} else if(isdigit(*end)) {
 								return FormatHandler<R>::Error(
 								    "Expected '}' for precision since implicit "
@@ -482,7 +485,8 @@ struct Formatter {
 							// we're specifying argids, so this must be an argid
 							if(isdigit(*end)) {
 								precision = next_int(end);
-								precarg   = true;
+								arg_consumed++;
+								precarg = true;
 								if(*end == '}') {
 									end++;
 								} else {
@@ -571,6 +575,10 @@ struct Formatter {
 			if(ret != FormatHandler<R>::Success()) {
 				return ret;
 			}
+		}
+		// but we still got arguments, not permitted
+		if(arg_consumed < size) {
+			return FormatHandler<R>::Error("Extra arguments for format!");
 		}
 
 		return FormatHandler<R>::Success();
