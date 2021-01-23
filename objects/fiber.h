@@ -87,7 +87,7 @@ struct Fiber {
 		Value *oldstack = stack_;
 		size_t newsize  = Utils::powerOf2Ceil(stackPointer + e + 1);
 		stack_   = (Value *)GcObject_realloc(stack_, sizeof(Value) * stackSize,
-                                            sizeof(Value) * newsize);
+                                           sizeof(Value) * newsize);
 		stackTop = &stack_[stackPointer];
 		Utils::fillNil(stackTop, newsize - stackPointer);
 		stackSize = newsize;
@@ -210,6 +210,6 @@ struct Fiber {
 	// runs the fiber until it returns somehow
 	Value run();
 #ifdef DEBUG_GC
-	const Utf8Source gc_repr() { return "fiber"; }
+	const Utf8Source gc_repr() { return Utf8Source("fiber"); }
 #endif
 };

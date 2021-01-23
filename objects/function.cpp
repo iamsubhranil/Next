@@ -156,7 +156,7 @@ void Function::disassemble(OutputStream &os) {
 #endif
 
 #ifdef DEBUG_GC
-const void *Function::gc_repr() {
+const Utf8Source Function::gc_repr() {
 	return name->str();
 }
 #endif

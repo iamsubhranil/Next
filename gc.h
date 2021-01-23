@@ -64,23 +64,20 @@ struct GcObject {
 
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC
-#define gc_msg_a(m)                                                            \
-	Printer::print("[GC] TA: ", GcObject::totalAllocated, " ",                 \
-	               ANSI_COLOR_GREEN, m, ": ", ANSI_COLOR_RESET, __FILE__, ":", \
-	               __LINE__, ": ")
-#define GcObject_malloc(x) \
-	(gc_msg_a("malloc"), Printer::print(x, "\n"), GcObject::malloc(x))
-#define GcObject_calloc(x, y)                              \
-	(gc_msg_a("calloc"), Printer::print(x, ", ", y, "\n"), \
-	 GcObject::calloc((x), (y)))
-#define GcObject_realloc(x, y, z)                           \
-	(gc_msg_a("realloc"), Printer::print(y, ", ", z, "\n"), \
-	 GcObject::realloc((x), (y), (z)))
-#define GcObject_free(x, y)                        \
-	{                                              \
-		gc_msg_a("free"), Printer::print(y, "\n"); \
-		GcObject::free((x), (y));                  \
-	}
+	static void  gc_print(const char *file, int line, const char *message);
+	static void *malloc_print(const char *file, int line, size_t bytes);
+	static void *calloc_print(const char *file, int line, size_t num,
+	                          size_t size);
+	static void *realloc_print(const char *file, int line, void *mem,
+	                           size_t oldb, size_t newb);
+	static void free_print(const char *file, int line, void *mem, size_t bytes);
+#define GcObject_malloc(x) GcObject::malloc_print(__FILE__, __LINE__, (x))
+#define GcObject_calloc(x, y) \
+	GcObject::calloc_print(__FILE__, __LINE__, (x), (y))
+#define GcObject_realloc(x, y, z) \
+	GcObject::realloc_print(__FILE__, __LINE__, (x), (y), (z))
+#define GcObject_free(x, y) \
+	{ GcObject::free_print(__FILE__, __LINE__, (x), (y)); }
 	// macros to warn against direct malloc/free calls
 /*#define malloc(x)                                                           \
 	(std::wcout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \

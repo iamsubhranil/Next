@@ -100,6 +100,6 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	const void *gc_repr();
+	const Utf8Source gc_repr();
 #endif
 };

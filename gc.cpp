@@ -528,6 +528,37 @@ void GcObject::init() {
 
 #ifdef DEBUG_GC
 
+void GcObject::gc_print(const char *file, int line, const char *message) {
+	Printer::print("[GC] [TA: ", GcObject::totalAllocated, "] ", file, ":",
+	               line, " -> ", message);
+}
+
+void *GcObject::malloc_print(const char *file, int line, size_t bytes) {
+	gc_print(file, line, "malloc: ");
+	Printer::println(bytes, " bytes");
+	return GcObject::malloc(bytes);
+};
+
+void *GcObject::calloc_print(const char *file, int line, size_t num,
+                             size_t bytes) {
+	gc_print(file, line, "calloc: ");
+	Printer::println(num, "*", bytes, " bytes");
+	return GcObject::calloc(num, bytes);
+};
+
+void *GcObject::realloc_print(const char *file, int line, void *mem,
+                              size_t oldb, size_t newb) {
+	gc_print(file, line, "realloc: ");
+	Printer::println(oldb, " -> ", newb, " bytes");
+	return GcObject::realloc(mem, oldb, newb);
+};
+
+void GcObject::free_print(const char *file, int line, void *mem, size_t size) {
+	gc_print(file, line, "free: ");
+	Printer::println(size, " bytes");
+	return GcObject::free(mem, size);
+};
+
 void GcObject::print_stat() {
 	Printer::println("[GC] Object allocation counters");
 	size_t i = 0;
