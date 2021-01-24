@@ -531,12 +531,16 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	return thisOrSuper;
 }
 
-// Fix THIS
 String *Parser::buildNextString(Token &t) {
 	Utf8Source start = t.start;
-	start++;
-	String2 s = String::from("");
+	start++; // skip first "
+	String2 s = String::const_EmptyString;
 	while(*start != '"') {
+		Utf8Source bak = start;
+		while(*start != '"' && *start != '\\') ++start;
+		if(bak != start) {
+			s = String::append(s->strb(), s->size, bak.source, start - bak);
+		}
 		if(*start == '\\') {
 			switch(start + 1) {
 				case 'n':
@@ -555,10 +559,12 @@ String *Parser::buildNextString(Token &t) {
 					s = String::append(s, '\\');
 					start++;
 					break;
+				default:
+					throw ParseException(t, "Invalid escape sequence!");
+					break;
 			}
-		} else
-			s = String::append(s, *start);
-		start++;
+			start++;
+		}
 	}
 	return s;
 }

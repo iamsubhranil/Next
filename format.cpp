@@ -37,7 +37,7 @@ Value FormatHandler<Value>::Success() {
 }
 
 size_t FormatHandler<size_t>::Error(const void *e) {
-	Printer::Err((const char *)e);
+	panic((const char *)e);
 	return 0;
 }
 

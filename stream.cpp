@@ -14,7 +14,7 @@ std::size_t Stream::write(const void *data, std::size_t bytes) {
 }
 
 StringStream::StringStream()
-    : Stream(Stream::Type::String), str(String::from("")) {}
+    : Stream(Stream::Type::String), str(String::const_EmptyString) {}
 
 std::size_t StringStream::write(const double &value) {
 	// from

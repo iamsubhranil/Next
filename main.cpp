@@ -30,7 +30,7 @@ String *getline() {
 		return 0;
 	if(ferror(stdin))
 		return 0;
-	String2      line = String::from("");
+	String2      line = String::const_EmptyString;
 	utf8_int32_t c;
 	while((c = fgetwc(stdin)) != '\n' && c != 0) {
 		// printf("%c", c);
