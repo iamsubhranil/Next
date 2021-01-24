@@ -44,9 +44,8 @@ template <typename R> struct Format<R, Value> {
 	}
 };
 
-template <typename R> struct Format<R, String *> {
-	R fmt(const String *const &s, FormatSpec *f, OutputStream &stream) {
-
+template <typename R> struct Format<R, Utf8Source> {
+	R fmt(const Utf8Source &s, FormatSpec *f, OutputStream &stream) {
 		if(f->type != 0 && f->type != 's') {
 			return FormatHandler<R>::Error(
 			    "Invalid type specifier for string!");
@@ -60,9 +59,10 @@ template <typename R> struct Format<R, String *> {
 		if(f->signaware) {
 			return FormatHandler<R>::Error("'0' is invalid for string!");
 		}
-		int size      = s->len();
-		int width     = s->len();
-		int precision = s->len();
+		Utf8Source source    = s;
+		int        size      = s.len();
+		int        width     = size;
+		int        precision = size;
 		if(f->width != -1) {
 			width = f->width;
 		}
@@ -82,7 +82,6 @@ template <typename R> struct Format<R, String *> {
 			// 'precision' characters from string, then fill
 			// the rest with 'fill'
 			if(align == '<') {
-				Utf8Source source(s->strb());
 				for(int i = 0; i < precision; i++, ++source) {
 					stream.write(*source);
 				}
@@ -96,7 +95,6 @@ template <typename R> struct Format<R, String *> {
 				for(int i = 0; i < numfill; i++) {
 					stream.write(fill);
 				}
-				Utf8Source source(s->strb());
 				for(int i = numfill; i < width; i++, ++source) {
 					stream.write(*source);
 				}
@@ -109,7 +107,6 @@ template <typename R> struct Format<R, String *> {
 				for(int i = 0; i < k; i++) {
 					stream.write(fill);
 				}
-				Utf8Source source(s->strb());
 				for(int i = 0; i < precision; i++, ++source) {
 					stream.write(*source);
 				}
@@ -118,10 +115,9 @@ template <typename R> struct Format<R, String *> {
 				}
 			}
 		} else if(precision < size) {
-			Utf8Source source(s->strb());
 			source += precision;
-			stream.writebytes(s->strb(),
-			                  (uintptr_t)source.source - (uintptr_t)s->strb());
+			stream.writebytes(s.source,
+			                  (uintptr_t)source.source - (uintptr_t)s.source);
 		} else {
 			stream.write(s);
 		}
@@ -131,19 +127,19 @@ template <typename R> struct Format<R, String *> {
 
 template <typename R> struct Format<R, const char *> {
 	R fmt(const char *const &val, FormatSpec *f, OutputStream &stream) {
-		return Format<R, String *>().fmt(String::from(val), f, stream);
+		return Format<R, Utf8Source>().fmt(Utf8Source(val), f, stream);
 	}
 };
 
 template <typename R, std::size_t N> struct Format<R, char[N]> {
 	R fmt(const char (&val)[N], FormatSpec *f, OutputStream &stream) {
-		return Format<R, String *>().fmt(String::from(val, N), f, stream);
+		return Format<R, Utf8Source>().fmt(Utf8Source(val), f, stream);
 	}
 };
 
-template <typename R> struct Format<R, Utf8Source> {
-	R fmt(const Utf8Source &val, FormatSpec *f, OutputStream &stream) {
-		return Format<R, String *>().fmt(String::from(val), f, stream);
+template <typename R> struct Format<R, String *> {
+	R fmt(const String *const &val, FormatSpec *f, OutputStream &stream) {
+		return Format<R, Utf8Source>().fmt(val->str(), f, stream);
 	}
 };
 
