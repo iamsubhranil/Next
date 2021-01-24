@@ -6,9 +6,6 @@
 #include "hashmap.h"
 
 class ExecutionEngine {
-
-	static char ExceptionMessage[1024];
-
 	static HashMap<String *, GcObject *> loadedModules;
 
 	// stack of unhandled exceptions

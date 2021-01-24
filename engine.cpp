@@ -12,7 +12,6 @@
 #include "objects/symtab.h"
 #include "printer.h"
 
-char                          ExecutionEngine::ExceptionMessage[1024] = {0};
 HashMap<String *, GcObject *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
 Array * ExecutionEngine::pendingExceptions     = nullptr;
@@ -341,14 +340,14 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 }
 
 template <typename... K> void createException(const void *message, K... args) {
-	Value              v = Formatter::fmt(message, args...);
 	StringOutputStream s;
-	if(v.isString()) {
-		ExecutionEngine::setPendingException(RuntimeError::sete(v.toString()));
+	auto               res = Formatter::fmt<Value>(s, message, args...);
+	if(res == FormatHandler<Value>::Success()) {
+		RuntimeError::sete(s.toString().toString());
 	} else {
-		ExecutionEngine::setPendingException(v);
-		ExecutionEngine::setPendingException(RuntimeError::create(
-		    String::from("Unable to format the given exception!")));
+		// FormatError is already set
+		RuntimeError::sete(
+		    String::from("Unable to format the given exception!"));
 	}
 }
 
@@ -385,7 +384,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	Value     rightOperand;
 	int       methodToCall;
 	Function *functionToCall;
-	bool      pendingRuntimeException = false;
 
 	// variable to denote the relocation of instruction
 	// pointer after extracting an argument
@@ -814,8 +812,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						// signature
 						Class *c = v.toClass();
 						ASSERT(c->has_fn(sym),
-						       "Constructor '@t' not found in class '@s'!", sym,
-						       c->name);
+						       "Constructor '{}' not found in class '{}'!",
+						       SymbolTable2::getString(sym), c->name);
 						// set the receiver to nil so that construct
 						// knows to create a new receiver
 						fiber->stackTop[-numberOfArguments - 1] = ValueNil;
@@ -1200,18 +1198,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		// statement, which was triggered either by a
 		// runtime error, or an user generated exception,
 		// or by a pending exception of a builtin or a
-		// primitive. In case of the later, the
-		// pendingException will already be set by the
-		// value of the exception, otherwise, we use
-		// the ExceptionMessage to create a
-		// RuntimeException, and set pendingException
-		// to the same.
-		if(pendingRuntimeException) {
-			pendingExceptions->insert(
-			    RuntimeError::create(String::from(ExceptionMessage)));
-			pendingRuntimeException = false;
-			pendingFibers->insert(fiber);
-		}
+		// primitive. In all of the cases, the exception
+		// is already set in the pendingExceptions array.
 		BACKUP_FRAMEINFO();
 		// pop the last exception
 		Value pendingException =

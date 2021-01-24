@@ -267,14 +267,15 @@ Value next_core_import2(const Value *args, int numargs) {
 	parts->insert(args[0]);
 	Utf8Source s    = imp->str();
 	int        size = imp->len();
-	for(int i = 0; i < size; i++, s++) {
+	for(int i = 0; i < size; i++, ++s) {
 		// the first character must be an alphabet
 		if(!isAlpha(*s)) {
 			IMPORTERR("Part of an import string must start with a valid "
 			          "alphabet or '_'!");
 		}
-		int         j   = i++;
 		const void *bak = s.source;
+		i++;
+		s++;
 		while(i < size && *s != '.') {
 			if(!isAlphaNumeric(*s)) {
 				IMPORTERR("Import string contains invalid character!");
@@ -283,7 +284,7 @@ Value next_core_import2(const Value *args, int numargs) {
 			s++;
 		}
 		// create a part, and insert
-		String *part = String::from(bak, i - j);
+		String *part = String::from(bak, (uintptr_t)s.source - (uintptr_t)bak);
 		parts->insert(part);
 		// if we're at the end, we're good
 		if(i == size)
