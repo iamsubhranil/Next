@@ -26,7 +26,7 @@ release: next
 profile: CXXFLAGS += -DNEXT_USE_COMPUTED_GOTO -O2 -g3
 profile: next
 
-debug: CXXFLAGS += -g3 -DDEBUG
+debug: CXXFLAGS += -g3 -DDEBUG -DGC_USE_STD_ALLOC
 debug: next
 
 debug_ins: CXXFLAGS += -DDEBUG_INS

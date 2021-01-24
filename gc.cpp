@@ -2,7 +2,9 @@
 #include "engine.h"
 #include "expr.h"
 #include "loader.h"
+#ifndef GC_USE_STD_ALLOC
 #include "memman.h"
+#endif
 #include "objects/array_iterator.h"
 #include "objects/bits.h"
 #include "objects/bits_iterator.h"
@@ -55,6 +57,18 @@ Class *GcObject::CoreModule       = nullptr;
 Set *  GcObject::temporaryObjects = nullptr;
 
 ClassCompilationContext *GcObject::CoreContext = nullptr;
+
+#ifdef GC_USE_STD_ALLOC
+#define MALLOC_CALL(x) std::malloc(x)
+#define REALLOC_CALL(x, y, z) std::realloc(x, z)
+#define CALLOC_CALL(x, y) std::calloc(x, y)
+#define FREE_CALL(x, y) std::free(x)
+#else
+#define MALLOC_CALL(x) MemoryManager::malloc(x)
+#define REALLOC_CALL(x, y, z) MemoryManager::realloc(x, y, z)
+#define FREE_CALL(x, y) MemoryManager::free(x, y)
+#define CALLOC_CALL(x, y) MemoryManager::calloc(x, y)
+#endif
 // when enabled, the garbage collector allocates
 // extra memory to store a size_t before each
 // pointer, so that the size can be verified
@@ -66,8 +80,8 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 		*mem        = y;           \
 		return (size_t *)x + 1;    \
 	}
-#define MALLOC(x) ::malloc(x + sizeof(size_t))
-#define REALLOC(x, y) ::realloc((size_t *)x - 1, y)
+#define MALLOC(x) MALLOC_CALL(x + sizeof(size_t))
+#define REALLOC(x, y) REALLOC_CALL((size_t *)x - 1, y)
 #define FREE(x, y)                                               \
 	{                                                            \
 		size_t *s = (size_t *)x - 1;                             \
@@ -75,13 +89,13 @@ ClassCompilationContext *GcObject::CoreContext = nullptr;
 			Printer::Err("Invalid pointer size! Expected '", *s, \
 			             "', received '", y, "'!");              \
 		}                                                        \
-		::free(s);                                               \
+		FREE_CALL(s, y);                                         \
 	}
 #else
 #define STORE_SIZE(x, y)
-#define MALLOC(x) MemoryManager::malloc(x)
-#define REALLOC(x, y, z) MemoryManager::realloc(x, y, z)
-#define FREE(x, y) MemoryManager::free(x, y)
+#define MALLOC(x) MALLOC_CALL(x)
+#define REALLOC(x, y, z) REALLOC_CALL(x, y, z)
+#define FREE(x, y) FREE_CALL(x, y)
 #endif
 
 void *GcObject::malloc(size_t bytes) {
@@ -92,14 +106,14 @@ void *GcObject::malloc(size_t bytes) {
 }
 
 void *GcObject::calloc(size_t num, size_t bytes) {
-	void *m = MemoryManager::calloc(num, bytes);
+	void *m = CALLOC_CALL(num, bytes);
 #ifdef GC_STORE_SIZE
 	// realloc to store the size
-	m = MemoryManager::realloc(m, (num * bytes) + sizeof(size_t));
+	m = REALLOC_CALL(m, (num * bytes) + sizeof(size_t));
 	std::fill_n(&((uint8_t *)m)[(num * bytes)], sizeof(size_t), 0);
+	STORE_SIZE(m, bytes);
 #endif
 	totalAllocated += (num * bytes);
-	STORE_SIZE(m, bytes);
 	return m;
 }
 
@@ -470,13 +484,17 @@ void GcObject::sweep() {
 		release(unmarkedClassesHead);
 		unmarkedClassesHead = next;
 	}
+#ifndef GC_USE_STD_ALLOC
 	// try to release any empty arenas
 	MemoryManager::releaseArenas();
+#endif
 }
 
 void GcObject::init() {
+#ifndef GC_USE_STD_ALLOC
 	// initialize the memory manager
 	MemoryManager::init();
+#endif
 	// initialize the object tracker
 	tracker = CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP>::create();
 	// initialize the temporary tracker
@@ -529,32 +547,33 @@ void GcObject::init() {
 #ifdef DEBUG_GC
 
 void GcObject::gc_print(const char *file, int line, const char *message) {
-	Printer::print("[GC] [TA: ", GcObject::totalAllocated, "] ", file, ":",
-	               line, " -> ", message);
+	Printer::print(ANSI_FONT_BOLD, "[GC]", ANSI_COLOR_RESET,
+	               " [TA: ", GcObject::totalAllocated, "] ", file, ":", line,
+	               " -> ", message);
 }
 
 void *GcObject::malloc_print(const char *file, int line, size_t bytes) {
-	gc_print(file, line, "malloc: ");
+	gc_print(file, line, ANSI_COLOR_GREEN "malloc: " ANSI_COLOR_RESET);
 	Printer::println(bytes, " bytes");
 	return GcObject::malloc(bytes);
 };
 
 void *GcObject::calloc_print(const char *file, int line, size_t num,
                              size_t bytes) {
-	gc_print(file, line, "calloc: ");
+	gc_print(file, line, ANSI_COLOR_YELLOW "calloc: " ANSI_COLOR_RESET);
 	Printer::println(num, "*", bytes, " bytes");
 	return GcObject::calloc(num, bytes);
 };
 
 void *GcObject::realloc_print(const char *file, int line, void *mem,
                               size_t oldb, size_t newb) {
-	gc_print(file, line, "realloc: ");
+	gc_print(file, line, ANSI_COLOR_CYAN "realloc: " ANSI_COLOR_RESET);
 	Printer::println(oldb, " -> ", newb, " bytes");
 	return GcObject::realloc(mem, oldb, newb);
 };
 
 void GcObject::free_print(const char *file, int line, void *mem, size_t size) {
-	gc_print(file, line, "free: ");
+	gc_print(file, line, ANSI_COLOR_MAGENTA "free: " ANSI_COLOR_RESET);
 	Printer::println(size, " bytes");
 	return GcObject::free(mem, size);
 };
