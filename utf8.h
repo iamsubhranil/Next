@@ -160,7 +160,7 @@ utf8_nonnull utf8_pure utf8_weak void *utf8pbrk(const void *str,
 utf8_nonnull utf8_pure utf8_weak void *utf8rchr(const void *src, int chr);
 
 // Number of bytes in the utf8 string str,
-// including the null terminating byte.
+// not including the null terminating byte.
 utf8_nonnull utf8_pure utf8_weak size_t utf8size(const void *str);
 
 // Number of utf8 codepoints in the utf8 string src that consists entirely
@@ -407,7 +407,7 @@ void *utf8dup(const void *src) {
 
 	// figure out how many bytes (including the terminator) we need to copy
 	// first
-	size_t bytes = utf8size(src);
+	size_t bytes = utf8size(src) + 1;
 
 	n = (char *)GcObject_malloc(bytes);
 
