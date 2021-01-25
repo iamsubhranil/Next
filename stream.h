@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "gc.h" // for String2 in StringStream
+
 struct Value;
 struct OutputStream;
 struct Utf8Source;
@@ -54,10 +56,8 @@ struct FileStream : Stream {
 	}
 };
 
-struct String;
-
 struct StringStream : Stream {
-	struct String *str;
+	String2 str;
 
 	StringStream();
 	// template <typename T> std::size_t write(const T &val) = delete;
