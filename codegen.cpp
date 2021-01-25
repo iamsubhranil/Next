@@ -630,10 +630,6 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 #endif
 	btx->insert_token(lit->token);
 	btx->push(lit->value);
-	// if this is a string, it was previously kept
-	// to be always alive. remove it from that status.
-	if(lit->value.isString())
-		String::unkeep(lit->value.toString());
 	/*
 	switch(lit->value.t) {
 	    case Value::VAL_Number: btx->pushd(lit->value.toNumber()); break;

@@ -46,7 +46,6 @@ struct String {
         return from(val.source, size);
 	}
 	static String *from(const void *start, const void *end, size_t len);
-	static String *fromParser(const char *val);
 	static String *from(const void *val, size_t size,
 	                    string_transform transform);
 	static String *from(const String2 &val, string_transform transform);
@@ -61,8 +60,6 @@ struct String {
 	static String *append(const String2 &val1, const String2 &val2);
 	static String *append(const String2 &val1, const void *val2, size_t size2);
 	static int     hash_string(const void *val, size_t size);
-	// removes a value from the keep_set
-	static void unkeep(String *s);
 	// various string transformation functions
 	// dest must already contain the original string
 	static void transform_lower(void *dest, size_t size);

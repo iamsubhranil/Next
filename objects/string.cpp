@@ -246,12 +246,6 @@ String *String::from(const String2 &s, string_transform transform) {
 	return from(s->strb(), s->size, transform);
 }
 
-String *String::fromParser(const char *val) {
-	String *s = from(val);
-	keep_set->hset.insert(s);
-	return s;
-}
-
 // we create a separate method for append because
 // we don't want two mallocs to take place, one
 // for append, and one for insert.
@@ -404,8 +398,4 @@ void String::release_all() {
 void String::keep() {
 	if(keep_set)
 		keep_set->mark();
-}
-
-void String::unkeep(String *s) {
-	keep_set->hset.erase(s);
 }
