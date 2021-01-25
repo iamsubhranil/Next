@@ -100,16 +100,15 @@ struct Class {
 	void mark() const {
 		GcObject::mark(name);
 		GcObject::mark(functions);
-		if(module != NULL) {
-			GcObject::mark(module);
-		}
 		if(metaclass)
 			GcObject::mark(metaclass);
 		if(superclass)
 			GcObject::mark(superclass);
-		if(static_slot_count > 0)
-			GcObject::mark(static_values, static_slot_count);
-		if(instance != NULL) {
+		if(module != NULL) {
+			GcObject::mark(module);
+			if(static_slot_count > 0)
+				GcObject::mark(static_values, static_slot_count);
+		} else if(instance != NULL) {
 			GcObject::mark(instance);
 		}
 	}
