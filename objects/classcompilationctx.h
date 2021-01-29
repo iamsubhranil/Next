@@ -108,6 +108,6 @@ struct ClassCompilationContext {
 	void disassemble(OutputStream &o);
 #endif
 #ifdef DEBUG_GC
-	const Utf8Source gc_repr() { return klass->name->str(); }
+	const Utf8Source gc_repr() { return Utf8Source("<classcompilationctx>"); }
 #endif
 };

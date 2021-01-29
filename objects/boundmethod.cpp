@@ -92,6 +92,6 @@ BoundMethod *BoundMethod::from(Function *f, Value v, Type t) {
 
 #ifdef DEBUG_GC
 const Utf8Source BoundMethod::gc_repr() {
-	return func->name->str();
+	return Utf8Source("<boundmethod>");
 }
 #endif

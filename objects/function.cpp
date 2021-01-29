@@ -26,14 +26,12 @@ Function *Function::create(const String2 &str, int arity, bool isva,
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
 	f->varArg        = isva;
-	f->cannest = true; // by default, the function is assumed to be nesting
 	return f;
 }
 
 Function *Function::create_derived(int offset) {
 	Function2 df = Function::create(name, arity, varArg, static_);
 	df->mode     = mode;
-	df->cannest  = cannest;
 	if(mode == Function::BUILTIN) {
 		df->numExceptions = 0;
 		df->exceptions    = NULL;
@@ -157,6 +155,6 @@ void Function::disassemble(OutputStream &os) {
 
 #ifdef DEBUG_GC
 const Utf8Source Function::gc_repr() {
-	return name->str();
+	return Utf8Source("<function>");
 }
 #endif

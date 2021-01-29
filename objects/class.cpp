@@ -83,9 +83,8 @@ void Class::add_fn(const char *str, Function *f) {
 }
 
 void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
-                            bool isva, bool cannest, bool isstatic) {
+                            bool isva, bool isstatic) {
 	Function2 f = Function::from(str, arity, fn, isva);
-	f->cannest  = cannest;
 	f->static_  = isstatic;
 	add_fn(str, f);
 	if(isstatic && metaclass) {
@@ -117,12 +116,12 @@ void Class::add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
 
 void Class::add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
                            bool isva, bool isstatic) {
-	add_builtin_fn2(str, arity, fn, isva, false, isstatic);
+	add_builtin_fn2(str, arity, fn, isva, isstatic);
 }
 
 void Class::add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
                                 bool isva, bool isstatic) {
-	add_builtin_fn2(str, arity, fn, isva, true, isstatic);
+	add_builtin_fn2(str, arity, fn, isva, isstatic);
 }
 
 bool Class::has_fn(const char *sig) const {
@@ -354,6 +353,6 @@ void Class::init() {
 
 #ifdef DEBUG_GC
 const Utf8Source Class::gc_repr() {
-	return name->str();
+	return Utf8Source("<class>");
 }
 #endif

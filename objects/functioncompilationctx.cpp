@@ -70,6 +70,6 @@ void FunctionCompilationContext::disassemble(OutputStream &os) {
 
 #ifdef DEBUG_GC
 const Utf8Source FunctionCompilationContext::gc_repr() {
-	return f->name->str();
+	return Utf8Source("<functioncompilationctx>");
 }
 #endif

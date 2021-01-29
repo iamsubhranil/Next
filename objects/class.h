@@ -69,7 +69,7 @@ struct Class {
 	// has to perform some extra checks before and after
 	// the builtin is executed.
 	void add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
-	                     bool isvarg, bool cannest, bool isstatic);
+	                     bool isvarg, bool isstatic);
 	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
 	                    bool isvarg = false, bool isstatic = false);
 	void add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
