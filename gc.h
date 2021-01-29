@@ -8,6 +8,16 @@
 #define GC_PRINT_CLEANUP
 #endif
 
+#ifndef GC_NUM_GENERATIONS
+// number of GC generations
+#define GC_NUM_GENERATIONS 4
+#endif
+#ifndef GC_NEXT_GEN_THRESHOLD
+// number of times a child generation has to be gc'ed
+// before a parent generation is considered for a gc
+#define GC_NEXT_GEN_THRESHOLD 2
+#endif
+
 using size_t = std::size_t;
 
 struct Value;
@@ -52,7 +62,12 @@ struct GcObject {
 	static size_t max_gc;
 	// an array to track the allocated
 	// objects
-	static CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP> *tracker;
+	using Generation = CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP>;
+	static Generation *generations[GC_NUM_GENERATIONS];
+	// number of times gc is performed, resets whenever
+	// it is equal to GC_NUM_GENERATIONS * GC_NEXT_GENERATION_THRESHOLD
+	static size_t gc_count;
+	// inserts at generations[0]
 	static void tracker_insert(GcObject *g);
 
 	// replacement for manual allocations
@@ -118,7 +133,11 @@ struct GcObject {
 	static void release(GcObject *obj);
 	static void release(Value v);
 	// clear
-	static void sweep();
+	// sweep this particular generation
+	// unmarkedClassesHead holds the unmarked classes in a linked
+	// list to ensure that all of their objects have been released
+	// before they are released.
+	static void sweep(size_t genid, Class **unmarkedClassesHead);
 
 	// core gc method
 	// the flag forces a gc even if

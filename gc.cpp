@@ -32,12 +32,12 @@
 #include "stmt.h"
 #include "utils.h"
 
-size_t   GcObject::totalAllocated  = 0;
-size_t   GcObject::next_gc         = 1024 * 1024 * 10;
-size_t   GcObject::max_gc          = 1024 * 1024 * 1024;
-GcObject GcObject::DefaultGcObject = {nullptr, GcObject::OBJ_NONE};
-CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP> *GcObject::tracker =
-    nullptr;
+size_t                GcObject::totalAllocated  = 0;
+size_t                GcObject::next_gc         = 1024 * 1024 * 10;
+size_t                GcObject::max_gc          = 1024 * 1024 * 1024;
+GcObject              GcObject::DefaultGcObject = {nullptr, GcObject::OBJ_NONE};
+GcObject::Generation *GcObject::generations[]   = {nullptr};
+size_t                GcObject::gc_count        = 0;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
@@ -133,6 +133,7 @@ void GcObject::free(void *mem, size_t bytes) {
 void GcObject::gc(bool force) {
 	// check for gc
 	if(totalAllocated >= next_gc || force) {
+		gc_count++;
 #ifdef GC_PRINT_CLEANUP
 		Printer::println("[GC] Started GC..");
 		size_t oldAllocated = totalAllocated;
@@ -166,10 +167,47 @@ void GcObject::gc(bool force) {
 		Printer::println("[GC] Marking Engine..");
 #endif
 		ExecutionEngine::mark();
+		size_t max = 1;
+		// make this constant
+		for(size_t i = 0; i < GC_NUM_GENERATIONS - 1; i++)
+			max *= GC_NEXT_GEN_THRESHOLD;
+		size_t maxbak = max;
+		// for an unmarked class, it may still have
+		// some objects alive, so we hold its release
+		// until they are done using this singly
+		// linked list of unmarked classes.
+		Class *unmarkedClassesHead = nullptr;
+		for(size_t i = GC_NUM_GENERATIONS; i > 0;) {
+			--i;
+			if(gc_count % max == 0) {
 #ifdef GC_PRINT_CLEANUP
-		Printer::println("[GC] Sweeping..");
+				Printer::println("[GC] Sweeping generation ", i, "..");
 #endif
-		sweep();
+				// do a sweep if it is time for a sweep
+				sweep(i, &unmarkedClassesHead);
+#ifdef GC_PRINT_CLEANUP
+				Printer::println("[GC] Sweeping generation ", i, " finished..");
+#endif
+			} else {
+#ifdef GC_PRINT_CLEANUP
+				Printer::println("[GC] Unmarking generation ", i, "..");
+#endif
+				Generation *gen = generations[i];
+				// otherwise, just unmark everyone in this generation
+				for(size_t j = 0; j < gen->size; j++) unmark(gen->at(j));
+			}
+			max /= GC_NEXT_GEN_THRESHOLD;
+		}
+		// release all unmarked classes
+		while(unmarkedClassesHead) {
+			Class *next = unmarkedClassesHead->module;
+			release(unmarkedClassesHead);
+			unmarkedClassesHead = next;
+		}
+		// if we have swept even the final generation, it's time
+		// for a reset.
+		if(gc_count == maxbak)
+			gc_count = 0;
 		// check the ceiling of where the program
 		// has already hit
 		size_t c = Utils::powerOf2Ceil(totalAllocated);
@@ -183,6 +221,10 @@ void GcObject::gc(bool force) {
 		// new budget
 		if(next_gc < c)
 			next_gc = c;
+#ifndef GC_USE_STD_ALLOC
+		// try to release any empty arenas
+		MemoryManager::releaseArenas();
+#endif
 #ifdef GC_PRINT_CLEANUP
 		Printer::println("[GC] Released: ", oldAllocated - totalAllocated,
 		                 " bytes");
@@ -220,7 +262,7 @@ bool GcObject::isTempTracked(GcObject *o) {
 }
 
 void GcObject::tracker_insert(GcObject *g) {
-	tracker->insert(g);
+	generations[0]->insert(g);
 }
 
 void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
@@ -234,7 +276,7 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	obj->objType  = type;
 	obj->klass    = klass;
 
-	tracker->insert(obj);
+	generations[0]->insert(obj);
 
 	return obj;
 }
@@ -293,6 +335,9 @@ Statement *GcObject::allocStatement2(size_t size) {
 }
 
 void GcObject::release(GcObject *obj) {
+#ifdef DEBUG_GC
+	Printer::print("[GC] [Release] ", (uintptr_t)obj, " ");
+#endif
 	// for the types that are allocated contiguously,
 	// we need to pass the total allocated size to
 	// the memory manager, otherwise it will add the
@@ -300,7 +345,7 @@ void GcObject::release(GcObject *obj) {
 	switch(obj->objType) {
 		case OBJ_String:
 #ifdef DEBUG_GC
-			Printer::println("[GC] [Release] String (",
+			Printer::println("String (",
 			                 sizeof(String) + ((String *)obj)->size + 1,
 			                 ") -> ", ((String *)obj)->gc_repr());
 			GcCounters[StringCounter]--;
@@ -311,10 +356,9 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Tuple:
 #ifdef DEBUG_GC
-			Printer::println("[GC] [Release] Tuple (",
-			                 sizeof(Tuple) +
-			                     sizeof(Value) * ((Tuple *)obj)->size,
-			                 ") -> ", ((Tuple *)obj)->gc_repr());
+			Printer::println(
+			    "Tuple (", sizeof(Tuple) + sizeof(Value) * ((Tuple *)obj)->size,
+			    ") -> ", ((Tuple *)obj)->gc_repr());
 			GcCounters[TupleCounter]--;
 #endif
 			GcObject_free(obj, sizeof(Tuple) +
@@ -322,10 +366,9 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Object:
 #ifdef DEBUG_GC
-			Printer::println("[GC] [Release] Object (",
-			                 sizeof(Object) +
-			                     sizeof(Value) * obj->klass->numSlots,
-			                 ") -> object of ", obj->klass->name->str());
+			Printer::println(
+			    "Object (",
+			    sizeof(Object) + sizeof(Value) * obj->klass->numSlots, ")");
 			GcCounters[ObjectCounter]--;
 #endif
 			GcObject_free(obj, sizeof(Object) +
@@ -333,18 +376,16 @@ void GcObject::release(GcObject *obj) {
 			return;
 		case OBJ_Expression:
 #ifdef DEBUG_GC
-			Printer::println("[GC] [Release] Expression (",
-			                 ((Expression *)obj)->getSize(), ") -> ",
-			                 ((Expression *)obj)->gc_repr());
+			Printer::println("Expression (", ((Expression *)obj)->getSize(),
+			                 ") -> ", ((Expression *)obj)->gc_repr());
 			GcCounters[ExpressionCounter]--;
 #endif
 			GcObject_free(obj, ((Expression *)obj)->getSize());
 			return;
 		case OBJ_Statement:
 #ifdef DEBUG_GC
-			Printer::println("[GC] [Release] Statement (",
-			                 ((Statement *)obj)->getSize(), ") -> ",
-			                 ((Statement *)obj)->gc_repr());
+			Printer::println("Statement (", ((Statement *)obj)->getSize(),
+			                 ") -> ", ((Statement *)obj)->gc_repr());
 			GcCounters[StatementCounter]--;
 #endif
 			GcObject_free(obj, ((Statement *)obj)->getSize());
@@ -353,16 +394,16 @@ void GcObject::release(GcObject *obj) {
 	}
 	switch(obj->objType) {
 		case OBJ_NONE:
-			Printer::Err("Object type NONE should not be present in the list!");
+			panic("Object type NONE should not be present in the list!");
 			break;
 #ifdef DEBUG_GC
-#define OBJTYPE(name)                                                  \
-	case OBJ_##name:                                                   \
-		Printer::println("[GC] [Release] ", #name, " (", sizeof(name), \
-		                 ") -> ", ((name *)obj)->gc_repr());           \
-		((name *)obj)->release();                                      \
-		GcObject_free(obj, sizeof(name));                              \
-		GcCounters[name##Counter]--;                                   \
+#define OBJTYPE(name)                                        \
+	case OBJ_##name:                                         \
+		Printer::println(#name, " (", sizeof(name), ") -> ", \
+		                 ((name *)obj)->gc_repr());          \
+		((name *)obj)->release();                            \
+		GcObject_free(obj, sizeof(name));                    \
+		GcCounters[name##Counter]--;                         \
 		break;
 #else
 #define OBJTYPE(name)                     \
@@ -372,6 +413,7 @@ void GcObject::release(GcObject *obj) {
 		break;
 #endif
 #include "objecttype.h"
+		default: panic("Invalid object tag!"); break;
 	}
 }
 
@@ -446,24 +488,27 @@ Class *GcObject::getMarkedClass(const Object *o) {
 	return (Class *)((uintptr_t)o->obj.klass ^ marker);
 }
 
-void GcObject::sweep() {
-	size_t lastFilledAt = 0;
-	// for an unmarked class, it may still have
-	// some objects alive, so we hold its release
-	// until they are done using this singly
-	// linked list of unmarked classes.
-	Class *unmarkedClassesHead = nullptr;
-	for(size_t i = 0; i < tracker->size; i++) {
-		GcObject *v = tracker->at(i);
+void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
+	Generation *generation = generations[genid];
+	Generation *put        = generation;
+	if(genid < GC_NUM_GENERATIONS - 1) {
+		put = generations[genid + 1];
+	}
+	size_t oldsize = generation->size;
+	// set the size of this generation to 0,
+	// so that insert(_) works correctly
+	generation->size = 0;
+	for(size_t i = 0; i < oldsize; i++) {
+		GcObject *v = generation->at(i);
 		// if it is not marked, release
 		if(!isMarked(v)) {
 			if(v->isClass()) {
 				// it doesn't matter where we store
 				// the pointer now, since everything
 				// is already marked anyway
-				Class *c            = (Class *)v;
-				c->module           = unmarkedClassesHead;
-				unmarkedClassesHead = c;
+				Class *c             = (Class *)v;
+				c->module            = *unmarkedClassesHead;
+				*unmarkedClassesHead = c;
 			} else {
 				release(v);
 			}
@@ -472,22 +517,13 @@ void GcObject::sweep() {
 		// first non empty slot
 		else {
 			unmark(v);
-			tracker->at(lastFilledAt++) = v;
+			// it survived this generation, so put it in
+			// a parent generation, if there is one
+			put->insert(v);
 		}
 	}
-	tracker->size = lastFilledAt;
-	// shrink the tracker
-	tracker->shrink();
-	// release all unmarked classes
-	while(unmarkedClassesHead) {
-		Class *next = unmarkedClassesHead->module;
-		release(unmarkedClassesHead);
-		unmarkedClassesHead = next;
-	}
-#ifndef GC_USE_STD_ALLOC
-	// try to release any empty arenas
-	MemoryManager::releaseArenas();
-#endif
+	// shrink this generation
+	generation->shrink();
 }
 
 void GcObject::init() {
@@ -496,7 +532,8 @@ void GcObject::init() {
 	MemoryManager::init();
 #endif
 	// initialize the object tracker
-	tracker = CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP>::create();
+	for(size_t i = 0; i < GC_NUM_GENERATIONS; i++)
+		generations[i] = Generation::create();
 	// initialize the temporary tracker
 	// allocate it manually, Set::create
 	// itself uses temporary objects
