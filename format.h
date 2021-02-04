@@ -27,11 +27,15 @@ template <> struct FormatHandler<std::size_t> {
 
 template <typename R> struct Format<R, Value> {
 	R fmt(const Value &val, FormatSpec *spec, OutputStream &stream) {
+		// spec is stack allocated, allocate it to the heap
+		FormatSpec2 spec2 = FormatSpec::from(
+		    spec->align, spec->fill, spec->sign, spec->isalt, spec->signaware,
+		    spec->width, spec->precision, spec->type);
 		const Class *c = val.getClass();
 		if(c->has_fn(SymbolTable2::const_sig_fmt)) {
 			// call it
 			Function *f = c->get_fn(SymbolTable2::const_sig_fmt).toFunction();
-			Value     fspecv = Value(spec);
+			Value     fspecv = Value(spec2);
 			Value     ret;
 			// execute that fmt(_)
 			if(!ExecutionEngine::execute(val, f, &fspecv, 1, &ret, true))
@@ -237,9 +241,9 @@ struct Formatter {
 		Out format_nth(OutputStream &stream, FormatSpec *f, int idx,
 		               int at = 0) {
 			(void)at;
-			if(f)
+			if(f) {
 				return Format<Out, Value>().fmt(val[idx], f, stream);
-			else {
+			} else {
 				stream.write(val[idx]);
 				return FormatHandler<Out>::Success();
 			}
@@ -560,14 +564,28 @@ struct Formatter {
 				precision = res;
 			}
 
-			// extract the argument
-			FormatSpec2 f = NULL;
+			// since the formatspec does not leave this function,
+			// it should cause no harm to allocate it on the stack,
+			// as long as we're doing it correctly. moreover, whenever
+			// Format<Value> is called, that function explicitly
+			// allocates a formatspec on the heap, and passes that
+			FormatSpec f;
+			f.obj.klass    = GcObject::FormatSpecClass;
+			f.obj.objType  = GcObject::OBJ_FormatSpec;
+			FormatSpec *f2 = NULL;
 			if(has_format_spec) {
-				f = FormatSpec::from(align, fill, sign, isalt, signaware, width,
-				                     precision, type);
+				f.align     = align;
+				f.fill      = fill;
+				f.sign      = sign;
+				f.isalt     = isalt;
+				f.signaware = signaware;
+				f.width     = width;
+				f.precision = precision;
+				f.type      = type;
+				f2          = &f;
 			}
-			// if f is NULL, format_nth calls stream.write directly
-			R ret = argvalues.format_nth(stream, f, arg);
+			// if f2 is NULL, format_nth calls stream.write directly
+			R ret = argvalues.format_nth(stream, f2, arg);
 			if(ret != FormatHandler<R>::Success()) {
 				return ret;
 			}

@@ -1,5 +1,5 @@
 #pragma once
-#include <cstddef>
+#include <cstdint>
 
 #ifndef DEBUG
 //#define DEBUG
@@ -43,7 +43,7 @@ template <typename T, size_t n> struct CustomArray;
 
 struct GcObject {
 	const Class *klass;
-	enum GcObjectType {
+	enum GcObjectType : std::uint8_t {
 		OBJ_NONE,
 #define OBJTYPE(n) OBJ_##n,
 #include "objecttype.h"

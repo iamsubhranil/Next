@@ -308,8 +308,8 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 #ifdef DEBUG_GC
 	obj->gen = 0;
 	obj->idx = generations[0]->size - 1;
-	Printer::print("[GC]" ANSI_COLOR_GREEN " [Alloc] " ANSI_COLOR_RESET
-	               "  ptr:",
+	Printer::print("[GC]" ANSI_COLOR_GREEN "  [Alloc] " ANSI_COLOR_RESET
+	               " ptr: ",
 	               (uintptr_t)obj, " ");
 	switch(type) {
 #define OBJTYPE(x)                                                 \
@@ -385,17 +385,17 @@ Statement *GcObject::allocStatement2(size_t size) {
 }
 
 #ifdef DEBUG_GC
-#define release_(type, size)                                                 \
-	{                                                                        \
-		size_t bak = size;                                                   \
-		Printer::println(                                                    \
-		    "[GC]" ANSI_COLOR_MAGENTA " [Release]" ANSI_COLOR_RESET " ptr:", \
-		    (uintptr_t)obj, " ", ANSI_COLOR_YELLOW #type ANSI_COLOR_RESET,   \
-		    " (", bak, ") -> ", ((type *)obj)->gc_repr());                   \
-		GcCounters[type##Counter]--;                                         \
-		((type *)obj)->release();                                            \
-		GcObject::free(obj, bak);                                            \
-		return;                                                              \
+#define release_(type, size)                                                   \
+	{                                                                          \
+		size_t bak = size;                                                     \
+		Printer::fmt(                                                          \
+		    "[GC]" ANSI_COLOR_MAGENTA " [Release]" ANSI_COLOR_RESET " ptr: {}" \
+		    " " ANSI_COLOR_YELLOW #type ANSI_COLOR_RESET " ({}) -> {}\n",      \
+		    (uintptr_t)obj, bak, ((type *)obj)->gc_repr());                    \
+		GcCounters[type##Counter]--;                                           \
+		((type *)obj)->release();                                              \
+		GcObject::free(obj, bak);                                              \
+		return;                                                                \
 	}
 #else
 #define release_(type, size)      \
