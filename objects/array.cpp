@@ -113,7 +113,7 @@ Value next_array_str(const Value *args, int numargs) {
 
 Array *Array::create(int size) {
 	Array *arr    = GcObject::allocArray();
-	arr->capacity = Utils::powerOf2Ceil(size);
+	arr->capacity = Utils::nextAllocationSize(0, size);
 	arr->size     = 0;
 	arr->values   = (Value *)GcObject_malloc(sizeof(Value) * arr->capacity);
 	Utils::fillNil(arr->values, arr->capacity);
@@ -136,7 +136,7 @@ Value &Array::insert(Value v) {
 }
 
 void Array::resize(int newsize) {
-	int newcapacity = Utils::powerOf2Ceil(newsize + 1);
+	int newcapacity = Utils::nextAllocationSize(capacity, newsize);
 	values = (Value *)GcObject_realloc(values, sizeof(Value) * capacity,
 	                                   sizeof(Value) * newcapacity);
 	if(newcapacity > capacity) {

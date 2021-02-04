@@ -677,17 +677,17 @@ Bits *Bits::create(int64_t number_of_bits) {
 }
 
 void Bits::resize(int64_t ns) {
-	// change the capacity only if we are smaller
-	if(ns > chunkcapacity) {
-		bytes = (ChunkType *)GcObject_realloc(
-		    bytes, chunkcapacity * ChunkSizeByte, ns * ChunkSizeByte);
-		chunkcapacity = ns;
-	}
 	int64_t oldchunkcount = chunkcount;
 	// readjust at all times
 	chunkcount =
 	    (ns >> Bits::ChunkCountShift) + ((ns & Bits::ChunkRemainderAnd) != 0);
 	size = ns;
+	// extend the capacity only if we are smaller
+	if(ns > chunkcapacity) {
+		bytes = (ChunkType *)GcObject_realloc(
+		    bytes, oldchunkcount * ChunkSizeByte, chunkcount * ChunkSizeByte);
+		chunkcapacity = ns;
+	}
 	// if we are shrinking, clear the extra chunks
 	if(oldchunkcount > chunkcount) {
 		std::memset(&bytes[chunkcount], 0,

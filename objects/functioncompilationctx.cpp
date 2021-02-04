@@ -67,9 +67,3 @@ void FunctionCompilationContext::disassemble(OutputStream &os) {
 	f->disassemble(os);
 }
 #endif
-
-#ifdef DEBUG_GC
-const Utf8Source FunctionCompilationContext::gc_repr() {
-	return Utf8Source("<functioncompilationctx>");
-}
-#endif

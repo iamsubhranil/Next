@@ -36,6 +36,7 @@ struct Object {
 	void release() const {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr() { return "<object>"; }
+	void          depend() { GcObject::depend(obj.klass); }
+	const String *gc_repr() { return obj.klass->name; }
 #endif
 };

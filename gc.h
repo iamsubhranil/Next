@@ -1,8 +1,12 @@
 #pragma once
 #include <cstddef>
 
+#ifndef DEBUG
 //#define DEBUG
+#endif
+#ifndef DEBUG_GC
 //#define DEBUG_GC
+#endif
 
 #if defined(DEBUG_GC) || defined(DEBUG_GC_CLEANUP)
 #define GC_PRINT_CLEANUP
@@ -44,6 +48,22 @@ struct GcObject {
 #define OBJTYPE(n) OBJ_##n,
 #include "objecttype.h"
 	} objType;
+
+#ifdef DEBUG_GC
+	// A pointer to the index of the generation that
+	// this object is stored into.
+	// calling depend() will cause this location
+	// to be set to NULL, and generations[0]->insert(this);
+	// to ensure that this object is garbage collected after
+	// the one that called the depend.
+	size_t gen, idx;
+
+	void depend_();
+
+#define OBJTYPE(x) \
+	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
+#include "objecttype.h"
+#endif
 
 	// basic type check
 #define OBJTYPE(n) \
@@ -177,9 +197,6 @@ struct GcObject {
 	static ClassCompilationContext *CoreContext;
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
-
-	// returns a place holder gcobject
-	static GcObject DefaultGcObject;
 
 	// track temporary objects
 	static Set *temporaryObjects;

@@ -210,6 +210,7 @@ struct Fiber {
 	// runs the fiber until it returns somehow
 	Value run();
 #ifdef DEBUG_GC
+	void             depend() {}
 	const Utf8Source gc_repr() { return Utf8Source("fiber"); }
 #endif
 };

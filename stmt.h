@@ -63,6 +63,7 @@ struct Statement {
 	size_t      getSize(); // returns the actual allocated memory based on type
 	static void init();
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr();
 #endif
 };

@@ -26,6 +26,7 @@ struct Map {
 
 	void release() const { vv.~MapType(); }
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "map"; }
 #endif
 };

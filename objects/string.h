@@ -88,7 +88,8 @@ struct String {
 	static void keep();
 
 #ifdef DEBUG_GC
-	const Utf8Source gc_repr() { return str(); }
+	void          depend() {}
+	const String *gc_repr() { return this; }
 #endif
 
   private:

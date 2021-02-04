@@ -59,6 +59,7 @@ const char *Expression::gc_repr() {
 		break;
 #include "exprtypes.h"
 		case EXPR_This: return "ThisVariableExpression"; break;
+		default: panic("Invalid expression type!"); return "<error>";
 	}
 }
 #endif

@@ -37,7 +37,7 @@ template <typename T, std::size_t mincap = 0> struct CustomArray {
 	}
 	void resize(size_t newSize) {
 		if(newSize > capacity) {
-			newSize  = Utils::powerOf2Ceil(newSize);
+			newSize  = Utils::nextAllocationSize(capacity, newSize);
 			obj      = (T *)GcObject_realloc(obj, sizeof(T) * capacity,
                                         sizeof(T) * newSize);
 			capacity = newSize;
@@ -47,7 +47,7 @@ template <typename T, std::size_t mincap = 0> struct CustomArray {
 		if(size < capacity / 2 && capacity > mincap) {
 			size_t newSize = mincap;
 			if(size > mincap)
-				newSize = Utils::powerOf2Ceil(size);
+				newSize = Utils::nextAllocationSize(0, size);
 			obj      = (T *)GcObject_realloc(obj, sizeof(T) * capacity,
                                         sizeof(T) * newSize);
 			capacity = newSize;

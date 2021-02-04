@@ -43,6 +43,7 @@ struct Loader {
 	static void init();
 
 #ifdef DEBUG_GC
+	void             depend() {}
 	const Utf8Source gc_repr() { return Utf8Source("loader"); }
 #endif
 };

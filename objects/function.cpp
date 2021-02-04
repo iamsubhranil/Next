@@ -152,9 +152,3 @@ void Function::disassemble(OutputStream &os) {
 	}
 }
 #endif
-
-#ifdef DEBUG_GC
-const Utf8Source Function::gc_repr() {
-	return Utf8Source("<function>");
-}
-#endif

@@ -5,7 +5,7 @@
 #include "map.h"
 
 #ifdef DEBUG_GC
-struct Utf8Source;
+#include "../utf8.h"
 #endif
 
 // maximum number of allowed variadic args
@@ -117,11 +117,19 @@ struct Class {
 		if(module != NULL && static_slot_count > 0) {
 			GcObject_free(static_values, sizeof(Value) * static_slot_count);
 		}
+#ifdef DEBUG_GC
+		GcObject_free((void *)nameCopy.source, utf8size(nameCopy.source) + 1);
+#endif
 	}
 
 	static Class *create(); // allocates a class and sets everything to NULL
 
 #ifdef DEBUG_GC
-	const Utf8Source gc_repr();
+	// classes are released in the end, after the actual sweep is complete,
+	// so 'name' is already free'd at that point. Hence, we make a copy, and
+	// store it here, and release that back in 'release()'
+	Utf8Source       nameCopy;
+	void             depend(); // copies name to nameCopy
+	const Utf8Source gc_repr() { return nameCopy; }
 #endif
 };

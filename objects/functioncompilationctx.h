@@ -47,6 +47,7 @@ struct FunctionCompilationContext {
 	void disassemble(OutputStream &o);
 #endif
 #ifdef DEBUG_GC
-	const Utf8Source gc_repr();
+	void          depend() { GcObject::depend(f); }
+	const String *gc_repr() { return f->name; }
 #endif
 };

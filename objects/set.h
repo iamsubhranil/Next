@@ -21,6 +21,7 @@ struct Set {
 	void release() const { hset.~SetType(); }
 
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "set"; }
 #endif
 };

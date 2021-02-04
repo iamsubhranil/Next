@@ -21,6 +21,9 @@ Value &FieldAccessFunction(const Class *c, Value v, int field) {
 }
 
 void Class::init(String2 s, ClassType typ, Class *mc) {
+#ifdef DEBUG_GC
+	nameCopy.source = NULL;
+#endif
 	name              = s;
 	type              = typ;
 	numSlots          = 0;
@@ -181,6 +184,9 @@ Class *Class::create() {
 	kls->static_slot_count = 0;
 	kls->superclass        = NULL;
 	kls->accessFn          = FieldAccessFunction;
+#ifdef DEBUG_GC
+	kls->nameCopy.source = NULL;
+#endif
 	return kls;
 }
 
@@ -352,7 +358,10 @@ void Class::init() {
 }
 
 #ifdef DEBUG_GC
-const Utf8Source Class::gc_repr() {
-	return Utf8Source("<class>");
+void Class::depend() {
+	if(nameCopy.source == NULL) {
+		nameCopy.source = utf8dup(name->strb());
+	}
+	GcObject::depend(name);
 }
 #endif

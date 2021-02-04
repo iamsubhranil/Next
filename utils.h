@@ -36,4 +36,19 @@ struct Utils {
 	static inline void fillNil(Value *arr, int size) {
 		for(int i = 0; i < size; i++) arr[i] = ValueNil;
 	}
+
+	static const size_t MinAllocationSize = 8;
+
+	static inline size_t nextAllocationSize(size_t oldcapacity,
+	                                        size_t targetsize) {
+		if(targetsize <= MinAllocationSize)
+			return MinAllocationSize;
+		if(oldcapacity < 2)
+			oldcapacity = 2;
+		size_t s = oldcapacity;
+		while(s < targetsize) {
+			s += (s >> 1);
+		}
+		return s;
+	}
 };

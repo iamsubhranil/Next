@@ -3,12 +3,6 @@
 #include "../format.h"
 #include "function.h"
 
-#ifdef DEBUG_GC
-#define ERROR(x, name) \
-	const char *x::gc_repr() { return name; }
-#include "error_types.h"
-#endif
-
 #define ERROR(x, name)                                              \
 	x *x::create(const String2 &m) {                                \
 		x *re       = GcObject::alloc##x();                         \
@@ -43,12 +37,6 @@ Value Error::sete(const String2 &m) {
 	ExecutionEngine::setPendingException(create(m));
 	return ValueNil;
 }
-
-#ifdef DEBUG_GC
-const char *Error::gc_repr() {
-	return "<error>";
-}
-#endif
 
 Value Error::sete(const char *m) {
 	return sete(String::from(m));

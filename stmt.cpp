@@ -50,10 +50,9 @@ void Statement::init() {
 #ifdef DEBUG_GC
 const char *Statement::gc_repr() {
 	switch(type) {
-#define STMTTYPE(x)            \
-	case STMT_##x:             \
-		return #x "Statement"; \
-		break;
+#define STMTTYPE(x) \
+	case STMT_##x: return #x "Statement"; break;
+		default: panic("Invalid statement type!"); return "<error>";
 #include "stmttypes.h"
 	}
 }

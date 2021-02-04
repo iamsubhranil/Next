@@ -62,6 +62,7 @@ struct Expression {
 	void        release() {}
 	static void init();
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr();
 #endif
 	friend class ExpressionVisitor;

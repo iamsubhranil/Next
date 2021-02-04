@@ -17,7 +17,7 @@ const char *Bytecode::OpcodeNames[] = {
 
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
-		size_t newcap = Utils::powerOf2Ceil(size + 1);
+		size_t newcap = Utils::nextAllocationSize(capacity, size + 1);
 		bytecodes     = (Opcode *)GcObject_realloc(
             bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * newcap);
 		capacity = newcap;

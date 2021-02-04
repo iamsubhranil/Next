@@ -157,6 +157,7 @@ struct Bytecode {
 #endif
 	static const char *OpcodeNames[];
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "bytecode"; }
 #endif
 };

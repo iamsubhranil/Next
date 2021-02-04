@@ -34,12 +34,15 @@ struct Error {
 	void mark() { GcObject::mark(message); }
 	void release() {}
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	void          depend() { GcObject::depend(message); }
+	const String *gc_repr() { return message; }
 #endif
 };
 
 #ifdef DEBUG_GC
-#define ERROR_GC_REPR const char *gc_repr();
+#define ERROR_GC_REPR                           \
+	const String *gc_repr() { return message; } \
+	void          depend() { GcObject::depend(message); }
 #else
 #define ERROR_GC_REPR
 #endif

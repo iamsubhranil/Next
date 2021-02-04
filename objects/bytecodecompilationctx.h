@@ -102,6 +102,7 @@ struct BytecodeCompilationContext {
 	}
 
 #ifdef DEBUG_GC
-	const char *gc_repr() { return "bytecodecompilationctx"; }
+	void        depend() { GcObject::depend(code); }
+	const char *gc_repr() { return code->gc_repr(); }
 #endif
 };

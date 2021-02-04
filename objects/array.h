@@ -26,6 +26,7 @@ struct Array {
 	void release() const { GcObject_free(values, sizeof(Value) * capacity); }
 
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "array"; }
 #endif
 };

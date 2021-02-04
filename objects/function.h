@@ -92,6 +92,7 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	const Utf8Source gc_repr();
+	void          depend() { GcObject::depend(name); }
+	const String *gc_repr() { return name; }
 #endif
 };
