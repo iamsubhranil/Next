@@ -100,8 +100,8 @@ struct Number {
 
 	template <typename T>
 	static void format_snprintf(FormatSpec *fs, Buffer<char> &buf, T value) {
-		// -+#0*.*d
-		char  format_string[10];
+		// -+#0*.*ld
+		char  format_string[11];
 		char *fmt = format_string;
 		*fmt++    = '%';
 		if(fs->align == '<')
@@ -120,9 +120,10 @@ struct Number {
 			*fmt++ = '.';
 			*fmt++ = '*';
 		}
-		if(fs->type)
+		if(fs->type) {
+			*fmt++ = 'l';
 			*fmt++ = fs->type;
-		else
+		} else
 			*fmt++ = 'g';
 		*fmt++ = 0;
 		// std::wcout << "format_string: " << format_string << "\n";
