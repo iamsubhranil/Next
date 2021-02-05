@@ -13,6 +13,17 @@ std::size_t Stream::write(const void *data, std::size_t bytes) {
 	return 0;
 }
 
+bool Stream::hasFileDescriptor() {
+	return type == Stream::File;
+}
+
+FILE *Stream::getFileDescriptor() {
+	if(type == Stream::File) {
+		return ((FileStream *)this)->file;
+	}
+	return NULL;
+}
+
 StringStream::StringStream()
     : Stream(Stream::Type::String), str(String::const_EmptyString) {}
 

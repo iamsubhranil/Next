@@ -24,6 +24,9 @@ struct Stream {
 
 	explicit Stream(Type t) : type(t) {}
 
+	bool  hasFileDescriptor();
+	FILE *getFileDescriptor();
+
 	template <typename T> std::size_t write(const T &val);
 	std::size_t write(const void *data, std::size_t bytes);
 };
@@ -135,6 +138,8 @@ struct OutputStream {
 	std::size_t write(const char *const &val) {
 		return writebytes(val, strlen(val));
 	}
+	bool  hasFileDescriptor() { return stream->hasFileDescriptor(); }
+	FILE *getFileDescriptor() { return stream->getFileDescriptor(); }
 };
 
 struct StringOutputStream : public OutputStream {

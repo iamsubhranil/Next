@@ -33,8 +33,9 @@ struct Number {
 	}
 
 	static size_t to_unsigned(int a) { return (size_t)a; }
-
-	static void format_bin(FormatSpec *fs, Buffer<char> &buf, int64_t value) {
+	template <typename T>
+	static T next_number_fmt_bin(FormatSpec *fs, int64_t value,
+	                             OutputStream &stream) {
 		bool isminus = value < 0;
 		if(isminus)
 			value = -value;
@@ -48,60 +49,87 @@ struct Number {
 		}
 		// bit count starts from 0
 		firstbit++;
-		char sign = getsign(fs->sign, isminus);
+		size_t origfirstbit = firstbit;
+		char   sign         = getsign(fs->sign, isminus);
 		// if this is alt format, we'll need 0b/0B in front
 		size_t signwidth = sign != 0;
 		size_t altwidth  = (fs->isalt * 2);
 		size_t size      = firstbit + signwidth + altwidth;
 		if(fs->width != -1 && firstbit < to_unsigned(fs->width)) {
 			size = fs->width;
+			if(fs->align == '^') {
+				firstbit = size / 2 - firstbit / 2;
+				firstbit = size - firstbit;
+			}
 		}
-		buf.resize(size + 1);
-		char *data = buf.data();
-		char *end  = buf.data() + size;
+		size_t data = 0;
+		size_t end  = size;
+		char   fill = fs->fill == 0 ? ' ' : fs->fill;
 		// if the alignment is not left and
 		// the signaware is off, pad the right
 		if(!fs->signaware && fs->align != '<') {
-			// fill the left with space
+			// fill the left
 			// leave one if sign is not empty
-			for(size_t j = size; j > (firstbit + signwidth + altwidth); j--)
-				*data++ = ' ';
+			for(size_t j = size; j > (firstbit + signwidth + altwidth); j--) {
+				stream.write(fill);
+				data++;
+			}
 		}
 		// then place the sign
-		if(sign)
-			*data++ = sign;
+		if(sign) {
+			stream.write(sign);
+			data++;
+		}
 		// if this is an alternate form,
 		// place 0b/B
 		if(fs->isalt) {
-			*data++ = '0';
-			*data++ = 'b';
+			stream.write('0');
 			if(fs->type == 'B')
-				*(data - 1) = 'B';
+				stream.write('B');
+			else
+				stream.write('b');
+			data += 2;
 		}
 		// if this was a signaware fill, fill the rest
 		// with 0
 		if(fs->signaware) {
-			for(size_t j = size - signwidth - altwidth; j > firstbit; j--)
-				*data++ = '0';
+			for(size_t j = size - signwidth - altwidth; j > firstbit; j--) {
+				stream.write('0');
+				data++;
+			}
 		}
 		// now, fill the values
-		for(size_t j = firstbit; j > 0; j--)
-			*data++ = ((value >> (j - 1)) & 1) + '0';
+		for(size_t j = origfirstbit; j > 0; j--) {
+			char c[1];
+			c[0] = ((value >> (j - 1)) & 1) + '0';
+			stream.write(c);
+			data++;
+		}
 		// if we're not at the end yet, fill the
-		// rest with ' '
-		if(data < end)
-			*data++ = ' ';
-		// finally, terminate
-		*data = '\0';
-		// set the size excluding the \0,
-		// like snprintf
-		buf.resize(size);
+		// rest
+		while(data < end) {
+			stream.write(fill);
+			data++;
+		}
+		// finally, terminate (for streams, we don't have to)
+		// stream.write('\0');
+		return FormatHandler<T>::Success();
 	}
 
+#define CFMTSPEC(type, spec)                \
+	static char formatSpecifier(type val) { \
+		(void)val;                          \
+		return spec;                        \
+	}
+
+	CFMTSPEC(double, 'g')
+	CFMTSPEC(int64_t, 'd')
+	CFMTSPEC(int, 'd')
+	CFMTSPEC(uint64_t, 'u')
+
 	template <typename T>
-	static void format_snprintf(FormatSpec *fs, Buffer<char> &buf, T value) {
-		// -+#0*.*ld
-		char  format_string[11];
+	static void formatspecToSpecifier(FormatSpec *fs, char *format_string,
+	                                  T val) {
 		char *fmt = format_string;
 		*fmt++    = '%';
 		if(fs->align == '<')
@@ -120,12 +148,20 @@ struct Number {
 			*fmt++ = '.';
 			*fmt++ = '*';
 		}
+		*fmt++ = 'l';
 		if(fs->type) {
-			*fmt++ = 'l';
 			*fmt++ = fs->type;
-		} else
-			*fmt++ = 'g';
+		} else {
+			*fmt++ = formatSpecifier(val);
+		}
 		*fmt++ = 0;
+	}
+
+	template <typename T>
+	static void format_snprintf(FormatSpec *fs, Buffer<char> &buf, T value) {
+		// -+#0*.*ld
+		char format_string[11];
+		formatspecToSpecifier<T>(fs, format_string, value);
 		// std::wcout << "format_string: " << format_string << "\n";
 		// Format using snprintf.
 		auto offset = buf.size();
@@ -166,6 +202,23 @@ struct Number {
 	template <typename R, typename F, typename T>
 	static R next_number_fmt_(FormatSpec *f, F fn, T val,
 	                          OutputStream &stream) {
+		if(f->align != '^' && f->fill == 0) {
+			if(stream.hasFileDescriptor()) {
+				FILE *fd = stream.getFileDescriptor();
+				char  format_string[11];
+				formatspecToSpecifier<T>(f, format_string, val);
+				if(f->width != -1 && f->precision != -1) {
+					fprintf(fd, format_string, f->width, f->precision, val);
+				} else if(f->width != -1 || f->precision != -1) {
+					int v = f->width != -1 ? f->width : f->precision;
+					fprintf(fd, format_string, v, val);
+				} else {
+					fprintf(fd, format_string, val);
+				}
+				return FormatHandler<R>::Success();
+			}
+		}
+
 		Buffer<char> b;
 		fn(f, b, val);
 		// center the value if we need to
@@ -202,12 +255,38 @@ struct Number {
 		stream.writebytes(b.data(), b.size());
 		return FormatHandler<R>::Success();
 	}
+
+	template <typename R>
+	static R fmt_(double val, FormatSpec *f, OutputStream &stream) {
+		switch(f->type) {
+			case 'x':
+			case 'X':
+			case 'b':
+			case 'B':
+			case 'o':
+			case 'O':
+			case 'd':
+				return FormatHandler<R>::Error(
+				    "Type specifier requires integer!");
+		}
+		return next_number_fmt_<R>(f, format_snprintf<double>, val, stream);
+	}
+
+	template <typename R, typename T>
+	static R fmt_(T val, FormatSpec *f, OutputStream &stream) {
+		if(f->precision != -1) {
+			return FormatHandler<R>::Error(
+			    "Precision is not allowed for integer type specifiers!");
+		}
+		if(f->type == 'b' || f->type == 'B')
+			return next_number_fmt_bin<R>(f, val, stream);
+		else
+			return next_number_fmt_<R>(f, format_snprintf<T>, val, stream);
+	}
 	// does not perform validation
 	// performs integer conversion automatically
-	template <typename R>
-	static R fmt(double dval, FormatSpec *f, OutputStream &stream) {
-		Value  source = Value(dval);
-		double lval   = source.toInteger();
+	template <typename R, typename T>
+	static R fmt(T val, FormatSpec *f, OutputStream &stream) {
 		// According to python doc:
 		// When no explicit alignment is given, preceding the width field by a
 		// zero
@@ -231,10 +310,6 @@ struct Number {
 		// the default alignment for numbers is right
 		if(f->align == 0)
 			f->align = '>';
-
-		// check if the specifier requires an int
-		// or a double
-		bool requires_int = false;
 		switch(f->type) {
 			case 'x':
 			case 'X':
@@ -242,7 +317,7 @@ struct Number {
 			case 'B':
 			case 'o':
 			case 'O':
-			case 'd': requires_int = true; break;
+			case 'd':
 			case 0:
 			case 'A':
 			case 'a':
@@ -257,24 +332,9 @@ struct Number {
 				    "Invalid format specifier for number!");
 				break;
 		}
-		if(requires_int) {
-			if(!source.isInteger()) {
-				return FormatHandler<R>::Error(
-				    "Type specifier requires an integer!");
-			}
-			if(f->precision != -1) {
-				return FormatHandler<R>::Error(
-				    "Precision is not allowed for integer type specifier!");
-			}
-			if(f->type == 'b' || f->type == 'B')
-				return next_number_fmt_<R>(f, format_bin, lval, stream);
-			else
-				return next_number_fmt_<R>(f, format_snprintf<int64_t>, lval,
-				                           stream);
-		} else
-			return next_number_fmt_<R>(f, format_snprintf<double>, dval,
-			                           stream);
+		return fmt_<R>(val, f, stream);
 	}
+
 	static Value fmt(double val, FormatSpec *f);
 	static void  init();
 };

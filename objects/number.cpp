@@ -61,7 +61,21 @@ void Number::init() {
 
 Value Number::fmt(double dval, FormatSpec *f) {
 	StringOutputStream s;
-	Value              out = Number::fmt<Value>(dval, f, s);
+	Value              out;
+	bool               requires_int = false;
+	switch(f->type) {
+		case 'x':
+		case 'X':
+		case 'b':
+		case 'B':
+		case 'o':
+		case 'O':
+		case 'd': requires_int = true; break;
+	}
+	if(requires_int && Value(dval).isInteger())
+		out = Number::fmt<Value>(Value(dval).toInteger(), f, s);
+	else
+		out = Number::fmt<Value>(dval, f, s);
 	if(out != ValueTrue) {
 		return out;
 	}

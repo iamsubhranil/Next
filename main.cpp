@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 	Printer::init();
 #ifdef DEBUG
 	Printer::println("sizeof(Value) : ", sizeof(Value));
-#define TYPE(r, n) Printer::println(#n " : ", (uint64_t)QNAN_##n);
+#define TYPE(r, n) Printer::fmt(#n " : {:x}\n", (uintptr_t)QNAN_##n);
 #include "valuetypes.h"
 #endif
 	GcObject::init();
