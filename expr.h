@@ -231,13 +231,13 @@ struct MethodReferenceExpression : public Expression {
 };
 
 #ifdef DEBUG
-struct OutputStream;
+struct WritableStream;
 struct ExpressionPrinter : public ExpressionVisitor {
   private:
-	OutputStream &os;
+	WritableStream &os;
 
   public:
-	ExpressionPrinter(OutputStream &os);
+	ExpressionPrinter(WritableStream &os);
 	void print(Expression *e);
 	void visit(ArrayLiteralExpression *al);
 	void visit(AssignExpression *as);

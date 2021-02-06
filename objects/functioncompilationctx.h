@@ -44,7 +44,7 @@ struct FunctionCompilationContext {
 	}
 
 #ifdef DEBUG
-	void disassemble(OutputStream &o);
+	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
 	void          depend() { GcObject::depend(f); }

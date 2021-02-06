@@ -340,7 +340,7 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 }
 
 template <typename... K> void createException(const void *message, K... args) {
-	StringOutputStream s;
+	StringStream s;
 	auto               res = Formatter::fmt<Value>(s, message, args...);
 	if(res == FormatHandler<Value>::Success()) {
 		RuntimeError::sete(s.toString().toString());

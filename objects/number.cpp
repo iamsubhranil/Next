@@ -60,7 +60,7 @@ void Number::init() {
 }
 
 Value Number::fmt(double dval, FormatSpec *f) {
-	StringOutputStream s;
+	StringStream s;
 	Value              out;
 	bool               requires_int = false;
 	switch(f->type) {

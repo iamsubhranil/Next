@@ -144,12 +144,12 @@ void String::init() {
 	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
 }
 
-Value String::fmt(const String *&s, FormatSpec *f, OutputStream &stream) {
+Value String::fmt(const String *&s, FormatSpec *f, WritableStream &stream) {
 	return Format<Value, String *>().fmt(s, f, stream);
 }
 
 Value String::fmt(const String *&s, FormatSpec *f) {
-	StringOutputStream st;
+	StringStream st;
 	Value              v = String::fmt(s, f, st);
 	if(v != FormatHandler<Value>::Success())
 		return v;
@@ -361,7 +361,7 @@ String *String::toStringValue(Value v) {
 	}
 }
 
-size_t Writer<String>::write(const String &val, OutputStream &stream) {
+size_t Writer<String>::write(const String &val, WritableStream &stream) {
 	return stream.writebytes(val.strb(), val.size);
 }
 

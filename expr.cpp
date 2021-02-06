@@ -67,7 +67,7 @@ const char *Expression::gc_repr() {
 #ifdef DEBUG
 #include "format.h"
 
-ExpressionPrinter::ExpressionPrinter(OutputStream &o) : os(o) {}
+ExpressionPrinter::ExpressionPrinter(WritableStream &o) : os(o) {}
 
 void ExpressionPrinter::print(Expression *e) {
 	e->accept(this);

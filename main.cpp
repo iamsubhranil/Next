@@ -42,7 +42,6 @@ String *getline() {
 int main(int argc, char *argv[]) {
 	// we are mandating this locale, which may not be good
 	setlocale(LC_ALL, "en_US.UTF-8");
-	Printer::init();
 #ifdef DEBUG
 	Printer::println("sizeof(Value) : ", sizeof(Value));
 #define TYPE(r, n) Printer::fmt(#n " : {:x}\n", (uintptr_t)QNAN_##n);

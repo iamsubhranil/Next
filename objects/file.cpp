@@ -95,6 +95,7 @@ Value next_file_seek(const Value *args, int numargs) {
 		                       "origin, must be one of "
 		                       "io.[SEEK_SET/SEEK_CUR/SEEK_END]!");
 	}
+
 	int64_t offset = args[1].toInteger();
 	if(fseek(args[0].toFile()->file, offset, origin)) {
 		TRYFORMATERROR("file.seek(offset, origin) failed");

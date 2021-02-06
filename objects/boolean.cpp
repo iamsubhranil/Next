@@ -12,7 +12,7 @@ Value next_boolean_fmt(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(boolean, "fmt(_)", 1, FormatSpec);
 	FormatSpec *       f = args[1].toFormatSpec();
-	StringOutputStream s;
+	StringStream s;
 	Value ret = Format<Value, bool>().fmt(args[0].toBoolean(), f, s);
 	if(ret != ValueTrue)
 		return ret;

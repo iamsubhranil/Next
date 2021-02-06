@@ -112,7 +112,7 @@ void Function::init() {
 
 #ifdef DEBUG
 #include "../format.h"
-void Function::disassemble(OutputStream &os) {
+void Function::disassemble(WritableStream &os) {
 	os.write("Name: ", name->str(), "\n");
 	os.write("Arity: ", arity, "\n");
 	os.write("VarArg: ", isVarArg(), "\n");

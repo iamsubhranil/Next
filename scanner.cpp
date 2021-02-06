@@ -212,12 +212,12 @@ const char *Token::FormalNames[] = {
 
     "error",  "end of file"};
 
-size_t Writer<Token>::write(const Token &t, OutputStream &stream) {
+size_t Writer<Token>::write(const Token &t, WritableStream &stream) {
 	return stream.writebytes(t.start.source, t.length);
 }
 
 size_t Writer<CustomArray<Token>>::write(const CustomArray<Token> &tv,
-                                         OutputStream &            stream) {
+                                         WritableStream &            stream) {
 	size_t res = 0;
 	for(auto i : tv) res += stream.write(i);
 	return res;

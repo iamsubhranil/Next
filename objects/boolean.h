@@ -9,7 +9,7 @@ struct Boolean {
 };
 
 template <typename R> struct Format<R, bool> {
-	R fmt(const bool &val, FormatSpec *f, OutputStream &s) {
+	R fmt(const bool &val, FormatSpec *f, WritableStream &s) {
 		char type = f->type == 0 ? 's' : f->type;
 		if(type == 's') {
 			String *v = val ? String::const_true_ : String::const_false_;

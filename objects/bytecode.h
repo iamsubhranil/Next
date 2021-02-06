@@ -5,7 +5,7 @@
 #include "array.h"
 
 #ifdef DEBUG
-struct OutputStream;
+struct WritableStream;
 #endif
 
 struct Bytecode {
@@ -148,11 +148,11 @@ struct Bytecode {
 	}
 
 #ifdef DEBUG
-	void disassemble(OutputStream &o);
+	void disassemble(WritableStream &o);
 
-	static void disassemble_int(OutputStream &os, const Opcode *o);
-	static void disassemble_Value(OutputStream &os, const Opcode *o);
-	static void disassemble(OutputStream &os, const Opcode *o,
+	static void disassemble_int(WritableStream &os, const Opcode *o);
+	static void disassemble_Value(WritableStream &os, const Opcode *o);
+	static void disassemble(WritableStream &os, const Opcode *o,
 	                        size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];

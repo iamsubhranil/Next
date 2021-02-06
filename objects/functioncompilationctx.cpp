@@ -58,7 +58,7 @@ int FunctionCompilationContext::get_slot(String *s) {
 
 #ifdef DEBUG
 #include "../format.h"
-void FunctionCompilationContext::disassemble(OutputStream &os) {
+void FunctionCompilationContext::disassemble(WritableStream &os) {
 	os.write("Slots: ");
 	for(auto &a : slotmap[0]) {
 		os.write(a.first->str(), "(", a.second.slot, "), ");

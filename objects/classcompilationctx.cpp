@@ -300,7 +300,7 @@ void ClassCompilationContext::finalize() {
 #ifdef DEBUG
 #include "../format.h"
 
-void ClassCompilationContext::disassemble(OutputStream &os) {
+void ClassCompilationContext::disassemble(WritableStream &os) {
 	if(moduleContext == NULL) {
 		os.write("Module: ", klass->name->str(), "\n");
 	} else {

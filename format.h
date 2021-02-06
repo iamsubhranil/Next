@@ -26,7 +26,7 @@ template <> struct FormatHandler<std::size_t> {
 };
 
 template <typename R> struct Format<R, Value> {
-	R fmt(const Value &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const Value &val, FormatSpec *spec, WritableStream &stream) {
 		// spec is stack allocated, allocate it to the heap
 		FormatSpec2 spec2 = FormatSpec::from(
 		    spec->align, spec->fill, spec->sign, spec->isalt, spec->signaware,
@@ -49,7 +49,7 @@ template <typename R> struct Format<R, Value> {
 };
 
 template <typename R> struct Format<R, Utf8Source> {
-	R fmt(const Utf8Source &s, FormatSpec *f, OutputStream &stream) {
+	R fmt(const Utf8Source &s, FormatSpec *f, WritableStream &stream) {
 		if(f->type != 0 && f->type != 's') {
 			return FormatHandler<R>::Error(
 			    "Invalid type specifier for string!");
@@ -130,19 +130,19 @@ template <typename R> struct Format<R, Utf8Source> {
 };
 
 template <typename R> struct Format<R, const char *> {
-	R fmt(const char *const &val, FormatSpec *f, OutputStream &stream) {
+	R fmt(const char *const &val, FormatSpec *f, WritableStream &stream) {
 		return Format<R, Utf8Source>().fmt(Utf8Source(val), f, stream);
 	}
 };
 
 template <typename R, std::size_t N> struct Format<R, char[N]> {
-	R fmt(const char (&val)[N], FormatSpec *f, OutputStream &stream) {
+	R fmt(const char (&val)[N], FormatSpec *f, WritableStream &stream) {
 		return Format<R, Utf8Source>().fmt(Utf8Source(val), f, stream);
 	}
 };
 
 template <typename R> struct Format<R, String *> {
-	R fmt(const String *const &val, FormatSpec *f, OutputStream &stream) {
+	R fmt(const String *const &val, FormatSpec *f, WritableStream &stream) {
 		return Format<R, Utf8Source>().fmt(val->str(), f, stream);
 	}
 };
@@ -212,7 +212,7 @@ struct Formatter {
 		explicit FormatArg(const T &v, const V &...rest)
 		    : val(v), n(FormatArg<Out, V...>(rest...)) {}
 		const FormatArg<Out, V...> &next() { return n; }
-		Out format_nth(OutputStream &stream, FormatSpec *f, int idx,
+		Out format_nth(WritableStream &stream, FormatSpec *f, int idx,
 		               int at = 0) {
 			if(idx == at) {
 				if(f)
@@ -238,7 +238,7 @@ struct Formatter {
 		explicit FormatArg(const Value *const &v, const int &rest)
 		    : val(v), n(FormatArg<Out, int>(rest)) {}
 		const FormatArg<Out, int> &next() { return n; }
-		Out format_nth(OutputStream &stream, FormatSpec *f, int idx,
+		Out format_nth(WritableStream &stream, FormatSpec *f, int idx,
 		               int at = 0) {
 			(void)at;
 			if(f) {
@@ -258,7 +258,7 @@ struct Formatter {
 		int val;
 		explicit FormatArg() { val = 0; }
 		const FormatArg<Out> &next() { return *this; }
-		Out format_nth(OutputStream &stream, FormatSpec *f, int idx,
+		Out format_nth(WritableStream &stream, FormatSpec *f, int idx,
 		               int at = 0) {
 			(void)idx;
 			(void)at;
@@ -277,7 +277,7 @@ struct Formatter {
 	// this is the base method, all other methods call this
 	// writes to the given stream
 	template <typename R, typename... T>
-	static R fmt(OutputStream &stream, const void *source, const T &...args) {
+	static R fmt(WritableStream &stream, const void *source, const T &...args) {
 		FormatArg<R, T...> argvalues = FormatArg<R, T...>(args...);
 		int64_t            size      = sizeof...(args);
 		if(size > 0 && typeid(argvalues.val) == typeid(const Value *&)) {
@@ -599,7 +599,7 @@ struct Formatter {
 	}
 
 	template <typename... K>
-	static std::size_t fmt1(OutputStream &stream, const void *source,
+	static std::size_t fmt1(WritableStream &stream, const void *source,
 	                        const K &...args) {
 		return fmt<std::size_t>(stream, source, args...);
 	}
@@ -607,8 +607,8 @@ struct Formatter {
 
 	template <typename... K>
 	static Value fmt(const void *source, const K &...args) {
-		StringOutputStream s;
-		Value              ret = fmt<Value>(s, source, args...);
+		StringStream s;
+		Value        ret = fmt<Value>(s, source, args...);
 		if(ret != ValueTrue) {
 			return ret;
 		}
@@ -616,15 +616,16 @@ struct Formatter {
 	}
 	// first set of methods output to the given stream
 	// second set returns a string implicitly
-	static Value valuefmt(OutputStream &stream, const void *fmt,
+	static Value valuefmt(WritableStream &stream, const void *fmt,
 	                      const Value *args, int numarg);
 	// format string at args[0]
-	static Value valuefmt(OutputStream &stream, const Value *args, int numarg);
+	static Value valuefmt(WritableStream &stream, const Value *args,
+	                      int numarg);
 	static Value valuefmt(const Value *args, int numarg);
 };
 
 template <typename... K>
-size_t OutputStream::fmt(const void *fmt, const K &...args) {
+size_t WritableStream::fmt(const void *fmt, const K &...args) {
 	return Formatter::fmt1(*this, fmt, args...);
 }
 

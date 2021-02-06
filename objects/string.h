@@ -5,7 +5,7 @@
 #include "../utf8.h"
 
 struct StringSet;
-struct OutputStream;
+struct WritableStream;
 
 // performs a string transformation.
 // dest is a new buffer allocated to be
@@ -75,7 +75,7 @@ struct String {
 	static String *toStringValue(Value v);
 	// applies f on val
 	// creates a new string to return
-	static Value fmt(const String *&s, FormatSpec *f, OutputStream &stream);
+	static Value fmt(const String *&s, FormatSpec *f, WritableStream &stream);
 	static Value fmt(const String *&s, FormatSpec *f);
 
 	// release all

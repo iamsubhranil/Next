@@ -4,7 +4,7 @@
 #include <typeinfo>
 
 struct FormatSpec;
-struct OutputStream;
+struct WritableStream;
 
 template <typename R> struct FormatHandler {
 	static R Error(const void *err);
@@ -13,7 +13,7 @@ template <typename R> struct FormatHandler {
 };
 
 template <typename R, typename T> struct Format {
-	R fmt(const T &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const T &val, FormatSpec *spec, WritableStream &stream) {
 		(void)val;
 		(void)spec;
 		(void)stream;

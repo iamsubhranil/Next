@@ -169,11 +169,11 @@ Bytecode *Bytecode::create_derived(int offset) {
 
 #ifdef DEBUG
 
-void Bytecode::disassemble_int(OutputStream &os, const Opcode *o) {
+void Bytecode::disassemble_int(WritableStream &os, const Opcode *o) {
 	os.write(" ", *(int *)o);
 }
 
-void Bytecode::disassemble_Value(OutputStream &os, const Opcode *o) {
+void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
 	Value v = *(Value *)o;
 	os.write(" ");
 	switch(v.getType()) {
@@ -199,7 +199,7 @@ void Bytecode::disassemble_Value(OutputStream &os, const Opcode *o) {
 	}
 }
 
-void Bytecode::disassemble(OutputStream &os) {
+void Bytecode::disassemble(WritableStream &os) {
 	os.write("StackSize: ", stackMaxSize, "\n");
 	os.write("Bytecodes: \n");
 	for(size_t i = 0; i < size;) {
@@ -207,7 +207,7 @@ void Bytecode::disassemble(OutputStream &os) {
 	}
 }
 
-void Bytecode::disassemble(OutputStream &os, const Opcode *data, size_t *p) {
+void Bytecode::disassemble(WritableStream &os, const Opcode *data, size_t *p) {
 	size_t i = 0;
 	if(p != NULL)
 		i = *p;

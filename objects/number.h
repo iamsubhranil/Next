@@ -35,7 +35,7 @@ struct Number {
 	static size_t to_unsigned(int a) { return (size_t)a; }
 	template <typename T>
 	static T next_number_fmt_bin(FormatSpec *fs, int64_t value,
-	                             OutputStream &stream) {
+	                             WritableStream &stream) {
 		bool isminus = value < 0;
 		if(isminus)
 			value = -value;
@@ -201,7 +201,7 @@ struct Number {
 
 	template <typename R, typename F, typename T>
 	static R next_number_fmt_(FormatSpec *f, F fn, T val,
-	                          OutputStream &stream) {
+	                          WritableStream &stream) {
 		if(f->align != '^' && f->fill == 0) {
 			if(stream.hasFileDescriptor()) {
 				FILE *fd = stream.getFileDescriptor();
@@ -257,7 +257,7 @@ struct Number {
 	}
 
 	template <typename R>
-	static R fmt_(double val, FormatSpec *f, OutputStream &stream) {
+	static R fmt_(double val, FormatSpec *f, WritableStream &stream) {
 		switch(f->type) {
 			case 'x':
 			case 'X':
@@ -273,7 +273,7 @@ struct Number {
 	}
 
 	template <typename R, typename T>
-	static R fmt_(T val, FormatSpec *f, OutputStream &stream) {
+	static R fmt_(T val, FormatSpec *f, WritableStream &stream) {
 		if(f->precision != -1) {
 			return FormatHandler<R>::Error(
 			    "Precision is not allowed for integer type specifiers!");
@@ -286,7 +286,7 @@ struct Number {
 	// does not perform validation
 	// performs integer conversion automatically
 	template <typename R, typename T>
-	static R fmt(T val, FormatSpec *f, OutputStream &stream) {
+	static R fmt(T val, FormatSpec *f, WritableStream &stream) {
 		// According to python doc:
 		// When no explicit alignment is given, preceding the width field by a
 		// zero
@@ -340,25 +340,25 @@ struct Number {
 };
 
 template <typename R> struct Format<R, int> {
-	R fmt(const int &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const int &val, FormatSpec *spec, WritableStream &stream) {
 		return Number::fmt<R>(val, spec, stream);
 	}
 };
 
 template <typename R> struct Format<R, int64_t> {
-	R fmt(const int64_t &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const int64_t &val, FormatSpec *spec, WritableStream &stream) {
 		return Number::fmt<R>(val, spec, stream);
 	}
 };
 
 template <typename R> struct Format<R, double> {
-	R fmt(const double &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const double &val, FormatSpec *spec, WritableStream &stream) {
 		return Number::fmt<R>(val, spec, stream);
 	}
 };
 
 template <typename R> struct Format<R, size_t> {
-	R fmt(const size_t &val, FormatSpec *spec, OutputStream &stream) {
+	R fmt(const size_t &val, FormatSpec *spec, WritableStream &stream) {
 		return Number::fmt<R>(val, spec, stream);
 	}
 };

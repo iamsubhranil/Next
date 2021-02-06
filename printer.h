@@ -23,15 +23,13 @@
 #define ANSI_FONT_BOLD "\x1b[1m"
 #endif
 
-struct OutputStream;
+struct WritableStream;
 struct FileStream;
 
 struct Printer {
 
-	static FileStream   OutStream;
-	static OutputStream StdOutStream;
-
-	static void setOutputStream(OutputStream &os) { StdOutStream = os; }
+	static FileStream      StdOutFileStream;
+	static WritableStream &StdOutStream;
 
 	static void init();
 

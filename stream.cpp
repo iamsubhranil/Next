@@ -2,30 +2,7 @@
 #include "objects/string.h"
 #include "value.h"
 
-std::size_t Stream::write(const void *data, std::size_t bytes) {
-	switch(type) {
-#define STREAM(x)                                       \
-	case x:                                             \
-		return ((x##Stream *)this)->write(data, bytes); \
-		break;
-#include "stream_types.h"
-	}
-	return 0;
-}
-
-bool Stream::hasFileDescriptor() {
-	return type == Stream::File;
-}
-
-FILE *Stream::getFileDescriptor() {
-	if(type == Stream::File) {
-		return ((FileStream *)this)->file;
-	}
-	return NULL;
-}
-
-StringStream::StringStream()
-    : Stream(Stream::Type::String), str(String::const_EmptyString) {}
+StringStream::StringStream() : str(String::const_EmptyString), closed(false) {}
 
 std::size_t StringStream::write(const double &value) {
 	// from
@@ -56,72 +33,57 @@ std::size_t StringStream::write(const size_t &value) {
 	return strlen(val);
 }
 
-std::size_t StringStream::write(const char &value) {
-	char val[2];
-	val[0] = value;
-	val[1] = 0;
-
-	str = String::append(str, val);
-
-	return 1;
-}
-
-std::size_t StringStream::write(const char *const &value) {
-	str = String::append(str, value);
-
-	return strlen(value);
-}
-
-std::size_t StringStream::write(const void *const &data, size_t bytes) {
+std::size_t StringStream::writebytes(const void *const &data, size_t bytes) {
 	str = String::append(str, data, bytes);
 	return bytes;
 }
 
-std::size_t StringStream::write(const Utf8Source &w) {
-	return write(w.source, utf8size(w.source));
+std::size_t WritableStream::write(const Utf8Source &w) {
+	return writebytes(w.source, utf8size(w.source));
 }
 
-std::size_t StringStream::write(const utf8_int32_t &val) {
-	return write(&val, utf8codepointsize(val));
+std::size_t WritableStream::write(const utf8_int32_t &val) {
+	return writebytes(&val, utf8codepointsize(val));
 }
 
 Value StringStream::toString() {
 	return Value(str);
 }
 
-Value StringOutputStream::toString() {
-	return ss.toString();
+std::size_t FileStream::read(std::size_t n, Utf8Source &source) {
+	size_t totallen = 0;
+	char * buf      = NULL;
+	for(size_t i = 0; i < n; i++) {
+		utf8_int32_t val;
+		size_t       l      = read(val);
+		size_t       cpsize = utf8codepointsize(val);
+		if(l != cpsize) {
+			if(totallen) {
+				GcObject_free(buf, totallen);
+			}
+			return l;
+		}
+		buf = (char *)GcObject_realloc(buf, totallen, totallen + l);
+		for(size_t j = totallen; j < totallen + l; j++) {
+			buf[j] = val & 0xff;
+			val >>= 8;
+		}
+	}
+	source = Utf8Source(buf);
+	return totallen;
 }
 
-std::size_t FileStream::write(const utf8_int32_t &val) {
-	return fwrite(&val, utf8codepointsize(val), 1, file);
+std::size_t FileStream::read(Utf8Source &source) {
+	int64_t pos = ftell(file);
+	fseek(file, 0, SEEK_END);
+	int64_t end    = ftell(file);
+	int64_t length = end - pos;
+	char *  buffer = (char *)GcObject_malloc(length + 1);
+	size_t  out;
+	if((out = fread(buffer, length, 1, file)) != (size_t)length) {
+		return out;
+	}
+	buffer[length] = 0;
+	source         = Utf8Source(buffer);
+	return length;
 }
-
-std::size_t FileStream::write(const Utf8Source &val) {
-	return write(val.source, utf8size(val.source));
-}
-
-/*
-std::size_t OutputStream::write(const char *const &val) {
-    return writebytes(val, utf8size(val));
-}*/
-std::size_t OutputStream::write(Utf8Source const &val) {
-	return stream->write(val);
-}
-#define OS_DIRECT_WRITE(type)                          \
-	std::size_t OutputStream::write(type const &val) { \
-		return stream->write<type>(val);               \
-	};
-#define OS_BYPASS_WRITE(type, with)                    \
-	std::size_t OutputStream::write(type const &val) { \
-		return stream->write<with>(val);               \
-	};
-OS_DIRECT_WRITE(int64_t)
-OS_BYPASS_WRITE(int, int64_t)
-OS_DIRECT_WRITE(double)
-OS_DIRECT_WRITE(char)
-OS_DIRECT_WRITE(utf8_int32_t)
-OS_DIRECT_WRITE(size_t)
-OS_DIRECT_WRITE(bool)
-#undef OS_DIRECT_WRITE
-#undef OS_BYPASS_WRITE

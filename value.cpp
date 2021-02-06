@@ -21,7 +21,7 @@ void Value::init() {
 #include "valuetypes.h"
 }
 
-size_t Writer<Value>::write(const Value &val, OutputStream &stream) {
+size_t Writer<Value>::write(const Value &val, WritableStream &stream) {
 	const Class *c   = val.getClass();
 	Value        ret = val;
 	while(!ret.isString()) {
