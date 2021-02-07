@@ -277,6 +277,45 @@ String *String::from(const String2 &s, string_transform transform) {
 	return from(s->strb(), s->size, transform);
 }
 
+String *String::from(utf8_int32_t c) {
+	size_t  cps = utf8codepointsize(c);
+	String *s   = GcObject::allocString2(cps + 1);
+	utf8catcodepoint(s->strb(), c, cps);
+	s->size  = cps;
+	s->hash_ = hash_string(s->strb(), cps);
+	s->terminate();
+	auto res = string_set->hset.find(s);
+	if(res != string_set->hset.end()) {
+		GcObject::releaseString2(s);
+		return *res;
+	}
+	return insert(s);
+}
+
+String *String::append(const String2 &val1, utf8_int32_t val2) {
+	// first create the new string
+	size_t  size1 = val1->size;
+	size_t  size2 = utf8codepointsize(val2);
+	size_t  size  = size1 + size2;
+	String *ns    = GcObject::allocString2(size + 1);
+	ns->size      = size;
+	memcpy(ns->strb(), val1->strb(), size1);
+	utf8catcodepoint((char *)ns->strb() + size1, val2, size2);
+	ns->terminate();
+	ns->hash_ = hash_string(ns->strb(), size);
+	// now check whether this one already exists
+	auto res = string_set->hset.find(ns);
+	if(res != string_set->hset.end()) {
+		// already one exists
+		// free the duplicate string
+		GcObject::releaseString2(ns);
+		// return the old one back
+		return (*res);
+	}
+	// insert the new one
+	return insert(ns);
+}
+
 // we create a separate method for append because
 // we don't want two mallocs to take place, one
 // for append, and one for insert.
