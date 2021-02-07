@@ -14,17 +14,17 @@ struct WritableStream;
 typedef void(string_transform)(void *dest, size_t size);
 
 struct String {
-	GcObject obj;
-	int      size; // size in bytes, excluding the \0
-	int      hash_;
-
+	GcObject          obj;
+	int               size; // size in bytes, excluding the \0
+	int               hash_;
+	int               length; // number of codepoints
 	inline Utf8Source str() const { return Utf8Source((void *)(this + 1)); }
 
 	// returns bytes
 	inline void *strb() const { return (void *)(this + 1); }
 	// adds \0 in the end
 	inline void terminate() { *((char *)strb() + size) = 0; }
-	inline int  len() const { return utf8len(strb()); }
+	inline int  len() const { return length; }
 
 	// gc functions
 	void release();
@@ -38,12 +38,14 @@ struct String {
 	static StringSet *string_set;
 	static void       init0();
 	static void       init();
-	static String *   from(utf8_int32_t c);
-	static String *   from(const void *val) { return from(val, utf8size(val)); }
-	static String *   from(const Utf8Source &val) { return from(val.source); }
-	static String *   from(const void *val, size_t size);
-	static String *   from(const Utf8Source &val, size_t size) {
-        return from(val.source, size);
+	static String *   from(utf8_int32_t c) {
+        return from(&c, utf8codepointsize(c));
+	}
+	static String *from(const void *val) { return from(val, utf8size(val)); }
+	static String *from(const Utf8Source &val) { return from(val.source); }
+	static String *from(const void *val, size_t size);
+	static String *from(const Utf8Source &val, size_t size) {
+		return from(val.source, size);
 	}
 	static String *from(const void *start, const void *end, size_t len);
 	static String *from(const void *val, size_t size,

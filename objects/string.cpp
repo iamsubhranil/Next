@@ -33,17 +33,33 @@ Value next_string_append(const Value *args, int numargs) {
 Value next_string_at(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(string, "at(_)", 1, Integer);
-	String *s = args[0].toString();
-	int64_t i = args[1].toInteger();
-	if(-i > s->size || i >= s->size) {
-		IDXERR("Invalid string index", -s->size, s->size - 1, i);
+	String *s    = args[0].toString();
+	int64_t i    = args[1].toInteger();
+	int64_t size = s->len();
+	if(-i > size || i >= size) {
+		IDXERR("Invalid string index", size - 1, -size, i);
 	}
 	if(i < 0) {
-		i += s->size;
+		i += size;
 	}
 	Utf8Source source(s->strb());
 	source += i;
 	return String::from(source.source, utf8codepointsize(*source));
+}
+
+Value next_string_byte(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(string, "byte(_)", 1, Integer);
+	String *s    = args[0].toString();
+	int64_t i    = args[1].toInteger();
+	int64_t size = s->size;
+	if(-i > size || i >= size) {
+		IDXERR("Invalid byte index", size - 1, -size, i);
+	}
+	if(i < 0) {
+		i += size;
+	}
+	return Value(((unsigned char *)s->strb())[i]);
 }
 
 Value next_string_contains(const Value *args, int numargs) {
@@ -82,6 +98,11 @@ Value next_string_hash(const Value *args, int numargs) {
 }
 
 Value next_string_len(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(args[0].toString()->len());
+}
+
+Value next_string_size(const Value *args, int numargs) {
 	(void)numargs;
 	String *s = args[0].toString();
 	return Value(s->size);
@@ -135,13 +156,20 @@ void String::init() {
 	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
 	StringClass->add_builtin_fn("fmt(_)", 1, &next_string_fmt);
 	StringClass->add_builtin_fn("hash()", 0, &next_string_hash);
-	StringClass->add_builtin_fn("len()", 0, &next_string_len);
+	StringClass->add_builtin_fn(
+	    "len()", 0, &next_string_len); // returns number of codepoints
+	StringClass->add_builtin_fn("size()", 0,
+	                            &next_string_size); // returns the size in bytes
 	StringClass->add_builtin_fn("lower()", 0, &next_string_lower);
-	StringClass->add_builtin_fn("substr(_,_)", 2, &next_string_substr);
+	StringClass->add_builtin_fn("substr(_,_)", 2,
+	                            &next_string_substr); // codepoint index
 	StringClass->add_builtin_fn("str()", 0, &next_string_str);
 	StringClass->add_builtin_fn("upper()", 0, &next_string_upper);
 	StringClass->add_builtin_fn("+(_)", 1, &next_string_append);
-	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
+	StringClass->add_builtin_fn("byte(_)", 1,
+	                            &next_string_byte); // accesses the ith byte
+	StringClass->add_builtin_fn("[](_)", 1,
+	                            &next_string_at); // accesses the ith codepoint
 }
 
 Value String::fmt(const String *&s, FormatSpec *f, WritableStream &stream) {
@@ -150,7 +178,7 @@ Value String::fmt(const String *&s, FormatSpec *f, WritableStream &stream) {
 
 Value String::fmt(const String *&s, FormatSpec *f) {
 	StringStream st;
-	Value              v = String::fmt(s, f, st);
+	Value        v = String::fmt(s, f, st);
 	if(v != FormatHandler<Value>::Success())
 		return v;
 	return st.toString();
@@ -188,8 +216,9 @@ int String::hash_string(const void *sr, size_t size) {
 String *String::insert(const void *val, size_t size, int hash_) {
 	String *s = GcObject::allocString2(size);
 	memcpy(s->strb(), val, size);
-	s->size  = size;
-	s->hash_ = hash_;
+	s->size   = size;
+	s->hash_  = hash_;
+	s->length = utf8len(val);
 	// track the string from now on
 	GcObject::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
@@ -197,6 +226,8 @@ String *String::insert(const void *val, size_t size, int hash_) {
 }
 
 String *String::insert(String *s) {
+	// calculate the codepoint length
+	s->length = utf8len(s->strb());
 	// track the string from now on
 	GcObject::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
