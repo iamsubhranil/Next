@@ -213,12 +213,13 @@ Value next_file_writebytes(const Value *args, int numargs) {
 	CHECK_IF_PERMITTED(Writ);
 	Bits * b    = args[1].toBits();
 	void * data = b->bytes;
-	size_t size = b->chunkcount * Bits::ChunkSizeByte;
-	size_t res  = args[0].toFile()->writableStream()->writebytes(data, size);
-	if(res != 1) {
+	size_t size =
+	    (b->size >> 3) + ((b->size & 7) != 0); // find the number of bytes
+	size_t res = args[0].toFile()->writableStream()->writebytes(data, size);
+	if(res != size) {
 		TRYFORMATERROR("file.writebytes(bytes) failed");
 	}
-	return Value(b->chunkcount);
+	return Value(size);
 }
 
 Value next_file_read(const Value *args, int numargs) {

@@ -130,7 +130,11 @@ struct FileStream : public ReadableWritableStream {
 		return fprintf(file, "%" PRId64, val);
 	}
 	std::size_t writebytes(const void *const &data, std::size_t bytes) {
-		return fwrite(data, bytes, 1, file);
+		// write all bytes at once
+		size_t ret = fwrite(data, bytes, 1, file);
+		if(ret == 1) // return the number of bytes actually written
+			return bytes;
+		return ret;
 	}
 	std::size_t write(const std::size_t &val) {
 		return fprintf(file, "%" PRIu64, val);
@@ -165,7 +169,13 @@ struct FileStream : public ReadableWritableStream {
 	void flush() { fflush(file); }
 
 	size_t read(uint8_t &byte) { return fread(&byte, 1, 1, file); };
-	size_t read(size_t x, uint8_t *buffer) { return fread(buffer, x, 1, file); }
+	size_t read(size_t x, uint8_t *buffer) {
+		// read all at once
+		size_t ret = fread(buffer, x, 1, file);
+		if(ret == 1)
+			return x; // return the size actually read
+		return ret;
+	}
 	size_t read(utf8_int32_t &val) {
 		// at max we can read 4 bytes
 		uint8_t bytes[4] = {0};
