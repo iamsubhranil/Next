@@ -28,43 +28,62 @@ struct FileStream;
 
 struct Printer {
 
-	static FileStream      StdOutFileStream;
+	static FileStream StdOutFileStream;
+	static FileStream StdErrFileStream;
+	static FileStream StdInFileStream;
+
 	static WritableStream &StdOutStream;
+	static WritableStream &StdErrStream;
+	static ReadableStream &StdInStream;
 
 	static void init();
 
-	template <typename... T> static std::size_t print(const T &...args) {
-		return StdOutStream.write(args...);
+	template <typename... T>
+	static std::size_t print(WritableStream &w, const T &...args) {
+		return w.write(args...);
 	}
 
-	template <typename... T> static std::size_t println(const T &...args) {
-		return print(args..., "\n");
+	template <typename... T> static std::size_t print(const T &...args) {
+		return print(StdOutStream, args...);
 	}
 
 	template <typename... T>
-	static std::size_t fmt(const void *fmt, const T &...args) {
-		return StdOutStream.fmt(fmt, args...);
+	static std::size_t println(WritableStream &w, const T &...args) {
+		return print(w, args..., "\n");
+	}
+
+	template <typename... T> static std::size_t println(const T &...args) {
+		return println(StdOutStream, args...);
+	}
+
+	template <typename... T>
+	static std::size_t fmt(WritableStream &w, const void *fmts,
+	                       const T &...args) {
+		return w.fmt(fmts, args...);
+	}
+
+	template <typename... T>
+	static std::size_t fmt(const void *fmts, const T &...args) {
+		return fmt(StdOutStream, fmts, args...);
 	}
 
 	template <typename... T> static std::size_t Warn(const T &...args) {
-		return print(ANSI_COLOR_YELLOW, "[Warning] ", ANSI_COLOR_RESET) +
-		       println(args...);
+		return println(StdErrStream, ANSI_COLOR_YELLOW, "[Warning] ",
+		               ANSI_COLOR_RESET, args...);
 	}
 
 	template <typename... T> static std::size_t Err(const T &...args) {
-		return print(ANSI_COLOR_RED, "[Error] ", ANSI_COLOR_RESET) +
-		       println(args...);
+		return println(StdErrStream, ANSI_COLOR_RED, "[Error] ",
+		               ANSI_COLOR_RESET, args...);
 	}
 
 	template <typename... T> static std::size_t Info(const T &...args) {
-		return print(ANSI_COLOR_BLUE, "[Info] ", ANSI_COLOR_RESET) +
-		       println(args...);
+		return println(ANSI_COLOR_BLUE, "[Info] ", ANSI_COLOR_RESET, args...);
 	}
 
 	template <typename... T> static std::size_t Dbg(const T &...args) {
 #ifdef DEBUG
-		return print(ANSI_COLOR_GREEN, "[Debug] ", ANSI_COLOR_RESET) +
-		       println(args...);
+		return println(ANSI_COLOR_GREEN, "[Debug] ", ANSI_COLOR_RESET, args...);
 #else
 		auto a = {args...};
 		(void)a;
@@ -74,9 +93,9 @@ struct Printer {
 
 	template <typename... T>
 	static std::size_t LnErr(const Token &t, const T &...args) {
-		return print(ANSI_COLOR_RED "[Error] " ANSI_COLOR_RESET ANSI_FONT_BOLD,
-		             "<", t.fileName, ":", t.line, "> " ANSI_COLOR_RESET) +
-		       println(args...);
+		return println(
+		    ANSI_COLOR_RED "[Error] " ANSI_COLOR_RESET ANSI_FONT_BOLD, "<",
+		    t.fileName, ":", t.line, "> " ANSI_COLOR_RESET, args...);
 	}
 };
 

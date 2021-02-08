@@ -12,6 +12,28 @@
 #endif
 
 Value File::create(String2 name, String2 mode) {
+	Utf8Source m = mode->str();
+	bool       r = false, w = false, a = false, b = false, plus = false;
+	size_t     len = 0;
+	while(*m != 0) {
+		switch(*m) {
+			case 'r': r = true; break;
+			case 'w': w = true; break;
+			case 'a': a = true; break;
+			case 'b': b = true; break;
+			case '+': plus = true; break;
+			default: return FileError::sete("Invalid file mode!");
+		}
+		len++;
+		++m;
+	}
+	if(len > 3) {
+		return FileError::sete("File mode should be <= 3 characters!");
+	}
+	if((r && w) || (r && a) || (w && a)) {
+		return FileError::sete(
+		    "Only one of 'r', 'w' and 'a' should be present!");
+	}
 	FILE *  f = fopen(name->strb(), mode->strb());
 	String *n = name;
 	if(f == NULL) {
@@ -24,10 +46,18 @@ Value File::create(String2 name, String2 mode) {
 			return FileError::sete(msg);
 		}
 	}
-	File *file    = GcObject::allocFile();
-	file->file    = f;
-	file->is_open = true;
-	return Value(file);
+	uint8_t modes = 0;
+	if(r)
+		modes |= FileStream::Mode::Read;
+	else if(w)
+		modes |= FileStream::Mode::Write;
+	else if(a)
+		modes |= FileStream::Mode::Append;
+	if(plus)
+		modes |= FileStream::Mode::Read | FileStream::Mode::Write;
+	if(b)
+		modes |= FileStream::Mode::Binary;
+	return create(f, modes);
 }
 
 FILE *File::fopen(const void *name, const void *mode) {
@@ -40,32 +70,39 @@ FILE *File::fopen(const void *name, const void *mode) {
 	                    size);
 	finalname = (const char *)buffer.data();
 #endif
-	return ::fopen(finalname, (const char *)mode);
+	return std::fopen(finalname, (const char *)mode);
 }
 
-Value File::create(FILE *f) {
-	File *fl    = GcObject::allocFile();
-	fl->file    = f;
-	fl->is_open = true;
+Value File::create(FILE *f, uint8_t modes) {
+	File *fl       = GcObject::allocFile();
+	fl->streamSize = sizeof(FileStream);
+	fl->stream     = (Stream *)GcObject_malloc(sizeof(FileStream));
+	::new(fl->stream) FileStream(f, modes);
 	return Value(fl);
+}
+
+File *File::create(Stream *s) {
+	File *fl       = GcObject::allocFile();
+	fl->streamSize = 0;
+	fl->stream     = s;
+	return fl;
 }
 
 Value next_file_close(const Value *args, int numargs) {
 	(void)numargs;
-	std::fclose(args[0].toFile()->file);
-	args[0].toFile()->is_open = false;
+	args[0].toFile()->stream->close();
 	return ValueNil;
 }
 
 #define CHECK_IF_VALID()                           \
-	if(!args[0].toFile()->is_open) {               \
+	if(args[0].toFile()->stream->isClosed()) {     \
 		return FileError::sete("File is closed!"); \
 	}
 
 Value next_file_flush(const Value *args, int numargs) {
 	(void)numargs;
 	CHECK_IF_VALID();
-	std::fflush(args[0].toFile()->file);
+	args[0].toFile()->stream->flush();
 	return ValueNil;
 }
 
@@ -79,7 +116,7 @@ Value next_file_flush(const Value *args, int numargs) {
 	}
 
 #define CHECK_FOR_EOF()                                 \
-	if(feof(args[0].toFile()->file)) {                  \
+	if((args[0].toFile()->stream->isEof())) {           \
 		return FileError::sete("End of file reached!"); \
 	}
 
@@ -97,17 +134,23 @@ Value next_file_seek(const Value *args, int numargs) {
 	}
 
 	int64_t offset = args[1].toInteger();
-	if(fseek(args[0].toFile()->file, offset, origin)) {
+	if(args[0].toFile()->stream->seek(offset, origin)) {
 		TRYFORMATERROR("file.seek(offset, origin) failed");
 	}
 	return ValueNil;
 };
 
+#define CHECK_IF_PERMITTED(x)                               \
+	if(!args[0].toFile()->stream->is##x##able()) {          \
+		return FileError::sete("Operation not permitted!"); \
+	}
+
 Value next_file_tell(const Value *args, int numargs) {
 	(void)numargs;
 	CHECK_IF_VALID();
-	int64_t val = ftell(args[0].toFile()->file);
-	if(val == -1) {
+	CHECK_IF_PERMITTED(Tell);
+	int64_t val;
+	if((val = args[0].toFile()->stream->tell()) == -1) {
 		TRYFORMATERROR("file.tell() failed");
 	}
 	return Value(val);
@@ -115,16 +158,17 @@ Value next_file_tell(const Value *args, int numargs) {
 
 Value next_file_rewind(const Value *args, int numargs) {
 	(void)numargs;
-	rewind(args[0].toFile()->file);
-	args[0].toFile()->is_open = true;
+	CHECK_IF_PERMITTED(Rewind);
+	args[0].toFile()->stream->rewind();
 	return ValueNil;
 }
 
 Value next_file_readbyte(const Value *args, int numargs) {
 	(void)numargs;
 	CHECK_IF_VALID();
+	CHECK_IF_PERMITTED(Read);
 	uint8_t byte;
-	if(fread(&byte, 1, 1, args[0].toFile()->file) != 1) {
+	if(args[0].toFile()->readableStream()->read(byte) != 1) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbyte() failed");
 	}
@@ -135,12 +179,14 @@ Value next_file_readbytes(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(file, "readbytes(count)", 1, Integer);
 	CHECK_IF_VALID();
+	CHECK_IF_PERMITTED(Read);
 	int64_t count = args[1].toInteger();
 	if(count < 1) {
 		return FileError::sete("number of bytes to be read must be > 0!");
 	}
 	Bits *b = Bits::create(count);
-	if(fread(b->bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
+	if(args[0].toFile()->readableStream()->read(count, (uint8_t *)b->bytes) !=
+	   (size_t)count) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbytes(count) failed");
 	}
@@ -152,8 +198,9 @@ Value next_file_writebyte(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(file, "writebyte(byte)", 1, Integer);
 	CHECK_IF_VALID();
+	CHECK_IF_PERMITTED(Writ);
 	int64_t byte = args[1].toInteger();
-	if(fwrite(&byte, 1, 1, args[0].toFile()->file) != 1) {
+	if(args[0].toFile()->writableStream()->writebytes(&byte, 1) != 1) {
 		TRYFORMATERROR("file.writebyte(byte) failed");
 	}
 	return Value(1);
@@ -163,10 +210,12 @@ Value next_file_writebytes(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(file, "writebytes(bytes)", 1, Bits);
 	CHECK_IF_VALID();
-	Bits * b   = args[1].toBits();
-	size_t res = fwrite(b->bytes, Bits::ChunkSizeByte, b->chunkcount,
-	                    args[0].toFile()->file);
-	if(res != (size_t)b->chunkcount) {
+	CHECK_IF_PERMITTED(Writ);
+	Bits * b    = args[1].toBits();
+	void * data = b->bytes;
+	size_t size = b->chunkcount * Bits::ChunkSizeByte;
+	size_t res  = args[0].toFile()->writableStream()->writebytes(data, size);
+	if(res != 1) {
 		TRYFORMATERROR("file.writebytes(bytes) failed");
 	}
 	return Value(b->chunkcount);
@@ -174,79 +223,69 @@ Value next_file_writebytes(const Value *args, int numargs) {
 
 Value next_file_read(const Value *args, int numargs) {
 	(void)numargs;
-	int ret;
 	CHECK_IF_VALID();
-	if((ret = fgetc(args[0].toFile()->file)) == EOF) {
+	CHECK_IF_PERMITTED(Read);
+	utf8_int32_t val;
+	size_t       s = args[0].toFile()->readableStream()->read(val);
+	if(s == 0) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read() failed");
 	}
-	char c = ret;
-	return Value(String::from(&c, 1));
+	return Value(String::from(val));
 }
 
 Value next_file_read_n(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(file, "read(count)", 1, Integer);
 	CHECK_IF_VALID();
+	CHECK_IF_PERMITTED(Read);
 	int64_t count = args[1].toInteger();
 	if(count < 1) {
 		return FileError::sete("Number of characters to be read must be > 0!");
 	}
-	// THIS IS REALLY INEFFICIENT, AND REQUIRES 2x MEMORY
-	char *bytes = (char *)GcObject_malloc(count);
-	if(fread(bytes, 1, count, args[0].toFile()->file) != (size_t)count) {
-		GcObject_free(bytes, count);
+	Utf8Source dest = Utf8Source(NULL);
+	if(args[0].toFile()->readableStream()->read(count, dest) == 0) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read(count) failed");
 	}
-	String2 s = String::from(bytes, count);
-	GcObject_free(bytes, count);
+	String2 s = String::from(dest.source);
+	GcObject_free((void *)dest.source, strlen((char *)dest.source));
 	return Value(s);
 }
 
 Value next_file_readall(const Value *args, int numargs) {
 	(void)numargs;
 	CHECK_IF_VALID();
-	FILE *  f      = args[0].toFile()->file;
-	int64_t curpos = ftell(f);
-	if(curpos == -1) {
-		TRYFORMATERROR("file.readall() failed: unable to get current position");
-	}
-	if(fseek(f, 0, SEEK_END)) {
-		TRYFORMATERROR("file.readall() failed: unable to seek to end");
-	}
-	int64_t end = ftell(f);
-	if(end == -1) {
-		TRYFORMATERROR(
-		    "file.readall() failed: unable to get the ending position");
-	}
-	int64_t length = (end - curpos);
-	if(fseek(f, curpos, SEEK_SET)) {
-		TRYFORMATERROR(
-		    "file.readall() failed: unable to seek back to current position");
-	}
+	CHECK_IF_PERMITTED(Read);
+	Utf8Source storage = Utf8Source(NULL);
 	// USES 2x memory
-	char *buffer = (char *)GcObject_malloc(length);
-	if(fread(buffer, 1, length, f) != (size_t)length) {
-		GcObject_free(buffer, length);
+	size_t size;
+	if((size = args[0].toFile()->readableStream()->read(storage)) == 0) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readall() failed: reading failed");
 	}
-	String2 s = String::from(buffer, length);
-	GcObject_free(buffer, length);
+	String2 s = String::from(storage.source, size);
+	GcObject_free((void *)storage.source, size);
 	return Value(s);
 }
 
 Value next_file_write(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(file, "write(str)", 1, String);
+	// accepts any value
 	CHECK_IF_VALID();
-	String *s = args[1].toString();
-	FILE *  f = args[0].toFile()->file;
-	if(fwrite(s->strb(), 1, s->size, f) != (size_t)s->size) {
-		TRYFORMATERROR("file.write(str) failed");
-	}
-	return Value(s->size);
+	CHECK_IF_PERMITTED(Writ);
+	WritableStream *w     = args[0].toFile()->writableStream();
+	size_t          wrote = w->write(args[1]);
+	return Value(wrote);
+}
+
+Value next_file_fmt(const Value *args, int numargs) {
+	CHECK_IF_VALID();
+	CHECK_IF_PERMITTED(Writ);
+	EXPECT(file, "fmt(str,...)", 1, String);
+	Value ret = Formatter::valuefmt(*args[0].toFile()->writableStream(),
+	                                &args[1], numargs - 1);
+	return ret;
 }
 
 void File::init() {
@@ -277,4 +316,6 @@ void File::init() {
 	                          next_file_readall); // read the whole file
 	FileClass->add_builtin_fn("write(_)", 1,
 	                          next_file_write); // write a string to the file
+	FileClass->add_builtin_fn("fmt(_)", 1, next_file_fmt,
+	                          true); // formatted output to file
 }

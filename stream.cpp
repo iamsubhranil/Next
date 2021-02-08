@@ -43,7 +43,9 @@ std::size_t WritableStream::write(const Utf8Source &w) {
 }
 
 std::size_t WritableStream::write(const utf8_int32_t &val) {
-	return writebytes(&val, utf8codepointsize(val));
+	uint8_t bytes[4] = {0};
+	utf8catcodepoint(bytes, val, 4);
+	return writebytes(bytes, utf8codepointsize(val));
 }
 
 Value StringStream::toString() {
@@ -57,30 +59,31 @@ std::size_t FileStream::read(std::size_t n, Utf8Source &source) {
 		utf8_int32_t val;
 		size_t       l      = read(val);
 		size_t       cpsize = utf8codepointsize(val);
-		if(l != cpsize) {
+		if(l == 0 || l != cpsize) {
 			if(totallen) {
 				GcObject_free(buf, totallen);
 			}
 			return l;
 		}
 		buf = (char *)GcObject_realloc(buf, totallen, totallen + l);
-		for(size_t j = totallen; j < totallen + l; j++) {
-			buf[j] = val & 0xff;
-			val >>= 8;
-		}
+		utf8catcodepoint(&buf[totallen], val, l);
+		totallen += l;
 	}
-	source = Utf8Source(buf);
+	buf           = (char *)GcObject_realloc(buf, totallen, totallen + 1);
+	buf[totallen] = 0;
+	source        = Utf8Source(buf);
 	return totallen;
 }
 
 std::size_t FileStream::read(Utf8Source &source) {
 	int64_t pos = ftell(file);
 	fseek(file, 0, SEEK_END);
-	int64_t end    = ftell(file);
+	int64_t end = ftell(file);
+	fseek(file, pos, SEEK_SET);
 	int64_t length = end - pos;
 	char *  buffer = (char *)GcObject_malloc(length + 1);
 	size_t  out;
-	if((out = fread(buffer, length, 1, file)) != (size_t)length) {
+	if((out = fread(buffer, length, 1, file)) != 1) {
 		return out;
 	}
 	buffer[length] = 0;

@@ -10,7 +10,9 @@
 struct Value;
 struct Utf8Source;
 typedef uint32_t utf8_int32_t;
-
+extern "C" {
+void *utf8codepoint(const void *str, utf8_int32_t *out_codepoint);
+}
 struct Stream {
 
 	virtual bool  hasFileDescriptor() { return false; }
@@ -35,15 +37,16 @@ struct Stream {
 	virtual long tell() { return 0; }
 	virtual void close() {}
 	virtual void flush() {}
+	virtual ~Stream() {}
 };
 
-struct ReadableStream : Stream {
+struct ReadableStream : public Stream {
 	virtual bool isReadable() { return true; }
 	// available only if isReadable()
 	// reads a single byte
-	virtual size_t readbyte(uint8_t &byte) = 0;
+	virtual size_t read(uint8_t &byte) = 0;
 	// reads n bytes
-	virtual size_t readbyte(size_t n, uint8_t *buffer) = 0;
+	virtual size_t read(size_t n, uint8_t *buffer) = 0;
 	// reads the next utf8 character, returns the size
 	virtual size_t read(utf8_int32_t &val) = 0;
 	// reads n utf8 characters, and stores them
@@ -107,7 +110,7 @@ struct ReadableWritableStream : public ReadableStream, public WritableStream {};
 struct FileStream : public ReadableWritableStream {
 	FILE *file;
 
-	enum Mode {
+	enum Mode : uint8_t {
 		None   = 0,
 		Read   = 1,
 		Write  = 2,
@@ -147,49 +150,47 @@ struct FileStream : public ReadableWritableStream {
 	int seek(int64_t offset, int64_t whence) {
 		return fseek(file, offset, whence);
 	}
-	void rewind() { std::rewind(file); }
+	void rewind() {
+		std::rewind(file);
+		mode &= ~Mode::Closed;
+	}
 	long tell() { return ftell(file); }
 
 	void close() {
-		if(mode != Mode::Closed) {
+		if((mode & Mode::Closed) == 0) {
 			fclose(file);
-			mode = Mode::Closed;
+			mode |= Mode::Closed;
 		}
 	}
 	void flush() { fflush(file); }
 
-	size_t readbyte(uint8_t &byte) { return fread(&byte, 1, 1, file); };
-	size_t readbyte(size_t x, uint8_t *buffer) {
-		return fread(buffer, x, 1, file);
-	}
+	size_t read(uint8_t &byte) { return fread(&byte, 1, 1, file); };
+	size_t read(size_t x, uint8_t *buffer) { return fread(buffer, x, 1, file); }
 	size_t read(utf8_int32_t &val) {
+		// at max we can read 4 bytes
+		uint8_t bytes[4] = {0};
 		// read first byte
-		uint8_t byte;
-		size_t  out;
-		if((out = readbyte(byte)) != 1)
+		size_t out;
+		if((out = read(bytes[0])) != 1)
 			return out;
 		int len = 1;
-		// find out the length
-		if(val > 127) {
+		if(bytes[0] > 127)
 			len += 1;
-		}
-		if(val > 223) {
+		if(bytes[0] > 223)
 			len += 1;
-		}
-		if(val > 239) {
+		if(bytes[0] > 239)
 			len += 1;
-		}
+		// pack accordingly
 		if(len == 1) {
-			val = byte;
+			// if we were supposed to read 1 byte, we're done
+			val = bytes[0];
 		} else {
 			// read the remaining bytes
-			if((out = fread(&val, len - 1, 1, file)) != (size_t)(len - 1)) {
+			if((out = fread(&bytes[1], len - 1, 1, file)) != 1) {
 				return out;
 			}
-			// shift them 8 bits
-			val <<= 8;
-			// add the first byte
-			val |= byte;
+			// make them a codepoint
+			utf8codepoint(bytes, &val);
 		}
 		return len;
 	}
