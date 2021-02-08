@@ -49,11 +49,17 @@ struct Value {
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
 	};
-	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
 	constexpr Value() : value(QNAN_NIL) {}
 	constexpr Value(double d) : dvalue(d) {}
 	constexpr Value(int64_t l) : dvalue((double)l) {}
+	constexpr Value(size_t s) : Value((int64_t)s) {}
 	constexpr Value(int i) : dvalue((double)i) {}
+
+	constexpr static Value from(uint64_t encodedValue) {
+		Value v;
+		v.value = encodedValue;
+		return v;
+	}
 #ifdef DEBUG
 #define TYPE(r, n)                                                        \
 	Value(const r s) {                                                    \
@@ -170,9 +176,9 @@ struct Value {
 	static String *ValueTypeStrings[];
 };
 
-constexpr Value ValueNil   = Value(QNAN_NIL);
-constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);
-constexpr Value ValueFalse = Value(QNAN_Boolean);
+constexpr Value ValueNil   = Value::from(QNAN_NIL);
+constexpr Value ValueTrue  = Value::from(QNAN_Boolean | 1);
+constexpr Value ValueFalse = Value::from(QNAN_Boolean);
 constexpr Value ValueZero  = Value(0.0);
 
 namespace std {
