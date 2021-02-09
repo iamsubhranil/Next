@@ -26,11 +26,14 @@ bool isTerminated(const String2 &s) {
 }
 
 String *getline() {
-	ReadableStream &rs    = Printer::StdInStream;
-	Utf8Source      line  = Utf8Source(NULL);
-	size_t          s     = rs.read(line);
-	String2         lines = String::from(line, s);
-	GcObject_free((void *)line.source, s);
+	ReadableStream &rs   = Printer::StdInStream;
+	Utf8Source      line = Utf8Source(NULL);
+	size_t          s    = rs.read(line);
+	if(s == 0 && rs.isEof())
+		return NULL;
+	String2 lines = String::from(line, s);
+	if(s > 0)
+		GcObject_free((void *)line.source, s);
 	return lines;
 }
 
@@ -57,22 +60,18 @@ int main(int argc, char *argv[]) {
 		while(!Printer::StdInStream.isEof()) {
 			Printer::print(">> ");
 			String2 line, bak;
-			bool    terminated = false;
 			while((line = getline())) {
 				if(bak == NULL)
 					bak = (String *)line;
 				else
 					bak = String::append(bak, line);
 				if(isTerminated(bak)) {
-					terminated = true;
 					break;
 				}
 				bak = String::append(bak, '\n');
 				Printer::print(".. ");
 			}
-			// if we came out of the loop without terminated being true,
-			// that means our stream is closed, so bail out already
-			if(!terminated)
+			if(line == NULL)
 				break;
 			if(bak->len() == 0)
 				continue;
