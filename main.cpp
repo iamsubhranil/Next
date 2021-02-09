@@ -26,17 +26,12 @@ bool isTerminated(const String2 &s) {
 }
 
 String *getline() {
-	if(feof(stdin))
-		return 0;
-	if(ferror(stdin))
-		return 0;
-	String2      line = String::const_EmptyString;
-	utf8_int32_t c;
-	while((c = fgetwc(stdin)) != '\n' && c != 0) {
-		// printf("%c", c);
-		line = String::append(line, c);
-	}
-	return line;
+	ReadableStream &rs    = Printer::StdInStream;
+	Utf8Source      line  = Utf8Source(NULL);
+	size_t          s     = rs.read(line);
+	String2         lines = String::from(line, s);
+	GcObject_free((void *)line.source, s);
+	return lines;
 }
 
 int main(int argc, char *argv[]) {
@@ -59,7 +54,7 @@ int main(int argc, char *argv[]) {
 		    ClassCompilationContext::create(NULL, String::from("repl"));
 		Value   mod    = ValueNil;
 		Loader2 loader = Loader::create();
-		while(true) {
+		while(!Printer::StdInStream.isEof()) {
 			Printer::print(">> ");
 			String2 line, bak;
 			bool    terminated = false;

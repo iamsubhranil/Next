@@ -244,13 +244,14 @@ Value next_file_read_n(const Value *args, int numargs) {
 	if(count < 1) {
 		return FileError::sete("Number of characters to be read must be > 0!");
 	}
-	Utf8Source dest = Utf8Source(NULL);
-	if(args[0].toFile()->readableStream()->read(count, dest) == 0) {
+	Utf8Source dest     = Utf8Source(NULL);
+	size_t     totallen = args[0].toFile()->readableStream()->read(count, dest);
+	if(totallen == 0) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.read(count) failed");
 	}
 	String2 s = String::from(dest.source);
-	GcObject_free((void *)dest.source, strlen((char *)dest.source));
+	GcObject_free((void *)dest.source, totallen);
 	return Value(s);
 }
 

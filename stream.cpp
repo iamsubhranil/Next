@@ -52,7 +52,7 @@ Value StringStream::toString() {
 	return Value(str);
 }
 
-std::size_t FileStream::read(std::size_t n, Utf8Source &source) {
+std::size_t ReadableStream::read(std::size_t n, Utf8Source &source) {
 	size_t totallen = 0;
 	char * buf      = NULL;
 	for(size_t i = 0; i < n; i++) {
@@ -89,4 +89,27 @@ std::size_t FileStream::read(Utf8Source &source) {
 	buffer[length] = 0;
 	source         = Utf8Source(buffer);
 	return length;
+}
+
+std::size_t StdInputStream::read(Utf8Source &source) {
+	char * buf      = NULL;
+	size_t totallen = 0;
+	while(true) {
+		utf8_int32_t val;
+		ReadableStream::read(val);
+		if(val == 0 || val == (utf8_int32_t)EOF) {
+			eof = true;
+			break;
+		} else if(val == '\n') {
+			break;
+		}
+		size_t cpsize = utf8codepointsize(val);
+		buf = (char *)GcObject_realloc(buf, totallen, totallen + cpsize);
+		utf8catcodepoint(&buf[totallen], val, cpsize);
+		totallen += cpsize;
+	}
+	buf           = (char *)GcObject_realloc(buf, totallen, totallen + 1);
+	buf[totallen] = 0;
+	source        = Utf8Source(buf);
+	return totallen;
 }

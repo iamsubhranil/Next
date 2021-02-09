@@ -5,7 +5,7 @@ FileStream Printer::StdOutFileStream =
     FileStream(stdout, FileStream::Mode::Write);
 FileStream Printer::StdErrFileStream =
     FileStream(stderr, FileStream::Mode::Write);
-FileStream Printer::StdInFileStream = FileStream(stdin, FileStream::Mode::Read);
+StdInputStream Printer::StdInFileStream = StdInputStream();
 
 WritableStream &Printer::StdOutStream = Printer::StdOutFileStream;
 WritableStream &Printer::StdErrStream = Printer::StdErrFileStream;

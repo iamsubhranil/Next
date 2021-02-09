@@ -28,9 +28,9 @@ struct FileStream;
 
 struct Printer {
 
-	static FileStream StdOutFileStream;
-	static FileStream StdErrFileStream;
-	static FileStream StdInFileStream;
+	static FileStream     StdOutFileStream;
+	static FileStream     StdErrFileStream;
+	static StdInputStream StdInFileStream;
 
 	static WritableStream &StdOutStream;
 	static WritableStream &StdErrStream;

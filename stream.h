@@ -48,13 +48,45 @@ struct ReadableStream : public Stream {
 	// reads n bytes
 	virtual size_t read(size_t n, uint8_t *buffer) = 0;
 	// reads the next utf8 character, returns the size
-	virtual size_t read(utf8_int32_t &val) = 0;
+	size_t read(utf8_int32_t &val) {
+		// at max we can read 4 bytes
+		uint8_t bytes[4] = {0};
+		// read first byte
+		size_t out;
+		if((out = read(bytes[0])) != 1)
+			return out;
+		int len = 1;
+		if(bytes[0] > 127)
+			len += 1;
+		if(bytes[0] > 223)
+			len += 1;
+		if(bytes[0] > 239)
+			len += 1;
+		// pack accordingly
+		if(len == 1) {
+			// if we were supposed to read 1 byte, we're done
+			val = bytes[0];
+		} else {
+			// read the remaining bytes
+			out = read(len - 1, &bytes[1]);
+			if(out != ((size_t)len - 1)) {
+				return out;
+			}
+			// make them a codepoint
+			utf8codepoint(bytes, &val);
+		}
+		return len;
+	}
 	// reads n utf8 characters, and stores them
 	// in the newly created buffer. returns the
 	// total size (in bytes) read
-	virtual size_t read(size_t n, Utf8Source &buffer) = 0;
+	// automatically implemented using read() above
+	virtual size_t read(size_t n, Utf8Source &buffer);
 	// reads the whole stream at once, allocates a
 	// buffer, and stores it there.
+	// not implemented here because there might be
+	// more efficient ways for reading the whole
+	// stream at once.
 	virtual size_t read(Utf8Source &storage) = 0;
 };
 
@@ -176,36 +208,33 @@ struct FileStream : public ReadableWritableStream {
 			return x; // return the size actually read
 		return ret;
 	}
-	size_t read(utf8_int32_t &val) {
-		// at max we can read 4 bytes
-		uint8_t bytes[4] = {0};
-		// read first byte
-		size_t out;
-		if((out = read(bytes[0])) != 1)
-			return out;
-		int len = 1;
-		if(bytes[0] > 127)
-			len += 1;
-		if(bytes[0] > 223)
-			len += 1;
-		if(bytes[0] > 239)
-			len += 1;
-		// pack accordingly
-		if(len == 1) {
-			// if we were supposed to read 1 byte, we're done
-			val = bytes[0];
-		} else {
-			// read the remaining bytes
-			if((out = fread(&bytes[1], len - 1, 1, file)) != 1) {
-				return out;
-			}
-			// make them a codepoint
-			utf8codepoint(bytes, &val);
-		}
-		return len;
-	}
-	size_t read(size_t x, Utf8Source &buffer);
 	size_t read(Utf8Source &storage);
+};
+
+struct StdInputStream : public ReadableStream {
+
+	bool eof;
+
+	StdInputStream() : eof(false) {}
+
+	std::size_t read(uint8_t &byte) {
+		byte = fgetc(stdin);
+		return 1;
+	}
+
+	bool isEof() { return eof; }
+
+	bool isClosed() { return eof; }
+
+	std::size_t read(size_t size, uint8_t *buffer) {
+		for(size_t i = 0; i < size; i++) {
+			read(buffer[i]);
+		}
+		return size;
+	}
+
+	// reads up until a 0 or EOF or \n
+	std::size_t read(Utf8Source &storage);
 };
 
 struct StringStream : public WritableStream {
