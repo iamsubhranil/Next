@@ -209,6 +209,8 @@ struct FileStream : public ReadableWritableStream {
 		return ret;
 	}
 	size_t read(Utf8Source &storage);
+
+	~FileStream() {}
 };
 
 struct StdInputStream : public ReadableStream {

@@ -2,6 +2,7 @@
 #include "bits_iterator.h"
 #include "buffer.h"
 #include "class.h"
+#include "file.h"
 #include "string.h"
 #include "tuple.h"
 
@@ -243,20 +244,24 @@ Value next_bits_bit(const Value *args, int numargs) {
 
 Value next_bits_str(const Value *args, int numargs) {
 	(void)numargs;
-	Buffer<char> buffer;
-	Bits *       ba = args[0].toBits();
-	if(ba->size == 0) {
-		return Value(String::from("0"));
+	EXPECT(bits, "str(_)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
 	}
-	buffer.resize(ba->size, true);
-	for(int64_t i = 0; i < ba->size; i++) {
+	Bits *ba = args[0].toBits();
+	if(ba->size == 0) {
+		f->writableStream()->write('0');
+		return ValueTrue;
+	}
+	for(int64_t i = ba->size - 1; i >= 0; i--) {
 		Bits::ChunkType bit =
 		    ba->bytes[i >> Bits::ChunkCountShift] &
 		    ((Bits::ChunkType)1 << (i & Bits::ChunkRemainderAnd));
-		// write backwards
-		buffer.data()[ba->size - i - 1] = ('0' + (bit != 0));
+		char c = '0' + (bit != 0);
+		f->writableStream()->write(c);
 	}
-	return Value(String::from(buffer.data(), buffer.size()));
+	return ValueTrue;
 }
 
 #define NEXT_BITS_BINARY(name, op)                                \
@@ -724,7 +729,7 @@ void Bits::init() {
 	BitsClass->add_builtin_fn("toggle(_,_)", 2, next_bits_toggleinrange);
 	BitsClass->add_builtin_fn("size()", 0, next_bits_size);
 	BitsClass->add_builtin_fn("bit(_)", 1, next_bits_bit);
-	BitsClass->add_builtin_fn("str()", 0, next_bits_str);
+	BitsClass->add_builtin_fn("str(_)", 1, next_bits_str);
 	// bitwise operations, each of them produces
 	// a new Bits
 	BitsClass->add_builtin_fn("|(_)", 1, next_bits_or);

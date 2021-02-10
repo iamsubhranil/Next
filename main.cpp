@@ -1,7 +1,7 @@
-#include "engine.h"
 #include "loader.h"
-#include "objects/buffer.h"
 #include "printer.h"
+
+#include <clocale>
 
 // checks if { are terminated
 bool isTerminated(const String2 &s) {

@@ -3,6 +3,7 @@
 #include "array_iterator.h"
 #include "class.h"
 #include "errors.h"
+#include "file.h"
 #include "string.h"
 
 Value next_array_insert(const Value *args, int numargs) {
@@ -90,25 +91,24 @@ Value next_array_construct_size(const Value *args, int numargs) {
 
 Value next_array_str(const Value *args, int numargs) {
 	(void)numargs;
-	String2 str = String::from("[");
-	Array * a   = args[0].toArray();
+	EXPECT(array, "str(_)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
+	f->writableStream()->write("[");
+	Array *a = args[0].toArray();
 	if(a->size > 0) {
-		String2 s = String::toStringValue(a->values[0]);
-		// if there was an error, return
-		if(s == nullptr)
+		if(String::toStringValue(a->values[0], f) == ValueNil)
 			return ValueNil;
-		str = String::append(str, s);
 		for(int i = 1; i < a->size; i++) {
-			String2 s = String::toStringValue(a->values[i]);
-			// if there was an error, return
-			if(s == nullptr)
+			f->writableStream()->write(", ");
+			if(String::toStringValue(a->values[i], f) == ValueNil)
 				return ValueNil;
-			str = String::append(str, ", ");
-			str = String::append(str, s);
 		}
 	}
-	str = String::append(str, "]");
-	return str;
+	f->writableStream()->write("]");
+	return ValueTrue;
 }
 
 Array *Array::create(int size) {
@@ -168,5 +168,5 @@ void Array::init() {
 	ArrayClass->add_builtin_fn("[](_)", 1, &next_array_get);
 	ArrayClass->add_builtin_fn("[](_,_)", 2, &next_array_set);
 	ArrayClass->add_builtin_fn("size()", 0, &next_array_size);
-	ArrayClass->add_builtin_fn_nest("str()", 0, &next_array_str);
+	ArrayClass->add_builtin_fn_nest("str(_)", 1, &next_array_str);
 }

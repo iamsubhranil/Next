@@ -9,7 +9,7 @@ fn vasum(arg..) {
 fn vaappend(arg..) {
     res = ""
     for(a in arg) {
-        res = res.append(a.str())
+        res = res.append(str(a))
     }
     ret res
 }
@@ -35,9 +35,9 @@ class Unicorn {
         }
 
         fn vaappend(arg..) {
-            res = x.str()
+            res = str(x)
             for(a in arg) {
-                res = res.append(a.str())
+                res = res.append(str(a))
             }
             ret res
         }
@@ -55,9 +55,9 @@ class Unicorn {
         }
 
         static fn vaappendstatic(b, arg..) {
-            res = b.str()
+            res = str(b)
             for(a in arg) {
-                res = res.append(a.str())
+                res = res.append(str(a))
             }
             ret res
         }

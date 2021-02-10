@@ -1,8 +1,8 @@
 #include "string.h"
-#include "../engine.h"
 #include "../format.h"
 #include "class.h"
 #include "errors.h"
+#include "file.h"
 #include "set.h"
 #include "symtab.h"
 
@@ -362,72 +362,15 @@ String *String::append(const String2 &s1, const void *val2, size_t size2) {
 	return append(s1->strb(), s1->size, val2, size2);
 }
 
-String2 objectOrModule(const Class *c) {
-	if(c->module == NULL) {
-		return String::append("<module '", c->name);
-	}
-	return String::append("<object of '", c->name);
+Value String::toString(Value v, File *f) {
+	return v.write(f);
 }
 
-String *String::toString(Value v) {
-	while(true) {
-		if(v.isString())
-			return v.toString();
-		switch(v.getType()) {
-			case Value::VAL_NIL: return const_nil;
-			case Value::VAL_Boolean:
-				if(v.toBoolean())
-					return const_true_;
-				return const_false_;
-			default: break;
-		}
-		// run str() if it does have, otherwise return default string
-		const Class *c = v.getClass();
-		if(c->has_fn(SymbolTable2::const_sig_str)) {
-			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
-			if(!ExecutionEngine::execute(v, f, &v, true))
-				return nullptr;
-		} else {
-			String2 s = append(objectOrModule(c), "'>");
-			return s;
-		}
-	}
-	return v.toString();
-}
-
-String *performQuote(Value v, bool quote) {
-	if(quote) {
-		return String::append(String::append("\"", v.toString()), "\"");
-	}
-	return v.toString();
-}
-
-String *String::toStringValue(Value v) {
-	bool quote = true;
-	while(true) {
-		if(v.isString())
-			return performQuote(v, quote);
-		switch(v.getType()) {
-			case Value::VAL_NIL: return const_nil;
-			case Value::VAL_Boolean:
-				if(v.toBoolean())
-					return const_true_;
-				return const_false_;
-			default: break;
-		}
-		// only quote if the present object is not a builtin
-		// type, but the result of str() is still a string
-		quote = v.isGcObject() && v.isObject();
-		// run str() if it does have, otherwise return default string
-		const Class *c = v.getClass();
-		if(c->has_fn(SymbolTable2::const_sig_str)) {
-			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
-			if(!ExecutionEngine::execute(v, f, &v, true))
-				return nullptr;
-		} else {
-			String2 s = append(objectOrModule(c), c->name);
-			return s;
-		}
+Value String::toStringValue(Value v, File *f) {
+	if(v.isString()) {
+		return f->writableStream()->write('"', v.toString(), '"');
+	} else {
+		return v.write(f);
 	}
 }
 

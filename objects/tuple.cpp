@@ -2,6 +2,7 @@
 #include "../utils.h"
 #include "class.h"
 #include "errors.h"
+#include "file.h"
 #include "string.h"
 #include "tuple_iterator.h"
 
@@ -85,25 +86,24 @@ Value next_tuple_set(const Value *args, int numargs) {
 
 Value next_tuple_str(const Value *args, int numargs) {
 	(void)numargs;
-	String2 str = String::from("(");
-	Tuple * a   = args[0].toTuple();
+	EXPECT(tuple, "str(_)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
+	f->writableStream()->write("(");
+	Tuple *a = args[0].toTuple();
 	if(a->size > 0) {
-		String2 s = String::toStringValue(a->values()[0]);
-		// if there was an error, return
-		if(s == nullptr)
+		if(String::toStringValue(a->values()[0], f) == ValueNil)
 			return ValueNil;
-		str = String::append(str, s);
 		for(int i = 1; i < a->size; i++) {
-			String2 s = String::toStringValue(a->values()[i]);
-			// if there was an error, return
-			if(s == nullptr)
+			f->writableStream()->write(", ");
+			if(String::toStringValue(a->values()[i], f) == ValueNil)
 				return ValueNil;
-			str = String::append(str, ", ");
-			str = String::append(str, s);
 		}
 	}
-	str = String::append(str, ")");
-	return str;
+	f->writableStream()->write(")");
+	return ValueTrue;
 }
 
 void Tuple::init() {
@@ -114,7 +114,7 @@ void Tuple::init() {
 	TupleClass->add_builtin_fn("copy()", 0, next_tuple_copy);
 	TupleClass->add_builtin_fn("iterate()", 0, next_tuple_iterate);
 	TupleClass->add_builtin_fn("size()", 0, next_tuple_size);
-	TupleClass->add_builtin_fn_nest("str()", 0, next_tuple_str);
+	TupleClass->add_builtin_fn_nest("str(_)", 1, next_tuple_str);
 	TupleClass->add_builtin_fn("[](_)", 1, next_tuple_get);
 	TupleClass->add_builtin_fn("[](_,_)", 2, next_tuple_set);
 }

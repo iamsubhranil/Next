@@ -1,6 +1,7 @@
 #include "set.h"
 #include "../engine.h"
 #include "class.h"
+#include "file.h"
 #include "set_iterator.h"
 
 Set *Set::create() {
@@ -44,27 +45,26 @@ Value next_set_size(const Value *args, int numargs) {
 
 Value next_set_str(const Value *args, int numargs) {
 	(void)numargs;
-	String2 str = String::from("{");
-	Set *   a   = args[0].toSet();
+	EXPECT(set, "str(f)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
+	f->writableStream()->write("{");
+	Set *a = args[0].toSet();
 	if(a->hset.size() > 0) {
-		auto    v = a->hset.begin();
-		String2 s = String::toStringValue(*v);
-		// if there was an error, return
-		if(s == nullptr)
+		auto v = a->hset.begin();
+		if(String::toStringValue(*v, f) == ValueNil)
 			return ValueNil;
-		str = String::append(str, s);
-		v   = std::next(v);
+		v = std::next(v);
 		for(auto e = a->hset.end(); v != e; v = std::next(v)) {
-			String2 s = String::toStringValue(*v);
-			// if there was an error, return
-			if(s == nullptr)
+			f->writableStream()->write(", ");
+			if(String::toStringValue(*v, f) == ValueNil)
 				return ValueNil;
-			str = String::append(str, ", ");
-			str = String::append(str, s);
 		}
 	}
-	str = String::append(str, "}");
-	return str;
+	f->writableStream()->write("}");
+	return ValueTrue;
 }
 
 Value next_set_remove(const Value *args, int numargs) {
@@ -103,7 +103,7 @@ void Set::init() {
 	SetClass->add_builtin_fn("iterate()", 0, next_set_iterate);
 	SetClass->add_builtin_fn_nest("has(_)", 1, next_set_has); // can nest
 	SetClass->add_builtin_fn("size()", 0, next_set_size);
-	SetClass->add_builtin_fn_nest("str()", 0, next_set_str);
+	SetClass->add_builtin_fn_nest("str(_)", 1, next_set_str);
 	SetClass->add_builtin_fn_nest("remove(_)", 1,
 	                              next_set_remove); // can nest
 	SetClass->add_builtin_fn("values()", 0, next_set_values);

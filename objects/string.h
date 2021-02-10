@@ -66,11 +66,11 @@ struct String {
 	// converts a value to a string
 	// will return null if an unhandled
 	// exception occurs while conversion
-	static String *toString(Value v);
+	static Value toString(Value v, File *f);
 	// same as toString, additionally,
 	// wraps the value in double quotes
 	// if the original value is a string
-	static String *toStringValue(Value v);
+	static Value toStringValue(Value v, File *f);
 	// applies f on val
 	// creates a new string to return
 	static Value fmt(const String *&s, FormatSpec *f, WritableStream &stream);

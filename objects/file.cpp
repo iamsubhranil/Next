@@ -276,9 +276,7 @@ Value next_file_write(const Value *args, int numargs) {
 	// accepts any value
 	CHECK_IF_VALID();
 	CHECK_IF_PERMITTED(Writ);
-	WritableStream *w     = args[0].toFile()->writableStream();
-	size_t          wrote = w->write(args[1]);
-	return Value(wrote);
+	return args[1].write(args[0].toFile());
 }
 
 Value next_file_fmt(const Value *args, int numargs) {

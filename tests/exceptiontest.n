@@ -34,8 +34,8 @@ pub fn test() {
         print("[Error] Expected exception of class 'Exception', caught 'String'! \n")
         res = false
     } catch(Exception e) {
-        if(e.str() != "This is an exception") {
-            print("[Error] Expected exception message 'This is an exception'!\nReceived '", e.str(), "'!\n")
+        if(str(e) != "This is an exception") {
+            print("[Error] Expected exception message 'This is an exception'!\nReceived '", str(e), "'!\n")
             res = false
         }
     }
@@ -44,8 +44,8 @@ pub fn test() {
         print("[Error] recur() should've really thrown an exception now!\n")
         res = false
     } catch(Exception f) {
-        if(f.str() != "Too many recurs") {
-            print("[Error] Expected exception message 'Too many recurs'!\nReceived '", f.str(), "'!\n")
+        if(str(f) != "Too many recurs") {
+            print("[Error] Expected exception message 'Too many recurs'!\nReceived '", str(f), "'!\n")
             res = false
         }
     }
@@ -53,9 +53,9 @@ pub fn test() {
     try {
         throw Exception("Should have caught by type 'error!'")
     } catch(error e) {
-        if(e.str() != "Should have caught by type 'error!'") {
+        if(str(e) != "Should have caught by type 'error!'") {
             println("[Error] Expected exception message 'Should have caught by type 'error!'!\nReceived '",
-                    e.str(), "'!")
+                    str(e), "'!")
         }
     } catch(Exception e) {
         println("[Error] The exception should have caught by the catch(error e) block!")

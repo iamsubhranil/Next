@@ -2,20 +2,28 @@
 #include "../format.h"
 #include "class.h"
 #include "errors.h"
+#include "file.h"
 #include "function.h"
 
 Value next_boundmethod_str(const Value *args, int numargs) {
 	(void)numargs;
+	EXPECT(boundmethod, "str(_)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
 	BoundMethod *b = args[0].toBoundMethod();
 	switch(b->type) {
 		case BoundMethod::CLASS_BOUND:
-			return Formatter::fmt("<class bound method {}.{}@{}>",
-			                      b->binder.toClass()->name, b->func->name,
-			                      b->func->arity);
+			f->writableStream()->fmt("<class bound method {}.{}@{}>",
+			                         b->binder.toClass()->name, b->func->name,
+			                         b->func->arity);
+			return ValueTrue;
 		default:
-			return Formatter::fmt("<object bound method {}.{}@{}>",
-			                      b->binder.getClass()->name, b->func->name,
-			                      b->func->arity);
+			f->writableStream()->fmt("<object bound method {}.{}@{}>",
+			                         b->binder.getClass()->name, b->func->name,
+			                         b->func->arity);
+			return ValueTrue;
 	}
 }
 
@@ -36,7 +44,7 @@ void BoundMethod::init() {
 	BoundMethodClass->add_builtin_fn("get_fn()", 0, next_boundmethod_fn);
 	BoundMethodClass->add_builtin_fn("get_binder()", 0,
 	                                 next_boundmethod_binder);
-	BoundMethodClass->add_builtin_fn_nest("str()", 0, next_boundmethod_str);
+	BoundMethodClass->add_builtin_fn_nest("str(_)", 1, next_boundmethod_str);
 }
 
 BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {

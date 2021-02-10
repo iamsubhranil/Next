@@ -1,6 +1,7 @@
 #include "value.h"
 #include "engine.h"
 #include "objects/class.h"
+#include "objects/file.h"
 #include "objects/string.h"
 #include "objects/symtab.h"
 #include "stream.h"
@@ -21,27 +22,50 @@ void Value::init() {
 #include "valuetypes.h"
 }
 
-size_t Writer<Value>::write(const Value &val, WritableStream &stream) {
-	const Class *c   = val.getClass();
-	Value        ret = val;
+Value Value::write(File *f) const {
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
+	Value ret = *this;
 	while(!ret.isString()) {
-		if(c->has_fn(SymbolTable2::const_sig_str)) {
+		const Class *c = ret.getClass();
+		if(c->has_fn(SymbolTable2::const_sig_str1)) {
+			Function *func =
+			    c->get_fn(SymbolTable2::const_sig_str1).toFunction();
+			Value arg = Value(f);
+			if(!ExecutionEngine::execute(ret, func, &arg, 1, &ret, true))
+				return ValueNil;
+			// after we've called str(_) we have nothing to write to the stream
+			// anymore
+			return ValueTrue;
+		} else if(c->has_fn(SymbolTable2::const_sig_str)) {
 			// else if, it provides an str(), call it, and repeat
 			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
 			if(!ExecutionEngine::execute(ret, f, &ret, true))
-				return 0; // return nil
+				return ValueNil; // return nil
 		} else {
-			// convert it to default string
-			String2 s;
-			if(c->module) {
-				s = String::from("<object of '");
+			if(ret.isNil()) {
+				f->writableStream()->write("nil");
+				return ValueTrue;
 			} else {
-				s = String::from("<module '");
+				size_t w = 0;
+				// convert it to default string
+				if(c->module) {
+					w += f->writableStream()->write("<object of '");
+				} else {
+					w += f->writableStream()->write("<module '");
+				}
+				w += f->writableStream()->write(c->name, "'>");
+				return w;
 			}
-			s = String::append(s, c->name);
-			s = String::append(s, "'>");
-			return stream.write((String *)s);
 		}
 	}
-	return stream.write(ret.toString());
+	return Value(f->writableStream()->write(ret.toString()));
+}
+
+size_t Writer<Value>::write(const Value &val, WritableStream &stream) {
+	Value ret = val.write(File::create(stream));
+	if(ret.isInteger())
+		return ret.toInteger();
+	return 0;
 }

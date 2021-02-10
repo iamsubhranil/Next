@@ -1,0 +1,40 @@
+class test1 {
+    pub:
+        mem
+        new(x) { mem = x }
+        fn str(f) {
+            f.fmt("{:^20}", mem)
+        }
+        fn str() {
+            ret "this called!"
+        }
+}
+
+class test3 {
+    pub:
+        mem
+        new(x) { mem = x }
+        fn str(f) {
+            f.fmt("{:^20}", mem)
+        }
+}
+
+class test2 {
+    pub:
+        mem
+        new(x) { mem = test3(x) }
+        fn str() { ret mem }
+}
+
+pub fn test() {
+    r = true
+    if(str(test1(20)) != "         20         ") {
+        println("[Error] str() is not working!")
+        r = false
+    }
+    if(str(test2(20)) != "         20         ") {
+        println("[Error] nested str() is not working!")
+        r = false
+    }
+    ret r
+}

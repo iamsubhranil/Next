@@ -8,6 +8,7 @@
 #include "classcompilationctx.h"
 #include "errors.h"
 #include "fiber.h"
+#include "file.h"
 #include "functioncompilationctx.h"
 #include "symtab.h"
 
@@ -34,13 +35,10 @@ Value next_core_is_same_type(const Value *args, int numargs) {
 }
 
 Value next_core_print(const Value *args, int numargs) {
+	File2 f = File::create(Printer::StdOutStream);
 	for(int i = 1; i < numargs; i++) {
-		String *s = String::toString(args[i]);
-		// if we're unable to convert the value,
-		// bail
-		if(s == NULL)
+		if(args[i].write(f) == ValueNil)
 			return ValueNil;
-		Printer::print(s);
 	}
 	return ValueNil;
 }
@@ -59,6 +57,15 @@ Value next_core_printRepl(const Value *args, int numargs) {
 			next_core_println(&args[i - 1], 2);
 	}
 	return ValueNil;
+}
+
+Value next_core_str(const Value *args, int numargs) {
+	(void)numargs;
+	StringStream s;
+	File2        f = File::create(s);
+	if(args[1].write(f) == ValueNil)
+		return ValueNil;
+	return s.toString();
 }
 
 Value next_core_format(const Value *args, int numargs) {
@@ -99,12 +106,9 @@ Value next_core_gc(const Value *args, int numargs) {
 Value next_core_input0(const Value *args, int numargs) {
 	(void)args;
 	(void)numargs;
-	Buffer<char> buffer;
-	char         c;
-	while((c = getchar()) != '\n' && c != 0) {
-		buffer.insert(c);
-	}
-	return String::from(buffer.data(), buffer.size());
+	Utf8Source s    = Utf8Source(NULL);
+	size_t     size = Printer::StdInStream.read(s);
+	return String::from(s, size);
 }
 
 Value next_core_exit(const Value *args, int numargs) {
@@ -326,6 +330,8 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("println()", 0, next_core_println, true);
 	add_builtin_fn("fmt(_)", 1, next_core_format, true);
 	add_builtin_fn(" printRepl(_)", 1, next_core_printRepl, true);
+	add_builtin_fn("str(_)", 1,
+	               next_core_str); // calls str(_) or str() appropriately
 }
 
 void addClocksPerSec() {

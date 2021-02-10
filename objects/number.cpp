@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "class.h"
 #include "errors.h"
+#include "file.h"
 #include "string.h"
 
 Value next_number_fmt(const Value *args, int numargs) {
@@ -15,11 +16,17 @@ Value next_number_fmt(const Value *args, int numargs) {
 
 Value next_number_to_str(const Value *args, int numargs) {
 	(void)numargs;
+	EXPECT(number, "str(_)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
 	// from
 	// https://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
-	static char val[1079];
-	snprintf(val, 1079, "%0.14g", args[0].toNumber());
-	return Value(String::from(val));
+	char   val[1079] = {0};
+	size_t size      = snprintf(val, 1079, "%0.14g", args[0].toNumber());
+	f->writableStream()->writebytes(val, size);
+	return ValueTrue;
 }
 
 Value next_number_isint(const Value *args, int numargs) {
@@ -55,14 +62,14 @@ void Number::init() {
 	NumberClass->add_builtin_fn("(_)", 1, next_number_from_str);
 	NumberClass->add_builtin_fn("fmt(_)", 1, next_number_fmt);
 	NumberClass->add_builtin_fn("is_int()", 0, next_number_isint);
-	NumberClass->add_builtin_fn("str()", 0, next_number_to_str);
+	NumberClass->add_builtin_fn("str(_)", 1, next_number_to_str);
 	NumberClass->add_builtin_fn("to_int()", 0, next_number_toint);
 }
 
 Value Number::fmt(double dval, FormatSpec *f) {
 	StringStream s;
-	Value              out;
-	bool               requires_int = false;
+	Value        out;
+	bool         requires_int = false;
 	switch(f->type) {
 		case 'x':
 		case 'X':

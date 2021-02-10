@@ -105,10 +105,18 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 				               ANSI_COLOR_RESET, "'\n");
 			}
 		} else {
-			f->f->code->ctx->get_token(0).highlight(true, "In ", Token::WARN);
+			if(f->f->getType() == Function::BUILTIN) {
+				Printer::println("In builtin function ", ANSI_COLOR_YELLOW,
+				                 f->f->name, ANSI_COLOR_RESET);
+			} else {
+				f->f->code->ctx->get_token(0).highlight(true, "In ",
+				                                        Token::WARN);
+			}
 		}
-		t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
-		t.highlight(true, "At ", Token::ERROR);
+		if(f->f->getType() != Function::BUILTIN) {
+			t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
+			t.highlight(true, "At ", Token::ERROR);
+		}
 		f = &fiber->callFrames[--i];
 		if(i < 0 && fiber->parent != NULL) {
 			Printer::print("In a parent fiber \n");
@@ -157,12 +165,15 @@ void ExecutionEngine::printException(Value v, Fiber *f) {
 		Printer::Err("Uncaught exception occurred of type '", c->name, "'!");
 	}
 	Printer::print(ANSI_FONT_BOLD, c->name->str(), ANSI_COLOR_RESET, ": ");
+	Printer::println(v);
+	/*
 	String *s = String::toString(v);
 	if(s == NULL)
-		Printer::print("<error>\nAn exception occurred while converting the ",
-		               "exception to string!\n");
+	    Printer::print("<error>\nAn exception occurred while converting the ",
+	                   "exception to string!\n");
 	else
-		Printer::print(s->str(), "\n");
+	    Printer::print(s->str(), "\n");
+	    */
 	printStackTrace(f);
 }
 
@@ -248,15 +259,11 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			}
 			if(!v.isClass()) {
 				printException(thrown, root);
-				Printer::print("Error occurred while catching an exception!\n");
-				String *s = String::toString(v);
-				if(s == NULL)
-					Printer::print("The caught value is not a valid class!");
-				else
-					Printer::print(
-					    "The caught value '", s->str(),
-					    "' is not a valid class!\n"); // pop all but the matched
-					                                  // frame
+				Printer::println("Error occurred while catching an exception!");
+				Printer::println("The caught value '", v,
+				                 "' is not a valid class!");
+				// pop all but the matched
+				// frame
 				while(f->getCurrentFrame() != matched) {
 					f->popFrame();
 				}
@@ -341,7 +348,7 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 
 template <typename... K> void createException(const void *message, K... args) {
 	StringStream s;
-	auto               res = Formatter::fmt<Value>(s, message, args...);
+	auto         res = Formatter::fmt<Value>(s, message, args...);
 	if(res == FormatHandler<Value>::Success()) {
 		RuntimeError::sete(s.toString().toString());
 	} else {
@@ -404,7 +411,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	if(currentRecursionDepth == maxRecursionLimit) {
 		// reduce the depth so that we can print the message
 		currentRecursionDepth -= 1;
-		RERRF("Maxmimum recursion depth reached!");
+		RERRF("Maximum recursion depth reached!");
 	}
 
 #define RETURN(x)                                             \
@@ -540,13 +547,13 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	// executed, before proceeding with further execution.
 	// So we check that here
 	if(presentFrame->f->getType() == Function::BUILTIN) {
+		bool  ret = presentFrame->returnToCaller;
 		Value res =
 		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
 		// we purposefully ignore any exception here,
 		// because that would trigger an unlimited
 		// recursion in case this function was executed
 		// as a result of an exception itself.
-		bool ret = presentFrame->returnToCaller;
 		fiber->popFrame();
 		// it may have caused a fiber switch
 		if(fiber != currentFiber) {

@@ -166,6 +166,10 @@ struct Value {
 		}
 	}
 
+	// calls str(f) if the class has one, otherwise calls str()
+	// and writes to f
+	Value write(File *f) const;
+
 	static void init();
 	/*
 	    static const Value valueNil;

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef> // android somehow doesn't have size_t in stdint
 #include <cstdint>
 
 #ifndef DEBUG
