@@ -47,7 +47,7 @@ struct Error {
 #define ERROR_GC_REPR
 #endif
 
-#define ERROR(x, name)                           \
+#define ERRORTYPE(x, name)                           \
 	struct x : public Error {                    \
 		static x *   create(const String2 &msg); \
 		static Value sete(const String2 &msg);   \

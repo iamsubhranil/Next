@@ -89,17 +89,18 @@ struct Bytecode {
 	union union_Opcode_##type {                                   \
 		type   val;                                               \
 		Opcode codes[sizeof(type) / sizeof(Opcode)];              \
+		union_Opcode_##type(type x) : val(x) {} \
 	};                                                            \
 	int insert_##type(type x) {                                   \
 		add_constant(x);                                          \
-		union_Opcode_##type t = {.val = x};                       \
+		union_Opcode_##type t(x); \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
 			push_back(t.codes[i]);                                \
 		return size - (sizeof(type) / sizeof(Opcode));            \
 	}                                                             \
 	int insert_##type(int pos, type x) {                          \
 		add_constant(x);                                          \
-		union_Opcode_##type t = {.val = x};                       \
+		union_Opcode_##type t(x);                       \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
 			bytecodes[pos + i] = t.codes[i];                      \
 		return pos;                                               \

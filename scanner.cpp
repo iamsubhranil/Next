@@ -1,6 +1,7 @@
 #include "scanner.h"
 #include "objects/file.h"
 #include "printer.h"
+#include "utf8.h"
 
 Token Token::PlaceholderToken = Token();
 
@@ -12,7 +13,7 @@ void tokenPrintDebug(const Token &t) {
 }
 #endif
 
-Token Token::from(TokenType type, Scanner *scanner) {
+Token Token::from(Token::Type type, Scanner *scanner) {
 	Token token;
 	token.type     = type;
 	token.start    = scanner->tokenStart;
@@ -28,7 +29,7 @@ Token Token::from(TokenType type, Scanner *scanner) {
 
 Token Token::errorToken(const char *message, Scanner *scanner) {
 	Token token;
-	token.type   = TOKEN_ERROR;
+	token.type   = Token::Type::TOKEN_ERROR;
 	token.start  = strdup(message);
 	token.length = (int)strlen(message);
 	token.line   = scanner->line;
@@ -38,25 +39,25 @@ Token Token::errorToken(const char *message, Scanner *scanner) {
 
 bool Token::isOperator() {
 	switch(type) {
-		case TOKEN_BANG_EQUAL:
-		case TOKEN_LESS_EQUAL:
-		case TOKEN_EQUAL_EQUAL:
-		case TOKEN_GREATER_EQUAL:
-		case TOKEN_GREATER:
-		case TOKEN_LESS:
-		case TOKEN_PLUS:
-		case TOKEN_STAR:
-		case TOKEN_MINUS:
-		case TOKEN_SLASH:
-		case TOKEN_PLUS_PLUS:
-		case TOKEN_MINUS_MINUS:
-		case TOKEN_SUBSCRIPT:
-		case TOKEN_CARET:
-		case TOKEN_GREATER_GREATER:
-		case TOKEN_LESS_LESS:
-		case TOKEN_PIPE:
-		case TOKEN_AMPERSAND:
-		case TOKEN_TILDE: return true;
+		case Token::Type::TOKEN_BANG_EQUAL:
+		case Token::Type::TOKEN_LESS_EQUAL:
+		case Token::Type::TOKEN_EQUAL_EQUAL:
+		case Token::Type::TOKEN_GREATER_EQUAL:
+		case Token::Type::TOKEN_GREATER:
+		case Token::Type::TOKEN_LESS:
+		case Token::Type::TOKEN_PLUS:
+		case Token::Type::TOKEN_STAR:
+		case Token::Type::TOKEN_MINUS:
+		case Token::Type::TOKEN_SLASH:
+		case Token::Type::TOKEN_PLUS_PLUS:
+		case Token::Type::TOKEN_MINUS_MINUS:
+		case Token::Type::TOKEN_SUBSCRIPT:
+		case Token::Type::TOKEN_CARET:
+		case Token::Type::TOKEN_GREATER_GREATER:
+		case Token::Type::TOKEN_LESS_LESS:
+		case Token::Type::TOKEN_PIPE:
+		case Token::Type::TOKEN_AMPERSAND:
+		case Token::Type::TOKEN_TILDE: return true;
 		default: return false;
 	}
 }
@@ -133,10 +134,10 @@ void Token::highlight(bool showFileName, const char *prefix,
 		char spacechar = ' ';
 		if(*tokenStart == '\t')
 			spacechar = '\t';
-		Printer::print((type == TOKEN_EOF ? '~' : spacechar));
+		Printer::print((type == Token::Type::TOKEN_EOF ? '~' : spacechar));
 		tokenStart++;
 	}
-	if(type == TOKEN_EOF)
+	if(type == Token::Type::TOKEN_EOF)
 		Printer::print("^");
 	else {
 		Printer::print(ANSI_FONT_BOLD, highlights[htype]);
@@ -217,7 +218,7 @@ size_t Writer<Token>::write(const Token &t, WritableStream &stream) {
 }
 
 size_t Writer<CustomArray<Token>>::write(const CustomArray<Token> &tv,
-                                         WritableStream &            stream) {
+                                         WritableStream &          stream) {
 	size_t res = 0;
 	for(auto i : tv) res += stream.write(i);
 	return res;
@@ -226,12 +227,12 @@ size_t Writer<CustomArray<Token>>::write(const CustomArray<Token> &tv,
 typedef struct {
 	const char *name;
 	size_t      length;
-	TokenType   type;
+	Token::Type type;
 } Keyword;
 
 // The table of reserved words and their associated token types.
 static Keyword keywords[] = {
-#define KEYWORD(x, y) {#x, y, TOKEN_##x},
+#define KEYWORD(x, y) {#x, y, Token::Type::TOKEN_##x},
 #include "keywords.h"
 #undef KEYWORD
 };
@@ -254,7 +255,7 @@ Scanner::Scanner(const void *file)
 		long fsize = ftell(source);
 		fseek(source, 0, SEEK_SET);
 
-		char *c = (char *)malloc(fsize + 1);
+		char *c = (char *)GcObject_malloc(fsize + 1);
 		fread(c, fsize, 1, source);
 		fclose(source);
 
@@ -315,7 +316,7 @@ bool Scanner::match(utf8_int32_t expected) {
 Token Scanner::identifier() {
 	while(isAlphaNumeric(peek())) advance();
 
-	TokenType type = TOKEN_IDENTIFIER;
+	Token::Type type = Token::Type::TOKEN_IDENTIFIER;
 
 	// See if the identifier is a reserved word.
 	size_t length = current - tokenStart;
@@ -334,19 +335,19 @@ Token Scanner::identifier() {
 Token Scanner::hexadecimal() {
 	advance(); // x/X
 	while(isAlphaNumeric(peek())) advance();
-	return Token::from(TOKEN_HEX, this);
+	return Token::from(Token::Type::TOKEN_HEX, this);
 }
 
 Token Scanner::octal() {
 	advance(); // o/O
 	while(isAlphaNumeric(peek())) advance();
-	return Token::from(TOKEN_OCT, this);
+	return Token::from(Token::Type::TOKEN_OCT, this);
 }
 
 Token Scanner::binary() {
 	advance(); // b/B
 	while(isAlphaNumeric(peek())) advance();
-	return Token::from(TOKEN_BIN, this);
+	return Token::from(Token::Type::TOKEN_BIN, this);
 }
 
 Token Scanner::number() {
@@ -388,7 +389,7 @@ Token Scanner::number() {
 	// consume all consecutive characters, if there is any
 	while(isAlphaNumeric(peek())) advance();
 
-	return Token::from(TOKEN_NUMBER, this);
+	return Token::from(Token::Type::TOKEN_NUMBER, this);
 }
 
 Token Scanner::str() {
@@ -402,11 +403,11 @@ Token Scanner::str() {
 
 	// Unterminated str.
 	if(isAtEnd())
-		return Token::from(TOKEN_ERROR, this);
+		return Token::from(Token::Type::TOKEN_ERROR, this);
 
 	// The closing ".
 	advance();
-	return Token::from(TOKEN_STRING, this);
+	return Token::from(Token::Type::TOKEN_STRING, this);
 }
 
 int Scanner::skipEmptyLine() {
@@ -470,7 +471,7 @@ Token Scanner::scanNextToken() {
 	tokenStart = current;
 
 	if(isAtEnd())
-		return Token::from(TOKEN_EOF, this);
+		return Token::from(Token::Type::TOKEN_EOF, this);
 
 	utf8_int32_t c = advance();
 
@@ -489,30 +490,30 @@ Token Scanner::scanNextToken() {
 			return scanNextToken(); // Ignore \r
 		case '\n': line++; return scanNextToken();
 		case '\t': return scanNextToken();
-		case '(': return Token::from(TOKEN_LEFT_PAREN, this);
-		case ')': return Token::from(TOKEN_RIGHT_PAREN, this);
-		case '{': return Token::from(TOKEN_LEFT_BRACE, this);
-		case '}': return Token::from(TOKEN_RIGHT_BRACE, this);
+		case '(': return Token::from(Token::Type::TOKEN_LEFT_PAREN, this);
+		case ')': return Token::from(Token::Type::TOKEN_RIGHT_PAREN, this);
+		case '{': return Token::from(Token::Type::TOKEN_LEFT_BRACE, this);
+		case '}': return Token::from(Token::Type::TOKEN_RIGHT_BRACE, this);
 		case '[':
 			if(match(']'))
-				return Token::from(TOKEN_SUBSCRIPT, this);
-			return Token::from(TOKEN_LEFT_SQUARE, this);
-		case ']': return Token::from(TOKEN_RIGHT_SQUARE, this);
-		case ';': return Token::from(TOKEN_SEMICOLON, this);
-		case ':': return Token::from(TOKEN_COLON, this);
-		case ',': return Token::from(TOKEN_COMMA, this);
+				return Token::from(Token::Type::TOKEN_SUBSCRIPT, this);
+			return Token::from(Token::Type::TOKEN_LEFT_SQUARE, this);
+		case ']': return Token::from(Token::Type::TOKEN_RIGHT_SQUARE, this);
+		case ';': return Token::from(Token::Type::TOKEN_SEMICOLON, this);
+		case ':': return Token::from(Token::Type::TOKEN_COLON, this);
+		case ',': return Token::from(Token::Type::TOKEN_COMMA, this);
 		case '.':
 			if(match('.'))
-				return Token::from(TOKEN_DOT_DOT, this);
-			return Token::from(TOKEN_DOT, this);
+				return Token::from(Token::Type::TOKEN_DOT_DOT, this);
+			return Token::from(Token::Type::TOKEN_DOT, this);
 		case '-':
 			if(match('-'))
-				return Token::from(TOKEN_MINUS_MINUS, this);
-			return Token::from(TOKEN_MINUS, this);
+				return Token::from(Token::Type::TOKEN_MINUS_MINUS, this);
+			return Token::from(Token::Type::TOKEN_MINUS, this);
 		case '+':
 			if(match('+'))
-				return Token::from(TOKEN_PLUS_PLUS, this);
-			return Token::from(TOKEN_PLUS, this);
+				return Token::from(Token::Type::TOKEN_PLUS_PLUS, this);
+			return Token::from(Token::Type::TOKEN_PLUS, this);
 		case '/':
 			if(match('/')) {
 				while(peek() != '\n' && peek() != '\0') advance();
@@ -529,52 +530,52 @@ Token Scanner::scanNextToken() {
 				}
 				return scanNextToken();
 			}
-			return Token::from(TOKEN_SLASH, this);
-		case '*': return Token::from(TOKEN_STAR, this);
-		case '%': return Token::from(TOKEN_PERCEN, this);
-		case '^': return Token::from(TOKEN_CARET, this);
-		case '@': return Token::from(TOKEN_AT, this);
+			return Token::from(Token::Type::TOKEN_SLASH, this);
+		case '*': return Token::from(Token::Type::TOKEN_STAR, this);
+		case '%': return Token::from(Token::Type::TOKEN_PERCEN, this);
+		case '^': return Token::from(Token::Type::TOKEN_CARET, this);
+		case '@': return Token::from(Token::Type::TOKEN_AT, this);
 		case '!':
 			if(match('='))
-				return Token::from(TOKEN_BANG_EQUAL, this);
-			return Token::from(TOKEN_BANG, this);
+				return Token::from(Token::Type::TOKEN_BANG_EQUAL, this);
+			return Token::from(Token::Type::TOKEN_BANG, this);
 
 		case '=':
 			if(match('='))
-				return Token::from(TOKEN_EQUAL_EQUAL, this);
-			return Token::from(TOKEN_EQUAL, this);
+				return Token::from(Token::Type::TOKEN_EQUAL_EQUAL, this);
+			return Token::from(Token::Type::TOKEN_EQUAL, this);
 
 		case '<':
 			if(match('='))
-				return Token::from(TOKEN_LESS_EQUAL, this);
+				return Token::from(Token::Type::TOKEN_LESS_EQUAL, this);
 			if(match('<'))
-				return Token::from(TOKEN_LESS_LESS, this);
-			return Token::from(TOKEN_LESS, this);
+				return Token::from(Token::Type::TOKEN_LESS_LESS, this);
+			return Token::from(Token::Type::TOKEN_LESS, this);
 
 		case '>':
 			if(match('='))
-				return Token::from(TOKEN_GREATER_EQUAL, this);
+				return Token::from(Token::Type::TOKEN_GREATER_EQUAL, this);
 			if(match('>'))
-				return Token::from(TOKEN_GREATER_GREATER, this);
-			return Token::from(TOKEN_GREATER, this);
+				return Token::from(Token::Type::TOKEN_GREATER_GREATER, this);
+			return Token::from(Token::Type::TOKEN_GREATER, this);
 
-		case '|': return Token::from(TOKEN_PIPE, this);
-		case '&': return Token::from(TOKEN_AMPERSAND, this);
-		case '~': return Token::from(TOKEN_TILDE, this);
+		case '|': return Token::from(Token::Type::TOKEN_PIPE, this);
+		case '&': return Token::from(Token::Type::TOKEN_AMPERSAND, this);
+		case '~': return Token::from(Token::Type::TOKEN_TILDE, this);
 
 		case '"': return str();
 		default:
-			Printer::LnErr(
-			    (Token){TOKEN_EOF, tokenStart, source, 0, line, fileName},
-			    "Unexpected character ", c, "!");
+			Printer::LnErr(Token{Token::Type::TOKEN_EOF, tokenStart, source, 0,
+			                     line, fileName},
+			               "Unexpected character ", c, "!");
 			scanErrors++;
-			return Token::from(TOKEN_EOF, this);
+			return Token::from(Token::Type::TOKEN_EOF, this);
 	}
 }
 
 const CustomArray<Token> &Scanner::scanAllTokens() {
 	Token t;
-	while((t = scanNextToken()).type != TOKEN_EOF) {
+	while((t = scanNextToken()).type != Token::Type::TOKEN_EOF) {
 		tokenList.insert(t);
 	}
 	tokenList.insert(t);

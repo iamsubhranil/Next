@@ -6,96 +6,96 @@
 #include "printer.h"
 #include <stdexcept>
 
-static void prefix(Parser *p, TokenType op, int prec) {
+static void prefix(Parser *p, Token::Type op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
 }
 
-static void postfix(Parser *p, TokenType op, int prec) {
+static void postfix(Parser *p, Token::Type op, int prec) {
 	p->registerParselet(op, new PostfixOperatorParselet(prec));
 }
 
-static void infixLeft(Parser *p, TokenType t, int prec) {
+static void infixLeft(Parser *p, Token::Type t, int prec) {
 	p->registerParselet(t, new BinaryOperatorParselet(prec, false));
 }
 
 void registerParselets(Parser *p) {
-	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
-	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
-	p->registerParselet(TOKEN_HEX, new LiteralParselet());
-	p->registerParselet(TOKEN_OCT, new LiteralParselet());
-	p->registerParselet(TOKEN_BIN, new LiteralParselet());
-	p->registerParselet(TOKEN_STRING, new LiteralParselet());
-	p->registerParselet(TOKEN_nil, new LiteralParselet());
-	p->registerParselet(TOKEN_true, new LiteralParselet());
-	p->registerParselet(TOKEN_false, new LiteralParselet());
-	p->registerParselet(TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
-	p->registerParselet(TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
-	p->registerParselet(TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_IDENTIFIER, new NameParselet());
+	p->registerParselet(Token::Type::TOKEN_NUMBER, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_HEX, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_OCT, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_BIN, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_STRING, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_nil, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_true, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_false, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
 
-	p->registerParselet(TOKEN_this, new ThisOrSuperParselet());
-	p->registerParselet(TOKEN_super, new ThisOrSuperParselet());
+	p->registerParselet(Token::Type::TOKEN_this, new ThisOrSuperParselet());
+	p->registerParselet(Token::Type::TOKEN_super, new ThisOrSuperParselet());
 
-	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
-	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());
-	p->registerParselet(TOKEN_LEFT_PAREN, new CallParselet());
-	p->registerParselet(TOKEN_DOT, new ReferenceParselet());
-	p->registerParselet(TOKEN_LEFT_SQUARE, new SubscriptParselet());
+	p->registerParselet(Token::Type::TOKEN_EQUAL, new AssignParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_PAREN, new GroupParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_PAREN, new CallParselet());
+	p->registerParselet(Token::Type::TOKEN_DOT, new ReferenceParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new SubscriptParselet());
 
-	prefix(p, TOKEN_BANG, Precedence::PREFIX);
-	prefix(p, TOKEN_PLUS, Precedence::PREFIX);
-	prefix(p, TOKEN_MINUS, Precedence::PREFIX);
-	prefix(p, TOKEN_TILDE, Precedence::PREFIX);
-	prefix(p, TOKEN_PLUS_PLUS, Precedence::PREFIX);
-	prefix(p, TOKEN_MINUS_MINUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_BANG, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_PLUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_MINUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_TILDE, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_PLUS_PLUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_MINUS_MINUS, Precedence::PREFIX);
 
-	postfix(p, TOKEN_PLUS_PLUS, Precedence::POSTFIX);
-	postfix(p, TOKEN_MINUS_MINUS, Precedence::POSTFIX);
+	postfix(p, Token::Type::TOKEN_PLUS_PLUS, Precedence::POSTFIX);
+	postfix(p, Token::Type::TOKEN_MINUS_MINUS, Precedence::POSTFIX);
 
-	infixLeft(p, TOKEN_or, Precedence::OR);
-	infixLeft(p, TOKEN_and, Precedence::AND);
-	infixLeft(p, TOKEN_EQUAL_EQUAL, Precedence::EQUALITY);
-	infixLeft(p, TOKEN_BANG_EQUAL, Precedence::EQUALITY);
-	infixLeft(p, TOKEN_GREATER, Precedence::COMPARISON);
-	infixLeft(p, TOKEN_GREATER_EQUAL, Precedence::COMPARISON);
-	infixLeft(p, TOKEN_LESS, Precedence::COMPARISON);
-	infixLeft(p, TOKEN_LESS_EQUAL, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_or, Precedence::OR);
+	infixLeft(p, Token::Type::TOKEN_and, Precedence::AND);
+	infixLeft(p, Token::Type::TOKEN_EQUAL_EQUAL, Precedence::EQUALITY);
+	infixLeft(p, Token::Type::TOKEN_BANG_EQUAL, Precedence::EQUALITY);
+	infixLeft(p, Token::Type::TOKEN_GREATER, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_GREATER_EQUAL, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_LESS, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_LESS_EQUAL, Precedence::COMPARISON);
 
-	infixLeft(p, TOKEN_PLUS, Precedence::SUM);
-	infixLeft(p, TOKEN_MINUS, Precedence::SUM);
-	infixLeft(p, TOKEN_in, Precedence::SUM);
-	infixLeft(p, TOKEN_STAR, Precedence::PRODUCT);
-	infixLeft(p, TOKEN_SLASH, Precedence::PRODUCT);
+	infixLeft(p, Token::Type::TOKEN_PLUS, Precedence::SUM);
+	infixLeft(p, Token::Type::TOKEN_MINUS, Precedence::SUM);
+	infixLeft(p, Token::Type::TOKEN_in, Precedence::SUM);
+	infixLeft(p, Token::Type::TOKEN_STAR, Precedence::PRODUCT);
+	infixLeft(p, Token::Type::TOKEN_SLASH, Precedence::PRODUCT);
 
-	infixLeft(p, TOKEN_AMPERSAND, Precedence::BITWISE_AND);
-	infixLeft(p, TOKEN_PIPE, Precedence::BITWISE_OR);
-	infixLeft(p, TOKEN_CARET, Precedence::BITWISE_XOR);
-	infixLeft(p, TOKEN_GREATER_GREATER, Precedence::BITWISE_SHIFT);
-	infixLeft(p, TOKEN_LESS_LESS, Precedence::BITWISE_SHIFT);
+	infixLeft(p, Token::Type::TOKEN_AMPERSAND, Precedence::BITWISE_AND);
+	infixLeft(p, Token::Type::TOKEN_PIPE, Precedence::BITWISE_OR);
+	infixLeft(p, Token::Type::TOKEN_CARET, Precedence::BITWISE_XOR);
+	infixLeft(p, Token::Type::TOKEN_GREATER_GREATER, Precedence::BITWISE_SHIFT);
+	infixLeft(p, Token::Type::TOKEN_LESS_LESS, Precedence::BITWISE_SHIFT);
 
 	// Top level declarations
-	p->registerParselet(TOKEN_fn, new FnDeclaration());
-	p->registerParselet(TOKEN_import, new ImportDeclaration());
-	p->registerParselet(TOKEN_IDENTIFIER, new VarDeclaration());
-	p->registerParselet(TOKEN_class, new ClassDeclaration());
+	p->registerParselet(Token::Type::TOKEN_fn, new FnDeclaration());
+	p->registerParselet(Token::Type::TOKEN_import, new ImportDeclaration());
+	p->registerParselet(Token::Type::TOKEN_IDENTIFIER, new VarDeclaration());
+	p->registerParselet(Token::Type::TOKEN_class, new ClassDeclaration());
 
 	// Statements
-	p->registerParselet(TOKEN_if, new IfStatementParselet());
-	p->registerParselet(TOKEN_while, new WhileStatementParselet());
-	p->registerParselet(TOKEN_do, new DoStatementParselet());
-	p->registerParselet(TOKEN_try, new TryStatementParselet());
-	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
-	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
-	p->registerParselet(TOKEN_for, new ForStatementParselet());
-	p->registerParselet(TOKEN_break, new BreakStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_if, new IfStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_while, new WhileStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_do, new DoStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_try, new TryStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_throw, new ThrowStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_ret, new ReturnStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_for, new ForStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_break, new BreakStatementParselet());
 
 	// intraclass declarations
-	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_priv, new VisibilityDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_static, new StaticDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_fn, new MethodDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_op, new OpMethodDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_IDENTIFIER,
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_new, new ConstructorDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_pub, new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_priv, new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_static, new StaticDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_fn, new MethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_op, new OpMethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_IDENTIFIER,
 	                                   new MemberDeclaration());
 }
 

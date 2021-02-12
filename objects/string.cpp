@@ -5,6 +5,7 @@
 #include "file.h"
 #include "set.h"
 #include "symtab.h"
+#include "../utf8.h"
 
 StringSet *String::string_set = nullptr;
 StringSet *String::keep_set   = nullptr;
@@ -123,10 +124,10 @@ Value next_string_substr(const Value *args, int numargs) {
 	int64_t to   = args[2].toInteger();
 	String *s    = args[0].toString();
 	if(to >= s->size) {
-		IDXERR("Invalid 'to' index", 0, s->size - 1, to);
+		IDXERR("Invalid 'to' index", 0, (int64_t)s->size - 1, to);
 	}
 	if(from < 0) {
-		IDXERR("Invalid 'from' index", 0, s->size - 1, from);
+		IDXERR("Invalid 'from' index", 0, (int64_t)s->size - 1, from);
 	}
 	if(from > to) {
 		IDXERR("'from' index is greater than 'to' index", 0, to, from);

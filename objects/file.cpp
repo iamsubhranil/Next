@@ -8,6 +8,8 @@
 #include <errno.h>
 
 #ifdef _WIN32
+#define WINDOWS_LEAN_AND_MEAN
+#include <Windows.h>
 #include <stringapiset.h>
 #endif
 
@@ -66,7 +68,7 @@ FILE *File::fopen(const void *name, const void *mode) {
 	int size = MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, NULL, 0);
 	Buffer<char> buffer;
 	buffer.resize(size);
-	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, buffer.data(),
+	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, (LPWSTR)buffer.data(),
 	                    size);
 	finalname = (const char *)buffer.data();
 #endif

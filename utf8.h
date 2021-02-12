@@ -46,12 +46,12 @@
 #pragma warning(pop)
 #endif
 
-#if defined(_MSC_VER)
-typedef __int32 utf8_int32_t;
-#else
+//#if defined(_MSC_VER)
+//typedef __int32 utf8_int32_t;
+//#else
 #include <stdint.h>
 typedef uint32_t utf8_int32_t;
-#endif
+//#endif
 
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -112,7 +112,7 @@ utf8_nonnull utf8_pure utf8_weak size_t utf8cspn(const void *src,
 
 // Duplicate the utf8 string src by getting its size, malloc'ing a new buffer
 // copying over the data, and returning that. Or 0 if malloc failed.
-utf8_nonnull utf8_weak void *utf8dup(const void *src);
+utf8_nonnull void *utf8dup(const void *src);
 
 // Number of utf8 codepoints in the utf8 string str,
 // excluding the null terminating byte.
@@ -170,7 +170,7 @@ utf8_nonnull utf8_pure utf8_weak size_t utf8spn(const void *src,
                                                 const void *accept);
 
 // The position of the utf8 string needle in the utf8 string haystack.
-utf8_nonnull utf8_pure utf8_weak void *utf8str(const void *haystack,
+utf8_nonnull utf8_pure void *utf8str(const void *haystack,
                                                const void *needle);
 
 // The position of the utf8 string needle in the utf8 string haystack, case
@@ -199,7 +199,7 @@ utf8_weak size_t utf8codepointsize(utf8_int32_t chr);
 // place after the written codepoint. Pass how many bytes left in the buffer to
 // n. If there is not enough space for the codepoint, this function returns
 // null.
-utf8_nonnull utf8_weak void *utf8catcodepoint(void *utf8_restrict str,
+utf8_nonnull void *utf8catcodepoint(void *utf8_restrict str,
                                               utf8_int32_t chr, size_t n);
 
 // Returns 1 if the given character is lowercase, or 0 if it is not.
@@ -209,10 +209,10 @@ utf8_weak int utf8islower(utf8_int32_t chr);
 utf8_weak int utf8isupper(utf8_int32_t chr);
 
 // Transform the given string into all lowercase codepoints.
-utf8_nonnull utf8_weak void utf8lwr(void *utf8_restrict str);
+utf8_nonnull void utf8lwr(void *utf8_restrict str);
 
 // Transform the given string into all uppercase codepoints.
-utf8_nonnull utf8_weak void utf8upr(void *utf8_restrict str);
+utf8_nonnull void utf8upr(void *utf8_restrict str);
 
 // Make a codepoint lower case if possible.
 utf8_weak utf8_int32_t utf8lwrcodepoint(utf8_int32_t cp);

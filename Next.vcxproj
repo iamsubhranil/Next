@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(ProjectDir)</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="codegen.cpp" />
+    <ClCompile Include="engine.cpp" />
+    <ClCompile Include="expr.cpp" />
+    <ClCompile Include="format.cpp" />
+    <ClCompile Include="gc.cpp" />
+    <ClCompile Include="import.cpp" />
+    <ClCompile Include="loader.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="memman.cpp" />
+    <ClCompile Include="objects\array.cpp" />
+    <ClCompile Include="objects\array_iterator.cpp" />
+    <ClCompile Include="objects\bits.cpp" />
+    <ClCompile Include="objects\bits_iterator.cpp" />
+    <ClCompile Include="objects\boolean.cpp" />
+    <ClCompile Include="objects\boundmethod.cpp" />
+    <ClCompile Include="objects\builtin_module.cpp" />
+    <ClCompile Include="objects\bytecode.cpp" />
+    <ClCompile Include="objects\bytecodecompilationctx.cpp" />
+    <ClCompile Include="objects\class.cpp" />
+    <ClCompile Include="objects\classcompilationctx.cpp" />
+    <ClCompile Include="objects\core.cpp" />
+    <ClCompile Include="objects\errors.cpp" />
+    <ClCompile Include="objects\fiber.cpp" />
+    <ClCompile Include="objects\fiber_iterator.cpp" />
+    <ClCompile Include="objects\file.cpp" />
+    <ClCompile Include="objects\formatspec.cpp" />
+    <ClCompile Include="objects\function.cpp" />
+    <ClCompile Include="objects\functioncompilationctx.cpp" />
+    <ClCompile Include="objects\map.cpp" />
+    <ClCompile Include="objects\map_iterator.cpp" />
+    <ClCompile Include="objects\number.cpp" />
+    <ClCompile Include="objects\object.cpp" />
+    <ClCompile Include="objects\range.cpp" />
+    <ClCompile Include="objects\range_iterator.cpp" />
+    <ClCompile Include="objects\set.cpp" />
+    <ClCompile Include="objects\set_iterator.cpp" />
+    <ClCompile Include="objects\string.cpp" />
+    <ClCompile Include="objects\symtab.cpp" />
+    <ClCompile Include="objects\tuple.cpp" />
+    <ClCompile Include="objects\tuple_iterator.cpp" />
+    <ClCompile Include="parser.cpp" />
+    <ClCompile Include="printer.cpp" />
+    <ClCompile Include="scanner.cpp" />
+    <ClCompile Include="stdlib\io\io.cpp" />
+    <ClCompile Include="stdlib\math\math.cpp" />
+    <ClCompile Include="stdlib\random\random.cpp" />
+    <ClCompile Include="stmt.cpp" />
+    <ClCompile Include="stream.cpp" />
+    <ClCompile Include="utf8.cpp" />
+    <ClCompile Include="value.cpp" />
+    <ClCompile Include="writer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="codegen.h" />
+    <ClInclude Include="engine.h" />
+    <ClInclude Include="expr.h" />
+    <ClInclude Include="exprtypes.h" />
+    <ClInclude Include="filesystem\fwd.h" />
+    <ClInclude Include="filesystem\path.h" />
+    <ClInclude Include="filesystem\resolver.h" />
+    <ClInclude Include="format.h" />
+    <ClInclude Include="format_templates.h" />
+    <ClInclude Include="gc.h" />
+    <ClInclude Include="hashmap.h" />
+    <ClInclude Include="import.h" />
+    <ClInclude Include="keywords.h" />
+    <ClInclude Include="loader.h" />
+    <ClInclude Include="memman.h" />
+    <ClInclude Include="modules.h" />
+    <ClInclude Include="modules_includes.h" />
+    <ClInclude Include="objects\array.h" />
+    <ClInclude Include="objects\array_iterator.h" />
+    <ClInclude Include="objects\bits.h" />
+    <ClInclude Include="objects\bits_iterator.h" />
+    <ClInclude Include="objects\boolean.h" />
+    <ClInclude Include="objects\boundmethod.h" />
+    <ClInclude Include="objects\buffer.h" />
+    <ClInclude Include="objects\builtin_module.h" />
+    <ClInclude Include="objects\bytecode.h" />
+    <ClInclude Include="objects\bytecodecompilationctx.h" />
+    <ClInclude Include="objects\class.h" />
+    <ClInclude Include="objects\classcompilationctx.h" />
+    <ClInclude Include="objects\common.h" />
+    <ClInclude Include="objects\core.h" />
+    <ClInclude Include="objects\customarray.h" />
+    <ClInclude Include="objects\customdeque.h" />
+    <ClInclude Include="objects\errors.h" />
+    <ClInclude Include="objects\error_types.h" />
+    <ClInclude Include="objects\fiber.h" />
+    <ClInclude Include="objects\fiber_iterator.h" />
+    <ClInclude Include="objects\file.h" />
+    <ClInclude Include="objects\formatspec.h" />
+    <ClInclude Include="objects\function.h" />
+    <ClInclude Include="objects\functioncompilationctx.h" />
+    <ClInclude Include="objects\iterator.h" />
+    <ClInclude Include="objects\iterator_types.h" />
+    <ClInclude Include="objects\map.h" />
+    <ClInclude Include="objects\map_iterator.h" />
+    <ClInclude Include="objects\number.h" />
+    <ClInclude Include="objects\object.h" />
+    <ClInclude Include="objects\range.h" />
+    <ClInclude Include="objects\range_iterator.h" />
+    <ClInclude Include="objects\set.h" />
+    <ClInclude Include="objects\set_iterator.h" />
+    <ClInclude Include="objects\string.h" />
+    <ClInclude Include="objects\symtab.h" />
+    <ClInclude Include="objects\tuple.h" />
+    <ClInclude Include="objects\tuple_iterator.h" />
+    <ClInclude Include="objecttype.h" />
+    <ClInclude Include="opcodes.h" />
+    <ClInclude Include="parser.h" />
+    <ClInclude Include="printer.h" />
+    <ClInclude Include="qnan.h" />
+    <ClInclude Include="robin_hood.h" />
+    <ClInclude Include="scanner.h" />
+    <ClInclude Include="stdlib\io\io.h" />
+    <ClInclude Include="stdlib\math\math.h" />
+    <ClInclude Include="stdlib\math\math_functions.h" />
+    <ClInclude Include="stdlib\random\random.h" />
+    <ClInclude Include="stmt.h" />
+    <ClInclude Include="stmttypes.h" />
+    <ClInclude Include="stream.h" />
+    <ClInclude Include="stringvalues.h" />
+    <ClInclude Include="tuple_utils.h" />
+    <ClInclude Include="utf8.h" />
+    <ClInclude Include="utils.h" />
+    <ClInclude Include="value.h" />
+    <ClInclude Include="valuetypes.h" />
+    <ClInclude Include="writable.h" />
+    <ClInclude Include="writer.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

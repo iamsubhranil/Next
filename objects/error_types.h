@@ -1,13 +1,13 @@
-#ifndef ERROR
-#define ERROR(x, name)
+#ifndef ERRORTYPE
+#define ERRORTYPE(x, name)
 #endif
 
-ERROR(FormatError, "format_error")
-ERROR(ImportError, "import_error")
-ERROR(IndexError, "index_error")
-ERROR(IteratorError, "iterator_error")
-ERROR(RuntimeError, "runtime_error")
-ERROR(TypeError, "type_error")
-ERROR(FileError, "file_error")
+ERRORTYPE(FormatError, "format_error")
+ERRORTYPE(ImportError, "import_error")
+ERRORTYPE(IndexError, "index_error")
+ERRORTYPE(IteratorError, "iterator_error")
+ERRORTYPE(RuntimeError, "runtime_error")
+ERRORTYPE(TypeError, "type_error")
+ERRORTYPE(FileError, "file_error")
 
-#undef ERROR
+#undef ERRORTYPE

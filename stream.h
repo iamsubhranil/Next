@@ -10,6 +10,7 @@
 struct Value;
 struct Utf8Source;
 typedef uint32_t utf8_int32_t;
+//#endif
 extern "C" {
 void *utf8codepoint(const void *str, utf8_int32_t *out_codepoint);
 }
@@ -68,7 +69,7 @@ struct ReadableStream : public Stream {
 			val = bytes[0];
 		} else {
 			// read the remaining bytes
-			out = read(len - 1, &bytes[1]);
+			out = read((int64_t)len - 1, &bytes[1]);
 			if(out != ((size_t)len - 1)) {
 				return out;
 			}

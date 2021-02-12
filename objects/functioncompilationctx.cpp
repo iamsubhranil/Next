@@ -43,7 +43,7 @@ int FunctionCompilationContext::create_slot(String *s, int scopeID) {
 		slotmap[0][s].scopeID = scopeID;
 		return (*slotmap)[s].slot;
 	}
-	slotmap[0][s] = (VarState){slotCount++, scopeID};
+	slotmap[0][s] = VarState{slotCount++, scopeID};
 	bcc->code->insertSlot();
 	return slotCount - 1;
 }

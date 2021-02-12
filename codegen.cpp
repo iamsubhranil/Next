@@ -196,31 +196,31 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 	bin->left->accept(this);
 	int jumpto = -1;
 	switch(bin->token.type) {
-		case TOKEN_and: jumpto = btx->land(0); break;
-		case TOKEN_or: jumpto = btx->lor(0); break;
+		case Token::Type::TOKEN_and: jumpto = btx->land(0); break;
+		case Token::Type::TOKEN_or: jumpto = btx->lor(0); break;
 		default: break;
 	}
 	bin->right->accept(this);
 	btx->insert_token(bin->token);
 	switch(bin->token.type) {
-		case TOKEN_PLUS: btx->add(); break;
-		case TOKEN_MINUS: btx->sub(); break;
-		case TOKEN_STAR: btx->mul(); break;
-		case TOKEN_SLASH: btx->div(); break;
-		case TOKEN_CARET: btx->bxor(); break;
-		case TOKEN_PIPE: btx->bor(); break;
-		case TOKEN_AMPERSAND: btx->band(); break;
-		case TOKEN_BANG: btx->lnot(); break;
-		case TOKEN_EQUAL_EQUAL: btx->eq(); break;
-		case TOKEN_BANG_EQUAL: btx->neq(); break;
-		case TOKEN_LESS: btx->less(); break;
-		case TOKEN_LESS_EQUAL: btx->lesseq(); break;
-		case TOKEN_LESS_LESS: btx->blshift(); break;
-		case TOKEN_GREATER: btx->greater(); break;
-		case TOKEN_GREATER_EQUAL: btx->greatereq(); break;
-		case TOKEN_GREATER_GREATER: btx->brshift(); break;
-		case TOKEN_and: btx->land(jumpto, btx->getip() - jumpto); break;
-		case TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
+		case Token::Type::TOKEN_PLUS: btx->add(); break;
+		case Token::Type::TOKEN_MINUS: btx->sub(); break;
+		case Token::Type::TOKEN_STAR: btx->mul(); break;
+		case Token::Type::TOKEN_SLASH: btx->div(); break;
+		case Token::Type::TOKEN_CARET: btx->bxor(); break;
+		case Token::Type::TOKEN_PIPE: btx->bor(); break;
+		case Token::Type::TOKEN_AMPERSAND: btx->band(); break;
+		case Token::Type::TOKEN_BANG: btx->lnot(); break;
+		case Token::Type::TOKEN_EQUAL_EQUAL: btx->eq(); break;
+		case Token::Type::TOKEN_BANG_EQUAL: btx->neq(); break;
+		case Token::Type::TOKEN_LESS: btx->less(); break;
+		case Token::Type::TOKEN_LESS_EQUAL: btx->lesseq(); break;
+		case Token::Type::TOKEN_LESS_LESS: btx->blshift(); break;
+		case Token::Type::TOKEN_GREATER: btx->greater(); break;
+		case Token::Type::TOKEN_GREATER_EQUAL: btx->greatereq(); break;
+		case Token::Type::TOKEN_GREATER_GREATER: btx->brshift(); break;
+		case Token::Type::TOKEN_and: btx->land(jumpto, btx->getip() - jumpto); break;
+		case Token::Type::TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
 
 		default:
 			panic("Invalid binary operator '",
@@ -327,9 +327,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	// 1 denotes its a 'this(_,..)' call
 	// 2 denotes its a 'super(,..)' call
 	int thisOrSuper = 0;
-	if(call->callee->token.type == TOKEN_this)
+	if(call->callee->token.type == Token::Type::TOKEN_this)
 		thisOrSuper = 1;
-	else if(call->callee->token.type == TOKEN_super)
+	else if(call->callee->token.type == Token::Type::TOKEN_super)
 		thisOrSuper = 2;
 
 	// if callee is a method reference, we force a soft
@@ -482,21 +482,21 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
 		// first check the present context
 		if(ftx->has_slot(name, scopeID)) {
 			slot = ftx->get_slot(name);
-			return (VarInfo){slot, LOCAL, false};
+			return VarInfo{slot, LOCAL, false};
 		} else { // It's in an enclosing class, or parent frame or another mtx
 			// Check if it is in present class
 			if(ctx->has_mem(name)) {
-				return (VarInfo){ctx->get_mem_slot(name), CLASS,
+				return VarInfo{ctx->get_mem_slot(name), CLASS,
 				                 ctx->is_static_slot(name)};
 			}
 
 			// Check if it is in the parent module
 			if(mtx->has_mem(name)) {
-				return (VarInfo){mtx->get_mem_slot(name), MODULE, false};
+				return VarInfo{mtx->get_mem_slot(name), MODULE, false};
 			}
 			// Check if it is in core
 			if(corectx->has_mem(name)) {
-				return (VarInfo){corectx->get_mem_slot(name), CORE, false};
+				return VarInfo{corectx->get_mem_slot(name), CORE, false};
 			}
 		}
 	}
@@ -513,14 +513,14 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
 				default: ctx->add_private_mem(name); break;
 			}
 			slot = ctx->get_mem_slot(name);
-			return (VarInfo){slot, CLASS, false};
+			return VarInfo{slot, CLASS, false};
 		} else {
 			// otherwise, declare it in the present scope
 			slot = ftx->create_slot(name, scopeID);
-			return (VarInfo){slot, LOCAL, false};
+			return VarInfo{slot, LOCAL, false};
 		}
 	}
-	return (VarInfo){-1, UNDEFINED, false};
+	return VarInfo{-1, UNDEFINED, false};
 }
 
 CodeGenerator::VarInfo CodeGenerator::lookForVariable(Token t, bool declare,
@@ -676,7 +676,7 @@ void CodeGenerator::validateThisOrSuper(Token tos) {
 	} else if(ftx->f->isStatic()) {
 		// if we're inside a static method, we cannot use this/super
 		lnerr_(tos, "Cannot use this/super inside a static method!");
-	} else if(!ctx->isDerived && tos.type == TOKEN_super) {
+	} else if(!ctx->isDerived && tos.type == Token::Type::TOKEN_super) {
 		// we cannot use super inside a class which is not derived
 		lnerr_(tos, "Cannot use 'super' inside class '", ctx->klass->name,
 		       "' which is not derived "
@@ -697,7 +697,7 @@ void CodeGenerator::visit(GetThisOrSuperExpression *get) {
 	// another expression, so we are free to
 	// toggle onRefer on and off
 	onRefer = true;
-	if(get->token.type == TOKEN_this) {
+	if(get->token.type == Token::Type::TOKEN_this) {
 		inThis = true;
 		validateThisOrSuper(get->token);
 		get->refer->accept(this);
@@ -783,30 +783,30 @@ void CodeGenerator::visit(PrefixExpression *pe) {
 	pe->token.highlight();
 #endif
 	switch(pe->token.type) {
-		case TOKEN_PLUS: pe->right->accept(this); break;
-		case TOKEN_BANG:
+		case Token::Type::TOKEN_PLUS: pe->right->accept(this); break;
+		case Token::Type::TOKEN_BANG:
 			pe->right->accept(this);
 			btx->lnot();
 			break;
-		case TOKEN_MINUS:
+		case Token::Type::TOKEN_MINUS:
 			pe->right->accept(this);
 			btx->insert_token(pe->token);
 			btx->neg();
 			break;
-		case TOKEN_TILDE:
+		case Token::Type::TOKEN_TILDE:
 			pe->right->accept(this);
 			btx->insert_token(pe->token);
 			btx->bnot();
 			break;
-		case TOKEN_PLUS_PLUS:
-		case TOKEN_MINUS_MINUS:
+		case Token::Type::TOKEN_PLUS_PLUS:
+		case Token::Type::TOKEN_MINUS_MINUS:
 			if(!pe->right->isAssignable()) {
 				lnerr_(pe->token,
 				       "Cannot apply '++' on a non-assignable expression!");
 			} else {
 				// perform the load
 				pe->right->accept(this);
-				if(pe->token.type == TOKEN_PLUS_PLUS)
+				if(pe->token.type == Token::Type::TOKEN_PLUS_PLUS)
 					btx->incr();
 				else
 					btx->decr();
@@ -836,9 +836,9 @@ void CodeGenerator::visit(PostfixExpression *pe) {
 	// perform the load
 	pe->left->accept(this);
 	switch(pe->token.type) {
-		case TOKEN_PLUS_PLUS:
-		case TOKEN_MINUS_MINUS:
-			if(pe->token.type == TOKEN_PLUS_PLUS) {
+		case Token::Type::TOKEN_PLUS_PLUS:
+		case Token::Type::TOKEN_MINUS_MINUS:
+			if(pe->token.type == Token::Type::TOKEN_PLUS_PLUS) {
 				btx->copy(SymbolTable2::const_sig_incr);
 				btx->incr();
 			} else {
@@ -866,7 +866,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 	dinfo("");
 	vis->token.highlight();
 #endif
-	if(vis->token.type == TOKEN_this) {
+	if(vis->token.type == Token::Type::TOKEN_this) {
 		// it cannot come as a part of another expression or
 		// in the lhs. so it must have come as only 'this'.
 		// so load it, and we're done
@@ -1150,7 +1150,7 @@ void CodeGenerator::visit(BreakStatement *ifs) {
 		lnerr_(ifs->token, "Cannot use 'break' outside of a loop!");
 	} else {
 		size_t ip = btx->jump(0);
-		pendingBreaks.insert((Break){ip, inLoop});
+		pendingBreaks.insert(Break{ip, inLoop});
 	}
 }
 
@@ -1183,12 +1183,12 @@ String *CodeGenerator::generateSignature(const String2 &name, int arity) {
 String *CodeGenerator::generateSignature(const Token &name, int arity) {
 	// this(a, b, c) is parsed like "(_,_,_)"
 	// super(a, b, c) is parsed like "s (_,_,_)"
-	if(name.type == TOKEN_this || name.type == TOKEN_super) {
+	if(name.type == Token::Type::TOKEN_this || name.type == Token::Type::TOKEN_super) {
 		validateThisOrSuper(name);
 	}
-	if(name.type == TOKEN_new || name.type == TOKEN_this) {
+	if(name.type == Token::Type::TOKEN_new || name.type == Token::Type::TOKEN_this) {
 		return generateSignature(NULL, arity);
-	} else if(name.type == TOKEN_super) {
+	} else if(name.type == Token::Type::TOKEN_super) {
 		return generateSignature(String::from("s "), arity);
 	}
 	return generateSignature(String::from(name.start, name.length), arity);
@@ -1227,8 +1227,8 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			mtx->functions.find(signature)->second->token.highlight();
 		*/
 		} else if(inConstructor) {
-			String *cdecl = String::append(ctx->klass->name, signature);
-			if(mtx->has_fn(cdecl)) {
+			String *cdec = String::append(ctx->klass->name, signature);
+			if(mtx->has_fn(cdec)) {
 				lnerr_(ifs->name,
 				       "Constructor declaration collides with a previously "
 				       "declared function in same module!");
@@ -1491,7 +1491,7 @@ void CodeGenerator::visit(VisibilityStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	currentVisibility = ifs->token.type == TOKEN_pub ? VIS_PUB : VIS_PRIV;
+	currentVisibility = ifs->token.type == Token::Type::TOKEN_pub ? VIS_PUB : VIS_PRIV;
 }
 
 void CodeGenerator::visit(TryStatement *ifs) {

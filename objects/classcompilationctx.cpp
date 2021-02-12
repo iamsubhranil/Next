@@ -82,10 +82,10 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic,
 	// stored.
 	int sym = SymbolTable2::insert(name);
 	if(!isStatic) {
-		members[0][name] = (MemberInfo){slotCount++, false, declare};
+		members[0][name] = MemberInfo{slotCount++, false, declare};
 		klass->add_sym(sym, Value(klass->add_slot()));
 	} else {
-		members[0][name] = (MemberInfo){staticSlotCount++, true, declare};
+		members[0][name] = MemberInfo{staticSlotCount++, true, declare};
 		int slot         = klass->add_static_slot();
 		klass->add_sym(sym, Value(&klass->static_values[slot]));
 		if(metaclass) {
@@ -102,10 +102,10 @@ int ClassCompilationContext::add_private_mem(String *name, bool isStatic,
 	if(has_mem(name))
 		return get_mem_slot(name);
 	if(!isStatic) {
-		members[0][name] = (MemberInfo){slotCount++, false, declare};
+		members[0][name] = MemberInfo{slotCount++, false, declare};
 		klass->add_slot();
 	} else {
-		members[0][name] = (MemberInfo){staticSlotCount++, true, declare};
+		members[0][name] = MemberInfo{staticSlotCount++, true, declare};
 		klass->add_static_slot();
 		// this is a private static variable, so we don't
 		// need to add anything to the metaclass

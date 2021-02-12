@@ -31,7 +31,7 @@ void BytecodeCompilationContext::insert_token(Token t) {
 		ranges_  = (TokenRange *)GcObject_realloc(
             ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * n);
 		std::fill_n(&ranges_[capacity], n - capacity,
-		            (TokenRange){Token::PlaceholderToken, 0});
+		            TokenRange{Token::PlaceholderToken, 0});
 		capacity = n;
 	}
 	if(size > 0) {

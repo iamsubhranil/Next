@@ -1,0 +1,405 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="codegen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="expr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="format.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="import.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="memman.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="printer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="scanner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stmt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stream.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utf8.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="value.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="writer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\array.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\array_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\bits.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\bits_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\boolean.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\boundmethod.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\builtin_module.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\bytecode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\bytecodecompilationctx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\class.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\classcompilationctx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\errors.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\fiber.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\fiber_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\file.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\formatspec.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\function.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\functioncompilationctx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\map.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\map_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\number.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\object.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\range.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\range_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\set.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\set_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\string.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\symtab.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\tuple.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\tuple_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdlib\io\io.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdlib\math\math.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdlib\random\random.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="codegen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="expr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="exprtypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="format.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="format_templates.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hashmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="import.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keywords.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="memman.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="modules.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="modules_includes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objecttype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="opcodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="printer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="qnan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="robin_hood.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scanner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stmt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stmttypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stream.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stringvalues.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tuple_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utf8.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="valuetypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="writable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="writer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="filesystem\fwd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="filesystem\path.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="filesystem\resolver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\array.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\array_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\bits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\bits_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\boolean.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\boundmethod.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\builtin_module.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\bytecode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\bytecodecompilationctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\class.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\classcompilationctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\customarray.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\customdeque.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\errors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\error_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\fiber.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\fiber_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\formatspec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\function.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\functioncompilationctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\iterator_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\map.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\map_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\number.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\range.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\range_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\set.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\set_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\string.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\symtab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\tuple.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\tuple_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\io\io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\math\math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\math\math_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\random\random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

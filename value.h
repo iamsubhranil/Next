@@ -2,9 +2,9 @@
 
 #include "gc.h"
 #include "qnan.h"
-#include <cmath>
 #include <cstdint>
 #include <functional>
+#include <cmath>
 
 struct Statement;
 struct Expr;

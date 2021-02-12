@@ -214,7 +214,7 @@ void StatementPrinter::visit(MemberVariableStatement *ifs) {
 
 void StatementPrinter::visit(VisibilityStatement *ifs) {
 	printTabs();
-	os.write((ifs->token.type == TOKEN_pub ? "pub: " : "priv: "));
+	os.write((ifs->token.type == Token::Type::TOKEN_pub ? "pub: " : "priv: "));
 }
 
 void StatementPrinter::visit(ThrowStatement *ifs) {

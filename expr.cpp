@@ -119,7 +119,7 @@ void ExpressionPrinter::visit(GetExpression *ge) {
 }
 
 void ExpressionPrinter::visit(GetThisOrSuperExpression *ge) {
-	if(ge->token.type == TOKEN_this) {
+	if(ge->token.type == Token::Type::Token::Type::TOKEN_this) {
 		os.write("this");
 	} else {
 		os.write("super");

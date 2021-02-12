@@ -3,76 +3,78 @@
 #include "objects/customarray.h"
 #include "utf8.h"
 
-typedef enum {
-	TOKEN_LEFT_PAREN,
-	TOKEN_RIGHT_PAREN,
-	TOKEN_LEFT_BRACE,
-	TOKEN_RIGHT_BRACE,
-	TOKEN_LEFT_SQUARE,
-	TOKEN_RIGHT_SQUARE,
-	TOKEN_SUBSCRIPT, // []
+class Scanner;
 
-	TOKEN_BANG,
-	TOKEN_BANG_EQUAL,
-	TOKEN_COMMA,
-	TOKEN_DOT,
-	TOKEN_DOT_DOT,
-	TOKEN_COLON,
+typedef struct Token {
 
-	TOKEN_EQUAL,
-	TOKEN_EQUAL_EQUAL,
-	TOKEN_GREATER,
-	TOKEN_GREATER_EQUAL,
-	TOKEN_GREATER_GREATER,
-	TOKEN_LESS,
-	TOKEN_LESS_EQUAL,
-	TOKEN_LESS_LESS,
+	typedef enum {
+		TOKEN_LEFT_PAREN,
+		TOKEN_RIGHT_PAREN,
+		TOKEN_LEFT_BRACE,
+		TOKEN_RIGHT_BRACE,
+		TOKEN_LEFT_SQUARE,
+		TOKEN_RIGHT_SQUARE,
+		TOKEN_SUBSCRIPT, // []
 
-	TOKEN_MINUS,
-	TOKEN_PLUS,
-	TOKEN_SEMICOLON,
-	TOKEN_SLASH,
-	TOKEN_STAR,
-	TOKEN_PERCEN,
-	TOKEN_CARET,
-	TOKEN_AT,
-	TOKEN_PIPE,
-	TOKEN_AMPERSAND,
-	TOKEN_TILDE,
+		TOKEN_BANG,
+		TOKEN_BANG_EQUAL,
+		TOKEN_COMMA,
+		TOKEN_DOT,
+		TOKEN_DOT_DOT,
+		TOKEN_COLON,
 
-	TOKEN_PLUS_PLUS,
-	TOKEN_MINUS_MINUS,
+		TOKEN_EQUAL,
+		TOKEN_EQUAL_EQUAL,
+		TOKEN_GREATER,
+		TOKEN_GREATER_EQUAL,
+		TOKEN_GREATER_GREATER,
+		TOKEN_LESS,
+		TOKEN_LESS_EQUAL,
+		TOKEN_LESS_LESS,
 
-	TOKEN_IDENTIFIER,
-	TOKEN_STRING,
-	TOKEN_NUMBER,
-	TOKEN_HEX,
-	TOKEN_OCT,
-	TOKEN_BIN,
+		TOKEN_MINUS,
+		TOKEN_PLUS,
+		TOKEN_SEMICOLON,
+		TOKEN_SLASH,
+		TOKEN_STAR,
+		TOKEN_PERCEN,
+		TOKEN_CARET,
+		TOKEN_AT,
+		TOKEN_PIPE,
+		TOKEN_AMPERSAND,
+		TOKEN_TILDE,
+
+		TOKEN_PLUS_PLUS,
+		TOKEN_MINUS_MINUS,
+
+		TOKEN_IDENTIFIER,
+		TOKEN_STRING,
+		TOKEN_NUMBER,
+		TOKEN_HEX,
+		TOKEN_OCT,
+		TOKEN_BIN,
 
 #define KEYWORD(x, y) TOKEN_##x,
 #include "keywords.h"
 #undef KEYWORD
 
-	TOKEN_ERROR,
-	TOKEN_EOF
-} TokenType;
-
-class Scanner;
-
-typedef struct Token {
+		TOKEN_ERROR,
+		TOKEN_EOF
+	} Type;
 	typedef enum { INFO = 0, WARN = 1, ERROR = 2 } HighlightType;
-	TokenType  type;
+	Type       type;
 	Utf8Source start;
 	Utf8Source source;
 	int        length;
 	int        line;
 	Utf8Source fileName;
 
-	Token(TokenType t, Utf8Source s, Utf8Source r, int l, int ln, Utf8Source f)
+	Token(Type t, Utf8Source s, Utf8Source r, int l, int ln, Utf8Source f)
 	    : type(t), start(s), source(r), length(l), line(ln), fileName(f) {}
-	Token() : start(NULL), source(NULL), fileName(NULL) {}
-	static Token from(TokenType t, Scanner *s);
+	Token()
+	    : type(TOKEN_EOF), start(NULL), source(NULL), length(0), line(0),
+	      fileName(NULL) {}
+	static Token from(Type t, Scanner *s);
 	static Token errorToken(const char *message, Scanner *s);
 	void         highlight(bool showFileName = false, const char *prefix = NULL,
 	                       HighlightType htype = INFO) const;

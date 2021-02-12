@@ -1,4 +1,7 @@
 #pragma once
+
+#define _USE_MATH_DEFINES
+
 #include <cstddef> // android somehow doesn't have size_t in stdint
 #include <cstdint>
 
@@ -21,6 +24,10 @@
 // number of times a child generation has to be gc'ed
 // before a parent generation is considered for a gc
 #define GC_NEXT_GEN_THRESHOLD 2
+#endif
+
+#if defined(_MSC_VER)
+#define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
 using size_t = std::size_t;

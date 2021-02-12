@@ -3,7 +3,7 @@
 #include "../format.h"
 #include "function.h"
 
-#define ERROR(x, name)                                              \
+#define ERRORTYPE(x, name)                                              \
 	x *x::create(const String2 &m) {                                \
 		x *re       = GcObject::alloc##x();                         \
 		re->message = m;                                            \
