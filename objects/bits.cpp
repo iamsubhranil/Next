@@ -52,8 +52,11 @@ Value next_bits_construct_value(const Value *args, int numargs) {
 Value next_bits_from(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(bits, "from(value)", 1, Integer);
-	int64_t val = args[1].toInteger();
-	Bits2   ba  = Bits::create(sizeof(int64_t) * 8);
+	int64_t val     = args[1].toInteger();
+	size_t  lastOne = 0;
+	for(int64_t bak = val; bak != 0; bak >>= 1, lastOne++)
+		;
+	Bits2 ba = Bits::create(lastOne);
 	std::memcpy(ba->bytes, &val, sizeof(int64_t));
 	return Value(ba);
 }
