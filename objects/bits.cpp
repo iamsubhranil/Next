@@ -242,6 +242,14 @@ Value next_bits_bit(const Value *args, int numargs) {
 	return Value((int)(res != 0));
 }
 
+#define ALPHAZERO1 '0'
+#define ALPHAZERO2 ALPHAZERO1, ALPHAZERO1
+#define ALPHAZERO4 ALPHAZERO2, ALPHAZERO2
+#define ALPHAZERO8 ALPHAZERO4, ALPHAZERO4
+#define ALPHAZERO16 ALPHAZERO8, ALPHAZERO8
+#define ALPHAZERO32 ALPHAZERO16, ALPHAZERO16
+#define ALPHAZERO64 ALPHAZERO32, ALPHAZERO32
+
 Value next_bits_str(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(bits, "str(_)", 1, File);
@@ -254,15 +262,44 @@ Value next_bits_str(const Value *args, int numargs) {
 		f->writableStream()->write('0');
 		return ValueTrue;
 	}
-	for(int64_t i = ba->size - 1; i >= 0; i--) {
-		Bits::ChunkType bit =
-		    ba->bytes[i >> Bits::ChunkCountShift] &
-		    ((Bits::ChunkType)1 << (i & Bits::ChunkRemainderAnd));
-		char c = '0' + (bit != 0);
-		f->writableStream()->write(c);
+	// for the last chunk, print only what is required
+	Bits::ChunkType lastChunk = ba->bytes[ba->chunkcount - 1];
+	size_t          upto      = 0;
+	if((ba->size & Bits::ChunkRemainderAnd) == 0)
+		upto = Bits::ChunkSize;
+	else
+		upto = ba->size & Bits::ChunkRemainderAnd;
+	size_t uptobak                  = upto;
+	char   lastSeq[Bits::ChunkSize] = {ALPHAZERO64};
+	size_t idx                      = upto - 1;
+	while(lastChunk) {
+		lastSeq[idx--] += lastChunk & 1;
+		lastChunk >>= 1;
+	}
+	f->writableStream()->writebytes(lastSeq, uptobak);
+	if(ba->chunkcount == 1)
+		return ValueTrue;
+	size_t remChunk = ba->chunkcount - 1;
+	while(remChunk--) {
+		Bits::ChunkType c                      = ba->bytes[remChunk];
+		char            print[Bits::ChunkSize] = {ALPHAZERO64};
+		size_t          i                      = Bits::ChunkSize - 1;
+		while(c) {
+			print[i--] += c & 1;
+			c >>= 1;
+		}
+		f->writableStream()->write(print);
 	}
 	return ValueTrue;
 }
+
+#undef ALPHAZERO1
+#undef ALPHAZERO2
+#undef ALPHAZERO4
+#undef ALPHAZERO8
+#undef ALPHAZERO16
+#undef ALPHAZERO32
+#undef ALPHAZERO64
 
 #define NEXT_BITS_BINARY(name, op)                                \
 	Value next_bits_##name(const Value *args, int numargs) {      \
