@@ -28,6 +28,8 @@ import inheritance
 import settest
 import breaktest
 import streamtest
+import randtest
+import bitstest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -54,7 +56,9 @@ modules = {prepost: "Pre and post increment/decrements",
         inheritance: "Inheritance",
         settest: "Sets",
         breaktest: "Break statements",
-        streamtest: "Writing to streams"}
+        streamtest: "Writing to streams",
+        randtest: "Module: random",
+        bitstest: "Bit arrays"}
 
 // find the maximum length
 len = 0

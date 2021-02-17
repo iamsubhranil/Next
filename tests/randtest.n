@@ -1,0 +1,39 @@
+import random
+
+pub fn test() {
+    b = random.randbits(10)
+    if(b.size() != 10 or str(b ^ b) != "0000000000") {
+        throw error("Expected randbits to return a bits array of length 10!")
+    }
+    c = random.randint(100, 160)
+    if(c < 100 or c > 160) {
+        throw error("Expected randint(100, 160) to return a value in range!")
+    }
+    c = random.randint(100, 160, 50)
+    if(c.size() != 50) {
+        throw error("Expected randint(100, 160, 50) to return an array of size 50!")
+    }
+    for(val in c) {
+        if(val < 100 or val > 160) {
+            throw error("Invalid random value in range [100, 160]!")
+        }
+    }
+    c = random.rand()
+    if(c < 0 or c > 1) {
+        throw error("Expected random.rand() to return a value in range [0, 1]!")
+    }
+    c = random.rand(10, 11)
+    if(c < 10 or c > 11) {
+        throw error("Expected random.rand(10, 11) to return a value in range [10, 11]!")
+    }
+    c = random.rand(10, 11, 50)
+    if(c.size() != 50) {
+        throw error("Expected randint(10, 11, 50) to return an array of size 50!")
+    }
+    for(val in c) {
+        if(val < 10 or val > 11) {
+            throw error("Invalid random value in range [10, 11]!")
+        }
+    }
+    ret true
+}
