@@ -1,0 +1,103 @@
+import io
+
+pub fn test() {
+    // read tests
+    f = io.open("utf8_text")
+
+    try {
+        f.write("a")
+        throw error("Expected error while writing to a file opened in 'r'!")
+    } catch(file_error fe) {}
+    
+    s = f.read(370)
+    if(s.len() != 370 or s.size() != 448) {
+        throw error("Invalid content returned by file.read(n)")
+    }
+    t = f.read(177)
+    if(t.len() != 177 or t.size() != 269) {
+        throw error("Consecutive read failed!")
+    }
+    if(t[17] != "∞") {
+        throw error("Unicode reading failed!")
+    }
+    f.read(204)
+    if(f.read() != "═") {
+        throw error("Reading a single unicode character failed!")
+    }
+    if(f.readbyte() != 226) {
+        throw error("Reading a byte failed!")
+    }
+    if(f.tell() != 997) {
+        throw error("file.tell() failed!")
+    }
+    f.rewind()
+    if(f.tell() != 0) {
+        throw error("file.rewind() failed!")
+    }
+    f.seek(999, io.SEEK_SET)
+    if(f.read() != "═") {
+        throw error("file.seek() failed!")
+    }
+    if(str(f.readbytes(3).to_bytes()) != "(226, 149, 144)") {
+        throw error("Reading three bytes failed!")
+    }
+    s = f.readall()
+    if(s.len() != 6410 or s.size() != 12400) {
+        throw error("f.readall() failed!")
+    }
+    f.close()
+    try {
+        f.read()
+        throw error("Reading after closing file should fail!")
+    } catch(file_error fe) {}
+
+    // write tests
+    f = io.open("file_write_test.next", "w")
+    try {
+        f.read()
+        throw error("Reading from a write only file should throw!")
+    } catch(file_error e) {}
+
+    f.write("Hello 😪\n")
+    f.writebyte(97)
+    f.writebyte(10)
+    f.writebytes(bits.from(0xaa989ff0))
+    f.writebyte(10)
+    f.fmt("{:k^20}", "😪")
+    f.close()
+    
+    try {
+        f.write("Hi!")
+        throw error("Writing to a closed file should throw!")
+    } catch(file_error e) {}
+
+    f = io.open("file_write_test.next", "r+")
+
+    s = f.read(8)
+    if(s != "Hello 😪\n") {
+        throw error("file.write() failed!")
+    }
+    s = f.read(2)
+    if(s != "a\n") {
+        throw error("file.writebyte() failed!")
+    }
+    s = f.read(2)
+    if(s != "😪\n") {
+        throw error("file.writebytes() failed!")
+    }
+    s = f.read(20)
+    if(s != "kkkkkkkkk😪kkkkkkkkkk") {
+        throw error("file.fmt() failed!")
+    }
+
+    f.write("Additional write!")
+    f.close()
+
+    f = io.open("file_write_test.next", "r")
+    f.read(32)
+    if(f.read(17) != "Additional write!") {
+        throw error("r+ failed!")
+    }
+    f.close()
+    ret true
+}
