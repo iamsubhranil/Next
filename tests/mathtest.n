@@ -1,0 +1,63 @@
+import math
+
+fn expect(w, v) {
+    if(w != v) {
+        throw error(fmt("Expected '{}', received '{}'!", v, w))
+    }
+}
+
+pub fn test() {
+    expect(math.sin(90), 0.8939966636005579)
+    expect(math.sin(math.degrees(90)), -0.9540914674728181)
+    expect(math.sin(math.radians(90)), 1)
+    expect(math.cos(69), 0.9933903797222716)
+    expect(math.tan(78), -0.5991799983411151)
+    expect(math.asin(1), 1.5707963267948966)
+    expect(math.acos(0.5), 1.0471975511965979)
+    expect(math.atan(1.5), 0.982793723247329)
+    expect(math.sinh(10), 11013.232874703393)
+    expect(math.cosh(10), 11013.232920103324)
+    expect(math.tanh(15), 0.9999999999998128)
+    expect(math.asinh(10), 2.99822295029797)
+    expect(math.acosh(10), 2.993222846126381)
+    expect(math.atanh(0.5), 0.5493061443340548)
+    expect(math.sqrt(25), 5)
+    expect(math.cbrt(64), 4)
+    expect(math.ceil(5.6), 6)
+    expect(math.floor(5.6), 5)
+    expect(math.trunc(5.8), 5)
+    expect(math.round(2.3), 2)
+    expect(math.round(2.8), 3)
+    expect(math.log(10), 2.302585092994046)
+    expect(math.log10(10), 1)
+    expect(math.log2(10), 3.321928094887362)
+    expect(math.exp(10), 22026.465794806718)
+    expect(math.exp2(10), 1024)
+    expect(math.expm1(10), 22025.465794806718)
+    expect(math.isinf(1/0), true)
+    //expect(math.isnan(0/0), true)
+    expect(math.isfinite(1/0), false)
+    expect(math.erf(0.5), 0.5204998778130465)
+    expect(math.tgamma(0.5), 1.772453850905516104)
+    expect(math.abs(-32.67), 32.67)
+
+    expect(math.pow(5, 4), 625)
+    expect(math.fmod(9.234, 5), 4.234)
+    expect(math.remainder(7.643, 3.412), 0.819)
+    expect(math.copysign(3.452, -1.0), -3.452)
+    expect(math.nextafter(4.5, 6), 4.500000000000001)
+    expect(math.nextafter(4.5, 4), 4.499999999999999)
+    expect(math.frexp(4)[0], 0.5)
+    expect(math.frexp(4)[1], 3)
+    expect(math.modf(54.543)[0], 0.5429999999999993)
+    expect(math.modf(54.543)[1], 54)
+
+    expect(math.sin(math.pi_by_2), 1)
+    expect(math.tan(math.pi_by_4), 0.9999999999999999)
+    expect(math.cos(math.pi), -1)
+    expect(math.log(math.e), 1)
+    expect(math.log10(math.e), math.log10e)
+    expect(math.log2(math.e), math.log2e)
+    expect(math.sqrt(2), math.sqrt2)
+    ret true
+}

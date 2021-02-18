@@ -30,6 +30,7 @@ import breaktest
 import streamtest
 import randtest
 import bitstest
+import mathtest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -58,7 +59,8 @@ modules = {prepost: "Pre and post increment/decrements",
         breaktest: "Break statements",
         streamtest: "Writing to streams",
         randtest: "Module: random",
-        bitstest: "Bit arrays"}
+        bitstest: "Bit arrays",
+        mathtest: "Module: math"}
 
 // find the maximum length
 len = 0
