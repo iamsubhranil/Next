@@ -9,5 +9,6 @@ ERRORTYPE(IteratorError, "iterator_error")
 ERRORTYPE(RuntimeError, "runtime_error")
 ERRORTYPE(TypeError, "type_error")
 ERRORTYPE(FileError, "file_error")
+ERRORTYPE(MathError, "math_error")
 
 #undef ERRORTYPE

@@ -59,4 +59,7 @@ OBJTYPE(FileError)
 // bit arrays
 OBJTYPE(Bits)
 OBJTYPE(BitsIterator)
+
+// math error
+OBJTYPE(MathError)
 #undef OBJTYPE

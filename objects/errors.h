@@ -47,7 +47,7 @@ struct Error {
 #define ERROR_GC_REPR
 #endif
 
-#define ERRORTYPE(x, name)                           \
+#define ERRORTYPE(x, name)                       \
 	struct x : public Error {                    \
 		static x *   create(const String2 &msg); \
 		static Value sete(const String2 &msg);   \
@@ -68,3 +68,4 @@ struct Error {
 
 #define FERR(x) return FormatError::sete(x);
 #define IMPORTERR(x) return ImportError::sete(x);
+#define MATHERR(x) return MathError::sete(x);
