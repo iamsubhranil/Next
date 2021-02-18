@@ -219,8 +219,12 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case Token::Type::TOKEN_GREATER: btx->greater(); break;
 		case Token::Type::TOKEN_GREATER_EQUAL: btx->greatereq(); break;
 		case Token::Type::TOKEN_GREATER_GREATER: btx->brshift(); break;
-		case Token::Type::TOKEN_and: btx->land(jumpto, btx->getip() - jumpto); break;
-		case Token::Type::TOKEN_or: btx->lor(jumpto, btx->getip() - jumpto); break;
+		case Token::Type::TOKEN_and:
+			btx->land(jumpto, btx->getip() - jumpto);
+			break;
+		case Token::Type::TOKEN_or:
+			btx->lor(jumpto, btx->getip() - jumpto);
+			break;
 
 		default:
 			panic("Invalid binary operator '",
@@ -487,7 +491,7 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
 			// Check if it is in present class
 			if(ctx->has_mem(name)) {
 				return VarInfo{ctx->get_mem_slot(name), CLASS,
-				                 ctx->is_static_slot(name)};
+				               ctx->is_static_slot(name)};
 			}
 
 			// Check if it is in the parent module
@@ -1183,10 +1187,12 @@ String *CodeGenerator::generateSignature(const String2 &name, int arity) {
 String *CodeGenerator::generateSignature(const Token &name, int arity) {
 	// this(a, b, c) is parsed like "(_,_,_)"
 	// super(a, b, c) is parsed like "s (_,_,_)"
-	if(name.type == Token::Type::TOKEN_this || name.type == Token::Type::TOKEN_super) {
+	if(name.type == Token::Type::TOKEN_this ||
+	   name.type == Token::Type::TOKEN_super) {
 		validateThisOrSuper(name);
 	}
-	if(name.type == Token::Type::TOKEN_new || name.type == Token::Type::TOKEN_this) {
+	if(name.type == Token::Type::TOKEN_new ||
+	   name.type == Token::Type::TOKEN_this) {
 		return generateSignature(NULL, arity);
 	} else if(name.type == Token::Type::TOKEN_super) {
 		return generateSignature(String::from("s "), arity);
@@ -1491,7 +1497,8 @@ void CodeGenerator::visit(VisibilityStatement *ifs) {
 	dinfo("");
 	ifs->token.highlight();
 #endif
-	currentVisibility = ifs->token.type == Token::Type::TOKEN_pub ? VIS_PUB : VIS_PRIV;
+	currentVisibility =
+	    ifs->token.type == Token::Type::TOKEN_pub ? VIS_PUB : VIS_PRIV;
 }
 
 void CodeGenerator::visit(TryStatement *ifs) {
@@ -1545,8 +1552,13 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 			case CORE: st = CatchBlock::SlotType::CORE; break;
 			default: break;
 		}
-		int receiver = ftx->create_slot(
-		    String::from(ifs->varName.start, ifs->varName.length), scopeID + 1);
+		String2 name = String::from(ifs->varName.start, ifs->varName.length);
+		int     receiver = 0;
+		if(ftx->has_slot(name, scopeID)) {
+			receiver = ftx->get_slot(name);
+		} else {
+			receiver = ftx->create_slot(name, scopeID + 1);
+		}
 		e->add_catch(v.slot, st, btx->getip());
 		// store the thrown object
 		btx->store_slot_pop(receiver);
