@@ -68,8 +68,8 @@ FILE *File::fopen(const void *name, const void *mode) {
 	int size = MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, NULL, 0);
 	Buffer<char> buffer;
 	buffer.resize(size);
-	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, (LPWSTR)buffer.data(),
-	                    size);
+	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1,
+	                    (LPWSTR)buffer.data(), size);
 	finalname = (const char *)buffer.data();
 #endif
 	return std::fopen(finalname, (const char *)mode);
@@ -186,13 +186,13 @@ Value next_file_readbytes(const Value *args, int numargs) {
 	if(count < 1) {
 		return FileError::sete("number of bytes to be read must be > 0!");
 	}
-	Bits *b = Bits::create(count);
+	Bits *b = Bits::create(count * 8);
 	if(args[0].toFile()->readableStream()->read(count, (uint8_t *)b->bytes) !=
 	   (size_t)count) {
 		CHECK_FOR_EOF();
 		TRYFORMATERROR("file.readbytes(count) failed");
 	}
-	b->resize(count);
+	b->resize(count * 8);
 	return Value(b);
 }
 
@@ -253,7 +253,7 @@ Value next_file_read_n(const Value *args, int numargs) {
 		TRYFORMATERROR("file.read(count) failed");
 	}
 	String2 s = String::from(dest.source);
-	GcObject_free((void *)dest.source, totallen);
+	GcObject_free((void *)dest.source, totallen + 1);
 	return Value(s);
 }
 
@@ -269,7 +269,7 @@ Value next_file_readall(const Value *args, int numargs) {
 		TRYFORMATERROR("file.readall() failed: reading failed");
 	}
 	String2 s = String::from(storage.source, size);
-	GcObject_free((void *)storage.source, size);
+	GcObject_free((void *)storage.source, size + 1);
 	return Value(s);
 }
 
