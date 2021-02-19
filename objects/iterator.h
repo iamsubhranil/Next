@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../printer.h"
 #include "../value.h"
 #include "symtab.h"
 

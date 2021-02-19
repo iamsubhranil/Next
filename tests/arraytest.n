@@ -36,7 +36,7 @@ pub fn test() {
     expect(arr[2], 0, "Nest")
     expect(arr[2], 1, "Array")
 
-    if(arr.str() != "[2.32, \"Hello\", [\"Nest\", \"Array\"]]") {
+    if(str(arr) != "[2.32, \"Hello\", [\"Nest\", \"Array\"]]") {
         println("[Error] array.str() is not working!")
         res = false
     }

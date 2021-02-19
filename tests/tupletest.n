@@ -12,11 +12,11 @@ pub fn test() {
         println("[Error] Tuple index access not working!")
         res = false
     }
-    if((2, 3, false, 2.6, "nil").str() != "(2, 3, false, 2.6, \"nil\")") {
+    if(str((2, 3, false, 2.6, "nil")) != "(2, 3, false, 2.6, \"nil\")") {
         println("[Error] tuple.str() not working!")
         res = false
     }
-    if(("a", 2.3, true).copy().str() != "(\"a\", 2.3, true)") {
+    if(str(("a", 2.3, true).copy()) != "(\"a\", 2.3, true)") {
         println("[Error] tuple.copy() not working!")
         res = false
     }

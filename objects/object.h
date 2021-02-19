@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../display.h"
 #include "../gc.h"
 #include "../hashmap.h"
 #include "../value.h"
@@ -37,6 +36,7 @@ struct Object {
 	void release() const {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	void          depend() { GcObject::depend(obj.klass); }
+	const String *gc_repr() { return obj.klass->name; }
 #endif
 };

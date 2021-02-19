@@ -16,7 +16,7 @@ pub fn test() {
         }
     } catch(runtime_error e) {
         print("[Error] classtest.LinkedList should have a member named 'mem!'\n")
-        print(e.str(), "\n")
+        print(e, "\n")
         res = false
     }
     if(testmodule.var != 10) {

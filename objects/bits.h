@@ -26,6 +26,7 @@ struct Bits {
 	void mark() {}
 	void release() { GcObject_free(bytes, chunkcapacity); }
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "<bits>"; }
 #endif
 

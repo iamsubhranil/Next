@@ -51,6 +51,7 @@ struct BitsIterator {
 	void        release() {}
 
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "bits_iterator"; }
 #endif
 };

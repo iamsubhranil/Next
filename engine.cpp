@@ -1,5 +1,5 @@
 #include "engine.h"
-#include "display.h"
+#include "format.h"
 #include "objects/boundmethod.h"
 #include "objects/bytecodecompilationctx.h"
 #include "objects/class.h"
@@ -8,16 +8,10 @@
 #include "objects/function.h"
 #include "objects/iterator.h"
 #include "objects/object.h"
+#include "objects/string.h"
 #include "objects/symtab.h"
-#include <iostream>
+#include "printer.h"
 
-//#define DEBUG_INS
-
-#ifdef DEBUG_INS
-#include <iomanip>
-#endif
-
-char                          ExecutionEngine::ExceptionMessage[1024] = {0};
 HashMap<String *, GcObject *> ExecutionEngine::loadedModules =
     decltype(ExecutionEngine::loadedModules){};
 Array * ExecutionEngine::pendingExceptions     = nullptr;
@@ -93,31 +87,39 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 		if(lastName != c->name) {
 			lastName = c->name;
 			if(c->module != NULL)
-				std::cout << "In class '";
+				Printer::print("In class '");
 			else {
-				std::cout << "In module '";
+				Printer::print("In module '");
 				moduleAlreadyPrinted = true;
 			}
-			std::cout << ANSI_COLOR_YELLOW << lastName->str()
-			          << ANSI_COLOR_RESET << "'\n";
+			Printer::print(ANSI_COLOR_YELLOW, lastName->str(), ANSI_COLOR_RESET,
+			               "'\n");
 		}
 
 		if(c->module == NULL &&
 		   c->functions[0][SymbolTable2::const_sig_constructor_0]
 		           .toFunction() == f->f) {
 			if(!moduleAlreadyPrinted) {
-				std::cout << "In module '";
-				std::cout << ANSI_COLOR_YELLOW << lastName->str()
-				          << ANSI_COLOR_RESET << "'\n";
+				Printer::print("In module '");
+				Printer::print(ANSI_COLOR_YELLOW, lastName->str(),
+				               ANSI_COLOR_RESET, "'\n");
 			}
 		} else {
-			f->f->code->ctx->get_token(0).highlight(true, "In ", Token::WARN);
+			if(f->f->getType() == Function::BUILTIN) {
+				Printer::println("In builtin function ", ANSI_COLOR_YELLOW,
+				                 f->f->name, ANSI_COLOR_RESET);
+			} else {
+				f->f->code->ctx->get_token(0).highlight(true, "In ",
+				                                        Token::WARN);
+			}
 		}
-		t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
-		t.highlight(true, "At ", Token::ERROR);
+		if(f->f->getType() != Function::BUILTIN) {
+			t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
+			t.highlight(true, "At ", Token::ERROR);
+		}
 		f = &fiber->callFrames[--i];
 		if(i < 0 && fiber->parent != NULL) {
-			std::cout << "In a parent fiber \n";
+			Printer::print("In a parent fiber \n");
 			fiber    = fiber->parent;
 			i        = fiber->callFramePointer - 1;
 			root     = &fiber->callFrames[i];
@@ -153,64 +155,25 @@ void ExecutionEngine::mark() {
 	}
 }
 
-// @p   <-- char *
-// @s   <-- String *
-// @t   <-- SymbolTable no
-void ExecutionEngine::formatExceptionMessage(const char *message, ...) {
-	int     i = 0, j = 0;
-	va_list args;
-	va_start(args, message);
-
-	while(message[i] != '\0') {
-		if(message[i] == '@') {
-			switch(message[i + 1]) {
-				case 's': {
-					String *    h   = va_arg(args, String *);
-					const char *str = h->str();
-					while(*str != '\0') ExceptionMessage[j++] = *str++;
-					i += 2;
-					break;
-				}
-				case 't': {
-					int         s   = va_arg(args, int);
-					const char *str = SymbolTable2::get(s);
-					while(*str != '\0') ExceptionMessage[j++] = *str++;
-					i += 2;
-					break;
-				}
-				case 'p': {
-					const char *str = va_arg(args, char *);
-					while(*str != '\0') ExceptionMessage[j++] = *str++;
-					i += 2;
-					break;
-				}
-				default: ExceptionMessage[j++] = message[i++]; break;
-			}
-		} else {
-			ExceptionMessage[j++] = message[i++];
-		}
-	}
-	ExceptionMessage[j] = '\0';
-
-	va_end(args);
-}
-
 void ExecutionEngine::printException(Value v, Fiber *f) {
 	const Class *c = v.getClass();
-	std::cout << "\n";
+	Printer::print("\n");
 	if(c->module != NULL) {
-		err("Uncaught exception occurred of type '%s.%s'!",
-		    c->module->name->str(), c->name->str());
+		Printer::Err("Uncaught exception occurred of type '", c->module->name,
+		             ".", c->name, "'!");
 	} else {
-		err("Uncaught exception occurred of type '%s'!", c->name->str());
+		Printer::Err("Uncaught exception occurred of type '", c->name, "'!");
 	}
-	std::cout << ANSI_FONT_BOLD << c->name->str() << ANSI_COLOR_RESET << ": ";
+	Printer::print(ANSI_FONT_BOLD, c->name->str(), ANSI_COLOR_RESET, ": ");
+	Printer::println(v);
+	/*
 	String *s = String::toString(v);
 	if(s == NULL)
-		std::cout << "<error>\nAn exception occurred while converting the "
-		             "exception to string!\n";
+	    Printer::print("<error>\nAn exception occurred while converting the ",
+	                   "exception to string!\n");
 	else
-		std::cout << s->str() << "\n";
+	    Printer::print(s->str(), "\n");
+	    */
 	printStackTrace(f);
 }
 
@@ -218,7 +181,8 @@ void ExecutionEngine::printRemainingExceptions() {
 	while(pendingExceptions->size > 0) {
 		Value  ex = pendingExceptions->values[--pendingExceptions->size];
 		Fiber *f  = pendingFibers->values[--pendingFibers->size].toFiber();
-		std::cout << "Above exception occurred while handling the following:\n";
+		Printer::print(
+		    "Above exception occurred while handling the following:\n");
 		printException(ex, f);
 		printStackTrace(f);
 	}
@@ -295,14 +259,11 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			}
 			if(!v.isClass()) {
 				printException(thrown, root);
-				std::cout << "Error occurred while catching an exception!\n";
-				String *s = String::toString(v);
-				if(s == NULL)
-					std::cout << "The caught value is not a valid class!";
-				else
-					std::cout << "The caught value '" << s->str()
-					          << "' is not a valid class!\n";
-				// pop all but the matched frame
+				Printer::println("Error occurred while catching an exception!");
+				Printer::println("The caught value '", v,
+				                 "' is not a valid class!");
+				// pop all but the matched
+				// frame
 				while(f->getCurrentFrame() != matched) {
 					f->popFrame();
 				}
@@ -385,6 +346,32 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 	return v;
 }
 
+template <typename... K> void createException(const void *message, K... args) {
+	StringStream s;
+	auto         res = Formatter::fmt<Value>(s, message, args...);
+	if(res == FormatHandler<Value>::Success()) {
+		RuntimeError::sete(s.toString().toString());
+	} else {
+		// FormatError is already set
+		RuntimeError::sete(
+		    String::from("Unable to format the given exception!"));
+	}
+}
+
+void createMemberAccessException(const Class *c, int field, int type) {
+	static const char *types[] = {"member", "method"};
+	String *           name    = SymbolTable2::getString(field);
+	if(name->len() > 2 && *name->str() == 's' && (name->str() + 1) == ' ') {
+		createException(
+		    "No public {} '{}' found in superclass '{}' of class '{}'!",
+		    types[type], Utf8Source((const char *)name->str().source + 2),
+		    c->superclass->name, c->name);
+	} else {
+		createException("No public {} '{}' found in class '{}'!", types[type],
+		                SymbolTable2::getString(field), c->name);
+	}
+}
+
 bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	fiber->setState(Fiber::RUNNING);
 
@@ -404,7 +391,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	Value     rightOperand;
 	int       methodToCall;
 	Function *functionToCall;
-	bool      pendingRuntimeException = false;
 
 	// variable to denote the relocation of instruction
 	// pointer after extracting an argument
@@ -414,21 +400,18 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
 
-#define GOTOERROR()                     \
-	{                                   \
-		pendingRuntimeException = true; \
-		goto error;                     \
-	}
+#define GOTOERROR() \
+	{ goto error; }
 
-#define RERRF(x, ...)                             \
-	{                                             \
-		formatExceptionMessage(x, ##__VA_ARGS__); \
-		GOTOERROR();                              \
+#define RERRF(x, ...)                      \
+	{                                      \
+		createException(x, ##__VA_ARGS__); \
+		GOTOERROR();                       \
 	}
 	if(currentRecursionDepth == maxRecursionLimit) {
 		// reduce the depth so that we can print the message
 		currentRecursionDepth -= 1;
-		RERRF("Maxmimum recursion depth reached!");
+		RERRF("Maximum recursion depth reached!");
 	}
 
 #define RETURN(x)                                             \
@@ -493,8 +476,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	 InstructionPointer += reloc, *(x *)((InstructionPointer - reloc + 1)))
 #define next_int() relocip(int)
 #define next_value() relocip(Value)
-	// std::std::cout << "x : " << TOP << " y : " << v << " op : " << #op <<
-	// std::endl;
+	// std::std::wcout << "x : " << TOP << " y : " << v << " op : " << #op <<
+	// "";
 
 #define binary_multiway(op, opname, argtype, restype, opcode, doSomething) \
 	{                                                                      \
@@ -540,25 +523,16 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		RERRF(str, ##__VA_ARGS__) \
 	}
 
-#define ASSERT_ACCESS(field, c, type)                                         \
-	{                                                                         \
-		if(!c->has_fn(field)) {                                               \
-			String *name = SymbolTable2::getString(field);                    \
-			if(name->size > 2 && name->str()[0] == 's' &&                     \
-			   name->str()[1] == ' ') {                                       \
-				ASSERT(false,                                                 \
-				       "No public " type " '@p' found in superclass '@s' "    \
-				       "of class '@s'!",                                      \
-				       &(name->str()[2]), c->superclass->name, c->name);      \
-			} else {                                                          \
-				ASSERT(false, "No public " type " '@t' found in class '@s'!", \
-				       field, c->name);                                       \
-			}                                                                 \
-		}                                                                     \
+#define ASSERT_ACCESS(field, c, type)                    \
+	{                                                    \
+		if(!c->has_fn(field)) {                          \
+			createMemberAccessException(c, field, type); \
+			goto error;                                  \
+		}                                                \
 	}
 
-#define ASSERT_FIELD() ASSERT_ACCESS(field, c, "member")
-#define ASSERT_METHOD(field, c) ASSERT_ACCESS(field, c, "method")
+#define ASSERT_FIELD() ASSERT_ACCESS(field, c, 0)
+#define ASSERT_METHOD(field, c) ASSERT_ACCESS(field, c, 1)
 
 #define UNREACHABLE()                                     \
 	{                                                     \
@@ -573,13 +547,13 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	// executed, before proceeding with further execution.
 	// So we check that here
 	if(presentFrame->f->getType() == Function::BUILTIN) {
+		bool  ret = presentFrame->returnToCaller;
 		Value res =
 		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
 		// we purposefully ignore any exception here,
 		// because that would trigger an unlimited
 		// recursion in case this function was executed
 		// as a result of an exception itself.
-		bool ret = presentFrame->returnToCaller;
 		fiber->popFrame();
 		// it may have caused a fiber switch
 		if(fiber != currentFiber) {
@@ -610,34 +584,35 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	LOOP() {
 #ifdef DEBUG_INS
 		{
+			Printer::println();
 			int instructionPointer =
 			    InstructionPointer - presentFrame->f->code->bytecodes;
 			int   stackPointer = fiber->stackTop - presentFrame->stack_;
 			Token t            = Token::PlaceholderToken;
 			if(presentFrame->f->code->ctx)
 				t = presentFrame->f->code->ctx->get_token(instructionPointer);
-			if(t.type != TOKEN_ERROR)
+			if(t.type != Token::Type::Token::Type::TOKEN_ERROR)
 				t.highlight();
 			else
-				std::cout << "<source not found>\n";
-			std::cout << " StackMaxSize: "
-			          << presentFrame->f->code->stackMaxSize
-			          << " IP: " << std::setw(4) << instructionPointer
-			          << " SP: " << stackPointer << " " << std::flush;
+				Printer::println("<source not found>");
+			Printer::fmt("StackMaxSize: {} IP: {:4} SP: {} ",
+			             presentFrame->f->code->stackMaxSize,
+			             instructionPointer, stackPointer);
 			for(int i = 0; i < stackPointer; i++) {
-				std::cout << " | ";
+				Printer::print(" | ");
 				Bytecode::disassemble_Value(
-				    std::cout, (Bytecode::Opcode *)&presentFrame->stack_[i]);
+				    Printer::StdOutStream,
+				    (Bytecode::Opcode *)&presentFrame->stack_[i]);
 			}
-			std::cout << " | \n";
+			Printer::println(" | ");
 			Bytecode::disassemble(
-			    std::cout,
+			    Printer::StdOutStream,
 			    &presentFrame->f->code->bytecodes[instructionPointer]);
 			// +1 to adjust for fiber switch
 			if(stackPointer > presentFrame->f->code->stackMaxSize + 1) {
 				RERRF("Invalid stack access!");
 			}
-			std::cout << "\n\n";
+			Printer::println();
 #ifdef DEBUG_INS
 			fflush(stdout);
 			// getchar();
@@ -844,8 +819,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						// signature
 						Class *c = v.toClass();
 						ASSERT(c->has_fn(sym),
-						       "Constructor '@t' not found in class '@s'!", sym,
-						       c->name);
+						       "Constructor '{}' not found in class '{}'!",
+						       SymbolTable2::getString(sym), c->name);
 						// set the receiver to nil so that construct
 						// knows to create a new receiver
 						fiber->stackTop[-numberOfArguments - 1] = ValueNil;
@@ -921,33 +896,19 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
 					Value res;
-					// if we know that the callee will not
-					// trigger a nested call to the engine,
-					// we can omit all guards
-					if(!functionToCall->canNest()) {
-						res = functionToCall->func(
-						    fiber->stackTop - numberOfArguments - 1,
-						    numberOfArguments + 1); // include the receiver
-						// decrease the top _after_ the function
-						// finishes execution, to mark the arguments
-						// as active objects, as well as mark the
-						// stack correctly in case any nested call
-						// occurs.
-						fiber->stackTop -= (numberOfArguments + 1);
-					} else {
-						// backup present frame
-						BACKUP_FRAMEINFO();
-						res = functionToCall->func(
-						    fiber->stackTop - numberOfArguments - 1,
-						    numberOfArguments + 1); // include the receiver
-						fiber->stackTop -= (numberOfArguments + 1);
-						// it may have caused a fiber switch
-						if(fiber != currentFiber) {
-							fiber = currentFiber;
-						}
-						// present frame may be reallocated elsewhere
-						RESTORE_FRAMEINFO();
+					// backup present frame
+					BACKUP_FRAMEINFO();
+					res = functionToCall->func(
+					    fiber->stackTop - numberOfArguments - 1,
+					    numberOfArguments + 1); // include the receiver
+					fiber->stackTop -= (numberOfArguments + 1);
+					// it may have caused a fiber switch
+					if(fiber != currentFiber) {
+						fiber = currentFiber;
 					}
+					// present frame may be reallocated elsewhere
+					RESTORE_FRAMEINFO();
+
 					if(pendingExceptions->size == 0) {
 						PUSH(res);
 						DISPATCH();
@@ -1052,7 +1013,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 		do_store_slot : {
 			int slot = next_int();
-			// std::cout << "slot: " << slot << "\n";
+			// std::wcout << "slot: " << slot << "\n";
 			Stack[slot] = rightOperand;
 			DISPATCH();
 		}
@@ -1218,10 +1179,10 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			CASE(end) : DEFAULT() : {
 				uint8_t code = *InstructionPointer;
 				if(code >= Bytecode::CODE_end) {
-					panic("Invalid bytecode %d!", code);
+					panic("Invalid bytecode ", (int)code, "!");
 				} else {
-					panic("Bytecode not implemented : '%s'!",
-					      Bytecode::OpcodeNames[code])
+					panic("Bytecode not implemented : '",
+					      Bytecode::OpcodeNames[code], "'!");
 				}
 			}
 		}
@@ -1230,18 +1191,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		// statement, which was triggered either by a
 		// runtime error, or an user generated exception,
 		// or by a pending exception of a builtin or a
-		// primitive. In case of the later, the
-		// pendingException will already be set by the
-		// value of the exception, otherwise, we use
-		// the ExceptionMessage to create a
-		// RuntimeException, and set pendingException
-		// to the same.
-		if(pendingRuntimeException) {
-			pendingExceptions->insert(
-			    RuntimeError::create(String::from(ExceptionMessage)));
-			pendingRuntimeException = false;
-			pendingFibers->insert(fiber);
-		}
+		// primitive. In all of the cases, the exception
+		// is already set in the pendingExceptions array.
 		BACKUP_FRAMEINFO();
 		// pop the last exception
 		Value pendingException =

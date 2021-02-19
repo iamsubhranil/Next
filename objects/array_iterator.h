@@ -26,6 +26,7 @@ struct ArrayIterator {
 	void        release() {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr() { return "array_iterator"; }
+	void             depend() {}
+	const Utf8Source gc_repr() { return Utf8Source("array_iterator"); }
 #endif
 };

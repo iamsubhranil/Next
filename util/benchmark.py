@@ -218,6 +218,11 @@ def run_trial(benchmark, language):
     except OSError:
         print('Interpreter was not found')
         return None
+    except subprocess.CalledProcessError as e:
+        print("[Error] Interpreter exited with a non zero status!")
+        print("Output: ")
+        print(e.output)
+        return None
     match = benchmark[1].match(out)
     if match:
         return float(match.group(1))

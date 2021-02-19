@@ -2,6 +2,7 @@
 #include "bits_iterator.h"
 #include "buffer.h"
 #include "class.h"
+#include "file.h"
 #include "string.h"
 #include "tuple.h"
 
@@ -51,8 +52,11 @@ Value next_bits_construct_value(const Value *args, int numargs) {
 Value next_bits_from(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(bits, "from(value)", 1, Integer);
-	int64_t val = args[1].toInteger();
-	Bits2   ba  = Bits::create(sizeof(int64_t) * 8);
+	int64_t val     = args[1].toInteger();
+	size_t  lastOne = 0;
+	for(int64_t bak = val; bak != 0; bak >>= 1, lastOne++)
+		;
+	Bits2 ba = Bits::create(lastOne);
 	std::memcpy(ba->bytes, &val, sizeof(int64_t));
 	return Value(ba);
 }
@@ -241,23 +245,64 @@ Value next_bits_bit(const Value *args, int numargs) {
 	return Value((int)(res != 0));
 }
 
+#define ALPHAZERO1 '0'
+#define ALPHAZERO2 ALPHAZERO1, ALPHAZERO1
+#define ALPHAZERO4 ALPHAZERO2, ALPHAZERO2
+#define ALPHAZERO8 ALPHAZERO4, ALPHAZERO4
+#define ALPHAZERO16 ALPHAZERO8, ALPHAZERO8
+#define ALPHAZERO32 ALPHAZERO16, ALPHAZERO16
+#define ALPHAZERO64 ALPHAZERO32, ALPHAZERO32
+
 Value next_bits_str(const Value *args, int numargs) {
 	(void)numargs;
-	Buffer<char> buffer;
-	Bits *       ba = args[0].toBits();
+	EXPECT(bits, "str(_)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
+	Bits *ba = args[0].toBits();
 	if(ba->size == 0) {
-		return Value(String::from("0"));
+		f->writableStream()->write('0');
+		return ValueTrue;
 	}
-	buffer.resize(ba->size, true);
-	for(int64_t i = 0; i < ba->size; i++) {
-		Bits::ChunkType bit =
-		    ba->bytes[i >> Bits::ChunkCountShift] &
-		    ((Bits::ChunkType)1 << (i & Bits::ChunkRemainderAnd));
-		// write backwards
-		buffer.data()[ba->size - i - 1] = ('0' + (bit != 0));
+	// for the last chunk, print only what is required
+	Bits::ChunkType lastChunk = ba->bytes[ba->chunkcount - 1];
+	size_t          upto      = 0;
+	if((ba->size & Bits::ChunkRemainderAnd) == 0)
+		upto = Bits::ChunkSize;
+	else
+		upto = ba->size & Bits::ChunkRemainderAnd;
+	size_t uptobak                  = upto;
+	char   lastSeq[Bits::ChunkSize] = {ALPHAZERO64};
+	size_t idx                      = upto - 1;
+	while(lastChunk) {
+		lastSeq[idx--] += lastChunk & 1;
+		lastChunk >>= 1;
 	}
-	return Value(String::from(buffer.data(), buffer.size()));
+	f->writableStream()->writebytes(lastSeq, uptobak);
+	if(ba->chunkcount == 1)
+		return ValueTrue;
+	size_t remChunk = ba->chunkcount - 1;
+	while(remChunk--) {
+		Bits::ChunkType c                      = ba->bytes[remChunk];
+		char            print[Bits::ChunkSize] = {ALPHAZERO64};
+		size_t          i                      = Bits::ChunkSize - 1;
+		while(c) {
+			print[i--] += c & 1;
+			c >>= 1;
+		}
+		f->writableStream()->write(print);
+	}
+	return ValueTrue;
 }
+
+#undef ALPHAZERO1
+#undef ALPHAZERO2
+#undef ALPHAZERO4
+#undef ALPHAZERO8
+#undef ALPHAZERO16
+#undef ALPHAZERO32
+#undef ALPHAZERO64
 
 #define NEXT_BITS_BINARY(name, op)                                \
 	Value next_bits_##name(const Value *args, int numargs) {      \
@@ -677,17 +722,17 @@ Bits *Bits::create(int64_t number_of_bits) {
 }
 
 void Bits::resize(int64_t ns) {
-	// change the capacity only if we are smaller
-	if(ns > chunkcapacity) {
-		bytes = (ChunkType *)GcObject_realloc(
-		    bytes, chunkcapacity * ChunkSizeByte, ns * ChunkSizeByte);
-		chunkcapacity = ns;
-	}
 	int64_t oldchunkcount = chunkcount;
 	// readjust at all times
 	chunkcount =
 	    (ns >> Bits::ChunkCountShift) + ((ns & Bits::ChunkRemainderAnd) != 0);
 	size = ns;
+	// extend the capacity only if we are smaller
+	if(ns > chunkcapacity) {
+		bytes = (ChunkType *)GcObject_realloc(
+		    bytes, oldchunkcount * ChunkSizeByte, chunkcount * ChunkSizeByte);
+		chunkcapacity = ns;
+	}
 	// if we are shrinking, clear the extra chunks
 	if(oldchunkcount > chunkcount) {
 		std::memset(&bytes[chunkcount], 0,
@@ -724,7 +769,7 @@ void Bits::init() {
 	BitsClass->add_builtin_fn("toggle(_,_)", 2, next_bits_toggleinrange);
 	BitsClass->add_builtin_fn("size()", 0, next_bits_size);
 	BitsClass->add_builtin_fn("bit(_)", 1, next_bits_bit);
-	BitsClass->add_builtin_fn("str()", 0, next_bits_str);
+	BitsClass->add_builtin_fn("str(_)", 1, next_bits_str);
 	// bitwise operations, each of them produces
 	// a new Bits
 	BitsClass->add_builtin_fn("|(_)", 1, next_bits_or);

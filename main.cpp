@@ -1,33 +1,48 @@
-#include "engine.h"
 #include "loader.h"
-#include <iostream>
-using namespace std;
+#include "printer.h"
+
+#include <clocale>
 
 // checks if { are terminated
-bool isTerminated(string &s) {
-	int  counter  = 0;
-	bool instring = false;
-	char prevchar = ' ';
-	for(auto c : s) {
-		if(c == '"' && prevchar != '\\') {
+bool isTerminated(const String2 &s) {
+	int          counter  = 0;
+	bool         instring = false;
+	utf8_int32_t prevchar = ' ';
+	Utf8Source   c        = s->str();
+	while(*c) {
+		if(*c == '"' && prevchar != '\\') {
 			instring = !instring;
 		}
 		if(!instring) {
-			if(c == '{')
+			if(*c == '{')
 				counter++;
-			else if(c == '}')
+			else if(*c == '}')
 				counter--;
 		}
-		prevchar = c;
+		prevchar = *c;
+		++c;
 	}
 	return counter <= 0;
 }
 
+String *getline() {
+	ReadableStream &rs   = Printer::StdInStream;
+	Utf8Source      line = Utf8Source(NULL);
+	size_t          s    = rs.read(line);
+	if(s == 0 && rs.isEof())
+		return NULL;
+	String2 lines = String::from(line, s);
+	if(s > 0)
+		GcObject_free((void *)line.source, s);
+	return lines;
+}
+
 int main(int argc, char *argv[]) {
+	// we are mandating this locale, which may not be good
+	setlocale(LC_ALL, "en_US.UTF-8");
 #ifdef DEBUG
-	cout << "sizeof(Value) : " << sizeof(Value) << endl;
-#define TYPE(r, n) \
-	cout << #n << " : " << std::hex << QNAN_##n << std::dec << endl;
+	Printer::println("sizeof(Value) : ", sizeof(Value));
+#define TYPE(r, n) Printer::fmt(#n " : {:x}\n", (uintptr_t)QNAN_##n);
 #include "valuetypes.h"
 #endif
 	GcObject::init();
@@ -42,27 +57,26 @@ int main(int argc, char *argv[]) {
 		    ClassCompilationContext::create(NULL, String::from("repl"));
 		Value   mod    = ValueNil;
 		Loader2 loader = Loader::create();
-		while(true) {
-			cout << ">> ";
-			string line, bak;
-			bool   terminated = false;
-			while(getline(cin, line)) {
-				bak = bak.append(line);
+		while(!Printer::StdInStream.isEof()) {
+			Printer::print(">> ");
+			String2 line, bak;
+			while((line = getline())) {
+				if(bak == NULL)
+					bak = (String *)line;
+				else
+					bak = String::append(bak, line);
 				if(isTerminated(bak)) {
-					terminated = true;
 					break;
 				}
-				bak += '\n';
-				cout << ".. ";
+				bak = String::append(bak, '\n');
+				Printer::print(".. ");
 			}
-			// if we came out of the loop without terminated being true,
-			// that means our stream is closed, so bail out already
-			if(!terminated)
+			if(line == NULL)
 				break;
-			if(bak.length() == 0)
+			if(bak->len() == 0)
 				continue;
 			mod = Value(loader->compile_and_load_from_source(
-			    bak.c_str(), replctx, mod, true));
+			    bak->strb(), replctx, mod, true));
 		}
 	}
 	return 0;

@@ -1,13 +1,13 @@
 pub fn test() {
     res = true
     v = true
-    if(v.str() != "true") {
+    if(str(v) != "true") {
         print("[Error] bool.str() is broken!\n")
         res = false
     }
     
     d = 2.8284382828899812898938298
-    if(d.str() != "2.82843828289") {
+    if(str(d) != "2.82843828289") {
         print("[Error] number.str() is broken!\n")
         res = false
     }
@@ -28,7 +28,7 @@ pub fn test() {
     }
 
     s = "Hello World!"
-    if(s.str() != "Hello World!") {
+    if(str(s) != "Hello World!") {
         print("[Error] string.str() is broken!\n")
         res = false
     }

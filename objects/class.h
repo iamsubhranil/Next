@@ -4,6 +4,10 @@
 #include "common.h"
 #include "map.h"
 
+#ifdef DEBUG_GC
+#include "../utf8.h"
+#endif
+
 // maximum number of allowed variadic args
 #define MAX_VARARG_COUNT 32
 
@@ -65,7 +69,7 @@ struct Class {
 	// has to perform some extra checks before and after
 	// the builtin is executed.
 	void add_builtin_fn2(const char *str, int arity, next_builtin_fn fn,
-	                     bool isvarg, bool cannest, bool isstatic);
+	                     bool isvarg, bool isstatic);
 	void add_builtin_fn(const char *str, int arity, next_builtin_fn fn,
 	                    bool isvarg = false, bool isstatic = false);
 	void add_builtin_fn_nest(const char *str, int arity, next_builtin_fn fn,
@@ -96,12 +100,12 @@ struct Class {
 	void mark() const {
 		GcObject::mark(name);
 		GcObject::mark(functions);
+		if(metaclass)
+			GcObject::mark(metaclass);
+		if(superclass)
+			GcObject::mark(superclass);
 		if(module != NULL) {
 			GcObject::mark(module);
-			if(metaclass)
-				GcObject::mark(metaclass);
-			if(superclass)
-				GcObject::mark(superclass);
 			if(static_slot_count > 0)
 				GcObject::mark(static_values, static_slot_count);
 		} else if(instance != NULL) {
@@ -113,11 +117,19 @@ struct Class {
 		if(module != NULL && static_slot_count > 0) {
 			GcObject_free(static_values, sizeof(Value) * static_slot_count);
 		}
+#ifdef DEBUG_GC
+		GcObject_free((void *)nameCopy.source, utf8size(nameCopy.source) + 1);
+#endif
 	}
 
 	static Class *create(); // allocates a class and sets everything to NULL
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	// classes are released in the end, after the actual sweep is complete,
+	// so 'name' is already free'd at that point. Hence, we make a copy, and
+	// store it here, and release that back in 'release()'
+	Utf8Source       nameCopy;
+	void             depend(); // copies name to nameCopy
+	const Utf8Source gc_repr() { return nameCopy; }
 #endif
 };

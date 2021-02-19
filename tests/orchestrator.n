@@ -27,6 +27,11 @@ import tupletest
 import inheritance
 import settest
 import breaktest
+import streamtest
+import randtest
+import bitstest
+import mathtest
+import filetest
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -52,7 +57,12 @@ modules = {prepost: "Pre and post increment/decrements",
         tupletest: "Tuple expressions",
         inheritance: "Inheritance",
         settest: "Sets",
-        breaktest: "Break statements"}
+        breaktest: "Break statements",
+        streamtest: "Writing to streams",
+        randtest: "Module: random",
+        bitstest: "Bit arrays",
+        mathtest: "Module: math",
+        filetest: "File I/O"}
 
 // find the maximum length
 len = 0

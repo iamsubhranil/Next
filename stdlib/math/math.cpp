@@ -3,21 +3,71 @@
 
 #define _USE_MATH_DEFINES // use constants from the library
 
+#include <cerrno>
 #include <cmath>
 
-#define NEXT_MATH_FN1(name)                                  \
-	Value next_math_##name(const Value *args, int numargs) { \
-		(void)numargs;                                       \
-		EXPECT(math, #name "(a)", 1, Number);                \
-		return Value(std::name(args[1].toNumber()));         \
+#define NEXT_MATH_FN1(name)                                                   \
+	Value next_math_##name(const Value *args, int numargs) {                  \
+		(void)numargs;                                                        \
+		EXPECT(math, #name "(a)", 1, Number);                                 \
+		/* reset the errno */                                                 \
+		errno     = 0;                                                        \
+		Value ret = Value(std::name(args[1].toNumber()));                     \
+		if(errno) {                                                           \
+			switch(errno) {                                                   \
+				case EDOM:                                                    \
+					/* reset the errno */                                     \
+					errno = 0;                                                \
+					MATHERR("Domain error for math function " #name "(x)!");  \
+					break;                                                    \
+				case ERANGE:                                                  \
+					/* reset the errno */                                     \
+					errno = 0;                                                \
+					MATHERR("Range error for math function " #name "(x)!");   \
+					break;                                                    \
+				default:                                                      \
+					/* reset the errno */                                     \
+					errno = 0;                                                \
+					MATHERR(                                                  \
+					    "Error occurred while executing math function " #name \
+					    "(x)!");                                              \
+					break;                                                    \
+			}                                                                 \
+		}                                                                     \
+		return ret;                                                           \
 	}
 
-#define NEXT_MATH_FN2(name)                                              \
-	Value next_math_##name(const Value *args, int numargs) {             \
-		(void)numargs;                                                   \
-		EXPECT(math, #name "(x, y)", 1, Number);                         \
-		EXPECT(math, #name "(x, y)", 2, Number);                         \
-		return Value(std::name(args[1].toNumber(), args[2].toNumber())); \
+#define NEXT_MATH_FN2(name)                                                    \
+	Value next_math_##name(const Value *args, int numargs) {                   \
+		(void)numargs;                                                         \
+		EXPECT(math, #name "(x, y)", 1, Number);                               \
+		EXPECT(math, #name "(x, y)", 2, Number);                               \
+		/* reset the errno */                                                  \
+		errno   = 0;                                                           \
+		Value v = Value(std::name(args[1].toNumber(), args[2].toNumber()));    \
+		if(errno) {                                                            \
+			switch(errno) {                                                    \
+				case EDOM:                                                     \
+					/* reset the errno */                                      \
+					errno = 0;                                                 \
+					MATHERR("Domain error for math function " #name            \
+					        "(x, y)!");                                        \
+					break;                                                     \
+				case ERANGE:                                                   \
+					/* reset the errno */                                      \
+					errno = 0;                                                 \
+					MATHERR("Range error for math function " #name "(x, y)!"); \
+					break;                                                     \
+				default:                                                       \
+					/* reset the errno */                                      \
+					errno = 0;                                                 \
+					MATHERR(                                                   \
+					    "Error occurred while executing math function " #name  \
+					    "(x, y)!");                                            \
+					break;                                                     \
+			}                                                                  \
+		}                                                                      \
+		return v;                                                              \
 	}
 
 #include "math_functions.h"

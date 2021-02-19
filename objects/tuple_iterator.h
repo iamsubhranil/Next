@@ -22,6 +22,7 @@ struct TupleIterator {
 	void        release() {}
 
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "tuple_iterator"; }
 #endif
 };

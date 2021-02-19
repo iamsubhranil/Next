@@ -4,6 +4,10 @@
 #include "../value.h"
 #include "array.h"
 
+#ifdef DEBUG
+struct WritableStream;
+#endif
+
 struct Bytecode {
 	GcObject obj;
 
@@ -85,17 +89,18 @@ struct Bytecode {
 	union union_Opcode_##type {                                   \
 		type   val;                                               \
 		Opcode codes[sizeof(type) / sizeof(Opcode)];              \
+		union_Opcode_##type(type x) : val(x) {} \
 	};                                                            \
 	int insert_##type(type x) {                                   \
 		add_constant(x);                                          \
-		union_Opcode_##type t = {.val = x};                       \
+		union_Opcode_##type t(x); \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
 			push_back(t.codes[i]);                                \
 		return size - (sizeof(type) / sizeof(Opcode));            \
 	}                                                             \
 	int insert_##type(int pos, type x) {                          \
 		add_constant(x);                                          \
-		union_Opcode_##type t = {.val = x};                       \
+		union_Opcode_##type t(x);                       \
 		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
 			bytecodes[pos + i] = t.codes[i];                      \
 		return pos;                                               \
@@ -144,15 +149,16 @@ struct Bytecode {
 	}
 
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(WritableStream &o);
 
-	static void disassemble_int(std::ostream &os, const Opcode *o);
-	static void disassemble_Value(std::ostream &os, const Opcode *o);
-	static void disassemble(std::ostream &os, const Opcode *o,
+	static void disassemble_int(WritableStream &os, const Opcode *o);
+	static void disassemble_Value(WritableStream &os, const Opcode *o);
+	static void disassemble(WritableStream &os, const Opcode *o,
 	                        size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "bytecode"; }
 #endif
 };

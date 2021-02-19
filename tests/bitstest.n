@@ -1,0 +1,67 @@
+fn expect(b, s) {
+    if(str(b) != s) {
+        throw error(fmt("Expected '{}', recevied '{}'!", s, str(b)))
+    }
+}
+
+pub fn test() {
+    expect(bits(3), "000")
+    expect(bits(3, 1), "111")
+    expect(bits.from(10), "1010")
+    b = bits(5)
+    b.set(1, 3)
+    expect(b, "01110")
+    b.set(0)
+    expect(b, "01111")
+    b.set()
+    expect(b, "11111")
+    b.reset(1, 3)
+    expect(b, "10001")
+    b.reset(0)
+    expect(b, "10000")
+    b.reset()
+    expect(b, "00000")
+    b.toggle(1, 3)
+    expect(b, "01110")
+    b.toggle(0)
+    expect(b, "01111")
+    b.toggle()
+    expect(b, "10000")
+    expect(b.bit(4), "1")
+    expect(b | bits.from(5), "10101")
+    expect(b & bits.from(64), "00000")
+    expect(b ^ b, "00000")
+    b.toggle()
+    expect(b >> 1, "0111")
+    expect(b << 1, "011110")
+    b.or_with(bits.from(5))
+    expect(b, "01111")
+    b.and_with(bits.from(5))
+    expect(b, "101")
+    b.xor_with(bits.from(5))
+    expect(b, "000")
+    b.toggle(1)
+    b.shift_right(1)
+    expect(b, "01")
+    b.shift_left(1)
+    expect(b, "010")
+    expect(b[0], "0")
+    expect(b[1], "1")
+    b[2] = 1
+    expect(b, "110")
+    c = [0, 1, 1]
+    i = 0
+    for(a in b) {
+        expect(a, str(c[i]))
+        i++
+    }
+    b = bits.from(512)
+    expect(b.to_bytes(), "(0, 2)")
+    expect(b.to_ints(), "(512)")
+    b.insert_byte(255)
+    expect(b.to_bytes(), "(0, 254, 3)")
+    expect(b.to_ints(), "(261632)")
+    expect(b == bits.from(261632), "true")
+    expect(b != bits.from(261632), "false")
+    ret true
+}

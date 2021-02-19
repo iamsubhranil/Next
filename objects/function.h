@@ -37,12 +37,6 @@ struct Function {
 	// in the function.
 	int arity;
 	enum Type { METHOD = 0, BUILTIN = 1 } mode;
-	// cannest is specifies that this is builtin which
-	// may trigger a nested call to the engine, so that
-	// certain checks have to be performed before and after the
-	// builtin call from the engine. If this is false, the engine
-	// is free to omit those checks.
-	bool cannest;
 	bool static_;
 	bool varArg; // denotes whether the function is a vararg
 	// in case of a vararg function, the arity stores
@@ -52,10 +46,8 @@ struct Function {
 	// fn test(... extra)       // arity -> 0
 
 	inline Function::Type getType() const { return mode; }
-
-	inline bool canNest() const { return cannest; }
-	inline bool isStatic() const { return static_; }
-	inline bool isVarArg() const { return varArg; }
+	inline bool           isStatic() const { return static_; }
+	inline bool           isVarArg() const { return varArg; }
 
 	// will traverse the whole exceptions array, and
 	// return an existing one if and only if it matches
@@ -96,10 +88,11 @@ struct Function {
 	}
 
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(WritableStream &o);
 #endif
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	void          depend() { GcObject::depend(name); }
+	const String *gc_repr() { return name; }
 #endif
 };

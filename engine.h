@@ -1,16 +1,11 @@
 #pragma once
 
 #include <cstdarg>
+#include <cstdint>
 
 #include "hashmap.h"
-#include "objects/array.h"
-#include "objects/class.h"
-#include "objects/string.h"
 
 class ExecutionEngine {
-
-	static char ExceptionMessage[1024];
-
 	static HashMap<String *, GcObject *> loadedModules;
 
 	// stack of unhandled exceptions
@@ -23,8 +18,8 @@ class ExecutionEngine {
 	static Fiber *currentFiber;
 
 	// max recursion limit for execute()
-	static size_t maxRecursionLimit;
-	static size_t currentRecursionDepth;
+	static std::size_t maxRecursionLimit;
+	static std::size_t currentRecursionDepth;
 
 	static void printRemainingExceptions();
 
@@ -82,9 +77,11 @@ class ExecutionEngine {
 	static Fiber *getCurrentFiber() { return currentFiber; }
 	static void   setCurrentFiber(Fiber *f) { currentFiber = f; }
 
-	static size_t getMaxRecursionLimit() { return maxRecursionLimit; }
-	static void   setMaxRecursionLimit(size_t n) { maxRecursionLimit = n; }
-	static size_t getCurrentRecursionDepth() { return currentRecursionDepth; }
+	static std::size_t getMaxRecursionLimit() { return maxRecursionLimit; }
+	static void setMaxRecursionLimit(std::size_t n) { maxRecursionLimit = n; }
+	static std::size_t getCurrentRecursionDepth() {
+		return currentRecursionDepth;
+	}
 
 	// returns false if the hash extraction fails
 	// if succeeds, assigns the pointer to the generated hash

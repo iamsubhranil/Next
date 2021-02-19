@@ -23,6 +23,7 @@ struct Tuple {
 	void release() const {}
 
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "tuple"; }
 #endif
 };

@@ -104,9 +104,3 @@ FormatSpec *FormatSpec::from(char align, char fill, char sign, bool isalt,
 
 	return fs;
 }
-
-#ifdef DEBUG_GC
-const char *FormatSpec::gc_repr() {
-	return "spec";
-}
-#endif

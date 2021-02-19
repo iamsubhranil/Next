@@ -44,9 +44,10 @@ struct FunctionCompilationContext {
 	}
 
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	void          depend() { GcObject::depend(f); }
+	const String *gc_repr() { return f->name; }
 #endif
 };

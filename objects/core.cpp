@@ -1,16 +1,17 @@
 #include "core.h"
 #include "../engine.h"
-#include "../format.h"
 #include "../import.h"
 #include "../loader.h"
+#include "../printer.h"
 #include "buffer.h"
 #include "bytecodecompilationctx.h"
 #include "classcompilationctx.h"
 #include "errors.h"
 #include "fiber.h"
+#include "file.h"
 #include "functioncompilationctx.h"
 #include "symtab.h"
-#include <iostream>
+
 #include <time.h>
 
 Value next_core_clock(const Value *args, int numargs) {
@@ -34,20 +35,17 @@ Value next_core_is_same_type(const Value *args, int numargs) {
 }
 
 Value next_core_print(const Value *args, int numargs) {
+	File2 f = File::create(Printer::StdOutStream);
 	for(int i = 1; i < numargs; i++) {
-		String *s = String::toString(args[i]);
-		// if we're unable to convert the value,
-		// bail
-		if(s == NULL)
+		if(args[i].write(f) == ValueNil)
 			return ValueNil;
-		std::cout << s->str();
 	}
 	return ValueNil;
 }
 
 Value next_core_println(const Value *args, int numargs) {
 	next_core_print(args, numargs);
-	std::cout << std::endl;
+	Printer::print("\n");
 	return ValueNil;
 }
 
@@ -61,10 +59,20 @@ Value next_core_printRepl(const Value *args, int numargs) {
 	return ValueNil;
 }
 
+Value next_core_str(const Value *args, int numargs) {
+	(void)numargs;
+	StringStream s;
+	File2        f = File::create(s);
+	if(args[1].write(f) == ValueNil)
+		return ValueNil;
+	return s.toString();
+}
+
 Value next_core_format(const Value *args, int numargs) {
+	EXPECT(fmt, "fmt(_)", 1, String);
 	// format is used everywhere in Next, and it does
 	// expect the very first argument to be a string
-	return Formatter::fmt(&args[1], numargs - 1);
+	return Formatter::valuefmt(&args[1], numargs - 1);
 }
 
 Value next_core_yield_0(const Value *args, int numargs) {
@@ -98,12 +106,9 @@ Value next_core_gc(const Value *args, int numargs) {
 Value next_core_input0(const Value *args, int numargs) {
 	(void)args;
 	(void)numargs;
-	Buffer<char> buffer;
-	char         c;
-	while((c = getchar()) != '\n' && c != 0) {
-		buffer.insert(c);
-	}
-	return String::from(buffer.data(), buffer.size());
+	Utf8Source s    = Utf8Source(NULL);
+	size_t     size = Printer::StdInStream.read(s);
+	return String::from(s, size);
 }
 
 Value next_core_exit(const Value *args, int numargs) {
@@ -134,9 +139,10 @@ Value next_core_resolve_partial_import(Value mod, const Value *parts,
 			mod = mod.getClass()->accessFn(
 			    mod.getClass(), mod, SymbolTable2::insert(parts[h].toString()));
 		} else {
-			String *s = Formatter::fmt("Unable to import '{}' from '{}'!",
-			                           parts[h], parts[h - 1])
-			                .toString();
+			String *s =
+			    Formatter::fmt<Value>("Unable to import '{}' from '{}'!",
+			                          parts[h], parts[h - 1])
+			        .toString();
 			if(s == NULL)
 				return ValueNil;
 			IMPORTERR(s);
@@ -263,30 +269,33 @@ Value next_core_import2(const Value *args, int numargs) {
 	Array2 parts = Array::create(1);
 	// insert the core as object to the array
 	parts->insert(args[0]);
-	const char *s    = imp->str();
-	int         size = imp->size;
-	for(int i = 0; i < size; i++) {
+	Utf8Source s    = imp->str();
+	int        size = imp->len();
+	for(int i = 0; i < size; i++, ++s) {
 		// the first character must be an alphabet
-		if(!isAlpha(s[i])) {
+		if(!isAlpha(*s)) {
 			IMPORTERR("Part of an import string must start with a valid "
 			          "alphabet or '_'!");
 		}
-		int j = i++;
-		while(i < size && s[i] != '.') {
-			if(!isAlphaNumeric(s[i])) {
+		const void *bak = s.source;
+		i++;
+		s++;
+		while(i < size && *s != '.') {
+			if(!isAlphaNumeric(*s)) {
 				IMPORTERR("Import string contains invalid character!");
 			}
 			i++;
+			s++;
 		}
 		// create a part, and insert
-		String *part = String::from(&s[j], i - j);
+		String *part = String::from(bak, (uintptr_t)s.source - (uintptr_t)bak);
 		parts->insert(part);
 		// if we're at the end, we're good
 		if(i == size)
 			break;
 		// if we stumbled upon a '.', there must
 		// be some more part to it
-		else if(s[i] == '.') {
+		else if(*s == '.') {
 			if(i == size - 1) {
 				IMPORTERR("Unexpected end of import string!");
 			}
@@ -297,10 +306,9 @@ Value next_core_import2(const Value *args, int numargs) {
 }
 
 void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
-                    bool isva = false, bool cannest = false) {
+                    bool isva = false) {
 	String2   s = String::from(n);
 	Function2 f = Function::from(s, arity, fn, isva);
-	f->cannest  = cannest;
 	GcObject::CoreContext->add_public_fn(s, f);
 }
 
@@ -308,22 +316,22 @@ void Core::addCoreFunctions() {
 	add_builtin_fn("clock()", 0, next_core_clock);
 	add_builtin_fn("type_of(_)", 1, next_core_type_of);
 	add_builtin_fn("is_same_type(_,_)", 2, next_core_is_same_type);
-	add_builtin_fn("yield()", 0, next_core_yield_0, false, true);  // can switch
-	add_builtin_fn("yield(_)", 1, next_core_yield_1, false, true); // can switch
+	add_builtin_fn("yield()", 0, next_core_yield_0, false);  // can switch
+	add_builtin_fn("yield(_)", 1, next_core_yield_1, false); // can switch
 	add_builtin_fn("gc()", 0, next_core_gc);
 	add_builtin_fn("input()", 0, next_core_input0);
 	add_builtin_fn("exit()", 0, next_core_exit);
 	add_builtin_fn("exit(_)", 1, next_core_exit1);
-	add_builtin_fn("input(_)", 1, next_core_input1, false, true); // can nest
-	add_builtin_fn(" import(_)", 1, next_core_import1, true,
-	               true); // is va, can nest
-	add_builtin_fn("import_file(_)", 1, next_core_import2, false,
-	               true); // can nest
+	add_builtin_fn("input(_)", 1, next_core_input1, false);   // can nest
+	add_builtin_fn(" import(_)", 1, next_core_import1, true); // is va, can nest
+	add_builtin_fn("import_file(_)", 1, next_core_import2, false); // can nest
 	// all of these can nest
-	add_builtin_fn("print()", 0, next_core_print, true, true);
-	add_builtin_fn("println()", 0, next_core_println, true, true);
-	add_builtin_fn("fmt(_)", 1, next_core_format, true, true);
-	add_builtin_fn(" printRepl(_)", 1, next_core_printRepl, true, true);
+	add_builtin_fn("print()", 0, next_core_print, true);
+	add_builtin_fn("println()", 0, next_core_println, true);
+	add_builtin_fn("fmt(_)", 1, next_core_format, true);
+	add_builtin_fn(" printRepl(_)", 1, next_core_printRepl, true);
+	add_builtin_fn("str(_)", 1,
+	               next_core_str); // calls str(_) or str() appropriately
 }
 
 void addClocksPerSec() {

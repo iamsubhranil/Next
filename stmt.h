@@ -63,6 +63,7 @@ struct Statement {
 	size_t      getSize(); // returns the actual allocated memory based on type
 	static void init();
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr();
 #endif
 };
@@ -263,14 +264,14 @@ struct BreakStatement : public Statement {
 #ifdef DEBUG
 struct StatementPrinter : public StatementVisitor {
   private:
-	std::ostream &    os;
+	WritableStream &  os;
 	ExpressionPrinter ep;
 	int               tabCount;
 	void              printTabs();
 	bool              onElse;
 
   public:
-	StatementPrinter(std::ostream &o)
+	StatementPrinter(WritableStream &o)
 	    : os(o), ep(o), tabCount(0), onElse(false) {}
 	void print(Statement *s);
 	void visit(IfStatement *ifs);

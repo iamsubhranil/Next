@@ -1,6 +1,6 @@
 #pragma once
 
-#include "display.h"
+#include "printer.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -83,7 +83,7 @@ struct MemoryManager {
 		static Pool *create(size_t blockSize, void *mem, size_t cls) {
 			Pool *p = (Pool *)std::malloc(sizeof(Pool));
 			if(p == nullptr) {
-				err("Unable to allocate a pool!");
+				Printer::Err("Unable to allocate a pool!");
 				exit(1);
 			}
 			// initialize the memory boundary one time
@@ -123,7 +123,7 @@ struct MemoryManager {
 		static Arena *create() {
 			Arena *a = (Arena *)std::malloc(sizeof(Arena));
 			if(a == nullptr) {
-				err("Unable to allocate an arena!");
+				Printer::Err("Unable to allocate an arena!");
 				exit(1);
 			}
 			a->availPools = poolsPerArena;
@@ -133,7 +133,7 @@ struct MemoryManager {
 			// allocate the memory
 			a->beginMemory = std::malloc(arenaSize);
 			if(a->beginMemory == nullptr) {
-				err("Unable to allocate memory for arena!");
+				Printer::Err("Unable to allocate memory for arena!");
 				exit(1);
 			}
 			a->endMemory     = (char *)a->beginMemory + arenaSize - 1;
@@ -309,7 +309,7 @@ struct MemoryManager {
 		}
 		void *m = std::malloc(size);
 		if(m == NULL) {
-			err("Memory unavailable for allocation!");
+			Printer::Err("Memory unavailable for allocation!");
 		}
 		return m;
 	}
@@ -325,7 +325,7 @@ struct MemoryManager {
 		if(oldb > blockEnd && newb > blockEnd) {
 			void *m = std::realloc(mem, newb);
 			if(newb > 0 && m == NULL) {
-				err("Realloc failed!");
+				Printer::Err("Realloc failed!");
 				exit(1);
 			}
 			return m;
@@ -345,7 +345,7 @@ struct MemoryManager {
 		}
 		void *m = std::calloc(num, bytes);
 		if(num * bytes > 0 && m == NULL) {
-			err("Calloc failed!");
+			Printer::Err("Calloc failed!");
 			exit(1);
 		}
 		return m;

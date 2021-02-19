@@ -20,13 +20,13 @@ struct Loader {
 	static Loader *create();
 
 	GcObject *compile_and_load(const String2 &fileName, bool execute = false);
-	GcObject *compile_and_load(const char *fileName, bool execute = false);
-	GcObject *compile_and_load_with_name(const char *fileName,
+	GcObject *compile_and_load(const void *fileName, bool execute = false);
+	GcObject *compile_and_load_with_name(const void *fileName,
 	                                     String *    moduleName,
 	                                     bool        execute = false);
 	// Compile and load in an already loaded module
 	// takes the module, and modifies it
-	Value compile_and_load_from_source(const char *             source,
+	Value compile_and_load_from_source(const void *             source,
 	                                   ClassCompilationContext *m, Value mod,
 	                                   bool execute = false);
 
@@ -43,6 +43,7 @@ struct Loader {
 	static void init();
 
 #ifdef DEBUG_GC
-	const char *gc_repr() { return "loader"; }
+	void             depend() {}
+	const Utf8Source gc_repr() { return Utf8Source("loader"); }
 #endif
 };

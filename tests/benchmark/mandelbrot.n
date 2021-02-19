@@ -59,7 +59,7 @@ fn main() {
     /*
     buffer = output[0]
     f = io.open("mandelbrot.ppm", "w")
-    f.write(fmt("P4\n{} {}\n", size, size))
+    f.fmt("P4\n{} {}\n", size, size)
     f.writebytes(buffer)
     f.close()
     */

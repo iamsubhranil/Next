@@ -52,12 +52,14 @@ class resolver {
 	}
 
 	friend std::ostream &operator<<(std::ostream &os, const resolver &r) {
-		os << "resolver[" << std::endl;
+		os << "resolver[" << "
+";
 		for(size_t i = 0; i < r.m_paths.size(); ++i) {
 			os << "  \"" << r.m_paths[i] << "\"";
 			if(i + 1 < r.m_paths.size())
 				os << ",";
-			os << std::endl;
+			os << "
+";
 		}
 		os << "]";
 		return os;

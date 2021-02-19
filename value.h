@@ -2,9 +2,9 @@
 
 #include "gc.h"
 #include "qnan.h"
-#include <cmath>
 #include <cstdint>
 #include <functional>
+#include <cmath>
 
 struct Statement;
 struct Expr;
@@ -49,29 +49,37 @@ struct Value {
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
 	};
-	constexpr Value(uint64_t encodedValue) : value(encodedValue) {}
 	constexpr Value() : value(QNAN_NIL) {}
 	constexpr Value(double d) : dvalue(d) {}
 	constexpr Value(int64_t l) : dvalue((double)l) {}
+	constexpr Value(size_t s) : Value((int64_t)s) {}
 	constexpr Value(int i) : dvalue((double)i) {}
-#ifdef DEBUG
-#define TYPE(r, n)                                                             \
-	Value(const r s) {                                                         \
-		encode##n(s);                                                          \
-		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
-		          << " (Magic : " << QNAN_##n << ")\n"                         \
-		          << std::dec;*/                                               \
+
+	constexpr static Value from(uint64_t encodedValue) {
+		Value v;
+		v.value = encodedValue;
+		return v;
 	}
-#define OBJTYPE(r)                                                             \
-	Value(const r *s) {                                                        \
-		encodeGcObject((GcObject *)s);                                         \
-		/*std::cout << std::hex << #n << " " << s << " encoded to : " << value \
-		          << " (Magic : " << QNAN_GcObject << ")\n"                    \
-		          << std::dec; */                                              \
-	}                                                                          \
-	Value(GcTempObject<r> &s) {                                                \
-		r *temp = s;                                                           \
-		encodeGcObject((GcObject *)temp);                                      \
+#ifdef DEBUG
+#define TYPE(r, n)                                                        \
+	Value(const r s) {                                                    \
+		encode##n(s);                                                     \
+		/*std::wcout << std::hex << #n << " " << s << " encoded to : " << \
+		   value                                                          \
+		          << " (Magic : " << QNAN_##n << ")\n"                    \
+		          << std::dec;*/                                          \
+	}
+#define OBJTYPE(r)                                                        \
+	Value(const r *s) {                                                   \
+		encodeGcObject((GcObject *)s);                                    \
+		/*std::wcout << std::hex << #n << " " << s << " encoded to : " << \
+		   value                                                          \
+		          << " (Magic : " << QNAN_GcObject << ")\n"               \
+		          << std::dec; */                                         \
+	}                                                                     \
+	Value(GcTempObject<r> &s) {                                           \
+		r *temp = s;                                                      \
+		encodeGcObject((GcObject *)temp);                                 \
 	}
 #else
 #define TYPE(r, n) \
@@ -158,6 +166,10 @@ struct Value {
 		}
 	}
 
+	// calls str(f) if the class has one, otherwise calls str()
+	// and writes to f
+	Value write(File *f) const;
+
 	static void init();
 	/*
 	    static const Value valueNil;
@@ -168,9 +180,9 @@ struct Value {
 	static String *ValueTypeStrings[];
 };
 
-constexpr Value ValueNil   = Value(QNAN_NIL);
-constexpr Value ValueTrue  = Value(QNAN_Boolean | 1);
-constexpr Value ValueFalse = Value(QNAN_Boolean);
+constexpr Value ValueNil   = Value::from(QNAN_NIL);
+constexpr Value ValueTrue  = Value::from(QNAN_Boolean | 1);
+constexpr Value ValueFalse = Value::from(QNAN_Boolean);
 constexpr Value ValueZero  = Value(0.0);
 
 namespace std {

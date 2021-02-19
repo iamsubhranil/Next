@@ -155,11 +155,12 @@ class ImportDeclaration : public DeclarationParselet {
 
 class ClassDeclaration : public DeclarationParselet {
   private:
-	Statement *                                    parseClassBody(Parser *p);
-	static HashMap<TokenType, StatementParselet *> classBodyParselets;
+	Statement *parseClassBody(Parser *p);
+	using ClassBodyParselet = HashMap<Token::Type, StatementParselet *>;
+	static ClassBodyParselet *classBodyParselets;
 
   public:
-	static void registerParselet(TokenType t, StatementParselet *parselet);
+	static void registerParselet(Token::Type t, StatementParselet *parselet);
 	Visibility  memberVisibility;
 	Statement * parse(Parser *p, Token t, Visibility vis);
 };
@@ -256,12 +257,12 @@ class MemberDeclaration : public StatementParselet {
 
 class Parser {
   private:
-	HashMap<TokenType, PrefixParselet *>      prefixParselets;
-	HashMap<TokenType, InfixParselet *>       infixParselets;
-	HashMap<TokenType, DeclarationParselet *> declarationParselets;
-	HashMap<TokenType, StatementParselet *>   statementParselets;
-	Scanner &                                 scanner;
-	CustomDeque<Token>                        tokenCache;
+	HashMap<Token::Type, PrefixParselet *>      prefixParselets;
+	HashMap<Token::Type, InfixParselet *>       infixParselets;
+	HashMap<Token::Type, DeclarationParselet *> declarationParselets;
+	HashMap<Token::Type, StatementParselet *>   statementParselets;
+	Scanner &                                   scanner;
+	CustomDeque<Token>                          tokenCache;
 
 	int getPrecedence();
 
@@ -269,13 +270,13 @@ class Parser {
   public:
 	Parser(Scanner &sc);
 	Token lookAhead(size_t distance);
-	bool  match(TokenType expected);
+	bool  match(Token::Type expected);
 	Token consume();
-	Token consume(TokenType expected, const char *message);
-	void  registerParselet(TokenType type, PrefixParselet *p);
-	void  registerParselet(TokenType type, InfixParselet *p);
-	void  registerParselet(TokenType type, DeclarationParselet *p);
-	void  registerParselet(TokenType type, StatementParselet *p);
+	Token consume(Token::Type expected, const char *message);
+	void  registerParselet(Token::Type type, PrefixParselet *p);
+	void  registerParselet(Token::Type type, InfixParselet *p);
+	void  registerParselet(Token::Type type, DeclarationParselet *p);
+	void  registerParselet(Token::Type type, StatementParselet *p);
 	// if silent is true, the parser won't trigger an
 	// exception if it cannot find a suitable expression
 	// to parse. it will bail out and return null
@@ -290,7 +291,7 @@ class Parser {
 	Statement * parseBlock(bool isStatic = false);
 	String *    buildNextString(Token &t);
 	InfixParselet *
-	getInfixParselet(TokenType type); // return an infixparselet for the token
+	getInfixParselet(Token::Type type); // return an infixparselet for the token
 	// release the parselets
 	void releaseAll();
 	void mark() { GcObject::mark(declarations); }

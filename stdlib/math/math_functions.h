@@ -39,7 +39,6 @@ NEXT_MATH_FN2(fmod)
 NEXT_MATH_FN2(remainder)
 NEXT_MATH_FN2(copysign)
 NEXT_MATH_FN2(nextafter)
-NEXT_MATH_FN2(nexttoward)
 
 #undef NEXT_MATH_FN1
 #undef NEXT_MATH_FN2

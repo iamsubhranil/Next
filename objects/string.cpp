@@ -1,6 +1,9 @@
 #include "string.h"
-#include "../engine.h"
+#include "../format.h"
+#include "../utf8.h"
+#include "class.h"
 #include "errors.h"
+#include "file.h"
 #include "set.h"
 #include "symtab.h"
 
@@ -31,15 +34,33 @@ Value next_string_append(const Value *args, int numargs) {
 Value next_string_at(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(string, "at(_)", 1, Integer);
-	String *s = args[0].toString();
-	int64_t i = args[1].toInteger();
-	if(-i > s->size || i >= s->size) {
-		IDXERR("Invalid string index", -s->size, s->size - 1, i);
+	String *s    = args[0].toString();
+	int64_t i    = args[1].toInteger();
+	int64_t size = s->len();
+	if(-i > size || i >= size) {
+		IDXERR("Invalid string index", size - 1, -size, i);
 	}
 	if(i < 0) {
-		i += s->size;
+		i += size;
 	}
-	return String::from(&(s->str()[i]));
+	Utf8Source source(s->strb());
+	source += i;
+	return String::from(source.source, utf8codepointsize(*source));
+}
+
+Value next_string_byte(const Value *args, int numargs) {
+	(void)numargs;
+	EXPECT(string, "byte(_)", 1, Integer);
+	String *s    = args[0].toString();
+	int64_t i    = args[1].toInteger();
+	int64_t size = s->size;
+	if(-i > size || i >= size) {
+		IDXERR("Invalid byte index", size - 1, -size, i);
+	}
+	if(i < 0) {
+		i += size;
+	}
+	return Value(((unsigned char *)s->strb())[i]);
 }
 
 Value next_string_contains(const Value *args, int numargs) {
@@ -60,41 +81,20 @@ Value next_string_contains(const Value *args, int numargs) {
 	// and the container string has
 	// enough space to contain the
 	// second one, so check
-	const char *bak          = source->str();
-	const char *c            = check->str();
-	bool        keepChecking = true;
-	while(keepChecking) {
-		keepChecking = false;
-		while(*bak && *bak != *c) bak++;
-		if(*bak == 0)
-			return ValueFalse;
-		// if the length of the remaining
-		// string is lesser than the
-		// string to check, return false
-		int rem = source->size - (bak - source->str());
-		if(rem < check->size)
-			return ValueFalse;
-		// check the remaining characters
-		while(*bak && *c) {
-			if(*bak != *c) {
-				// it may so happen that we guessed the
-				// beginning of the match wrong, so try again
-				keepChecking = true;
-				break;
-			}
-			bak++;
-			c++;
-		}
-	}
-	return ValueTrue;
+	return Value(utf8str(source->strb(), check->strb()) != NULL);
 }
 
 Value next_string_fmt(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, "fmt(_)", 1, FormatSpec);
-	String *    s = args[0].toString();
-	FormatSpec *f = args[1].toFormatSpec();
-	return String::fmt(f, s);
+	EXPECT(string, "fmt(_,_)", 1, FormatSpec);
+	EXPECT(string, "fmt(_,_)", 2, File);
+	const String *s  = args[0].toString();
+	FormatSpec *  f  = args[1].toFormatSpec();
+	File *        fs = args[2].toFile();
+	if(!fs->stream->isWritable()) {
+		return FileError::sete("Stream is not writable!");
+	}
+	return String::fmt(s, f, *fs->writableStream());
 }
 
 Value next_string_hash(const Value *args, int numargs) {
@@ -104,6 +104,11 @@ Value next_string_hash(const Value *args, int numargs) {
 }
 
 Value next_string_len(const Value *args, int numargs) {
+	(void)numargs;
+	return Value(args[0].toString()->len());
+}
+
+Value next_string_size(const Value *args, int numargs) {
 	(void)numargs;
 	String *s = args[0].toString();
 	return Value(s->size);
@@ -124,16 +129,19 @@ Value next_string_substr(const Value *args, int numargs) {
 	int64_t to   = args[2].toInteger();
 	String *s    = args[0].toString();
 	if(to >= s->size) {
-		IDXERR("Invalid 'to' index", 0, s->size - 1, to);
+		IDXERR("Invalid 'to' index", 0, (int64_t)s->size - 1, to);
 	}
 	if(from < 0) {
-		IDXERR("Invalid 'from' index", 0, s->size - 1, from);
+		IDXERR("Invalid 'from' index", 0, (int64_t)s->size - 1, from);
 	}
 	if(from > to) {
 		IDXERR("'from' index is greater than 'to' index", 0, to, from);
 	}
-
-	return String::from(&(s->str()[from]), to - from + 1);
+	Utf8Source source(s->strb());
+	source += from;
+	const void *start = source.source;
+	source += (to - from) + 1;
+	return String::from(start, (uintptr_t)start - (uintptr_t)source.source + 1);
 }
 
 Value next_string_str(const Value *args, int numargs) {
@@ -152,117 +160,50 @@ void String::init() {
 	StringClass->init("string", Class::BUILTIN);
 	StringClass->add_builtin_fn("append(_)", 1, &next_string_append, true);
 	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
-	StringClass->add_builtin_fn("fmt(_)", 1, &next_string_fmt);
+	StringClass->add_builtin_fn("fmt(_,_)", 2, &next_string_fmt);
 	StringClass->add_builtin_fn("hash()", 0, &next_string_hash);
-	StringClass->add_builtin_fn("len()", 0, &next_string_len);
+	StringClass->add_builtin_fn(
+	    "len()", 0, &next_string_len); // returns number of codepoints
+	StringClass->add_builtin_fn("size()", 0,
+	                            &next_string_size); // returns the size in bytes
 	StringClass->add_builtin_fn("lower()", 0, &next_string_lower);
-	StringClass->add_builtin_fn("substr(_,_)", 2, &next_string_substr);
+	StringClass->add_builtin_fn("substr(_,_)", 2,
+	                            &next_string_substr); // codepoint index
 	StringClass->add_builtin_fn("str()", 0, &next_string_str);
 	StringClass->add_builtin_fn("upper()", 0, &next_string_upper);
 	StringClass->add_builtin_fn("+(_)", 1, &next_string_append);
-	StringClass->add_builtin_fn("[](_)", 1, &next_string_at);
+	StringClass->add_builtin_fn("byte(_)", 1,
+	                            &next_string_byte); // accesses the ith byte
+	StringClass->add_builtin_fn("[](_)", 1,
+	                            &next_string_at); // accesses the ith codepoint
 }
 
-Value String::fmt(FormatSpec *f, const char *s, int size) {
-
-	if(f->type != 0 && f->type != 's') {
-		FERR("Invalid type specifier for string!");
-	}
-	if(f->sign) {
-		FERR("Sign is invalid for string!");
-	}
-	if(f->isalt) {
-		FERR("'#' is invalid for string!");
-	}
-	if(f->signaware) {
-		FERR("'0' is invalid for string!");
-	}
-	int width     = size;
-	int precision = size;
-	if(f->width != -1) {
-		width = f->width;
-	}
-	if(f->precision != -1 && f->precision < precision) {
-		precision = f->precision;
-	}
-	char fill  = ' ';
-	char align = '<';
-	if(f->fill)
-		fill = f->fill;
-	if(f->align)
-		align = f->align;
-	if(width > precision) {
-		// if numfill > 0, we have space to fill
-		int numfill = width - precision;
-		// allocate a buffer of width bytes
-		char *buf  = (char *)GcObject_malloc(width + 1);
-		buf[width] = 0;
-		// if the string is left aligned, first fill
-		// 'precision' characters from string, then fill
-		// the rest with 'fill'
-		if(align == '<') {
-			for(int i = 0; i < precision; i++) {
-				buf[i] = s[i];
-			}
-			for(int i = precision; i < width; i++) {
-				buf[i] = fill;
-			}
-		} else if(align == '>') {
-			// if the string is right aligned, first fill
-			// 'numfill' characters with fill, then fill
-			// the 'precision' characters with string
-			for(int i = 0; i < numfill; i++) {
-				buf[i] = fill;
-			}
-			for(int i = numfill; i < width; i++) {
-				buf[i] = s[i - numfill];
-			}
-		} else {
-			// centered
-			// fill numfill/2 characters from the left
-			// precision from the string
-			// the rest from the right
-			int j = 0;
-			int k = numfill / 2;
-			for(int i = 0; i < k; i++) {
-				buf[j++] = fill;
-			}
-			for(int i = 0; i < precision; i++) {
-				buf[j++] = s[i];
-			}
-			for(int i = k; i < numfill; i++) {
-				buf[j++] = fill;
-			}
-		}
-		String *ret = String::from(buf, width);
-		// free the buffer
-		GcObject_free(buf, width + 1);
-		return ret;
-	} else if(precision < size) {
-		return String::from(s, precision);
-	}
-
-	return String::from(s, size);
+Value String::fmt(const String *&s, FormatSpec *f, WritableStream &stream) {
+	return Format<Value, String *>().fmt(s, f, stream);
 }
 
-Value String::fmt(FormatSpec *f, const String2 &s) {
-	return fmt(f, s->str(), s->size);
+Value String::fmt(const String *&s, FormatSpec *f) {
+	StringStream st;
+	Value        v = String::fmt(s, f, st);
+	if(v != FormatHandler<Value>::Success())
+		return v;
+	return st.toString();
 }
 
-void String::transform_lower(char *dest, const char *source, size_t size) {
-	for(size_t i = 0; i < size; i++) {
-		dest[i] = tolower(source[i]);
-	}
+void String::transform_lower(void *dest, size_t size) {
+	(void)size;
+	utf8lwr(dest);
 }
 
-void String::transform_upper(char *dest, const char *source, size_t size) {
-	for(size_t i = 0; i < size; i++) {
-		dest[i] = toupper(source[i]);
-	}
+void String::transform_upper(void *dest, size_t size) {
+	(void)size;
+	utf8upr(dest);
 }
 
-int String::hash_string(const char *s, size_t size) {
+int String::hash_string(const void *sr, size_t size) {
 	int hash_ = 0;
+
+	const char *s = (const char *)sr;
 
 	for(size_t i = 0; i < size; ++i) {
 		hash_ += s[i];
@@ -278,11 +219,12 @@ int String::hash_string(const char *s, size_t size) {
 }
 
 // val MUST be mallocated elsewhere
-String *String::insert(char *val, size_t size, int hash_) {
+String *String::insert(const void *val, size_t size, int hash_) {
 	String *s = GcObject::allocString2(size);
-	memcpy(s->str(), val, size);
-	s->size  = size;
-	s->hash_ = hash_;
+	memcpy(s->strb(), val, size);
+	s->size   = size;
+	s->hash_  = hash_;
+	s->length = utf8len(val);
 	// track the string from now on
 	GcObject::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
@@ -290,21 +232,24 @@ String *String::insert(char *val, size_t size, int hash_) {
 }
 
 String *String::insert(String *s) {
+	// calculate the codepoint length
+	s->length = utf8len(s->strb());
 	// track the string from now on
 	GcObject::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
 	return s;
 }
 
-String *String::from(const char *v, size_t size, string_transform transform) {
+String *String::from(const void *v, size_t size, string_transform transform) {
 	// before allocating, first check whether the
 	// string already exists
 	String *val = GcObject::allocString2(size + 1);
 	val->size   = size;
-	transform(val->str(), v, size);
-	val->str()[size] = 0;
-	val->hash_       = hash_string(val->str(), size);
-	auto res         = string_set->hset.find(val);
+	memcpy(val->strb(), v, size);
+	transform(val->strb(), size);
+	val->terminate();
+	val->hash_ = hash_string(val->strb(), size);
+	auto res   = string_set->hset.find(val);
 	if(res != string_set->hset.end()) {
 		// free the duplicate string
 		GcObject::releaseString2(val);
@@ -315,15 +260,15 @@ String *String::from(const char *v, size_t size, string_transform transform) {
 	return insert(val);
 }
 
-String *String::from(const char *val, size_t size) {
+String *String::from(const void *val, size_t size) {
 	// before allocating, first check whether the
 	// string already exists
 	String *check = GcObject::allocString2(size + 1);
-	memcpy(check->str(), val, size);
-	check->str()[size] = 0;
-	check->size        = size;
-	check->hash_       = hash_string(check->str(), size);
-	auto res           = string_set->hset.find(check);
+	memcpy(check->strb(), val, size);
+	check->size = size;
+	check->terminate();
+	check->hash_ = hash_string(check->strb(), size);
+	auto res     = string_set->hset.find(check);
 	if(res != string_set->hset.end()) {
 		// free the duplicate string
 		GcObject::releaseString2(check);
@@ -334,33 +279,62 @@ String *String::from(const char *val, size_t size) {
 	return insert(check);
 }
 
-String *String::from(const char *val) {
-	return from(val, strlen(val));
-}
-
 String *String::from(const String2 &s, string_transform transform) {
-	return from(s->str(), s->size, transform);
+	return from(s->strb(), s->size, transform);
 }
 
-String *String::fromParser(const char *val) {
-	String *s = from(val);
-	keep_set->hset.insert(s);
-	return s;
+String *String::from(utf8_int32_t c) {
+	size_t  cps = utf8codepointsize(c);
+	String *s   = GcObject::allocString2(cps + 1);
+	utf8catcodepoint(s->strb(), c, cps);
+	s->size  = cps;
+	s->hash_ = hash_string(s->strb(), cps);
+	s->terminate();
+	auto res = string_set->hset.find(s);
+	if(res != string_set->hset.end()) {
+		GcObject::releaseString2(s);
+		return *res;
+	}
+	return insert(s);
+}
+
+String *String::append(const String2 &val1, utf8_int32_t val2) {
+	// first create the new string
+	size_t  size1 = val1->size;
+	size_t  size2 = utf8codepointsize(val2);
+	size_t  size  = size1 + size2;
+	String *ns    = GcObject::allocString2(size + 1);
+	ns->size      = size;
+	memcpy(ns->strb(), val1->strb(), size1);
+	utf8catcodepoint((char *)ns->strb() + size1, val2, size2);
+	ns->terminate();
+	ns->hash_ = hash_string(ns->strb(), size);
+	// now check whether this one already exists
+	auto res = string_set->hset.find(ns);
+	if(res != string_set->hset.end()) {
+		// already one exists
+		// free the duplicate string
+		GcObject::releaseString2(ns);
+		// return the old one back
+		return (*res);
+	}
+	// insert the new one
+	return insert(ns);
 }
 
 // we create a separate method for append because
 // we don't want two mallocs to take place, one
 // for append, and one for insert.
-String *String::append(const char *val1, size_t size1, const char *val2,
+String *String::append(const void *val1, size_t size1, const void *val2,
                        size_t size2) {
 	// first create the new string
 	size_t  size = size1 + size2;
 	String *ns   = GcObject::allocString2(size + 1);
 	ns->size     = size;
-	memcpy(ns->str(), val1, size1);
-	memcpy(ns->str() + size1, val2, size2);
-	ns->str()[size] = 0;
-	ns->hash_       = hash_string(ns->str(), size);
+	memcpy(ns->strb(), val1, size1);
+	memcpy((void *)((uintptr_t)ns->strb() + size1), val2, size2);
+	ns->terminate();
+	ns->hash_ = hash_string(ns->strb(), size);
 	// now check whether this one already exists
 	auto res = string_set->hset.find(ns);
 	if(res != string_set->hset.end()) {
@@ -375,92 +349,39 @@ String *String::append(const char *val1, size_t size1, const char *val2,
 }
 
 String *String::append(const char *val1, const char *val2) {
-	return append(val1, strlen(val1), val2, strlen(val2));
+	return append(val1, utf8size(val1), val2, utf8size(val2));
 }
 
 String *String::append(const char *val1, const String2 &val2) {
-	return append(val1, strlen(val1), val2->str(), val2->size);
+	return append(val1, utf8size(val1), val2->strb(), val2->size);
 }
 
 String *String::append(const String2 &val1, const char *val2) {
-	return append(val1->str(), val1->size, val2, strlen(val2));
+	return append(val1->strb(), val1->size, val2, utf8size(val2));
 }
 
 String *String::append(const String2 &s1, const String2 &s2) {
-	return append(s1->str(), s1->size, s2->str(), s2->size);
+	return append(s1->strb(), s1->size, s2->strb(), s2->size);
 }
 
-String *String::append(const String2 &s1, const char *val2, size_t size2) {
-	return append(s1->str(), s1->size, val2, size2);
+String *String::append(const String2 &s1, const void *val2, size_t size2) {
+	return append(s1->strb(), s1->size, val2, size2);
 }
 
-String2 objectOrModule(const Class *c) {
-	if(c->module == NULL) {
-		return String::append("<module '", c->name);
+Value String::toString(Value v, File *f) {
+	return v.write(f);
+}
+
+Value String::toStringValue(Value v, File *f) {
+	if(v.isString()) {
+		return f->writableStream()->write('"', v.toString(), '"');
+	} else {
+		return v.write(f);
 	}
-	return String::append("<object of '", c->name);
 }
 
-String *String::toString(Value v) {
-	while(true) {
-		if(v.isString())
-			return v.toString();
-		switch(v.getType()) {
-			case Value::VAL_NIL: return const_nil;
-			case Value::VAL_Boolean:
-				if(v.toBoolean())
-					return const_true_;
-				return const_false_;
-			default: break;
-		}
-		// run str() if it does have, otherwise return default string
-		const Class *c = v.getClass();
-		if(c->has_fn(SymbolTable2::const_sig_str)) {
-			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
-			if(!ExecutionEngine::execute(v, f, &v, true))
-				return nullptr;
-		} else {
-			String2 s = append(objectOrModule(c), "'>");
-			return s;
-		}
-	}
-	return v.toString();
-}
-
-String *performQuote(Value v, bool quote) {
-	if(quote) {
-		return String::append(String::append("\"", v.toString()), "\"");
-	}
-	return v.toString();
-}
-
-String *String::toStringValue(Value v) {
-	bool quote = true;
-	while(true) {
-		if(v.isString())
-			return performQuote(v, quote);
-		switch(v.getType()) {
-			case Value::VAL_NIL: return const_nil;
-			case Value::VAL_Boolean:
-				if(v.toBoolean())
-					return const_true_;
-				return const_false_;
-			default: break;
-		}
-		// only quote if the present object is not a builtin
-		// type, but the result of str() is still a string
-		quote = v.isGcObject() && v.isObject();
-		// run str() if it does have, otherwise return default string
-		const Class *c = v.getClass();
-		if(c->has_fn(SymbolTable2::const_sig_str)) {
-			Function *f = c->get_fn(SymbolTable2::const_sig_str).toFunction();
-			if(!ExecutionEngine::execute(v, f, &v, true))
-				return nullptr;
-		} else {
-			String2 s = append(objectOrModule(c), c->name);
-			return s;
-		}
-	}
+size_t Writer<String>::write(const String &val, WritableStream &stream) {
+	return stream.writebytes(val.strb(), val.size);
 }
 
 void String::release() {
@@ -496,8 +417,4 @@ void String::release_all() {
 void String::keep() {
 	if(keep_set)
 		keep_set->mark();
-}
-
-void String::unkeep(String *s) {
-	keep_set->hset.erase(s);
 }

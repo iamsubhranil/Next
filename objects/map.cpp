@@ -1,6 +1,9 @@
 #include "map.h"
 #include "../engine.h"
+#include "array.h"
 #include "boundmethod.h"
+#include "class.h"
+#include "file.h"
 #include "map_iterator.h"
 #include "symtab.h"
 
@@ -82,39 +85,36 @@ Value next_map_set(const Value *args, int numargs) {
 
 Value next_map_str(const Value *args, int numargs) {
 	(void)numargs;
-	String2 str = String::from("{");
-	Map *   a   = args[0].toMap();
+	EXPECT(map, "str(f)", 1, File);
+	File *f = args[1].toFile();
+	if(!f->stream->isWritable()) {
+		return FileError::sete("File is not writable!");
+	}
+	f->writableStream()->write("{");
+	Map *a = args[0].toMap();
 	if(a->vv.size() > 0) {
-		auto    v = a->vv.begin();
-		String2 s = String::toStringValue(v->first);
-		// if there was an error, return
-		if(s == nullptr)
+		auto v = a->vv.begin();
+		if(String::toStringValue(v->first, f) == ValueNil) {
 			return ValueNil;
-		s         = String::append(s, ": ");
-		String2 t = String::toStringValue(v->second);
-		// if there was an error, return
-		if(t == nullptr)
+		}
+		f->writableStream()->write(": ");
+		if(String::toStringValue(v->second, f) == ValueNil) {
 			return ValueNil;
-		s   = String::append(s, t);
-		str = String::append(str, s);
-		v   = std::next(v);
+		}
+		v = std::next(v);
 		for(auto e = a->vv.end(); v != e; v = std::next(v)) {
-			String2 s = String::toStringValue(v->first);
-			// if there was an error, return
-			if(s == nullptr)
+			f->writableStream()->write(", ");
+			if(String::toStringValue(v->first, f) == ValueNil) {
 				return ValueNil;
-			s         = String::append(s, ": ");
-			String2 t = String::toStringValue(v->second);
-			// if there was an error, return
-			if(t == nullptr)
+			}
+			f->writableStream()->write(": ");
+			if(String::toStringValue(v->second, f) == ValueNil) {
 				return ValueNil;
-			s   = String::append(s, t);
-			str = String::append(str, ", ");
-			str = String::append(str, s);
+			}
 		}
 	}
-	str = String::append(str, "}");
-	return str;
+	f->writableStream()->write("}");
+	return ValueTrue;
 }
 
 Value next_map_construct(const Value *args, int numargs) {
@@ -134,7 +134,7 @@ void Map::init() {
 	MapClass->add_builtin_fn("iterate()", 0, next_map_iterate);
 	MapClass->add_builtin_fn("keys()", 0, next_map_keys);
 	MapClass->add_builtin_fn("size()", 0, next_map_size);
-	MapClass->add_builtin_fn_nest("str()", 0, next_map_str);
+	MapClass->add_builtin_fn_nest("str(_)", 1, next_map_str);
 	MapClass->add_builtin_fn_nest("remove(_)", 1,
 	                              next_map_remove); // can nest
 	MapClass->add_builtin_fn("values()", 0, next_map_values);

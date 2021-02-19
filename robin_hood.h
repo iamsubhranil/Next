@@ -51,25 +51,25 @@
 
 // #define ROBIN_HOOD_LOG_ENABLED
 #ifdef ROBIN_HOOD_LOG_ENABLED
-#include <iostream>
+
 #define ROBIN_HOOD_LOG(x) \
-	std::cout << __FUNCTION__ << "@" << __LINE__ << ": " << x << std::endl
+	Printer::print(__FUNCTION__, "@", __LINE__, ": ", x, "\n")
 #else
 #define ROBIN_HOOD_LOG(x)
 #endif
 
 // #define ROBIN_HOOD_TRACE_ENABLED
 #ifdef ROBIN_HOOD_TRACE_ENABLED
-#include <iostream>
+
 #define ROBIN_HOOD_TRACE(x) \
-	std::cout << __FUNCTION__ << "@" << __LINE__ << ": " << x << std::endl
+	Printer::print(__FUNCTION__, "@", __LINE__, ": ", x, "\n")
 #else
 #define ROBIN_HOOD_TRACE(x)
 #endif
 
 // #define ROBIN_HOOD_COUNT_ENABLED
 #ifdef ROBIN_HOOD_COUNT_ENABLED
-#include <iostream>
+
 #define ROBIN_HOOD_COUNT(x) ++counts().x;
 namespace robin_hood {
 	struct Counts {
@@ -77,8 +77,10 @@ namespace robin_hood {
 		uint64_t shiftDown{};
 	};
 	inline std::ostream &operator<<(std::ostream &os, Counts const &c) {
-		return os << c.shiftUp << " shiftUp" << std::endl
-		          << c.shiftDown << " shiftDown" << std::endl;
+		return os << c.shiftUp << " shiftUp"
+		          << "\n"
+		          << c.shiftDown << " shiftDown"
+		          << "\n";
 	}
 
 	static Counts &counts() {
@@ -347,18 +349,18 @@ namespace robin_hood {
 		template <typename E, typename... Args>
 		ROBIN_HOOD(NOINLINE)
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
-		void doThrow(Args &&... args) {
+		void doThrow(Args &&...args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 			throw E(std::forward<Args>(args)...);
 		}
 #else
-		void doThrow(Args &&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
+		void doThrow(Args &&...ROBIN_HOOD_UNUSED(args) /*unused*/) {
 			abort();
 		}
 #endif
 
 		template <typename E, typename T, typename... Args>
-		T *assertNotNull(T *t, Args &&... args) {
+		T *assertNotNull(T *t, Args &&...args) {
 			if(ROBIN_HOOD_UNLIKELY(nullptr == t)) {
 				doThrow<E>(std::forward<Args>(args)...);
 			}
@@ -571,8 +573,9 @@ namespace robin_hood {
 				size_t const numElementsToAlloc = calcNumElementsToAlloc();
 
 				// alloc new memory: [prev |T, T, ... T]
-				// std::cout << (sizeof(T*) + ALIGNED_SIZE * numElementsToAlloc)
-				// << " bytes" << std::endl;
+				// std::wcout << (sizeof(T*) + ALIGNED_SIZE *
+				// numElementsToAlloc)
+				// << " bytes" << "\n";
 				size_t const bytes =
 				    ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
 				uint8_t *m = (uint8_t *)assertNotNull<std::bad_alloc>(
@@ -620,7 +623,8 @@ namespace robin_hood {
 
 			// we are not using the data, so just free it.
 			void addOrFree(void *ptr, size_t numBytes) noexcept {
-				// std::cout << ": " << __FILE__ << ":" << __LINE__ << " freeing
+				// std::wcout << ": " << __FILE__ << ":" << __LINE__ << "
+				// freeing
 				// "
 				//          << numBytes << "\n";
 				GcObject_free(ptr, numBytes);
@@ -1028,10 +1032,10 @@ namespace robin_hood {
 				explicit DataNode(
 				    M &ROBIN_HOOD_UNUSED(map) /*unused*/,
 				    Args
-				        &&... args) noexcept(noexcept(value_type(std::
-				                                                     forward<
-				                                                         Args>(
-				                                                         args)...)))
+				        &&...args) noexcept(noexcept(value_type(std::
+				                                                    forward<
+				                                                        Args>(
+				                                                        args)...)))
 				    : mData(std::forward<Args>(args)...) {}
 
 				DataNode(M &ROBIN_HOOD_UNUSED(map) /*unused*/,
@@ -1107,7 +1111,7 @@ namespace robin_hood {
 			template <typename M> class DataNode<M, false> {
 			  public:
 				template <typename... Args>
-				explicit DataNode(M &map, Args &&... args)
+				explicit DataNode(M &map, Args &&...args)
 				    : mData(map.allocate()) {
 					::new(static_cast<void *>(mData))
 					    value_type(std::forward<Args>(args)...);
@@ -1832,7 +1836,7 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> emplace(Args &&... args) {
+			std::pair<iterator, bool> emplace(Args &&...args) {
 				ROBIN_HOOD_TRACE(this);
 				Node n{*this, std::forward<Args>(args)...};
 				auto r = doInsert(std::move(n));
@@ -2191,10 +2195,10 @@ namespace robin_hood {
 				auto const numElementsWithBuffer =
 				    calcNumElementsWithBuffer(max_elements);
 
-				// std::cout << ": " << __FILE__ << ":" << __LINE__
+				// std::wcout << ": " << __FILE__ << ":" << __LINE__
 				//          << " callocated "
 				//          << calcNumBytesTotal(numElementsWithBuffer)
-				//          << " bytes" << std::endl;
+				//          << " bytes" << "\n";
 				// calloc also zeroes everything
 				mKeyVals = reinterpret_cast<Node *>(
 				    detail::assertNotNull<std::bad_alloc>(GcObject_calloc(
@@ -2415,7 +2419,7 @@ namespace robin_hood {
 				// [-Werror=free-nonheap-object]
 				if(mKeyVals != reinterpret_cast<Node *>(&mMask)) {
 
-					// std::cout << ": " << __FILE__ << ":" << __LINE__
+					// std::wcout << ": " << __FILE__ << ":" << __LINE__
 					//          << " freeing "
 					//          << calcNumBytesTotal(
 					//                 calcNumElementsWithBuffer(mMask + 1));

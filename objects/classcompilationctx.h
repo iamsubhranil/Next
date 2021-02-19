@@ -105,9 +105,10 @@ struct ClassCompilationContext {
 		GcObject_free(members, sizeof(MemberMap));
 	}
 #ifdef DEBUG
-	void disassemble(std::ostream &o);
+	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	const char *gc_repr() { return klass->name->str(); }
+	void          depend() { GcObject::depend(klass); }
+	const String *gc_repr() { return klass->name; }
 #endif
 };

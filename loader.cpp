@@ -1,103 +1,101 @@
 #include "loader.h"
-#include "display.h"
 #include "engine.h"
 #include "objects/fiber.h"
 #include "objects/functioncompilationctx.h"
 #include "parser.h"
-#include <iostream>
+#include "printer.h"
+#include <stdexcept>
 
-using namespace std;
-
-static void prefix(Parser *p, TokenType op, int prec) {
+static void prefix(Parser *p, Token::Type op, int prec) {
 	p->registerParselet(op, new PrefixOperatorParselet(prec));
 }
 
-static void postfix(Parser *p, TokenType op, int prec) {
+static void postfix(Parser *p, Token::Type op, int prec) {
 	p->registerParselet(op, new PostfixOperatorParselet(prec));
 }
 
-static void infixLeft(Parser *p, TokenType t, int prec) {
+static void infixLeft(Parser *p, Token::Type t, int prec) {
 	p->registerParselet(t, new BinaryOperatorParselet(prec, false));
 }
 
 void registerParselets(Parser *p) {
-	p->registerParselet(TOKEN_IDENTIFIER, new NameParselet());
-	p->registerParselet(TOKEN_NUMBER, new LiteralParselet());
-	p->registerParselet(TOKEN_HEX, new LiteralParselet());
-	p->registerParselet(TOKEN_OCT, new LiteralParselet());
-	p->registerParselet(TOKEN_BIN, new LiteralParselet());
-	p->registerParselet(TOKEN_STRING, new LiteralParselet());
-	p->registerParselet(TOKEN_nil, new LiteralParselet());
-	p->registerParselet(TOKEN_true, new LiteralParselet());
-	p->registerParselet(TOKEN_false, new LiteralParselet());
-	p->registerParselet(TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
-	p->registerParselet(TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
-	p->registerParselet(TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_IDENTIFIER, new NameParselet());
+	p->registerParselet(Token::Type::TOKEN_NUMBER, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_HEX, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_OCT, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_BIN, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_STRING, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_nil, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_true, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_false, new LiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
 
-	p->registerParselet(TOKEN_this, new ThisOrSuperParselet());
-	p->registerParselet(TOKEN_super, new ThisOrSuperParselet());
+	p->registerParselet(Token::Type::TOKEN_this, new ThisOrSuperParselet());
+	p->registerParselet(Token::Type::TOKEN_super, new ThisOrSuperParselet());
 
-	p->registerParselet(TOKEN_EQUAL, new AssignParselet());
-	p->registerParselet(TOKEN_LEFT_PAREN, new GroupParselet());
-	p->registerParselet(TOKEN_LEFT_PAREN, new CallParselet());
-	p->registerParselet(TOKEN_DOT, new ReferenceParselet());
-	p->registerParselet(TOKEN_LEFT_SQUARE, new SubscriptParselet());
+	p->registerParselet(Token::Type::TOKEN_EQUAL, new AssignParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_PAREN, new GroupParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_PAREN, new CallParselet());
+	p->registerParselet(Token::Type::TOKEN_DOT, new ReferenceParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new SubscriptParselet());
 
-	prefix(p, TOKEN_BANG, Precedence::PREFIX);
-	prefix(p, TOKEN_PLUS, Precedence::PREFIX);
-	prefix(p, TOKEN_MINUS, Precedence::PREFIX);
-	prefix(p, TOKEN_TILDE, Precedence::PREFIX);
-	prefix(p, TOKEN_PLUS_PLUS, Precedence::PREFIX);
-	prefix(p, TOKEN_MINUS_MINUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_BANG, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_PLUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_MINUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_TILDE, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_PLUS_PLUS, Precedence::PREFIX);
+	prefix(p, Token::Type::TOKEN_MINUS_MINUS, Precedence::PREFIX);
 
-	postfix(p, TOKEN_PLUS_PLUS, Precedence::POSTFIX);
-	postfix(p, TOKEN_MINUS_MINUS, Precedence::POSTFIX);
+	postfix(p, Token::Type::TOKEN_PLUS_PLUS, Precedence::POSTFIX);
+	postfix(p, Token::Type::TOKEN_MINUS_MINUS, Precedence::POSTFIX);
 
-	infixLeft(p, TOKEN_or, Precedence::OR);
-	infixLeft(p, TOKEN_and, Precedence::AND);
-	infixLeft(p, TOKEN_EQUAL_EQUAL, Precedence::EQUALITY);
-	infixLeft(p, TOKEN_BANG_EQUAL, Precedence::EQUALITY);
-	infixLeft(p, TOKEN_GREATER, Precedence::COMPARISON);
-	infixLeft(p, TOKEN_GREATER_EQUAL, Precedence::COMPARISON);
-	infixLeft(p, TOKEN_LESS, Precedence::COMPARISON);
-	infixLeft(p, TOKEN_LESS_EQUAL, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_or, Precedence::OR);
+	infixLeft(p, Token::Type::TOKEN_and, Precedence::AND);
+	infixLeft(p, Token::Type::TOKEN_EQUAL_EQUAL, Precedence::EQUALITY);
+	infixLeft(p, Token::Type::TOKEN_BANG_EQUAL, Precedence::EQUALITY);
+	infixLeft(p, Token::Type::TOKEN_GREATER, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_GREATER_EQUAL, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_LESS, Precedence::COMPARISON);
+	infixLeft(p, Token::Type::TOKEN_LESS_EQUAL, Precedence::COMPARISON);
 
-	infixLeft(p, TOKEN_PLUS, Precedence::SUM);
-	infixLeft(p, TOKEN_MINUS, Precedence::SUM);
-	infixLeft(p, TOKEN_in, Precedence::SUM);
-	infixLeft(p, TOKEN_STAR, Precedence::PRODUCT);
-	infixLeft(p, TOKEN_SLASH, Precedence::PRODUCT);
+	infixLeft(p, Token::Type::TOKEN_PLUS, Precedence::SUM);
+	infixLeft(p, Token::Type::TOKEN_MINUS, Precedence::SUM);
+	infixLeft(p, Token::Type::TOKEN_in, Precedence::SUM);
+	infixLeft(p, Token::Type::TOKEN_STAR, Precedence::PRODUCT);
+	infixLeft(p, Token::Type::TOKEN_SLASH, Precedence::PRODUCT);
 
-	infixLeft(p, TOKEN_AMPERSAND, Precedence::BITWISE_AND);
-	infixLeft(p, TOKEN_PIPE, Precedence::BITWISE_OR);
-	infixLeft(p, TOKEN_CARET, Precedence::BITWISE_XOR);
-	infixLeft(p, TOKEN_GREATER_GREATER, Precedence::BITWISE_SHIFT);
-	infixLeft(p, TOKEN_LESS_LESS, Precedence::BITWISE_SHIFT);
+	infixLeft(p, Token::Type::TOKEN_AMPERSAND, Precedence::BITWISE_AND);
+	infixLeft(p, Token::Type::TOKEN_PIPE, Precedence::BITWISE_OR);
+	infixLeft(p, Token::Type::TOKEN_CARET, Precedence::BITWISE_XOR);
+	infixLeft(p, Token::Type::TOKEN_GREATER_GREATER, Precedence::BITWISE_SHIFT);
+	infixLeft(p, Token::Type::TOKEN_LESS_LESS, Precedence::BITWISE_SHIFT);
 
 	// Top level declarations
-	p->registerParselet(TOKEN_fn, new FnDeclaration());
-	p->registerParselet(TOKEN_import, new ImportDeclaration());
-	p->registerParselet(TOKEN_IDENTIFIER, new VarDeclaration());
-	p->registerParselet(TOKEN_class, new ClassDeclaration());
+	p->registerParselet(Token::Type::TOKEN_fn, new FnDeclaration());
+	p->registerParselet(Token::Type::TOKEN_import, new ImportDeclaration());
+	p->registerParselet(Token::Type::TOKEN_IDENTIFIER, new VarDeclaration());
+	p->registerParselet(Token::Type::TOKEN_class, new ClassDeclaration());
 
 	// Statements
-	p->registerParselet(TOKEN_if, new IfStatementParselet());
-	p->registerParselet(TOKEN_while, new WhileStatementParselet());
-	p->registerParselet(TOKEN_do, new DoStatementParselet());
-	p->registerParselet(TOKEN_try, new TryStatementParselet());
-	p->registerParselet(TOKEN_throw, new ThrowStatementParselet());
-	p->registerParselet(TOKEN_ret, new ReturnStatementParselet());
-	p->registerParselet(TOKEN_for, new ForStatementParselet());
-	p->registerParselet(TOKEN_break, new BreakStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_if, new IfStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_while, new WhileStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_do, new DoStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_try, new TryStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_throw, new ThrowStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_ret, new ReturnStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_for, new ForStatementParselet());
+	p->registerParselet(Token::Type::TOKEN_break, new BreakStatementParselet());
 
 	// intraclass declarations
-	ClassDeclaration::registerParselet(TOKEN_new, new ConstructorDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_pub, new VisibilityDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_priv, new VisibilityDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_static, new StaticDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_fn, new MethodDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_op, new OpMethodDeclaration());
-	ClassDeclaration::registerParselet(TOKEN_IDENTIFIER,
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_new, new ConstructorDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_pub, new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_priv, new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_static, new StaticDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_fn, new MethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_op, new OpMethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_IDENTIFIER,
 	                                   new MemberDeclaration());
 }
 
@@ -114,37 +112,47 @@ void Loader::init() {
 }
 
 GcObject *Loader::compile_and_load(const String2 &fileName, bool execute) {
-	return compile_and_load(fileName->str(), execute);
+	return compile_and_load(fileName->strb(), execute);
 }
 
-String *generateModuleName(const char *inp) {
-	size_t len  = strlen(inp);
-	int    last = len - 1;
+String *generateModuleName(const Utf8Source inp) {
+	size_t       len      = inp.len();
+	int          last     = len - 1;
+	utf8_int32_t lastchar = inp + last;
 	// find the '.'
-	while(inp[last] != '.' && inp[last] != '\0') last--;
-	if(inp[last] == '\0')
-		return String::from(inp);
+	while(lastchar != '.' && lastchar != '\0') {
+		lastchar = inp + (--last);
+	}
+	if((inp + last) == '\0')
+		return String::from(inp.source, utf8size(inp.source));
 	// escape the '.'
 	--last;
+	Utf8Source a = inp;
+	a += last;
 	int first = last;
-	while(inp[first] != '\\' && inp[first] != '/' && inp[first] != '\0')
-		--first;
-	if(inp[first] != '\0')
+	lastchar  = inp + first;
+	while(lastchar != '\\' && lastchar != '/' && lastchar != '\0') {
+		lastchar = inp + (--first);
+	}
+	if(lastchar != '\0')
 		first++;
-	return String::from(&inp[first], (last - first) + 1);
+	Utf8Source s = inp;
+	s += first;
+
+	return String::from(s.source, (a - s) + 1);
 }
 
-GcObject *Loader::compile_and_load(const char *fileName, bool execute) {
-	String2 modName = generateModuleName(fileName);
+GcObject *Loader::compile_and_load(const void *fileName, bool execute) {
+	String2 modName = generateModuleName(Utf8Source(fileName));
 	return compile_and_load_with_name(fileName, modName, execute);
 }
 
-GcObject *Loader::compile_and_load_with_name(const char *fileName,
+GcObject *Loader::compile_and_load_with_name(const void *fileName,
                                              String *modName, bool execute) {
 	String2   fname = String::from(fileName);
 	GcObject *ret   = NULL;
 #ifdef DEBUG
-	StatementPrinter sp(cout);
+	StatementPrinter sp(Printer::StdOutStream);
 #endif
 	if(ExecutionEngine::isModuleRegistered(fname))
 		return ExecutionEngine::getRegisteredModule(fname);
@@ -159,9 +167,9 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 #ifdef DEBUG
 		for(int i = 0; i < decls->size; i++) {
 			sp.print(decls->values[i].toStatement());
-			cout << "\n";
+			Printer::print("\n");
 		}
-		cout << "Parsed successfully!" << endl;
+		Printer::println("Parsed successfully!");
 #endif
 		ClassCompilationContext2 ctx =
 		    ClassCompilationContext::create(NULL, modName);
@@ -176,23 +184,23 @@ GcObject *Loader::compile_and_load_with_name(const char *fileName,
 			ret = (GcObject *)ctx->get_class();
 		}
 	} catch(ParseException &pe) {
-		if(pe.getToken().source != NULL) {
-			lnerr(pe.what(), pe.getToken());
+		if(pe.getToken().source.source != NULL) {
+			Printer::LnErr(pe.getToken(), pe.what());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
-	} catch(runtime_error &r) {
-		std::cout << r.what() << "\n";
+	} catch(std::runtime_error &r) {
+		Printer::println(r.what());
 	}
 	return ret;
 }
 
-Value Loader::compile_and_load_from_source(const char *             source,
+Value Loader::compile_and_load_from_source(const void *             source,
                                            ClassCompilationContext *modulectx,
                                            Value mod, bool execute) {
 #ifdef DEBUG
-	StatementPrinter sp(cout);
+	StatementPrinter sp(Printer::StdOutStream);
 #endif
-	Scanner s(source, modulectx->get_class()->name->str());
+	Scanner s(source, modulectx->get_class()->name->strb());
 	replModule = mod;
 	try {
 		::new(&parser) Parser(s);
@@ -204,7 +212,7 @@ Value Loader::compile_and_load_from_source(const char *             source,
 #ifdef DEBUG
 		for(int i = 0; i < decls->size; i++) {
 			sp.print(decls->values[i].toStatement());
-			cout << "\n";
+			Printer::print("\n");
 		}
 #endif
 		int slots = modulectx->get_class()->numSlots;
@@ -232,12 +240,12 @@ Value Loader::compile_and_load_from_source(const char *             source,
 			    mod, modulectx->get_default_constructor()->f, &mod, true);
 		}
 	} catch(ParseException &pe) {
-		if(pe.getToken().source != NULL) {
-			lnerr(pe.what(), pe.getToken());
+		if(pe.getToken().source.source != NULL) {
+			Printer::LnErr(pe.getToken(), pe.what());
 			pe.getToken().highlight(false, "", Token::ERROR);
 		}
-	} catch(runtime_error &r) {
-		cout << r.what() << endl;
+	} catch(std::runtime_error &r) {
+		Printer::println(r.what());
 	}
 	return mod;
 }

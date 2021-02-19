@@ -26,6 +26,7 @@ struct MapIterator {
 	void                release() {}
 
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "map_iterator"; }
 #endif
 };

@@ -3,8 +3,6 @@
 #include "../value.h"
 
 struct Function;
-struct Class;
-struct Object;
 
 struct BoundMethod {
 	GcObject  ob;
@@ -35,6 +33,7 @@ struct BoundMethod {
 	void release() {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	void          depend() { GcObject::depend(func); }
+	const String *gc_repr();
 #endif
 };

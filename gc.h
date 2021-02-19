@@ -1,13 +1,33 @@
 #pragma once
-#include <cstddef>
+
+#define _USE_MATH_DEFINES
+
+#include <cstddef> // android somehow doesn't have size_t in stdint
+#include <cstdint>
+
+#ifndef DEBUG
+//#define DEBUG
+#endif
+#ifndef DEBUG_GC
+//#define DEBUG_GC
+#endif
 
 #if defined(DEBUG_GC) || defined(DEBUG_GC_CLEANUP)
 #define GC_PRINT_CLEANUP
 #endif
 
-#if defined(DEBUG) || defined(GC_PRINT_CLEANUP)
-#include "display.h"
-#include <iostream>
+#ifndef GC_NUM_GENERATIONS
+// number of GC generations
+#define GC_NUM_GENERATIONS 4
+#endif
+#ifndef GC_NEXT_GEN_THRESHOLD
+// number of times a child generation has to be gc'ed
+// before a parent generation is considered for a gc
+#define GC_NEXT_GEN_THRESHOLD 2
+#endif
+
+#if defined(_MSC_VER)
+#define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
 using size_t = std::size_t;
@@ -31,11 +51,27 @@ template <typename T, size_t n> struct CustomArray;
 
 struct GcObject {
 	const Class *klass;
-	enum GcObjectType {
+	enum GcObjectType : std::uint8_t {
 		OBJ_NONE,
 #define OBJTYPE(n) OBJ_##n,
 #include "objecttype.h"
 	} objType;
+
+#ifdef DEBUG_GC
+	// A pointer to the index of the generation that
+	// this object is stored into.
+	// calling depend() will cause this location
+	// to be set to NULL, and generations[0]->insert(this);
+	// to ensure that this object is garbage collected after
+	// the one that called the depend.
+	size_t gen, idx;
+
+	void depend_();
+
+#define OBJTYPE(x) \
+	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
+#include "objecttype.h"
+#endif
 
 	// basic type check
 #define OBJTYPE(n) \
@@ -54,7 +90,12 @@ struct GcObject {
 	static size_t max_gc;
 	// an array to track the allocated
 	// objects
-	static CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP> *tracker;
+	using Generation = CustomArray<GcObject *, GC_MIN_TRACKED_OBJECTS_CAP>;
+	static Generation *generations[GC_NUM_GENERATIONS];
+	// number of times gc is performed, resets whenever
+	// it is equal to GC_NUM_GENERATIONS * GC_NEXT_GENERATION_THRESHOLD
+	static size_t gc_count;
+	// inserts at generations[0]
 	static void tracker_insert(GcObject *g);
 
 	// replacement for manual allocations
@@ -66,34 +107,32 @@ struct GcObject {
 
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC
-#define gc_msg_a(m)                                                            \
-	std::cout << "[GC] TA: " << GcObject::totalAllocated << " "                \
-	          << ANSI_COLOR_GREEN << m << ": " << ANSI_COLOR_RESET << __FILE__ \
-	          << ":" << __LINE__ << ": "
-#define GcObject_malloc(x) \
-	(gc_msg_a("malloc") << x << "\n", GcObject::malloc(x))
+	static void  gc_print(const char *file, int line, const char *message);
+	static void *malloc_print(const char *file, int line, size_t bytes);
+	static void *calloc_print(const char *file, int line, size_t num,
+	                          size_t size);
+	static void *realloc_print(const char *file, int line, void *mem,
+	                           size_t oldb, size_t newb);
+	static void free_print(const char *file, int line, void *mem, size_t bytes);
+#define GcObject_malloc(x) GcObject::malloc_print(__FILE__, __LINE__, (x))
 #define GcObject_calloc(x, y) \
-	(gc_msg_a("calloc") << x << ", " << y << "\n", GcObject::calloc((x), (y)))
-#define GcObject_realloc(x, y, z)                   \
-	(gc_msg_a("realloc") << y << ", " << z << "\n", \
-	 GcObject::realloc((x), (y), (z)))
-#define GcObject_free(x, y)            \
-	{                                  \
-		gc_msg_a("free") << y << "\n"; \
-		GcObject::free((x), (y));      \
-	}
+	GcObject::calloc_print(__FILE__, __LINE__, (x), (y))
+#define GcObject_realloc(x, y, z) \
+	GcObject::realloc_print(__FILE__, __LINE__, (x), (y), (z))
+#define GcObject_free(x, y) \
+	{ GcObject::free_print(__FILE__, __LINE__, (x), (y)); }
 	// macros to warn against direct malloc/free calls
 /*#define malloc(x)                                                           \
-	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
+	(std::wcout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
 	 ::malloc((x)))
 #define calloc(x, y)                                                        \
-	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct calloc!\n", \
+	(std::wcout << __FILE__ << ":" << __LINE__ << " Using direct calloc!\n", \
 	 ::calloc((x), (y)))
 #define realloc(x, y)                                                        \
-	(std::cout << __FILE__ << ":" << __LINE__ << " Using direct realloc!\n", \
+	(std::wcout << __FILE__ << ":" << __LINE__ << " Using direct realloc!\n", \
 	 ::realloc((x), (y)))
 #define free(x)                                                          \
-	std::cout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
+	std::wcout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
 	::free((x));*/
 #else
 #define GcObject_malloc(x) GcObject::malloc(x)
@@ -122,7 +161,11 @@ struct GcObject {
 	static void release(GcObject *obj);
 	static void release(Value v);
 	// clear
-	static void sweep();
+	// sweep this particular generation
+	// unmarkedClassesHead holds the unmarked classes in a linked
+	// list to ensure that all of their objects have been released
+	// before they are released.
+	static void sweep(size_t genid, Class **unmarkedClassesHead);
 
 	// core gc method
 	// the flag forces a gc even if
@@ -162,9 +205,6 @@ struct GcObject {
 	static ClassCompilationContext *CoreContext;
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
-
-	// returns a place holder gcobject
-	static GcObject DefaultGcObject;
 
 	// track temporary objects
 	static Set *temporaryObjects;

@@ -62,6 +62,7 @@ struct Expression {
 	void        release() {}
 	static void init();
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr();
 #endif
 	friend class ExpressionVisitor;
@@ -230,12 +231,13 @@ struct MethodReferenceExpression : public Expression {
 };
 
 #ifdef DEBUG
+struct WritableStream;
 struct ExpressionPrinter : public ExpressionVisitor {
   private:
-	std::ostream &out;
+	WritableStream &os;
 
   public:
-	ExpressionPrinter(std::ostream &os);
+	ExpressionPrinter(WritableStream &os);
 	void print(Expression *e);
 	void visit(ArrayLiteralExpression *al);
 	void visit(AssignExpression *as);

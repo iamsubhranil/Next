@@ -25,7 +25,7 @@ template <typename T> class Buffer {
 		if(res > cap) {
 			size_t ns = res + 1;
 			if(!conservative)
-				ns = Utils::powerOf2Ceil(res);
+				ns = Utils::nextAllocationSize(cap, res);
 			buf = (T *)GcObject_realloc(buf, sizeof(T) * cap, sizeof(T) * ns);
 			cap = ns;
 		}

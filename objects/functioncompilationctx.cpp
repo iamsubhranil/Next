@@ -43,7 +43,7 @@ int FunctionCompilationContext::create_slot(String *s, int scopeID) {
 		slotmap[0][s].scopeID = scopeID;
 		return (*slotmap)[s].slot;
 	}
-	slotmap[0][s] = (VarState){slotCount++, scopeID};
+	slotmap[0][s] = VarState{slotCount++, scopeID};
 	bcc->code->insertSlot();
 	return slotCount - 1;
 }
@@ -57,18 +57,13 @@ int FunctionCompilationContext::get_slot(String *s) {
 }
 
 #ifdef DEBUG
-void FunctionCompilationContext::disassemble(std::ostream &o) {
-	o << "Slots: ";
+#include "../format.h"
+void FunctionCompilationContext::disassemble(WritableStream &os) {
+	os.write("Slots: ");
 	for(auto &a : slotmap[0]) {
-		o << a.first->str() << "(" << a.second.slot << "), ";
+		os.write(a.first->str(), "(", a.second.slot, "), ");
 	}
-	o << "\n";
-	f->disassemble(o);
-}
-#endif
-
-#ifdef DEBUG_GC
-const char *FunctionCompilationContext::gc_repr() {
-	return f->name->str();
+	os.write("\n");
+	f->disassemble(os);
 }
 #endif

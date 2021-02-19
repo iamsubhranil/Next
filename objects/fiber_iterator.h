@@ -15,6 +15,7 @@ struct FiberIterator {
 	void        mark() { GcObject::mark(fiber); }
 	void        release() {}
 #ifdef DEBUG_GC
+	void        depend() {}
 	const char *gc_repr() { return "fiber_iterator"; }
 #endif
 };

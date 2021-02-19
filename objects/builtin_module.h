@@ -32,6 +32,7 @@ struct BuiltinModule {
 	void        mark() { GcObject::mark(ctx); }
 	void        release() {}
 #ifdef DEBUG_GC
-	const char *gc_repr() { return "builtin_module"; }
+	void             depend() {}
+	const Utf8Source gc_repr() { return Utf8Source("builtin_module"); }
 #endif
 };

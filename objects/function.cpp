@@ -26,14 +26,12 @@ Function *Function::create(const String2 &str, int arity, bool isva,
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
 	f->varArg        = isva;
-	f->cannest = true; // by default, the function is assumed to be nesting
 	return f;
 }
 
 Function *Function::create_derived(int offset) {
 	Function2 df = Function::create(name, arity, varArg, static_);
 	df->mode     = mode;
-	df->cannest  = cannest;
 	if(mode == Function::BUILTIN) {
 		df->numExceptions = 0;
 		df->exceptions    = NULL;
@@ -78,9 +76,9 @@ bool Exception::add_catch(int slot, CatchBlock::SlotType type, int jump) {
 		if(catches[i].slot == slot && catches[i].type == type)
 			return false;
 	}
-	catches = (CatchBlock *)GcObject_realloc(
-	    catches, sizeof(CatchBlock) * numCatches,
-	    sizeof(CatchBlock) * (numCatches + 1));
+	catches =
+	    (CatchBlock *)GcObject_realloc(catches, sizeof(CatchBlock) * numCatches,
+	                                   sizeof(CatchBlock) * (numCatches + 1));
 	catches[numCatches].jump   = jump;
 	catches[numCatches].slot   = slot;
 	catches[numCatches++].type = type;
@@ -113,51 +111,44 @@ void Function::init() {
 }
 
 #ifdef DEBUG
-void Function::disassemble(std::ostream &o) {
-	o << "Name: " << name->str() << "\n";
-	o << "Arity: " << arity << "\n";
-	o << "VarArg: " << isVarArg() << "\n";
-
+#include "../format.h"
+void Function::disassemble(WritableStream &os) {
+	os.write("Name: ", name->str(), "\n");
+	os.write("Arity: ", arity, "\n");
+	os.write("VarArg: ", isVarArg(), "\n");
 	Type t = getType();
-	o << "Type: ";
+	os.write("Type: ");
 	switch(t) {
-		case Type::METHOD: o << "Method\n"; break;
-		case Type::BUILTIN: o << "Builtin\n"; break;
+		case Type::METHOD: os.write("Method\n"); break;
+		case Type::BUILTIN: os.write("Builtin\n"); break;
 	}
-	o << "Exceptions: " << numExceptions << "\n";
+	os.write("Exceptions: ", numExceptions, "\n");
 	for(size_t i = 0; i < numExceptions; i++) {
-		o << "Exception #" << i << ": From -> " << exceptions[i].from
-		  << " To -> " << exceptions[i].to << " Catches -> "
-		  << exceptions[i].numCatches << "\n";
+		os.write("Exception #", i, ": From -> ", exceptions[i].from, " To -> ",
+		         exceptions[i].to, " Catches -> ", exceptions[i].numCatches,
+		         "\n");
 		for(size_t j = 0; j < exceptions[i].numCatches; j++) {
 			CatchBlock c = exceptions[i].catches[j];
-			o << "Catch #" << i << "." << j << ": Slot -> " << c.slot
-			  << " Type -> ";
+			os.write("Catch #", i, ".", j, ": Slot -> ", c.slot, " Type -> ");
 			switch(c.type) {
-				case CatchBlock::CORE: o << "Core"; break;
-				case CatchBlock::LOCAL: o << "Local"; break;
-				case CatchBlock::CLASS: o << "Class"; break;
-				case CatchBlock::MODULE: o << "Module"; break;
+				case CatchBlock::CORE: os.write("Core"); break;
+				case CatchBlock::LOCAL: os.write("Local"); break;
+				case CatchBlock::CLASS: os.write("Class"); break;
+				case CatchBlock::MODULE: os.write("Module"); break;
 				case CatchBlock::MODULE_SUPER:
-					o << "Module of superclass";
+					os.write("Module of superclass");
 					break;
 			}
-			o << " Jump -> " << c.jump << "\n";
+			os.write(" Jump -> ", c.jump, "\n");
 		}
 	}
-	o << "Code: ";
+	os.write("Code: ");
 	switch(t) {
-		case Type::BUILTIN: o << func << "\n"; break;
+		case Type::BUILTIN: os.fmt("0x{:x}\n", (uintptr_t)func); break;
 		case Type::METHOD:
-			o << "\n";
-			code->disassemble(o);
+			os.write("\n");
+			code->disassemble(os);
 			break;
 	}
-}
-#endif
-
-#ifdef DEBUG_GC
-const char *Function::gc_repr() {
-	return name->str();
 }
 #endif

@@ -19,6 +19,7 @@ struct FormatSpec {
 	void release() {}
 
 #ifdef DEBUG_GC
-	const char *gc_repr();
+	void        depend() {}
+	const char *gc_repr() { return "format_spec"; }
 #endif
 };
