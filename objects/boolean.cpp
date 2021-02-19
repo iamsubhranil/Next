@@ -10,13 +10,16 @@
 
 Value next_boolean_fmt(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(boolean, "fmt(_)", 1, FormatSpec);
-	FormatSpec * f = args[1].toFormatSpec();
-	StringStream s;
-	Value        ret = Format<Value, bool>().fmt(args[0].toBoolean(), f, s);
-	if(ret != ValueTrue)
-		return ret;
-	return s.toString();
+	EXPECT(boolean, "fmt(_,_)", 1, FormatSpec);
+	EXPECT(boolean, "fmt(_,_)", 2, File);
+	FormatSpec *f  = args[1].toFormatSpec();
+	File *      fs = args[2].toFile();
+	if(!fs->stream->isWritable()) {
+		return FileError::sete("Stream is not writable!");
+	}
+	Value ret = Format<Value, bool>().fmt(args[0].toBoolean(), f,
+	                                      *fs->writableStream());
+	return ret;
 }
 
 Value next_boolean_str(const Value *args, int numargs) {
@@ -35,6 +38,6 @@ void Boolean::init() {
 	Class *BooleanClass = GcObject::BooleanClass;
 
 	BooleanClass->init("boolean", Class::ClassType::BUILTIN);
-	BooleanClass->add_builtin_fn("fmt(_)", 1, next_boolean_fmt);
+	BooleanClass->add_builtin_fn("fmt(_,_)", 2, next_boolean_fmt);
 	BooleanClass->add_builtin_fn("str(_)", 1, next_boolean_str);
 }

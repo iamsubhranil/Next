@@ -8,10 +8,15 @@
 
 Value next_number_fmt(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(number, "fmt(_)", 1, FormatSpec);
+	EXPECT(number, "fmt(_,_)", 1, FormatSpec);
+	EXPECT(number, "fmt(_,_)", 2, File);
 	FormatSpec *f    = args[1].toFormatSpec();
 	double      dval = args[0].toNumber();
-	return Number::fmt(dval, f);
+	File *      fs   = args[2].toFile();
+	if(!fs->stream->isWritable()) {
+		return FileError::sete("Stream is not writable!");
+	}
+	return Number::fmt(dval, f, fs->writableStream());
 }
 
 Value next_number_to_str(const Value *args, int numargs) {
@@ -60,16 +65,15 @@ void Number::init() {
 
 	// construct a number from the given string
 	NumberClass->add_builtin_fn("(_)", 1, next_number_from_str);
-	NumberClass->add_builtin_fn("fmt(_)", 1, next_number_fmt);
+	NumberClass->add_builtin_fn("fmt(_,_)", 2, next_number_fmt);
 	NumberClass->add_builtin_fn("is_int()", 0, next_number_isint);
 	NumberClass->add_builtin_fn("str(_)", 1, next_number_to_str);
 	NumberClass->add_builtin_fn("to_int()", 0, next_number_toint);
 }
 
-Value Number::fmt(double dval, FormatSpec *f) {
-	StringStream s;
-	Value        out;
-	bool         requires_int = false;
+Value Number::fmt(double dval, FormatSpec *f, WritableStream *w) {
+	Value out;
+	bool  requires_int = false;
 	switch(f->type) {
 		case 'x':
 		case 'X':
@@ -80,11 +84,8 @@ Value Number::fmt(double dval, FormatSpec *f) {
 		case 'd': requires_int = true; break;
 	}
 	if(requires_int && Value(dval).isInteger())
-		out = Number::fmt<Value>(Value(dval).toInteger(), f, s);
+		out = Number::fmt<Value>(Value(dval).toInteger(), f, *w);
 	else
-		out = Number::fmt<Value>(dval, f, s);
-	if(out != ValueTrue) {
-		return out;
-	}
-	return s.toString();
+		out = Number::fmt<Value>(dval, f, *w);
+	return out;
 }

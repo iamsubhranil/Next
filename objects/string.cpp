@@ -1,11 +1,11 @@
 #include "string.h"
 #include "../format.h"
+#include "../utf8.h"
 #include "class.h"
 #include "errors.h"
 #include "file.h"
 #include "set.h"
 #include "symtab.h"
-#include "../utf8.h"
 
 StringSet *String::string_set = nullptr;
 StringSet *String::keep_set   = nullptr;
@@ -86,10 +86,15 @@ Value next_string_contains(const Value *args, int numargs) {
 
 Value next_string_fmt(const Value *args, int numargs) {
 	(void)numargs;
-	EXPECT(string, "fmt(_)", 1, FormatSpec);
-	const String *s = args[0].toString();
-	FormatSpec *  f = args[1].toFormatSpec();
-	return String::fmt(s, f);
+	EXPECT(string, "fmt(_,_)", 1, FormatSpec);
+	EXPECT(string, "fmt(_,_)", 2, File);
+	const String *s  = args[0].toString();
+	FormatSpec *  f  = args[1].toFormatSpec();
+	File *        fs = args[2].toFile();
+	if(!fs->stream->isWritable()) {
+		return FileError::sete("Stream is not writable!");
+	}
+	return String::fmt(s, f, *fs->writableStream());
 }
 
 Value next_string_hash(const Value *args, int numargs) {
@@ -155,7 +160,7 @@ void String::init() {
 	StringClass->init("string", Class::BUILTIN);
 	StringClass->add_builtin_fn("append(_)", 1, &next_string_append, true);
 	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
-	StringClass->add_builtin_fn("fmt(_)", 1, &next_string_fmt);
+	StringClass->add_builtin_fn("fmt(_,_)", 2, &next_string_fmt);
 	StringClass->add_builtin_fn("hash()", 0, &next_string_hash);
 	StringClass->add_builtin_fn(
 	    "len()", 0, &next_string_len); // returns number of codepoints

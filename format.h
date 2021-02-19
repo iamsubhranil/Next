@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "format_templates.h"
 #include "objects/class.h"
+#include "objects/file.h"
 #include "objects/formatspec.h"
 #include "objects/string.h"
 #include "objects/symtab.h"
@@ -31,12 +32,20 @@ template <typename R> struct Format<R, Value> {
 		FormatSpec2 spec2 = FormatSpec::from(
 		    spec->align, spec->fill, spec->sign, spec->isalt, spec->signaware,
 		    spec->width, spec->precision, spec->type);
-		const Class *c = val.getClass();
-		if(c->has_fn(SymbolTable2::const_sig_fmt)) {
+		const Class *c      = val.getClass();
+		Value        fspecv = Value(spec2);
+		Value        ret;
+		if(c->has_fn(SymbolTable2::const_sig_fmt2)) {
+			Function *f  = c->get_fn(SymbolTable2::const_sig_fmt2).toFunction();
+			File2     fs = File::create(stream);
+			Value     args[] = {fspecv, fs};
+			if(!ExecutionEngine::execute(val, f, args, 2, &ret, true)) {
+				return FormatHandler<R>::EngineError();
+			}
+			return FormatHandler<R>::Success();
+		} else if(c->has_fn(SymbolTable2::const_sig_fmt)) {
 			// call it
 			Function *f = c->get_fn(SymbolTable2::const_sig_fmt).toFunction();
-			Value     fspecv = Value(spec2);
-			Value     ret;
 			// execute that fmt(_)
 			if(!ExecutionEngine::execute(val, f, &fspecv, 1, &ret, true))
 				return FormatHandler<R>::EngineError();

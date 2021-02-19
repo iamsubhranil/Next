@@ -335,7 +335,7 @@ struct Number {
 		return fmt_<R>(val, f, stream);
 	}
 
-	static Value fmt(double val, FormatSpec *f);
+	static Value fmt(double val, FormatSpec *f, WritableStream *stream);
 	static void  init();
 };
 
