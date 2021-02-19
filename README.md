@@ -1,7 +1,7 @@
 Next
 ----
-Next is a familiar, minimal, fast programming language. It does not support an 
-REPL yet, but will do so soon in the future.
+Next is a familiar, minimal, fast programming language. It has a REPL, and anything 
+that can be run as a script, can be run inside the REPL itself.
 
 Next has a familiar C like syntax, and aims to achieve Python like minimalism, 
 while performing much better than CPython.
