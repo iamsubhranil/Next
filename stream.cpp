@@ -2,39 +2,32 @@
 #include "objects/string.h"
 #include "value.h"
 
-StringStream::StringStream() : str(String::const_EmptyString), closed(false) {}
+StringStream::StringStream() : str(NULL), size(0), closed(false) {}
 
 std::size_t StringStream::write(const double &value) {
 	// from
 	// https://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
 	static char val[1079];
-	snprintf(val, 1079, "%0.14g", value);
-
-	str = String::append(str, val);
-
-	return strlen(val);
+	size_t      written = snprintf(val, 1079, "%0.14g", value);
+	return writebytes(val, written);
 }
 
 std::size_t StringStream::write(const int64_t &value) {
 	static char val[22];
-	snprintf(val, 22, "%" PRId64, value);
-
-	str = String::append(str, val);
-
-	return strlen(val);
+	size_t      written = snprintf(val, 22, "%" PRId64, value);
+	return writebytes(val, written);
 }
 
 std::size_t StringStream::write(const size_t &value) {
 	static char val[22];
-	snprintf(val, 22, "%" PRIu64, value);
-
-	str = String::append(str, val);
-
-	return strlen(val);
+	size_t      written = snprintf(val, 22, "%" PRIu64, value);
+	return writebytes(val, written);
 }
 
 std::size_t StringStream::writebytes(const void *const &data, size_t bytes) {
-	str = String::append(str, data, bytes);
+	str = GcObject_realloc(str, size, size + bytes);
+	std::memcpy((char *)str + size, data, bytes);
+	size += bytes;
 	return bytes;
 }
 
@@ -49,7 +42,13 @@ std::size_t WritableStream::write(const utf8_int32_t &val) {
 }
 
 Value StringStream::toString() {
-	return Value(str);
+	return String::from(str, size);
+}
+
+StringStream::~StringStream() {
+	if(size) {
+		GcObject_free(str, size);
+	}
 }
 
 std::size_t ReadableStream::read(std::size_t n, Utf8Source &source) {

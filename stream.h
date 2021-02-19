@@ -241,10 +241,12 @@ struct StdInputStream : public ReadableStream {
 };
 
 struct StringStream : public WritableStream {
-	String2 str;
-	bool    closed;
+	void * str;
+	size_t size;
+	bool   closed;
 
 	StringStream();
+	~StringStream();
 	std::size_t write(const double &val);
 	std::size_t write(const int64_t &val);
 	std::size_t writebytes(const void *const &data, std::size_t bytes);
