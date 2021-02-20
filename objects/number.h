@@ -100,8 +100,8 @@ struct Number {
 		}
 		// now, fill the values
 		for(size_t j = origfirstbit; j > 0; j--) {
-			char c[1];
-			c[0] = ((value >> (j - 1)) & 1) + '0';
+			char c;
+			c = ((value >> (j - 1)) & 1) + '0';
 			stream.write(c);
 			data++;
 		}
