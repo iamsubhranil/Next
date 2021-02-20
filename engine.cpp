@@ -591,7 +591,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			Token t            = Token::PlaceholderToken;
 			if(presentFrame->f->code->ctx)
 				t = presentFrame->f->code->ctx->get_token(instructionPointer);
-			if(t.type != Token::Type::Token::Type::TOKEN_ERROR)
+			if(t.type != Token::Type::TOKEN_ERROR)
 				t.highlight();
 			else
 				Printer::println("<source not found>");
