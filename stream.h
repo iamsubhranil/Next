@@ -5,8 +5,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "gc.h" // for String2 in StringStream
-
 struct Value;
 struct Utf8Source;
 typedef uint32_t utf8_int32_t;
@@ -101,7 +99,10 @@ struct WritableStream : public Stream {
 #define WRITABLE_TYPE_BYPASS(type, with) \
 	std::size_t write(type const &val) { return write((with)val); }
 	WRITABLE_TYPE(int64_t)
-	WRITABLE_TYPE_BYPASS(int, int64_t)
+	WRITABLE_TYPE_BYPASS(int32_t, int64_t)
+#ifdef _WIN32
+	WRITABLE_TYPE_BYPASS(long, int64_t)
+#endif
 	WRITABLE_TYPE(double)
 	WRITABLE_TYPE(size_t)
 #undef WRITABLE_TYPE
@@ -125,10 +126,22 @@ struct WritableStream : public Stream {
 		return writebytes(val, strlen(val));
 	}
 
+	// this is needed to enforce correct ordering of the writes.
+	// ordering of function call pack expansion is not
+	// defined otherwise. although gcc and clang does expand
+	// in order, msvc does not, unless explictly forced using this.
+	// passing write(x) to the helper explictly instantiates the
+	// writes in order.
+	template <typename F, typename... T>
+	std::size_t write_helper(std::size_t s, const F &arg, const T &...args) {
+		return s + write_helper(write(arg), args...);
+	}
+
+	std::size_t write_helper(std::size_t s) { return s; }
+
 	template <typename F, typename... T>
 	std::size_t write(const F &arg, const T &...args) {
-		std::size_t sum = write(arg) + write(args...);
-		return sum;
+		return write_helper(0, arg, args...);
 	}
 
 	// base
