@@ -5,6 +5,7 @@
 
 #include <cerrno>
 #include <cmath>
+#include <limits>
 
 #define NEXT_MATH_FN1(name)                                                   \
 	Value next_math_##name(const Value *args, int numargs) {                  \
@@ -138,4 +139,8 @@ void Math::init(BuiltinModule *b) {
 	NEXT_MATH_VAR("ln2", M_LN2);
 	NEXT_MATH_VAR("ln10", M_LN10);
 	NEXT_MATH_VAR("sqrt2", M_SQRT2);
+	NEXT_MATH_VAR("eps", std::numeric_limits<double>::epsilon());
+	NEXT_MATH_VAR("inf", std::numeric_limits<double>::infinity());
+	NEXT_MATH_VAR("maxvalue", std::numeric_limits<double>::max());
+	NEXT_MATH_VAR("minvalue", std::numeric_limits<double>::min());
 }

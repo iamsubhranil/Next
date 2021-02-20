@@ -1,7 +1,9 @@
 import math
 
+DELTA = 0.00000000001
+
 fn expect(w, v) {
-    if(w != v) {
+    if(math.abs(w - v) > DELTA) {
         throw error(fmt("Expected '{}', received '{}'!", v, w))
     }
 }
@@ -34,9 +36,16 @@ pub fn test() {
     expect(math.exp(10), 22026.465794806718)
     expect(math.exp2(10), 1024)
     expect(math.expm1(10), 22025.465794806718)
-    expect(math.isinf(1/0), true)
+    if(!math.isinf(1/0)) {
+        throw error("isinf(1/0) should return true!")
+    }
+    if(!math.isinf(math.inf)) {
+        throw error("isinf(inf) should return true!")
+    }
     //expect(math.isnan(0/0), true)
-    expect(math.isfinite(1/0), false)
+    if(math.isfinite(1/0)) {
+        throw error("isfinite(1/0) should return false!")
+    }
     expect(math.erf(0.5), 0.5204998778130465)
     expect(math.tgamma(0.5), 1.772453850905516104)
     expect(math.abs(-32.67), 32.67)
