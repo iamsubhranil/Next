@@ -28,9 +28,12 @@ void registerParselets(Parser *p) {
 	p->registerParselet(Token::Type::TOKEN_nil, new LiteralParselet());
 	p->registerParselet(Token::Type::TOKEN_true, new LiteralParselet());
 	p->registerParselet(Token::Type::TOKEN_false, new LiteralParselet());
-	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new ArrayLiteralParselet());
-	p->registerParselet(Token::Type::TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
-	p->registerParselet(Token::Type::TOKEN_LEFT_BRACE, new HashmapLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE,
+	                    new ArrayLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_SUBSCRIPT,
+	                    new ArrayLiteralParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_BRACE,
+	                    new HashmapLiteralParselet());
 
 	p->registerParselet(Token::Type::TOKEN_this, new ThisOrSuperParselet());
 	p->registerParselet(Token::Type::TOKEN_super, new ThisOrSuperParselet());
@@ -39,7 +42,8 @@ void registerParselets(Parser *p) {
 	p->registerParselet(Token::Type::TOKEN_LEFT_PAREN, new GroupParselet());
 	p->registerParselet(Token::Type::TOKEN_LEFT_PAREN, new CallParselet());
 	p->registerParselet(Token::Type::TOKEN_DOT, new ReferenceParselet());
-	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new SubscriptParselet());
+	p->registerParselet(Token::Type::TOKEN_LEFT_SQUARE,
+	                    new SubscriptParselet());
 
 	prefix(p, Token::Type::TOKEN_BANG, Precedence::PREFIX);
 	prefix(p, Token::Type::TOKEN_PLUS, Precedence::PREFIX);
@@ -89,12 +93,18 @@ void registerParselets(Parser *p) {
 	p->registerParselet(Token::Type::TOKEN_break, new BreakStatementParselet());
 
 	// intraclass declarations
-	ClassDeclaration::registerParselet(Token::Type::TOKEN_new, new ConstructorDeclaration());
-	ClassDeclaration::registerParselet(Token::Type::TOKEN_pub, new VisibilityDeclaration());
-	ClassDeclaration::registerParselet(Token::Type::TOKEN_priv, new VisibilityDeclaration());
-	ClassDeclaration::registerParselet(Token::Type::TOKEN_static, new StaticDeclaration());
-	ClassDeclaration::registerParselet(Token::Type::TOKEN_fn, new MethodDeclaration());
-	ClassDeclaration::registerParselet(Token::Type::TOKEN_op, new OpMethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_new,
+	                                   new ConstructorDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_pub,
+	                                   new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_priv,
+	                                   new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_static,
+	                                   new StaticDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_fn,
+	                                   new MethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_op,
+	                                   new OpMethodDeclaration());
 	ClassDeclaration::registerParselet(Token::Type::TOKEN_IDENTIFIER,
 	                                   new MemberDeclaration());
 }
@@ -186,7 +196,7 @@ GcObject *Loader::compile_and_load_with_name(const void *fileName,
 	} catch(ParseException &pe) {
 		if(pe.getToken().source.source != NULL) {
 			Printer::LnErr(pe.getToken(), pe.what());
-			pe.getToken().highlight(false, "", Token::ERROR);
+			pe.getToken().highlight(false, "", Token::HighlightType::ERR);
 		}
 	} catch(std::runtime_error &r) {
 		Printer::println(r.what());
@@ -242,7 +252,7 @@ Value Loader::compile_and_load_from_source(const void *             source,
 	} catch(ParseException &pe) {
 		if(pe.getToken().source.source != NULL) {
 			Printer::LnErr(pe.getToken(), pe.what());
-			pe.getToken().highlight(false, "", Token::ERROR);
+			pe.getToken().highlight(false, "", Token::HighlightType::ERR);
 		}
 	} catch(std::runtime_error &r) {
 		Printer::println(r.what());

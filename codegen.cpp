@@ -9,15 +9,11 @@
 #include "objects/functioncompilationctx.h"
 #include "objects/symtab.h"
 
-#ifdef DEBUG
-
-#endif
-
-#define lnerr_(t, ...)                        \
-	{                                         \
-		Printer::LnErr(t, ##__VA_ARGS__);     \
-		t.highlight(false, "", Token::ERROR); \
-		errorsOccurred++;                     \
+#define lnerr_(t, ...)                                     \
+	{                                                      \
+		Printer::LnErr(t, ##__VA_ARGS__);                  \
+		t.highlight(false, "", Token::HighlightType::ERR); \
+		errorsOccurred++;                                  \
 	}
 
 CodeGenerator::CodeGenerator() {

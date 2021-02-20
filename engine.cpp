@@ -109,13 +109,13 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 				Printer::println("In builtin function ", ANSI_COLOR_YELLOW,
 				                 f->f->name, ANSI_COLOR_RESET);
 			} else {
-				f->f->code->ctx->get_token(0).highlight(true, "In ",
-				                                        Token::WARN);
+				f->f->code->ctx->get_token(0).highlight(
+				    true, "In ", Token::HighlightType::WARN);
 			}
 		}
 		if(f->f->getType() != Function::BUILTIN) {
 			t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
-			t.highlight(true, "At ", Token::ERROR);
+			t.highlight(true, "At ", Token::HighlightType::ERR);
 		}
 		f = &fiber->callFrames[--i];
 		if(i < 0 && fiber->parent != NULL) {

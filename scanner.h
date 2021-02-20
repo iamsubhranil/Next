@@ -61,7 +61,7 @@ typedef struct Token {
 		TOKEN_ERROR,
 		TOKEN_EOF
 	} Type;
-	typedef enum { INFO = 0, WARN = 1, ERROR = 2 } HighlightType;
+	enum HighlightType { INFO = 0, WARN = 1, ERR = 2 };
 	Type       type;
 	Utf8Source start;
 	Utf8Source source;
@@ -77,7 +77,7 @@ typedef struct Token {
 	static Token from(Type t, Scanner *s);
 	static Token errorToken(const char *message, Scanner *s);
 	void         highlight(bool showFileName = false, const char *prefix = NULL,
-	                       HighlightType htype = INFO) const;
+	                       HighlightType htype = HighlightType::INFO) const;
 	static const char *TokenNames[];
 	static const char *FormalNames[];
 	bool               isOperator();

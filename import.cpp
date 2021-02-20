@@ -2,6 +2,7 @@
 #include "filesystem/path.h"
 #include "objects/array.h"
 #include "objects/builtin_module.h"
+#include "objects/file.h"
 #ifdef DEBUG
 #include "printer.h"
 #endif
@@ -68,7 +69,7 @@ ImportStatus Importer::import(const String2 &currentPath, const Value *parts,
 #endif
 	p                     = p.make_absolute();
 	std::string absolutep = p.str();
-	FILE *      f         = fopen(absolutep.c_str(), "r");
+	FILE *      f         = File::fopen(absolutep.c_str(), "r");
 	if(f == NULL) {
 		ret.res         = ImportStatus::FOPEN_ERROR;
 		ret.fileName    = String::from(strerror(errno));

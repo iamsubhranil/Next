@@ -122,7 +122,7 @@ void Token::highlight(bool showFileName, const char *prefix,
 	}
 	while(bak < tokenEnd) {
 		if(bak >= start && (bak - start) < (size_t)length) {
-			Printer::print(ANSI_FONT_BOLD, highlights[htype], *bak,
+			Printer::print(ANSI_FONT_BOLD, highlights[(int)htype], *bak,
 			               ANSI_COLOR_RESET);
 		} else
 			Printer::print(*bak);
