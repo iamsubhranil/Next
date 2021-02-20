@@ -63,16 +63,18 @@ Value File::create(String2 name, String2 mode) {
 }
 
 FILE *File::fopen(const void *name, const void *mode) {
-	const char *finalname = (const char *)name;
 #ifdef _WIN32
 	int size = MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, NULL, 0);
-	Buffer<char> buffer;
+	Buffer<WCHAR> buffer;
 	buffer.resize(size);
-	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1,
-	                    (LPWSTR)buffer.data(), size);
-	finalname = (const char *)buffer.data();
+	MultiByteToWideChar(CP_UTF8, 0, (const char *)name, -1, buffer.data(),
+	                    size);
+	WCHAR wmode[4];
+	MultiByteToWideChar(CP_UTF8, 0, (const char *)mode, -1, wmode, 4);
+	return _wfopen(buffer.data(), wmode);
+#else
+	return std::fopen((const char *)name, (const char *)mode);
 #endif
-	return std::fopen(finalname, (const char *)mode);
 }
 
 Value File::create(FILE *f, uint8_t modes) {
