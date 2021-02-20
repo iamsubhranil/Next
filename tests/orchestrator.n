@@ -77,12 +77,21 @@ print(fmt("{0:-^{1}}\t\t{0:-^12}\n", "-", len))
 
 for(k in modules.keys()) {
     print(fmt("{0:^{1}}\t\t", modules[k], len))
-    res = k.test()
+    evalue = ""
+    try {
+        res = k.test()
+    } catch(error err) {
+        res = false
+        evalue = str(err)
+    }
     resstr = ""
     if(res) {
         resstr = "Passed"
     } else {
         resstr = "Failed"
+        if(evalue.len() > 0) {
+            resstr = resstr + " [Exception Occurred: " + evalue + " ]"
+        }
     }
     print(fmt("{:^12}\n", resstr))
 }
