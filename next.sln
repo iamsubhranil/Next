@@ -9,6 +9,10 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		DebugGc|x64 = DebugGc|x64
+		DebugGc|x86 = DebugGc|x86
+		DebugGcStress|x64 = DebugGcStress|x64
+		DebugGcStress|x86 = DebugGcStress|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
@@ -17,6 +21,14 @@ Global
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Debug|x64.Build.0 = Debug|x64
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Debug|x86.ActiveCfg = Debug|Win32
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Debug|x86.Build.0 = Debug|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGc|x64.ActiveCfg = DebugGc|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGc|x64.Build.0 = DebugGc|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGc|x86.ActiveCfg = DebugGc|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGc|x86.Build.0 = DebugGc|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x64.ActiveCfg = DebugGcStress|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x64.Build.0 = DebugGcStress|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x86.ActiveCfg = DebugGcStress|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x86.Build.0 = DebugGcStress|Win32
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x64.ActiveCfg = Release|x64
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x64.Build.0 = Release|x64
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x86.ActiveCfg = Release|Win32
