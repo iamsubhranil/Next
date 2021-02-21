@@ -15,4 +15,4 @@ jobs:
     - name: ${{ matrix.config }}
       env:
         CONFIG: ${{ matrix.config }}
-      run: msbuild /p:Configuration=%CONFIG% /p:OutDir=. && set next=Next.exe && next tests\\orchestrator.n && python utils\\benchmark.py -n 10
+      run: msbuild /p:Configuration=!CONFIG! /p:OutDir=. && set next=Next.exe && next tests\\orchestrator.n && python utils\\benchmark.py -n 10
