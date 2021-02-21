@@ -7,7 +7,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        config: [Release, Debug, DebugGc, DebugGcStress]
+        config: [Release, Debug, DebugGcStress]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2

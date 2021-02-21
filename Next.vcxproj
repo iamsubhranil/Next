@@ -190,7 +190,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugGcStress|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>GC_STRESS;DEBUG_GC;GC_USE_STD_ALLOC</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GC_STRESS;DEBUG;GC_USE_STD_ALLOC</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
