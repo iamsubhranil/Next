@@ -48,26 +48,23 @@ constexpr constant_index<acc> counter_crumb(id, constant_index<rank>,
 struct QNAN_COUNTER {};
 
 //  0111 1111 1111 1[---] 0000 0000 0000 [data]
-const uint64_t VAL_QNAN      = 0x7ff8000000000000;
-const uint64_t VAL_MASK      = 0x0000ffffffffffff;
-const uint64_t VAL_TYPE_MASK = 0x0007000000000000;
-const uint64_t VAL_TAG_MASK  = 0xffff000000000000;
+constexpr uint64_t VAL_QNAN      = 0x7ff8000000000000;
+constexpr uint64_t VAL_MASK      = 0x0000ffffffffffff;
+constexpr uint64_t VAL_TYPE_MASK = 0x0007000000000000;
+constexpr uint64_t VAL_TAG_MASK  = 0xffff000000000000;
 
 #define VAL(v) (((v)&VAL_MASK))
 #define VAL_TAG(v) (((v)&VAL_TAG_MASK))
 #define VAL_TYPE(v) (((v)&VAL_TYPE_MASK) >> 48)
 
-constexpr uint64_t encodeType(int num) {
-	uint64_t encoding = num;
-	encoding <<= 48;
-	return VAL_QNAN | encoding;
-}
+#define encodeType(x) (((uint64_t)(x) << 48) | VAL_QNAN)
 
 QNAN_COUNTER_INC(QNAN_COUNTER);
-const uint64_t QNAN_NIL = encodeType(QNAN_COUNTER_READ(QNAN_COUNTER));
+constexpr uint64_t QNAN_NIL = encodeType(QNAN_COUNTER_READ(QNAN_COUNTER));
 
-#define TYPE(type, name)            \
-	QNAN_COUNTER_INC(QNAN_COUNTER); \
-	const uint64_t QNAN_##name = encodeType(QNAN_COUNTER_READ(QNAN_COUNTER));
+#define TYPE(type, name)             \
+	QNAN_COUNTER_INC(QNAN_COUNTER);  \
+	constexpr uint64_t QNAN_##name = \
+	    encodeType(QNAN_COUNTER_READ(QNAN_COUNTER));
 #include "valuetypes.h"
 #undef TYPE

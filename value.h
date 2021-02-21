@@ -2,9 +2,9 @@
 
 #include "gc.h"
 #include "qnan.h"
+#include <cmath>
 #include <cstdint>
 #include <functional>
-#include <cmath>
 
 struct Statement;
 struct Expr;
@@ -30,36 +30,37 @@ struct Value {
 	    //#include "valuetypes.h"
 	    */
 	inline void encodeBoolean(const bool b) {
-		value = QNAN_Boolean | (uint64_t)b;
+		val.value = QNAN_Boolean | (uint64_t)b;
 	}
 	inline void encodeGcObject(const GcObject *g) {
-		value = QNAN_GcObject | ((uintptr_t)g & VAL_MASK);
+		val.value = QNAN_GcObject | ((uintptr_t)g & VAL_MASK);
 	}
 	inline void encodePointer(const Value *g) {
-		value = QNAN_Pointer | ((uintptr_t)g & VAL_MASK);
+		val.value = QNAN_Pointer | ((uintptr_t)g & VAL_MASK);
 	}
 
-	union {
+	union ValueUnion {
 		uint64_t value;
 		double   dvalue;
-	};
+
+		constexpr explicit ValueUnion() : value(0) {}
+		constexpr explicit ValueUnion(uint64_t v) : value(v) {}
+		constexpr explicit ValueUnion(double d) : dvalue(d) {}
+
+	} val;
 	enum Type : int {
 		VAL_Number = 0,
 		VAL_NIL    = 1,
 #define TYPE(r, n) VAL_##n,
 #include "valuetypes.h"
 	};
-	constexpr Value() : value(QNAN_NIL) {}
-	constexpr Value(double d) : dvalue(d) {}
-	constexpr Value(int64_t l) : dvalue((double)l) {}
+	constexpr Value() : val(QNAN_NIL) {}
+	constexpr Value(ValueUnion u) : val(u) {}
+	constexpr Value(double d) : val(d) {}
+	constexpr Value(int64_t l) : val((double)l) {}
 	constexpr Value(size_t s) : Value((int64_t)s) {}
-	constexpr Value(int i) : dvalue((double)i) {}
+	constexpr Value(int i) : val((double)i) {}
 
-	constexpr static Value from(uint64_t encodedValue) {
-		Value v;
-		v.value = encodedValue;
-		return v;
-	}
 #ifdef DEBUG
 #define TYPE(r, n)                                                        \
 	Value(const r s) {                                                    \
@@ -95,22 +96,22 @@ struct Value {
 #include "valuetypes.h"
 
 	Type getType() const {
-		return isNumber() ? VAL_Number : (Type)VAL_TYPE(value);
+		return isNumber() ? VAL_Number : (Type)VAL_TYPE(val.value);
 	}
 	String *getTypeString() const { return ValueTypeStrings[getType()]; }
 
 	inline bool is(Type ty) const {
 		return isNumber() ? ty == VAL_Number
-		                  : (Type)VAL_TYPE(value) == (Type)ty;
+		                  : (Type)VAL_TYPE(val.value) == (Type)ty;
 	}
 #define TYPE(r, n) \
-	inline bool is##n() const { return VAL_TAG(value) == QNAN_##n; }
+	inline bool is##n() const { return VAL_TAG(val.value) == QNAN_##n; }
 #include "valuetypes.h"
 #define OBJTYPE(n) \
 	inline bool is##n() const { return isGcObject() && toGcObject()->is##n(); }
 #include "objecttype.h"
-	inline bool isNil() const { return value == QNAN_NIL; }
-	inline bool isNumber() const { return (value & VAL_QNAN) != VAL_QNAN; }
+	inline bool isNil() const { return val.value == QNAN_NIL; }
+	inline bool isNumber() const { return (val.value & VAL_QNAN) != VAL_QNAN; }
 	inline bool isInteger() const {
 		return isNumber() && floor(toNumber()) == toNumber();
 	}
@@ -118,17 +119,17 @@ struct Value {
 		return isInteger() && ((toInteger() == 0) || (toInteger() == 1));
 	}
 #define TYPE(r, n) \
-	inline r to##n() const { return (r)(VAL_MASK & value); }
+	inline r to##n() const { return (r)(VAL_MASK & val.value); }
 #include "valuetypes.h"
 #define OBJTYPE(r) \
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
-	inline double  toNumber() const { return dvalue; }
+	inline double  toNumber() const { return val.dvalue; }
 	inline int64_t toInteger() const { return (int64_t)toNumber(); }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"
-	inline void setNumber(double v) { dvalue = v; }
+	inline void setNumber(double v) { val.dvalue = v; }
 
 #define TYPE(r, n)                        \
 	inline Value &operator=(const r &d) { \
@@ -143,16 +144,16 @@ struct Value {
 #include "objecttype.h"
 #include "valuetypes.h"
 	inline Value &operator=(const double &v) {
-		dvalue = v;
+		val.dvalue = v;
 		return *this;
 	}
 
 	constexpr inline bool operator==(const Value &v) const {
-		return v.value == value;
+		return v.val.value == val.value;
 	}
 
 	constexpr inline bool operator!=(const Value &v) const {
-		return v.value != value;
+		return v.val.value != val.value;
 	}
 
 	// returns class for the value
@@ -180,14 +181,14 @@ struct Value {
 	static String *ValueTypeStrings[];
 };
 
-constexpr Value ValueNil   = Value::from(QNAN_NIL);
-constexpr Value ValueTrue  = Value::from(QNAN_Boolean | 1);
-constexpr Value ValueFalse = Value::from(QNAN_Boolean);
-constexpr Value ValueZero  = Value(0.0);
+constexpr Value ValueNil{Value::ValueUnion(QNAN_NIL)};
+constexpr Value ValueTrue{Value::ValueUnion(QNAN_Boolean | 1)};
+constexpr Value ValueFalse{Value::ValueUnion(QNAN_Boolean)};
+constexpr Value ValueZero{Value::ValueUnion(0.0)};
 
 namespace std {
 	template <> struct hash<Value> {
-		std::size_t operator()(const Value &v) const { return v.value; }
+		std::size_t operator()(const Value &v) const { return v.val.value; }
 	};
 
 	template <> struct equal_to<Value> {
