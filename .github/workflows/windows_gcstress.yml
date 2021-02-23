@@ -14,5 +14,5 @@ jobs:
     - uses: microsoft/setup-msbuild@v1.0.2
     - name: Running ${{ matrix.tests }}
       env:
-       	TEST: ${{ matrix.tests }}
-      run: msbuild /p:Configuration=DebugGcStress /p:OutDir=. && Next.exe tests\\orchestrator.n && Next.exe tests\\benchmark\\$env:TEST
+        TEST: ${{ matrix.tests }}
+      run: msbuild /p:Configuration=DebugGcStress /p:OutDir=. && .\\Next.exe tests\\orchestrator.n && .\\Next.exe tests\\benchmark\\$env:TEST
