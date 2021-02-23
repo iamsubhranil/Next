@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         compiler: [g++, clang++]
-        target: [debug, debug_gc_stress, all, cgoto]
+        target: [debug, all, cgoto]
       fail-fast: false
 
     steps:
