@@ -1,0 +1,26 @@
+fibers = []
+max = 1000
+
+sum = 0
+
+fn callnext(i) {
+    sum = sum + i
+    if(i < 999) {
+        i++
+        fibers[i].run()
+    }
+}
+
+s = callnext@1
+
+start = clock()
+
+for(i in range(max)) {
+    fibers[i] = fiber(s, i)
+}
+
+fibers[0].run()
+
+end = clock()
+
+print(sum, "\nelapsed: ", (end-start)/clocks_per_sec, "\n")

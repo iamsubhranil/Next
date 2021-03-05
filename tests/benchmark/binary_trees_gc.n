@@ -1,0 +1,54 @@
+class Tree {
+    priv:
+        item, left, right
+    pub:
+        new(i, d) {
+            item = i
+            if(d > 0) {
+                item2 = item + item
+                d = d - 1
+                left = Tree(item2 - 1, d)
+                right = Tree(item2, d)
+            }
+        }
+
+        fn check() {
+            if(left == nil) {
+                ret item
+            }
+
+            ret item + left.check() - right.check()
+        }
+}
+
+minDepth = 2
+maxDepth = 8
+stretchDepth = maxDepth + 1
+
+start = clock()
+
+print("stretch tree of depth ", stretchDepth, " check: ", Tree(0, stretchDepth).check(), "\n")
+
+longLivedTree = Tree(0, maxDepth)
+
+iterations = 1
+d = -1
+while(++d < maxDepth) {
+    iterations = iterations * 2
+}
+
+for(depth in range(minDepth, stretchDepth, 2)) {
+    check = 0
+    i = -1
+    while(++i < iterations) {
+        check = check + Tree(i, depth).check() + Tree(-i, depth).check()
+    }
+
+    print(iterations * 2," trees of depth ", depth, " check: ", check, "\n")
+    iterations = iterations / 4
+}
+
+print("long lived tree of depth ", maxDepth, " check: ", longLivedTree.check())
+
+elapsed = (clock() - start) / clocks_per_sec
+print("\nelapsed: ", elapsed)

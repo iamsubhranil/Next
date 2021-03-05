@@ -9,13 +9,11 @@ jobs:
     strategy:
       matrix:
         compiler: [g++, clang++]
-        tests: [arrays.n, binary_trees.n, delta_blue.n, fannkuch_redux.n, fib.n, fibers.n, garbage_test.n, mandelbrot.n, map_numeric.n, map_string.n, method_call.n, nbody.n, spectral_norm.n, string_equals.n, tuples.n, while.n]
       fail-fast: false
 
     steps:
     - uses: actions/checkout@v2
-    - name: ${{ matrix.tests }} 
+    - name: Running GC Stress Benchmarks
       env:
         CXX: ${{ matrix.compiler }}
-        TEST: ${{ matrix.tests }}
-      run: eval "${CXX}" -v && make clean && make debug_gc_stress -j && make tests && ./next tests/benchmark/"${TEST}"
+      run: eval "${CXX}" -v && make clean && make debug_gc_stress -j && ./next tests/benchmark_orchestrator_gc.n

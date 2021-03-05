@@ -6,13 +6,9 @@ jobs:
   build:
     runs-on: windows-latest
     strategy:
-      matrix:
-        tests: [arrays.n, delta_blue.n, fannkuch_redux.n, fib.n, fibers.n, mandelbrot.n, map_numeric.n, map_string.n, method_call.n, nbody.n, spectral_norm.n, string_equals.n, tuples.n, while.n]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
     - uses: microsoft/setup-msbuild@v1.0.2
-    - name: Running ${{ matrix.tests }}
-      env:
-        TEST: ${{ matrix.tests }}
-      run: msbuild /p:Configuration=DebugGcStress /p:OutDir=. && .\\Next.exe tests\\orchestrator.n && .\\Next.exe tests\\benchmark\\$env:TEST
+    - name: Running GC Stress Benchmarks
+      run: msbuild /p:Configuration=DebugGcStress /p:OutDir=. && .\\Next.exe tests\\benchmark_orchestrator_gc.n
