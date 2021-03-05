@@ -25,6 +25,8 @@ struct Fiber {
 		};
 		// Stack
 		Value *stack_;
+		// Locals, a copy of code->values->values for easy access
+		Value *locals;
 		// Function
 		Function *f;
 		// This flag denotes whether the engine
@@ -115,7 +117,7 @@ struct Fiber {
 
 		callFrames[callFramePointer].f              = f;
 		callFrames[callFramePointer].returnToCaller = returnToCaller;
-
+		callFrames[callFramePointer].locals         = f->code->values->values;
 		// numArgs number of elements are already on the stack
 		ensureStack(f->code->stackMaxSize - numArgs);
 		callFrames[callFramePointer].code = f->code->bytecodes;

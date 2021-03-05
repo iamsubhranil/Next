@@ -392,10 +392,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	int       methodToCall;
 	Function *functionToCall;
 
-	// variable to denote the relocation of instruction
-	// pointer after extracting an argument
-	size_t reloc = 0;
-
 	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
@@ -471,11 +467,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
-#define relocip(x)                                 \
-	(reloc = sizeof(x) / sizeof(Bytecode::Opcode), \
-	 InstructionPointer += reloc, *(x *)((InstructionPointer - reloc + 1)))
-#define next_int() relocip(int)
-#define next_value() relocip(Value)
+#define next_int() (*(++InstructionPointer))
+#define next_value() (presentFrame->locals[next_int()])
 	// std::std::wcout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// "";
 
@@ -600,12 +593,11 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			             instructionPointer, stackPointer);
 			for(int i = 0; i < stackPointer; i++) {
 				Printer::print(" | ");
-				Bytecode::disassemble_Value(
-				    Printer::StdOutStream,
-				    (Bytecode::Opcode *)&presentFrame->stack_[i]);
+				presentFrame->f->code->disassemble_Value(
+				    Printer::StdOutStream, presentFrame->stack_[i]);
 			}
 			Printer::println(" | ");
-			Bytecode::disassemble(
+			presentFrame->f->code->disassemble(
 			    Printer::StdOutStream,
 			    &presentFrame->f->code->bytecodes[instructionPointer]);
 			// +1 to adjust for fiber switch

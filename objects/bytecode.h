@@ -18,7 +18,7 @@ struct Bytecode {
 	// However, during testing on the
 	// existing vm, that didn't yield
 	// expected speedups.
-	enum Opcode : uint8_t {
+	enum Opcode : int {
 #define OPCODE0(x, y) CODE_##x,
 #define OPCODE1(x, y, z) CODE_##x,
 #define OPCODE2(w, x, y, z) CODE_##w,
@@ -85,33 +85,29 @@ struct Bytecode {
 	};
 #include "../opcodes.h"
 
-#define insert_type(type)                                         \
-	union union_Opcode_##type {                                   \
-		type   val;                                               \
-		Opcode codes[sizeof(type) / sizeof(Opcode)];              \
-		union_Opcode_##type(type x) : val(x) {} \
-	};                                                            \
-	int insert_##type(type x) {                                   \
-		add_constant(x);                                          \
-		union_Opcode_##type t(x); \
-		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
-			push_back(t.codes[i]);                                \
-		return size - (sizeof(type) / sizeof(Opcode));            \
-	}                                                             \
-	int insert_##type(int pos, type x) {                          \
-		add_constant(x);                                          \
-		union_Opcode_##type t(x);                       \
-		for(size_t i = 0; i < sizeof(type) / sizeof(Opcode); i++) \
-			bytecodes[pos + i] = t.codes[i];                      \
-		return pos;                                               \
+	// we assume that bytecode type is int
+#define insert_type(type)                 \
+	int insert_##type(type x) {           \
+		int pb = add_constant(x);         \
+		push_back((Opcode)pb);            \
+		return size - 1;                  \
+	}                                     \
+	int insert_##type(int pos, type x) {  \
+		int pb         = add_constant(x); \
+		bytecodes[pos] = (Opcode)pb;      \
+		return pos;                       \
 	}
 	insert_type(Value);
 	insert_type(int);
 
-	void add_constant(int x) { (void)x; }
-	void add_constant(Value v) const {
-		if(v.isGcObject())
-			values->insert(v);
+	int add_constant(int x) { return x; }
+	int add_constant(Value v) const {
+		for(int i = 0; i < values->size; i++) {
+			if(values->values[i] == v)
+				return i;
+		}
+		values->insert(v);
+		return (values->size - 1);
 	}
 
 	void stackEffect(int x);
@@ -151,10 +147,11 @@ struct Bytecode {
 #ifdef DEBUG
 	void disassemble(WritableStream &o);
 
-	static void disassemble_int(WritableStream &os, const Opcode *o);
-	static void disassemble_Value(WritableStream &os, const Opcode *o);
-	static void disassemble(WritableStream &os, const Opcode *o,
-	                        size_t *ip = NULL);
+	static void disassemble_int(WritableStream &os, const int &i);
+	static void disassemble_Value(WritableStream &os, const Value &v);
+	void        disassemble_int(WritableStream &os, const Opcode *o);
+	void        disassemble_Value(WritableStream &os, const Opcode *v);
+	void disassemble(WritableStream &os, const Opcode *o, size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];
 #ifdef DEBUG_GC

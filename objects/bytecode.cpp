@@ -101,18 +101,14 @@ Bytecode *Bytecode::create() {
 	return code;
 }
 
-#define relocip(x)                                              \
-	(reloc = sizeof(x) / sizeof(Bytecode::Opcode), ip += reloc, \
-	 *(x *)((ip - reloc)))
-#define next_int() relocip(int)
-#define next_Value() relocip(Value)
+#define next_int() (*ip++)
+#define next_Value() (values->values[next_int()])
 Bytecode *Bytecode::create_derived(int offset) {
 	Bytecode2 b     = Bytecode::create();
 	b->numSlots     = numSlots;
 	b->stackSize    = numSlots;
 	b->stackMaxSize = numSlots;
 	b->ctx          = ctx;
-	size_t reloc    = 0;
 	for(Opcode *ip = bytecodes; ip - bytecodes < (int64_t)size;) {
 		Opcode o = *(ip++);
 		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
@@ -126,7 +122,7 @@ Bytecode *Bytecode::create_derived(int offset) {
 					b->store_object_slot(next_int() + offset);
 					break;
 				case CODE_load_module: b->load_module_super(); break;
-				case CODE_construct: next_Value(); break;
+				case CODE_construct: (void)next_Value(); break;
 				case CODE_call_intra:
 				case CODE_call_method_super: {
 					String2 sym   = SymbolTable2::getString(next_int());
@@ -169,12 +165,11 @@ Bytecode *Bytecode::create_derived(int offset) {
 
 #ifdef DEBUG
 
-void Bytecode::disassemble_int(WritableStream &os, const Opcode *o) {
-	os.write(" ", *(int *)o);
+void Bytecode::disassemble_int(WritableStream &os, const int &o) {
+	os.write(" ", o);
 }
 
-void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
-	Value v = *(Value *)o;
+void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 	os.write(" ");
 	switch(v.getType()) {
 		case Value::VAL_NIL: os.write("nil"); break;
@@ -199,6 +194,14 @@ void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
 	}
 }
 
+void Bytecode::disassemble_int(WritableStream &os, const Opcode *o) {
+	disassemble_int(os, (int)*o);
+}
+
+void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
+	disassemble_Value(os, values->values[(int)*o]);
+}
+
 void Bytecode::disassemble(WritableStream &os) {
 	os.write("StackSize: ", stackMaxSize, "\n");
 	os.write("Bytecodes: \n");
@@ -217,19 +220,19 @@ void Bytecode::disassemble(WritableStream &os, const Opcode *data, size_t *p) {
 		os.write(" -> ");
 	os.fmt("{:20}", OpcodeNames[data[i]]);
 	switch(data[i]) {
-#define OPCODE1(x, y, z)                 \
-	case CODE_##x:                       \
-		i++;                             \
-		disassemble_##z(os, &data[i]);   \
-		i += sizeof(z) / sizeof(Opcode); \
+#define OPCODE1(x, y, z)               \
+	case CODE_##x:                     \
+		i++;                           \
+		disassemble_##z(os, &data[i]); \
+		i++;                           \
 		break;
-#define OPCODE2(w, x, y, z)              \
-	case CODE_##w:                       \
-		i++;                             \
-		disassemble_##y(os, &data[i]);   \
-		i += sizeof(y) / sizeof(Opcode); \
-		disassemble_##z(os, &data[i]);   \
-		i += sizeof(z) / sizeof(Opcode); \
+#define OPCODE2(w, x, y, z)            \
+	case CODE_##w:                     \
+		i++;                           \
+		disassemble_##y(os, &data[i]); \
+		i++;                           \
+		disassemble_##z(os, &data[i]); \
+		i++;                           \
 		break;
 #include "../opcodes.h"
 		default: i++; break;
