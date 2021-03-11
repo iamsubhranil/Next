@@ -13,6 +13,7 @@
 
 struct Class {
 	GcObject obj;
+
 	// if it's a module, it must have a default noarg constructor,
 	// which will be executed when it is first imported.
 	// that will initialize all it's classes, and contain the
@@ -22,7 +23,8 @@ struct Class {
 	Class * module; // a module is eventually an instance of a class
 	Class * metaclass;
 	Class * superclass; // pointer to the superclass
-
+	// if this is a builtin class, this stores the size of its objects
+	size_t objectSize;
 	// given an object and a field, this function returns
 	// the specific field for the object. since various builtin
 	// classes have various object types, this method takes a Value
@@ -45,9 +47,9 @@ struct Class {
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
 	bool isMetaClass; // marks if this class is a metaclass
 
-	static void init();
-	void        init(const char *name, ClassType typ, Class *metaclass = NULL);
-	void        init(String2 s, ClassType typ, Class *metaclass = NULL);
+	static void init(Class *c);
+	void init_class(const char *name, ClassType typ, Class *metaclass = NULL);
+	void init_class(String2 s, ClassType typ, Class *metaclass = NULL);
 	// add_sym adds a symbol to the method buffer
 	// which holds a particular value, typically,
 	// the slot number.
@@ -97,7 +99,7 @@ struct Class {
 	// chain of present class
 	bool is_child_of(Class *parent) const;
 	// gc functions
-	void mark() const {
+	void mark() {
 		GcObject::mark(name);
 		GcObject::mark(functions);
 		if(metaclass)
@@ -113,12 +115,12 @@ struct Class {
 		}
 	}
 
-	void release() const {
+	void release() {
 		if(module != NULL && static_slot_count > 0) {
 			GcObject_free(static_values, sizeof(Value) * static_slot_count);
 		}
 #ifdef DEBUG_GC
-		GcObject_free((void *)nameCopy.source, utf8size(nameCopy.source) + 1);
+		GcObject::releaseString2(nameCopy);
 #endif
 	}
 
@@ -128,8 +130,8 @@ struct Class {
 	// classes are released in the end, after the actual sweep is complete,
 	// so 'name' is already free'd at that point. Hence, we make a copy, and
 	// store it here, and release that back in 'release()'
-	Utf8Source       nameCopy;
-	void             depend(); // copies name to nameCopy
-	const Utf8Source gc_repr() { return nameCopy; }
+	String *      nameCopy;
+	void          depend(); // copies name to nameCopy
+	const String *gc_repr() { return nameCopy; }
 #endif
 };

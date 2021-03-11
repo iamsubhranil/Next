@@ -2,6 +2,7 @@
 
 #define _USE_MATH_DEFINES
 
+#include "objects/classes.h"
 #include <cstddef> // android somehow doesn't have size_t in stdint
 #include <cstdint>
 
@@ -37,7 +38,7 @@ struct Expr;
 struct Statement;
 template <typename T, size_t n> struct CustomArray;
 
-#define OBJTYPE(name) struct name;
+#define OBJTYPE(n, c) struct n;
 #include "objecttype.h"
 
 #ifdef GC_STRESS
@@ -51,11 +52,13 @@ template <typename T, size_t n> struct CustomArray;
 
 struct GcObject {
 	const Class *klass;
-	enum GcObjectType : std::uint8_t {
+	enum Type : std::uint8_t {
 		OBJ_NONE,
-#define OBJTYPE(n) OBJ_##n,
+#define OBJTYPE(n, c) OBJ_##n,
 #include "objecttype.h"
 	} objType;
+
+	template <typename T> static Type getType() { return Type::OBJ_NONE; };
 
 #ifdef DEBUG_GC
 	// A pointer to the index of the generation that
@@ -68,13 +71,13 @@ struct GcObject {
 
 	void depend_();
 
-#define OBJTYPE(x) \
+#define OBJTYPE(x, c) \
 	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
 #include "objecttype.h"
 #endif
 
 	// basic type check
-#define OBJTYPE(n) \
+#define OBJTYPE(n, c) \
 	bool is##n() { return objType == OBJ_##n; }
 #include "objecttype.h"
 
@@ -143,8 +146,8 @@ struct GcObject {
 	// marking and unmarking functions
 	static void mark(Value v);
 	static void mark(GcObject *p);
-#define OBJTYPE(n) \
-	static void mark(n *val) { mark((GcObject *)val); };
+#define OBJTYPE(r, n) \
+	static void mark(r *val) { mark((GcObject *)val); }
 #include "objecttype.h"
 	static void mark(Value *v, size_t num);
 	static bool isMarked(GcObject *p);
@@ -177,15 +180,10 @@ struct GcObject {
 	static void setMaxGC(size_t v);
 
 	// memory management functions
-	static void *alloc(size_t s, GcObjectType type, const Class *klass);
-#define OBJTYPE(n)          \
-	static Class *n##Class; \
-	static n *    alloc##n();
-#include "objecttype.h"
-	// if any user class extends 'error', this
-	// is the class that it actually extends
-	// instead of builtin Error.
-	static Class *ErrorObjectClass;
+	static void *alloc(size_t s, Type type, const Class *klass);
+	template <typename T> static T *alloc() {
+		return (T *)alloc(sizeof(T), GcObject::getType<T>(), Classes::get<T>());
+	}
 	// makes a contiguous allocation of a String
 	// object along with its characters, the string
 	// is not yet tracked by the gc
@@ -197,17 +195,11 @@ struct GcObject {
 	// expressions and statements require custom sizes
 	static Expression *allocExpression2(size_t size);
 	static Statement * allocStatement2(size_t size);
-	// primitive classes
-	static Class *NumberClass;
-	static Class *BooleanClass;
-	// core module and its context
-	static Class *                  CoreModule;
-	static ClassCompilationContext *CoreContext;
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
 
 	// track temporary objects
-	static Set *temporaryObjects;
+	static Map *temporaryObjects; // pointers mapped to refcount
 	static void trackTemp(GcObject *o);
 	static void untrackTemp(GcObject *o);
 	// returns true if a pointer is already being tracked
@@ -219,33 +211,23 @@ struct GcObject {
 	static void   print_stat();
 #endif
 };
+#define OBJTYPE(n, c) template <> GcObject::Type GcObject::getType<n>();
+#include "objecttype.h"
 
 template <typename T> struct GcTempObject {
   private:
-	T *  obj;
-	bool own;
+	T *obj;
 
-	void track() {
-		if(obj) {
-			// first check if the object is already being tracked
-			// if it is already being tracked, we're not
-			// the one who started tracking this, so we will
-			// not be the one to do this now.
-			own = !GcObject::isTempTracked((GcObject *)obj);
-			if(own)
-				GcObject::trackTemp((GcObject *)obj);
-		}
-	}
+	void track() { GcObject::trackTemp((GcObject *)obj); }
 
 	void untrack() {
-		if(obj && own) {
+		if(obj)
 			GcObject::untrackTemp((GcObject *)obj);
-		}
 	}
 
   public:
-	GcTempObject() : obj(nullptr), own(false) {}
-	GcTempObject(T *o) : obj(o), own(false) { track(); }
+	GcTempObject() : obj(nullptr) {}
+	GcTempObject(T *o) : obj(o) { track(); }
 
 	~GcTempObject() { untrack(); }
 
@@ -268,9 +250,8 @@ template <typename T> struct GcTempObject {
 	GcTempObject<T> &operator=(const GcTempObject<T> &o) = delete;
 	// allow move construct and move assign
 	GcTempObject(GcTempObject<T> &&o) {
-		obj   = o.obj;
+		obj   = o.obj; // it is already being tracked
 		o.obj = nullptr;
-		track();
 	}
 
 	GcTempObject<T> &operator=(GcTempObject<T> &&o) {
@@ -281,5 +262,5 @@ template <typename T> struct GcTempObject {
 	}
 };
 
-#define OBJTYPE(x) using x##2 = GcTempObject<x>;
+#define OBJTYPE(x, c) using x##2 = GcTempObject<x>;
 #include "objecttype.h"

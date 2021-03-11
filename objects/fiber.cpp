@@ -14,7 +14,7 @@
 #define FIBER_DEFAULT_FRAME_ALLOC 4
 
 Fiber *Fiber::create(Fiber *parent) {
-	Fiber *f = GcObject::allocFiber();
+	Fiber *f = GcObject::alloc<Fiber>();
 	f->stack_ =
 	    (Value *)GcObject_malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
 	Utils::fillNil(f->stack_, FIBER_DEFAULT_STACK_ALLOC);
@@ -241,10 +241,7 @@ Value next_fiber_construct_x(const Value *args, int numargs) {
 	return Value(f);
 }
 
-void Fiber::init() {
-	Class *FiberClass = GcObject::FiberClass;
-
-	FiberClass->init("fiber", Class::ClassType::BUILTIN);
+void Fiber::init(Class *FiberClass) {
 
 	/*
 	 *  So the fiber api should look like the following

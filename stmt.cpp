@@ -42,20 +42,17 @@ size_t Statement::getSize() {
 	}
 }
 
-void Statement::init() {
-	Class *StatementClass = GcObject::StatementClass;
-	StatementClass->init("statement", Class::ClassType::BUILTIN);
-}
-
 #ifdef DEBUG_GC
+/*
 const char *Statement::gc_repr() {
-	switch(type) {
+    switch(type) {
 #define STMTTYPE(x) \
-	case STMT_##x: return #x "Statement"; break;
-		default: panic("Invalid statement type!"); return "<error>";
+    case STMT_##x: return #x "Statement"; break;
+        default: panic("Invalid statement type!"); return "<error>";
 #include "stmttypes.h"
-	}
+    }
 }
+*/
 #endif
 
 #ifdef DEBUG

@@ -1,33 +1,13 @@
 #include "gc.h"
 #include "engine.h"
 #include "expr.h"
-#include "loader.h"
 #ifndef GC_USE_STD_ALLOC
 #include "memman.h"
 #endif
-#include "objects/array_iterator.h"
-#include "objects/bits.h"
-#include "objects/bits_iterator.h"
-#include "objects/boolean.h"
-#include "objects/boundmethod.h"
-#include "objects/builtin_module.h"
-#include "objects/bytecode.h"
-#include "objects/bytecodecompilationctx.h"
-#include "objects/core.h"
-#include "objects/customarray.h"
-#include "objects/errors.h"
-#include "objects/fiber.h"
-#include "objects/fiber_iterator.h"
-#include "objects/file.h"
-#include "objects/functioncompilationctx.h"
-#include "objects/map_iterator.h"
-#include "objects/number.h"
-#include "objects/range.h"
-#include "objects/range_iterator.h"
-#include "objects/set_iterator.h"
-#include "objects/symtab.h"
+#include "func_utils.h"
+#include "objects/object.h"
+#include "objects/set.h"
 #include "objects/tuple.h"
-#include "objects/tuple_iterator.h"
 #include "printer.h"
 #include "stmt.h"
 #include "utils.h"
@@ -40,22 +20,14 @@ size_t                GcObject::gc_count       = 0;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
-#define OBJTYPE(n) 0,
+#define OBJTYPE(n, c) 0,
 #include "objecttype.h"
 };
 static size_t counterCounter = 0;
-#define OBJTYPE(n) size_t n##Counter = counterCounter++;
+#define OBJTYPE(n, c) size_t n##Counter = counterCounter++;
 #include "objecttype.h"
 #endif
-#define OBJTYPE(n) Class *GcObject::n##Class = nullptr;
-#include "objecttype.h"
-Class *GcObject::NumberClass      = nullptr;
-Class *GcObject::BooleanClass     = nullptr;
-Class *GcObject::ErrorObjectClass = nullptr;
-Class *GcObject::CoreModule       = nullptr;
-Set *  GcObject::temporaryObjects = nullptr;
-
-ClassCompilationContext *GcObject::CoreContext = nullptr;
+Map *GcObject::temporaryObjects = nullptr;
 
 #ifdef GC_USE_STD_ALLOC
 #define MALLOC_CALL(x) std::malloc(x)
@@ -128,6 +100,9 @@ void GcObject::free(void *mem, size_t bytes) {
 	FREE(mem, bytes);
 	totalAllocated -= bytes;
 }
+#define OBJTYPE(n, c) \
+	template <> GcObject::Type GcObject::getType<n>() { return Type::OBJ_##n; }
+#include "objecttype.h"
 
 void GcObject::gc(bool force) {
 	// check for gc
@@ -139,17 +114,11 @@ void GcObject::gc(bool force) {
 		Printer::println("[GC] [Before] Allocated: ", totalAllocated, " bytes");
 		Printer::println("[GC] [Before] NextGC: ", next_gc, " bytes");
 		Printer::println("[GC] MaxGC: ", max_gc, " bytes");
-		Printer::println("[GC] Marking core classes..");
 #endif
-#define OBJTYPE(n) mark(n##Class);
-#include "objecttype.h"
-		mark(NumberClass);
-		mark(BooleanClass);
-		// mark error object class
-		mark(ErrorObjectClass);
-		mark((GcObject *)CoreModule);
+#ifdef GC_PRINT_CLEANUP
+		Printer::println("Marking core..");
+#endif
 		mark(ExecutionEngine::CoreObject);
-		mark(CoreContext); // not really needed
 #ifdef GC_PRINT_CLEANUP
 		Printer::println("[GC] Marking weak strings..");
 #endif
@@ -271,18 +240,25 @@ void GcObject::trackTemp(GcObject *g) {
 #ifdef DEBUG
 	// std::wcout << "[GC] Tracking " << g << "..\n";
 #endif
-	temporaryObjects->hset.insert(g);
+	if(temporaryObjects->vv.contains(Value(g))) {
+		Value &v = temporaryObjects->vv[Value(g)];
+		v        = Value(v.toInteger() + 1);
+	} else
+		temporaryObjects->vv[Value(g)] = Value(1);
 }
 
 void GcObject::untrackTemp(GcObject *g) {
 #ifdef DEBUG
 	// std::wcout << "[GC] Untracking " << g << "..\n";
 #endif
-	temporaryObjects->hset.erase(g);
+	Value &refCount = temporaryObjects->vv[Value(g)];
+	refCount        = Value(refCount.toInteger() - 1);
+	if(refCount.toInteger() == 0)
+		temporaryObjects->vv.erase(Value(g));
 }
 
 bool GcObject::isTempTracked(GcObject *o) {
-	return temporaryObjects->hset.contains(o);
+	return temporaryObjects->vv.contains(o);
 }
 
 void GcObject::tracker_insert(GcObject *g) {
@@ -293,8 +269,7 @@ void GcObject::tracker_insert(GcObject *g) {
 #endif
 }
 
-void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
-                      const Class *klass) {
+void *GcObject::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	// try for gc before allocation
 	// because the returned pointer
 	// may be less fragmented
@@ -312,7 +287,7 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 	             " ptr: 0x{:x} ",
 	             (uintptr_t)obj);
 	switch(type) {
-#define OBJTYPE(x)                                                 \
+#define OBJTYPE(x, c)                                              \
 	case OBJ_##x:                                                  \
 		Printer::print(#x);                                        \
 		if(klass && klass->name)                                   \
@@ -327,17 +302,6 @@ void *GcObject::alloc(size_t s, GcObject::GcObjectType type,
 #endif
 	return obj;
 }
-
-#ifdef DEBUG_GC
-#define OBJTYPE(n)                                         \
-	n *GcObject::alloc##n() {                              \
-		return ((n *)alloc(sizeof(n), OBJ_##n, n##Class)); \
-	}
-#else
-#define OBJTYPE(n) \
-	n *GcObject::alloc##n() { return (n *)alloc(sizeof(n), OBJ_##n, n##Class); }
-#endif
-#include "objecttype.h"
 
 Object *GcObject::allocObject(const Class *klass) {
 	// perform the whole allocation (object + slots)
@@ -354,7 +318,7 @@ String *GcObject::allocString2(int numchar) {
 	String *s =
 	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
 	s->obj.objType = OBJ_String;
-	s->obj.klass   = StringClass;
+	s->obj.klass   = Classes::get<String>();
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
 #endif
@@ -370,41 +334,49 @@ void GcObject::releaseString2(String *s) {
 
 Tuple *GcObject::allocTuple2(int numobj) {
 	Tuple *t = (Tuple *)alloc(sizeof(Tuple) + (sizeof(Value) * numobj),
-	                          OBJ_Tuple, TupleClass);
+	                          OBJ_Tuple, Classes::get<Tuple>());
 	return t;
 }
 
 Expression *GcObject::allocExpression2(size_t size) {
-	Expression *e = (Expression *)alloc(size, OBJ_Expression, ExpressionClass);
+	Expression *e =
+	    (Expression *)alloc(size, OBJ_Expression, Classes::get<Expression>());
 	return e;
 }
 
 Statement *GcObject::allocStatement2(size_t size) {
-	Statement *s = (Statement *)alloc(size, OBJ_Statement, StatementClass);
+	Statement *s =
+	    (Statement *)alloc(size, OBJ_Statement, Classes::get<Statement>());
 	return s;
 }
 
 #ifdef DEBUG_GC
-#define release_(type, size)                                                 \
-	{                                                                        \
-		size_t bak = size;                                                   \
-		Printer::fmt("[GC]" ANSI_COLOR_MAGENTA " [Release]" ANSI_COLOR_RESET \
-		             " ptr: 0x{:x}"                                          \
-		             " " ANSI_COLOR_YELLOW #type ANSI_COLOR_RESET            \
-		             " ({}) -> {}\n",                                        \
-		             (uintptr_t)obj, bak, ((type *)obj)->gc_repr());         \
-		GcCounters[type##Counter]--;                                         \
-		((type *)obj)->release();                                            \
-		GcObject::free(obj, bak);                                            \
-		return;                                                              \
+#define release_(type, size)                                                   \
+	{                                                                          \
+		size_t bak = size;                                                     \
+		Printer::fmt("[GC]" ANSI_COLOR_MAGENTA " [Release]" ANSI_COLOR_RESET   \
+		             " ptr: 0x{:x}"                                            \
+		             " " ANSI_COLOR_YELLOW #type ANSI_COLOR_RESET " ({}) -> ", \
+		             (uintptr_t)obj, bak);                                     \
+		if(Classes::type##ClassInfo.GcReprFn)                                  \
+			Printer::println(                                                  \
+			    (((type *)obj)->*Classes::type##ClassInfo.GcReprFn)());        \
+		else                                                                   \
+			Printer::println(#type);                                           \
+		GcCounters[type##Counter]--;                                           \
+		if(Classes::type##ClassInfo.ReleaseFn)                                 \
+			(((type *)obj)->*Classes::type##ClassInfo.ReleaseFn)();            \
+		GcObject::free(obj, bak);                                              \
+		return;                                                                \
 	}
 #else
-#define release_(type, size)      \
-	{                             \
-		size_t bak = size;        \
-		((type *)obj)->release(); \
-		GcObject::free(obj, bak); \
-		return;                   \
+#define release_(type, size)                                        \
+	{                                                               \
+		size_t bak = size;                                          \
+		if(Classes::type##ClassInfo.ReleaseFn)                      \
+			(((type *)obj)->*Classes::type##ClassInfo.ReleaseFn)(); \
+		GcObject::free(obj, bak);                                   \
+		return;                                                     \
 	}
 #endif
 
@@ -433,9 +405,10 @@ void GcObject::release(GcObject *obj) {
 			panic("Object type NONE should not be present in "
 			      "the list!");
 			break;
-#define OBJTYPE(name)                 \
-	case OBJ_##name: {                \
-		release_(name, sizeof(name)); \
+#define OBJTYPE(n, c)                        \
+	case OBJ_##n: {                          \
+		release_(n, obj->klass->objectSize); \
+		break;                               \
 	}
 #include "objecttype.h"
 		default: panic("Invalid object tag!"); break;
@@ -485,9 +458,10 @@ void GcObject::mark(GcObject *p) {
 			Printer::Err("Object type NONE should not be "
 			             "present in the list!");
 			break;
-#define OBJTYPE(name)        \
-	case OBJ_##name:         \
-		((name *)p)->mark(); \
+#define OBJTYPE(name, classname)                               \
+	case OBJ_##name:                                           \
+		if(Classes::name##ClassInfo.MarkFn)                    \
+			(((name *)p)->*Classes::name##ClassInfo.MarkFn)(); \
 		break;
 #include "objecttype.h"
 	}
@@ -577,48 +551,8 @@ void GcObject::init() {
 	// initialize the temporary tracker
 	// allocate it manually, Set::create
 	// itself uses temporary objects
-	temporaryObjects = GcObject::allocSet();
-	::new(&temporaryObjects->hset) Set::SetType();
-
-	// allocate the core classes
-#define OBJTYPE(n) n##Class = Class::create();
-#include "objecttype.h"
-	NumberClass      = Class::create();
-	BooleanClass     = Class::create();
-	ErrorObjectClass = Class::create();
-
-	temporaryObjects->obj.klass = SetClass;
-
-	// initialize the string set and symbol table
-	String::init0();
-	SymbolTable2::init();
-
-	// initialize the core classes
-#ifdef DEBUG_GC
-#define OBJTYPE(n)                                    \
-	Printer::println("[GC] Initializing ", #n, ".."); \
-	n::init();                                        \
-	Printer::println("[GC] Initialized ", #n, "..");
-#else
-#define OBJTYPE(n) n::init();
-#endif
-#include "objecttype.h"
-	// initialize the primitive classes
-	Number::init();
-	Boolean::init();
-
-	CoreContext = ClassCompilationContext::create(NULL, String::const_core);
-	// register all the classes to core
-#define OBJTYPE(n) CoreContext->add_public_class(n##Class);
-#include "objecttype.h"
-	CoreContext->add_public_class(NumberClass);
-	CoreContext->add_public_class(BooleanClass);
-
-	CoreModule = CoreContext->get_class();
-	Core::addCoreFunctions();
-	Core::addCoreVariables();
-
-	CoreContext->finalize();
+	temporaryObjects = GcObject::alloc<Map>();
+	::new(&temporaryObjects->vv) Map::MapType();
 }
 
 #ifdef DEBUG_GC
@@ -636,9 +570,10 @@ void GcObject::depend_() {
 	idx = generations[0]->size - 1;
 	// let the class declare its dependency
 	switch(objType) {
-#define OBJTYPE(x)             \
-	case OBJ_##x:              \
-		((x *)this)->depend(); \
+#define OBJTYPE(x, c)                               \
+	case OBJ_##x:                                   \
+		if(Classes::x##DependFn)                    \
+			(((x *)this)->*Classes::x##DependFn)(); \
 		break;
 #include "objecttype.h"
 		default: panic("Invalid object type on depend!"); break;
@@ -680,9 +615,8 @@ void GcObject::free_print(const char *file, int line, void *mem, size_t size) {
 void GcObject::print_stat() {
 	Printer::println("[GC] Object allocation counters");
 	size_t i = 0;
-#define OBJTYPE(r)                                                       \
-	Printer::fmt("{:26}\t{:3}  *  {:3}  =  {:5} bytes\n", #r, sizeof(r), \
-	             GcCounters[i], sizeof(r) * GcCounters[i]);              \
+#define OBJTYPE(r, c)                                   \
+	Printer::fmt("{:26} -> {:3}\n", #r, GcCounters[i]); \
 	i++;
 #include "objecttype.h"
 	Printer::println("[GC] Total memory allocated : ", totalAllocated,

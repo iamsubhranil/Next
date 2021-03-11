@@ -45,23 +45,20 @@ size_t Expression::getSize() {
 	}
 }
 
-void Expression::init() {
-	Class *ExpressionClass = GcObject::ExpressionClass;
-	ExpressionClass->init("expression", Class::ClassType::BUILTIN);
-}
-
 #ifdef DEBUG_GC
+/*
 const char *Expression::gc_repr() {
-	switch(type) {
+    switch(type) {
 #define EXPRTYPE(x)             \
-	case EXPR_##x:              \
-		return #x "Expression"; \
-		break;
+    case EXPR_##x:              \
+        return #x "Expression"; \
+        break;
 #include "exprtypes.h"
-		case EXPR_This: return "ThisVariableExpression"; break;
-		default: panic("Invalid expression type!"); return "<error>";
-	}
+        case EXPR_This: return "ThisVariableExpression"; break;
+        default: panic("Invalid expression type!"); return "<error>";
+    }
 }
+*/
 #endif
 
 #ifdef DEBUG

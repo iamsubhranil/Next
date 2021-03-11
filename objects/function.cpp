@@ -17,7 +17,7 @@ Function *Function::from(const char *str, int arity, next_builtin_fn fn,
 
 Function *Function::create(const String2 &str, int arity, bool isva,
                            bool isStatic) {
-	Function2 f      = GcObject::allocFunction();
+	Function2 f      = GcObject::alloc<Function>();
 	f->name          = str;
 	f->code          = NULL;
 	f->mode          = METHOD;
@@ -100,11 +100,7 @@ Value next_function_type(const Value *args, int numargs) {
 	return Value((args[0].toFunction()->mode & 0x0f));
 }
 
-void Function::init() {
-	Class *FunctionClass = GcObject::FunctionClass;
-
-	FunctionClass->init("function", Class::BUILTIN);
-
+void Function::init(Class *FunctionClass) {
 	FunctionClass->add_builtin_fn("arity()", 0, next_function_arity);
 	FunctionClass->add_builtin_fn("name()", 0, next_function_name);
 	FunctionClass->add_builtin_fn("type()", 0, next_function_type);

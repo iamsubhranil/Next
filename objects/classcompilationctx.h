@@ -19,12 +19,13 @@ struct ClassCompilationContext {
 	};
 	typedef HashMap<String *, ClassCompilationContext::MemberInfo> MemberMap;
 
-	GcObject   obj;
+	GcObject obj;
+
 	MemberMap *members;            // string:slot
 	Map *      public_signatures;  // string:token to report overload errors
 	Map *      private_signatures; // string:token
-	Class *    klass;     // generated runtime representation of a class
-	Class *    metaclass; // metaclass of the class
+	Class *    compilingClass; // generated runtime representation of a class
+	Class *    metaclass;      // metaclass of the class
 	Map *      fctxMap; // a classctx also keeps track of all the function ctxes
 	Map *      cctxMap; // a modulectx keeps track of classctxes declared inside
 	// super context
@@ -78,13 +79,11 @@ struct ClassCompilationContext {
 
 	void finalize();
 
-	static void init();
-
-	void mark() const {
+	void mark() {
 		for(auto &i : *members) GcObject::mark(i.first);
 		GcObject::mark(public_signatures);
 		GcObject::mark(private_signatures);
-		GcObject::mark(klass);
+		GcObject::mark(compilingClass);
 		GcObject::mark(fctxMap);
 		if(metaclass != NULL) {
 			GcObject::mark(metaclass);
@@ -100,7 +99,7 @@ struct ClassCompilationContext {
 		}
 	}
 
-	void release() const {
+	void release() {
 		members->~MemberMap();
 		GcObject_free(members, sizeof(MemberMap));
 	}
@@ -108,7 +107,7 @@ struct ClassCompilationContext {
 	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(klass); }
-	const String *gc_repr() { return klass->name; }
+	void          depend() { GcObject::depend(compilingClass); }
+	const String *gc_repr() { return compilingClass->name; }
 #endif
 };

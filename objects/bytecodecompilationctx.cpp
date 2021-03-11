@@ -4,7 +4,7 @@
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	BytecodeCompilationContext2 bcc =
-	    GcObject::allocBytecodeCompilationContext();
+	    GcObject::alloc<BytecodeCompilationContext>();
 	bcc->code              = NULL;
 	bcc->ranges_           = (TokenRange *)GcObject_malloc(sizeof(TokenRange));
 	bcc->ranges_[0].token  = Token::PlaceholderToken;
@@ -15,14 +15,6 @@ BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	bcc->code              = Bytecode::create();
 	bcc->code->ctx         = bcc;
 	return bcc;
-}
-
-void BytecodeCompilationContext::init() {
-	Class *BytecodeCompilationContextClass =
-	    GcObject::BytecodeCompilationContextClass;
-
-	BytecodeCompilationContextClass->init("bytecode_compilation_ctx",
-	                                      Class::ClassType::BUILTIN);
 }
 
 void BytecodeCompilationContext::insert_token(Token t) {

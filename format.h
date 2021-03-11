@@ -579,7 +579,7 @@ struct Formatter {
 			// Format<Value> is called, that function explicitly
 			// allocates a formatspec on the heap, and passes that
 			FormatSpec f;
-			f.obj.klass    = GcObject::FormatSpecClass;
+			f.obj.klass    = Classes::get<FormatSpec>();
 			f.obj.objType  = GcObject::OBJ_FormatSpec;
 			FormatSpec *f2 = NULL;
 			if(has_format_spec) {

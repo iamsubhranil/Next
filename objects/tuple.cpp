@@ -106,10 +106,7 @@ Value next_tuple_str(const Value *args, int numargs) {
 	return ValueTrue;
 }
 
-void Tuple::init() {
-	Class *TupleClass = GcObject::TupleClass;
-
-	TupleClass->init("tuple", Class::ClassType::BUILTIN);
+void Tuple::init(Class *TupleClass) {
 	TupleClass->add_builtin_fn("(_)", 1, next_tuple_construct_1);
 	TupleClass->add_builtin_fn("copy()", 0, next_tuple_copy);
 	TupleClass->add_builtin_fn("iterate()", 0, next_tuple_iterate);

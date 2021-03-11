@@ -185,11 +185,11 @@ struct Fiber {
 		return parent;
 	}
 
-	static void init();
+	static void init(Class *c);
 	// most of the markings will be done
 	// using this method while the
 	// engine is executing
-	void mark() const {
+	void mark() {
 		// mark the active stack
 		GcObject::mark(stack_, stackTop - stack_);
 		// mark the active functions
@@ -204,15 +204,11 @@ struct Fiber {
 			GcObject::mark(fiberIterator);
 	}
 
-	void release() const {
+	void release() {
 		GcObject_free(stack_, sizeof(Value) * stackSize);
 		GcObject_free(callFrames, sizeof(CallFrame) * callFrameSize);
 	}
 
 	// runs the fiber until it returns somehow
 	Value run();
-#ifdef DEBUG_GC
-	void             depend() {}
-	const Utf8Source gc_repr() { return Utf8Source("fiber"); }
-#endif
 };

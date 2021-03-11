@@ -112,7 +112,7 @@ Value next_array_str(const Value *args, int numargs) {
 }
 
 Array *Array::create(int size) {
-	Array *arr    = GcObject::allocArray();
+	Array *arr    = GcObject::alloc<Array>();
 	arr->capacity = Utils::nextAllocationSize(0, size);
 	arr->size     = 0;
 	arr->values   = (Value *)GcObject_malloc(sizeof(Value) * arr->capacity);
@@ -153,11 +153,7 @@ Array *Array::copy() {
 	return a;
 }
 
-void Array::init() {
-	Class *ArrayClass = GcObject::ArrayClass;
-
-	// Initialize array class
-	ArrayClass->init("array", Class::BUILTIN);
+void Array::init(Class *ArrayClass) {
 	// constructors : empty, and predefined size
 	ArrayClass->add_builtin_fn("()", 0, next_array_construct_empty);
 	ArrayClass->add_builtin_fn("(_)", 1, next_array_construct_size);

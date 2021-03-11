@@ -6,9 +6,6 @@
 #include <cstdint>
 #include <functional>
 
-struct Statement;
-struct Expr;
-
 struct Value {
 	/*
 	constexpr uint64_t generateMask(size_t s) {
@@ -70,7 +67,7 @@ struct Value {
 		          << " (Magic : " << QNAN_##n << ")\n"                    \
 		          << std::dec;*/                                          \
 	}
-#define OBJTYPE(r)                                                        \
+#define OBJTYPE(r, c)                                                     \
 	Value(const r *s) {                                                   \
 		encodeGcObject((GcObject *)s);                                    \
 		/*std::wcout << std::hex << #n << " " << s << " encoded to : " << \
@@ -85,7 +82,7 @@ struct Value {
 #else
 #define TYPE(r, n) \
 	Value(const r s) { encode##n(s); }
-#define OBJTYPE(r)                                       \
+#define OBJTYPE(r, c)                                    \
 	Value(const r *s) { encodeGcObject((GcObject *)s); } \
 	Value(GcTempObject<r> &s) {                          \
 		r *temp = s;                                     \
@@ -107,7 +104,7 @@ struct Value {
 #define TYPE(r, n) \
 	inline bool is##n() const { return VAL_TAG(val.value) == QNAN_##n; }
 #include "valuetypes.h"
-#define OBJTYPE(n) \
+#define OBJTYPE(n, c) \
 	inline bool is##n() const { return isGcObject() && toGcObject()->is##n(); }
 #include "objecttype.h"
 	inline bool isNil() const { return val.value == QNAN_NIL; }
@@ -121,7 +118,7 @@ struct Value {
 #define TYPE(r, n) \
 	inline r to##n() const { return (r)(VAL_MASK & val.value); }
 #include "valuetypes.h"
-#define OBJTYPE(r) \
+#define OBJTYPE(r, c) \
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
 	inline double  toNumber() const { return val.dvalue; }
@@ -136,7 +133,7 @@ struct Value {
 		encode##n(d);                     \
 		return *this;                     \
 	}
-#define OBJTYPE(r)                        \
+#define OBJTYPE(r, c)                     \
 	inline Value &operator=(const r *d) { \
 		encodeGcObject((GcObject *)d);    \
 		return *this;                     \
@@ -156,15 +153,23 @@ struct Value {
 		return v.val.value != val.value;
 	}
 
+	// since numbers, booleans and nils are stored unboxed,
+	// we cannot get their classes from the "object",
+	// so we stash their classes here, and return it.
+	static Class *NumberClass;
+	static Class *BooleanClass;
+	static Class *NilClass;
+
 	// returns class for the value
 	inline const Class *getClass() const {
 		switch(getType()) {
-			case Value::VAL_Number: return GcObject::NumberClass;
-			case Value::VAL_Boolean: return GcObject::BooleanClass;
+			case Value::VAL_Number: return NumberClass;
+			case Value::VAL_Boolean: return BooleanClass;
 			case Value::VAL_GcObject: return toGcObject()->klass;
 			case Value::VAL_Pointer: return toPointer()->getClass();
-			default: return GcObject::ObjectClass;
+			case Value::VAL_NIL: return NilClass;
 		}
+		return nullptr;
 	}
 
 	// calls str(f) if the class has one, otherwise calls str()

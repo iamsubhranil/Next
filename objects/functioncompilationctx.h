@@ -28,9 +28,7 @@ struct FunctionCompilationContext {
 	static FunctionCompilationContext *
 	create(String2 name, int arity, bool isStatic = false, bool isva = false);
 
-	static void init();
-
-	void mark() const {
+	void mark() {
 		GcObject::mark(f);
 		GcObject::mark(bcc);
 		for(auto &a : *slotmap) {
@@ -38,7 +36,7 @@ struct FunctionCompilationContext {
 		}
 	}
 
-	void release() const {
+	void release() {
 		slotmap->~SlotMap();
 		GcObject_free(slotmap, sizeof(SlotMap));
 	}

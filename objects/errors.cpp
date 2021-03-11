@@ -3,9 +3,9 @@
 #include "../format.h"
 #include "function.h"
 
-#define ERRORTYPE(x, name)                                              \
+#define ERRORTYPE(x, name)                                          \
 	x *x::create(const String2 &m) {                                \
-		x *re       = GcObject::alloc##x();                         \
+		x *re       = GcObject::alloc<x>();                         \
 		re->message = m;                                            \
 		return re;                                                  \
 	}                                                               \
@@ -19,16 +19,16 @@
 		EXPECT(name, "new(_)", 1, String);                          \
 		return x::create(args[1].toString());                       \
 	}                                                               \
-	void x::init() {                                                \
-		Class *x##Class = GcObject::x##Class;                       \
-		x##Class->init(name, Class::ClassType::BUILTIN);            \
-		x##Class->derive(GcObject::ErrorClass);                     \
+	void x::init(Class *x##Class) {                                 \
+		x##Class->derive(Classes::get<Error>());                    \
 		x##Class->add_builtin_fn("(_)", 1, next_##x##_construct_1); \
 	}
 #include "error_types.h"
 
+Class *Error::ErrorObjectClass = nullptr;
+
 Error *Error::create(const String2 &m) {
-	Error *re   = GcObject::allocError();
+	Error *re   = GcObject::alloc<Error>();
 	re->message = m;
 	return re;
 }
@@ -100,15 +100,13 @@ Function2 ErrorObjectClassStr() {
 	return f;
 }
 
-void Error::init() {
-	Class *ErrorClass = GcObject::ErrorClass;
-
-	ErrorClass->init("error", Class::ClassType::BUILTIN);
+void Error::init(Class *ErrorClass) {
 	ErrorClass->add_builtin_fn("(_)", 1, next_error_construct_1);
 	ErrorClass->add_builtin_fn("str()", 0, next_error_str);
 
-	Class *ErrorObjectClass = GcObject::ErrorObjectClass;
-	ErrorObjectClass->init("error", Class::ClassType::NORMAL);
+	// allocate the error object class
+	ErrorObjectClass = Class::create();
+	ErrorObjectClass->init_class("error", Class::ClassType::NORMAL);
 	ErrorObjectClass->numSlots = 1; // message
 	ErrorObjectClass->add_fn("(_)",
 	                         ErrorObjectClassConstructor(ErrorObjectClass));

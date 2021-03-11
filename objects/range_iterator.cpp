@@ -2,14 +2,14 @@
 #include "iterator.h"
 
 RangeIterator *RangeIterator::from(Range *r) {
-	RangeIterator *ri = GcObject::allocRangeIterator();
+	RangeIterator *ri = GcObject::alloc<RangeIterator>();
 	ri->r             = r;
 	ri->present       = r->from;
 	ri->hasNext       = Value(ri->present < r->to);
 	return ri;
 }
 
-void RangeIterator::init() {
-	Iterator::initIteratorClass(GcObject::RangeIteratorClass, "range_iterator",
+void RangeIterator::init(Class *RangeIteratorClass) {
+	Iterator::initIteratorClass(RangeIteratorClass,
 	                            Iterator::Type::RangeIterator);
 }

@@ -7,6 +7,7 @@
 #include "objects/bytecodecompilationctx.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
+#include "objects/object.h"
 #include "objects/symtab.h"
 
 #define lnerr_(t, ...)                                     \
@@ -37,7 +38,7 @@ CodeGenerator::CodeGenerator() {
 	ctx                = NULL;
 	ftx                = NULL;
 	btx                = NULL;
-	corectx            = GcObject::CoreContext;
+	corectx            = Value(ExecutionEngine::CoreObject).getClass();
 	currentlyCompiling = nullptr;
 
 	expressionNoPop = false;
@@ -292,19 +293,19 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(const String2 &name,
 		    mtx->get_class()->get_fn(info.frameIdx).toFunction()->isStatic();
 		return info;
 	}
+	int64_t nid = SymbolTable2::insert(name);
 	// try searching in core
-	else if(corectx->has_mem(name)) {
+	if(corectx->has_fn(nid) && corectx->get_fn(nid).isInteger()) {
 		info.type     = CORE;
-		info.frameIdx = corectx->get_mem_slot(name);
+		info.frameIdx = corectx->get_fn(nid).toInteger();
 		return info;
-	} else if(corectx->has_fn(signature)) {
+	}
+	int64_t sid = SymbolTable2::insert(signature);
+	if(corectx->has_fn(sid) && corectx->get_fn(sid).isFunction()) {
 		info.type     = CORE;
-		info.frameIdx = corectx->get_fn_sym(signature);
+		info.frameIdx = sid;
 		info.soft     = false;
-		info.isStatic = corectx->get_class()
-		                    ->get_fn(info.frameIdx)
-		                    .toFunction()
-		                    ->isStatic();
+		info.isStatic = corectx->get_fn(sid).toFunction()->isStatic();
 		return info;
 	}
 
@@ -494,9 +495,11 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
 			if(mtx->has_mem(name)) {
 				return VarInfo{mtx->get_mem_slot(name), MODULE, false};
 			}
+			int64_t nid = SymbolTable2::insert(name);
 			// Check if it is in core
-			if(corectx->has_mem(name)) {
-				return VarInfo{corectx->get_mem_slot(name), CORE, false};
+			if(corectx->has_fn(nid) && corectx->get_fn(nid).isInteger()) {
+				return VarInfo{(int)corectx->get_fn(nid).toInteger(), CORE,
+				               false};
 			}
 		}
 	}
@@ -678,7 +681,8 @@ void CodeGenerator::validateThisOrSuper(Token tos) {
 		lnerr_(tos, "Cannot use this/super inside a static method!");
 	} else if(!ctx->isDerived && tos.type == Token::Type::TOKEN_super) {
 		// we cannot use super inside a class which is not derived
-		lnerr_(tos, "Cannot use 'super' inside class '", ctx->klass->name,
+		lnerr_(tos, "Cannot use 'super' inside class '",
+		       ctx->compilingClass->name,
 		       "' which is not derived "
 		       "from anything!");
 	}
@@ -737,7 +741,8 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->load_static_slot(variableInfo.slot, ctx->klass);
+					btx->load_static_slot(variableInfo.slot,
+					                      ctx->compilingClass);
 				else
 					btx->load_object_slot(variableInfo.slot);
 				break;
@@ -763,7 +768,8 @@ void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->store_static_slot(variableInfo.slot, ctx->klass);
+					btx->store_static_slot(variableInfo.slot,
+					                       ctx->compilingClass);
 				else
 					btx->store_object_slot(variableInfo.slot);
 				break;
@@ -1217,7 +1223,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			if(inConstructor) {
 				lnerr_(ifs->name,
 				       "Ambiguous constructor declaration for class '",
-				       ctx->klass->name, "'!");
+				       ctx->compilingClass->name, "'!");
 
 			} else {
 				lnerr_(ifs->name,
@@ -1229,7 +1235,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			mtx->functions.find(signature)->second->token.highlight();
 		*/
 		} else if(inConstructor) {
-			String *cdec = String::append(ctx->klass->name, signature);
+			String *cdec = String::append(ctx->compilingClass->name, signature);
 			if(mtx->has_fn(cdec)) {
 				lnerr_(ifs->name,
 				       "Constructor declaration collides with a previously "

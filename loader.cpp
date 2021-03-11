@@ -110,15 +110,10 @@ void registerParselets(Parser *p) {
 }
 
 Loader *Loader::create() {
-	Loader *l      = GcObject::allocLoader();
+	Loader *l      = GcObject::alloc<Loader>();
 	l->isCompiling = false;
 	l->replModule  = ValueNil;
 	return l;
-}
-
-void Loader::init() {
-	Class *LoaderClass = GcObject::LoaderClass;
-	LoaderClass->init("loader", Class::ClassType::BUILTIN);
 }
 
 GcObject *Loader::compile_and_load(const String2 &fileName, bool execute) {

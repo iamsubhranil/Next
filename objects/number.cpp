@@ -58,11 +58,7 @@ Value next_number_from_str(const Value *args, int numargs) {
 	return Value(d);
 }
 
-void Number::init() {
-	Class *NumberClass = GcObject::NumberClass;
-
-	NumberClass->init("number", Class::ClassType::BUILTIN);
-
+void Number::init(Class *NumberClass) {
 	// construct a number from the given string
 	NumberClass->add_builtin_fn("(_)", 1, next_number_from_str);
 	NumberClass->add_builtin_fn("fmt(_,_)", 2, next_number_fmt);

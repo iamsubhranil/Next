@@ -1,8 +1,6 @@
 #pragma once
 
 #include "../gc.h"
-#include <cstdio>
-
 #include "../stream.h"
 #include "string.h"
 
@@ -49,8 +47,7 @@ struct File {
 		return File::fopen(name->str(), mode->str());
 	}
 
-	static void init();
-	void        mark() {}
+	static void init(Class *c);
 	void        release() {
         if(streamSize > 0) {
             stream->close();
@@ -58,8 +55,4 @@ struct File {
             GcObject_free(stream, streamSize);
         }
 	}
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "file"; }
-#endif
 };

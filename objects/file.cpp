@@ -78,7 +78,7 @@ FILE *File::fopen(const void *name, const void *mode) {
 }
 
 Value File::create(FILE *f, uint8_t modes) {
-	File *fl       = GcObject::allocFile();
+	File *fl       = GcObject::alloc<File>();
 	fl->streamSize = sizeof(FileStream);
 	fl->stream     = (Stream *)GcObject_malloc(sizeof(FileStream));
 	::new(fl->stream) FileStream(f, modes);
@@ -86,7 +86,7 @@ Value File::create(FILE *f, uint8_t modes) {
 }
 
 File *File::create(Stream *s) {
-	File *fl       = GcObject::allocFile();
+	File *fl       = GcObject::alloc<File>();
 	fl->streamSize = 0;
 	fl->stream     = s;
 	return fl;
@@ -292,10 +292,7 @@ Value next_file_fmt(const Value *args, int numargs) {
 	return ret;
 }
 
-void File::init() {
-	Class *FileClass = GcObject::FileClass;
-
-	FileClass->init("File", Class::ClassType::BUILTIN);
+void File::init(Class *FileClass) {
 	FileClass->add_builtin_fn("close()", 0, next_file_close);
 	FileClass->add_builtin_fn("flush()", 0, next_file_flush);
 	// movement

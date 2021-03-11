@@ -2,20 +2,12 @@
 #include "bytecodecompilationctx.h"
 #include "class.h"
 
-void FunctionCompilationContext::init() {
-	Class *FunctionCompilationContextClass =
-	    GcObject::FunctionCompilationContextClass;
-
-	FunctionCompilationContextClass->init("function_compilation_context",
-	                                      Class::ClassType::BUILTIN);
-}
-
 FunctionCompilationContext *FunctionCompilationContext::create(String2 name,
                                                                int     arity,
                                                                bool    isStatic,
                                                                bool    isva) {
 	FunctionCompilationContext2 fcc =
-	    GcObject::allocFunctionCompilationContext();
+	    GcObject::alloc<FunctionCompilationContext>();
 	fcc->slotCount = 0;
 	fcc->bcc       = NULL;
 	fcc->f         = NULL;

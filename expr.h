@@ -57,13 +57,10 @@ struct Expression {
 	bool           is##x##Expression() { return type == EXPR_##x; } \
 	x##Expression *to##x##Expression() { return (x##Expression *)this; }
 #include "exprtypes.h"
-	size_t      getSize(); // returns actual allocation size based on type
-	void        mark();
-	void        release() {}
-	static void init();
+	size_t getSize(); // returns actual allocation size based on type
+	void   mark();
 #ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr();
+	// const char *gc_repr();
 #endif
 	friend class ExpressionVisitor;
 };

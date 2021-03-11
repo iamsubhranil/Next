@@ -47,7 +47,7 @@
 #endif
 
 //#if defined(_MSC_VER)
-//typedef __int32 utf8_int32_t;
+// typedef __int32 utf8_int32_t;
 //#else
 #include <stdint.h>
 typedef uint32_t utf8_int32_t;
@@ -170,8 +170,7 @@ utf8_nonnull utf8_pure utf8_weak size_t utf8spn(const void *src,
                                                 const void *accept);
 
 // The position of the utf8 string needle in the utf8 string haystack.
-utf8_nonnull utf8_pure void *utf8str(const void *haystack,
-                                               const void *needle);
+utf8_nonnull utf8_pure void *utf8str(const void *haystack, const void *needle);
 
 // The position of the utf8 string needle in the utf8 string haystack, case
 // insensitive.
@@ -199,8 +198,8 @@ utf8_weak size_t utf8codepointsize(utf8_int32_t chr);
 // place after the written codepoint. Pass how many bytes left in the buffer to
 // n. If there is not enough space for the codepoint, this function returns
 // null.
-utf8_nonnull void *utf8catcodepoint(void *utf8_restrict str,
-                                              utf8_int32_t chr, size_t n);
+utf8_nonnull void *utf8catcodepoint(void *utf8_restrict str, utf8_int32_t chr,
+                                    size_t n);
 
 // Returns 1 if the given character is lowercase, or 0 if it is not.
 utf8_weak int utf8islower(utf8_int32_t chr);

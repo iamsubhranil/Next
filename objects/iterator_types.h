@@ -1,14 +1,14 @@
 #ifndef ITERATOR
-#define ITERATOR(x)
+#define ITERATOR(name, cname)
 #endif
 
-ITERATOR(Array)
-ITERATOR(Tuple)
+ITERATOR(Array, "array_iterator")
+ITERATOR(Tuple, "tuple_iterator")
 // ITERATOR(Fiber) // FiberIterator requires call stack backup,
 //                  so we handle it as a standard builtin call
-ITERATOR(Map)
-ITERATOR(Set)
-ITERATOR(Range)
-ITERATOR(Bits)
+ITERATOR(Map, "map_iterator")
+ITERATOR(Set, "set_iterator")
+ITERATOR(Range, "range_iterator")
+ITERATOR(Bits, "bits_iterator")
 
 #undef ITERATOR

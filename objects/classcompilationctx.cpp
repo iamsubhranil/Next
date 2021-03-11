@@ -6,7 +6,7 @@
 
 ClassCompilationContext *
 ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
-	ClassCompilationContext2 ctx = GcObject::allocClassCompilationContext();
+	ClassCompilationContext2 ctx = GcObject::alloc<ClassCompilationContext>();
 	ctx->slotCount               = 0;
 	ctx->staticSlotCount         = 0;
 	ctx->isCompiled              = false;
@@ -16,7 +16,7 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->isDerived               = false;
 	ctx->public_signatures       = nullptr;
 	ctx->private_signatures      = nullptr;
-	ctx->klass                   = nullptr;
+	ctx->compilingClass          = nullptr;
 	ctx->fctxMap                 = nullptr;
 	ctx->metaclass               = nullptr;
 	ctx->members                 = nullptr;
@@ -25,12 +25,12 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	::new(ctx->members) MemberMap();
 	ctx->public_signatures  = Map::create();
 	ctx->private_signatures = Map::create();
-	ctx->klass              = Class::create();
+	ctx->compilingClass     = Class::create();
 	ctx->fctxMap            = Map::create();
 	if(s == NULL) {
 		// it's a module.
 		// init the module
-		ctx->klass->init(n, Class::ClassType::NORMAL);
+		ctx->compilingClass->init_class(n, Class::ClassType::NORMAL);
 		// so add a default constructor to initialize
 		// the class variables
 		ctx->defaultConstructor = FunctionCompilationContext::create(
@@ -49,19 +49,20 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		// a module does not have a metaclass
 		ctx->metaclass = NULL;
 	} else {
-		ctx->klass->module = s->klass;
+		ctx->compilingClass->module = s->compilingClass;
 		// if this is a normal class, create a metaclass
 		// for it
 		// a metaclass is a copy of the root 'class' class,
 		// only it has added slots for static methods
 		// and members of the present class
-		ctx->metaclass = GcObject::ClassClass->copy();
+		ctx->metaclass = Classes::get<Class>()->copy();
 		// link the metaclass first, so it doesn't get
 		// garbage collected
-		ctx->klass->obj.klass = ctx->metaclass;
-		ctx->metaclass->name  = String::append(n, " metaclass");
+		ctx->compilingClass->obj.klass = ctx->metaclass;
+		ctx->metaclass->name           = String::append(n, " metaclass");
 		// init the class with the metaclass
-		ctx->klass->init(n, Class::ClassType::NORMAL, ctx->metaclass);
+		ctx->compilingClass->init_class(n, Class::ClassType::NORMAL,
+		                                ctx->metaclass);
 	}
 	return ctx;
 }
@@ -83,15 +84,17 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic,
 	int sym = SymbolTable2::insert(name);
 	if(!isStatic) {
 		members[0][name] = MemberInfo{slotCount++, false, declare};
-		klass->add_sym(sym, Value(klass->add_slot()));
+		compilingClass->add_sym(sym, Value(compilingClass->add_slot()));
 	} else {
 		members[0][name] = MemberInfo{staticSlotCount++, true, declare};
-		int slot         = klass->add_static_slot();
-		klass->add_sym(sym, Value(&klass->static_values[slot]));
+		int slot         = compilingClass->add_static_slot();
+		compilingClass->add_sym(sym,
+		                        Value(&compilingClass->static_values[slot]));
 		if(metaclass) {
 			// add it as a public variable of the metaclass,
 			// pointing to the static slot of this class
-			metaclass->add_sym(sym, Value(&klass->static_values[slot]));
+			metaclass->add_sym(sym,
+			                   Value(&compilingClass->static_values[slot]));
 		}
 	}
 	return true;
@@ -103,10 +106,10 @@ int ClassCompilationContext::add_private_mem(String *name, bool isStatic,
 		return get_mem_slot(name);
 	if(!isStatic) {
 		members[0][name] = MemberInfo{slotCount++, false, declare};
-		klass->add_slot();
+		compilingClass->add_slot();
 	} else {
 		members[0][name] = MemberInfo{staticSlotCount++, true, declare};
-		klass->add_static_slot();
+		compilingClass->add_static_slot();
 		// this is a private static variable, so we don't
 		// need to add anything to the metaclass
 	}
@@ -143,7 +146,7 @@ void ClassCompilationContext::add_public_signature(
 
 	// TODO: insert token here
 	public_signatures->vv[Value(sig)] = Value(f);
-	klass->add_fn(sig, f);
+	compilingClass->add_fn(sig, f);
 	if(fctx)
 		fctxMap->vv[Value(sig)] = Value(fctx);
 	if(f->isStatic() && metaclass) {
@@ -184,7 +187,7 @@ void ClassCompilationContext::add_private_signature(
 	// append the signature with "p " so that it cannot
 	// be invoked as a method outside of the class
 	String2 priv_signature = String::append("p ", sig);
-	klass->add_fn(priv_signature, f);
+	compilingClass->add_fn(priv_signature, f);
 	if(fctx)
 		fctxMap->vv[Value(sig)] = Value(fctx);
 	// we don't need to add anything to the metaclass
@@ -248,7 +251,7 @@ void ClassCompilationContext::add_public_class(Class *                  c,
 	// so don't populate the map
 	if(ctx != NULL)
 		cctxMap->vv[Value(c->name)] = Value(ctx);
-	c->module = klass;
+	c->module = compilingClass;
 }
 
 void ClassCompilationContext::add_private_class(Class *                  c,
@@ -260,7 +263,7 @@ void ClassCompilationContext::add_private_class(Class *                  c,
 	defaultConstructor->bcc->store_object_slot(modSlot);
 	if(ctx != NULL)
 		cctxMap->vv[Value(c->name)] = Value(ctx);
-	c->module = klass;
+	c->module = compilingClass;
 }
 
 bool ClassCompilationContext::has_class(String *name) {
@@ -274,19 +277,11 @@ ClassCompilationContext *ClassCompilationContext::get_class_ctx(String *name) {
 }
 
 Class *ClassCompilationContext::get_class() {
-	return klass;
+	return compilingClass;
 }
 
 FunctionCompilationContext *ClassCompilationContext::get_default_constructor() {
 	return defaultConstructor;
-}
-
-void ClassCompilationContext::init() {
-	Class *ClassCompilationContextClass =
-	    GcObject::ClassCompilationContextClass;
-
-	ClassCompilationContextClass->init("class_compilation_context",
-	                                   Class::ClassType::BUILTIN);
 }
 
 void ClassCompilationContext::finalize() {
@@ -302,9 +297,9 @@ void ClassCompilationContext::finalize() {
 
 void ClassCompilationContext::disassemble(WritableStream &os) {
 	if(moduleContext == NULL) {
-		os.write("Module: ", klass->name->str(), "\n");
+		os.write("Module: ", compilingClass->name->str(), "\n");
 	} else {
-		os.write("Class: ", klass->name->str(), "\n");
+		os.write("Class: ", compilingClass->name->str(), "\n");
 	}
 	os.write("Members: ");
 	for(auto &a : *members) {

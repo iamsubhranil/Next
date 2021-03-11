@@ -256,6 +256,7 @@ struct StdInputStream : public ReadableStream {
 struct StringStream : public WritableStream {
 	void * str;
 	size_t size;
+	size_t capacity; // too many realloc calls are happening
 	bool   closed;
 
 	StringStream();

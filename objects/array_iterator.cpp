@@ -2,14 +2,14 @@
 #include "iterator.h"
 
 ArrayIterator *ArrayIterator::from(Array *a) {
-	ArrayIterator *ai = GcObject::allocArrayIterator();
+	ArrayIterator *ai = GcObject::alloc<ArrayIterator>();
 	ai->arr           = a;
 	ai->idx           = 0;
 	ai->hasNext       = Value(0 < a->size);
 	return ai;
 }
 
-void ArrayIterator::init() {
-	Iterator::initIteratorClass(GcObject::ArrayIteratorClass, "array_iterator",
+void ArrayIterator::init(Class *ArrayIteratorClass) {
+	Iterator::initIteratorClass(ArrayIteratorClass,
 	                            Iterator::Type::ArrayIterator);
 }

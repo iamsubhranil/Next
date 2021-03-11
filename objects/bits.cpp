@@ -709,7 +709,7 @@ Value next_bits_unequal(const Value *args, int numargs) {
 }
 
 Bits *Bits::create(int64_t number_of_bits) {
-	Bits *b       = GcObject::allocBits();
+	Bits *b       = GcObject::alloc<Bits>();
 	b->size       = number_of_bits;
 	b->chunkcount = (number_of_bits >> Bits::ChunkCountShift) +
 	                ((number_of_bits & Bits::ChunkRemainderAnd) != 0);
@@ -744,9 +744,7 @@ void Bits::resize(int64_t ns) {
 	}
 }
 
-void Bits::init() {
-	Class *BitsClass = GcObject::BitsClass;
-	BitsClass->init("bits", Class::ClassType::BUILTIN);
+void Bits::init(Class *BitsClass) {
 
 	BitsClass->add_builtin_fn("()", 0, next_bits_construct_empty);
 	BitsClass->add_builtin_fn("(_)", 1,

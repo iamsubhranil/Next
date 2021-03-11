@@ -5,6 +5,10 @@
 
 #include "../modules_includes.h"
 
+// bootstrap flag, turned off after the
+// first initBuiltinModule call.
+static bool bootstrap = true;
+
 String *BuiltinModule::ModuleNames[] = {
 #define MODULE(x, y) nullptr,
 #include "../modules.h"
@@ -12,6 +16,16 @@ String *BuiltinModule::ModuleNames[] = {
 
 BuiltinModule::ModuleInit BuiltinModule::ModuleInits[] = {
 #define MODULE(x, y) y::init,
+#include "../modules.h"
+};
+
+BuiltinModule::ModulePreInit BuiltinModule::ModulePreInits[] = {
+#define MODULE(x, y) FuncUtils::GetIfExists_preInit<y, ModulePreInit>(),
+#include "../modules.h"
+};
+
+BuiltinModule::ModuleDestroy BuiltinModule::ModuleDestroys[] = {
+#define MODULE(x, y) FuncUtils::GetIfExists_destroy<y, ModuleDestroy>(),
 #include "../modules.h"
 };
 
@@ -24,13 +38,6 @@ void BuiltinModule::add_builtin_fn(const char *str, int arity,
 void BuiltinModule::add_builtin_fn_nest(const char *str, int arity,
                                         next_builtin_fn fn, bool isvarg) {
 	ctx->get_class()->add_builtin_fn_nest(str, arity, fn, isvarg);
-}
-
-void BuiltinModule::add_builtin_class(const char *classname, ClassInit init) {
-	Class2 c = Class::create();
-	c->init(classname, Class::ClassType::BUILTIN);
-	init(c);
-	ctx->add_public_class(c);
 }
 
 void BuiltinModule::add_builtin_variable(const char *name, Value v) {
@@ -50,9 +57,23 @@ int BuiltinModule::hasBuiltinModule(String *module_name) {
 }
 
 Value BuiltinModule::initBuiltinModule(int idx) {
-	String *name = ModuleNames[idx];
-	if(ExecutionEngine::isModuleRegistered(name)) {
-		return ExecutionEngine::getRegisteredModule(name);
+	String *name = nullptr;
+	// if we are bootstrapping, don't bother
+	if(!bootstrap) {
+		name = ModuleNames[idx];
+		if(ExecutionEngine::isModuleRegistered(name)) {
+			return ExecutionEngine::getRegisteredModule(name);
+		}
+	}
+	// if there exists a preInit, call it
+	if(ModulePreInits[idx])
+		ModulePreInits[idx]();
+	if(bootstrap) { // if we are bootstrapping, we need to init ourselves and
+		            // the engine
+		initModuleNames();
+		name = ModuleNames[idx];
+		ExecutionEngine::init();
+		bootstrap = false;
 	}
 	BuiltinModule2 b = create();
 	b->ctx           = ClassCompilationContext::create(NULL, name);
@@ -66,16 +87,13 @@ Value BuiltinModule::initBuiltinModule(int idx) {
 	return ValueNil;
 }
 
-void BuiltinModule::init() {
-	Class *BuiltinModuleClass = GcObject::BuiltinModuleClass;
-	BuiltinModuleClass->init("builtin_module", Class::ClassType::BUILTIN);
-
+void BuiltinModule::initModuleNames() {
 #define MODULE(x, y) ModuleNames[ModuleCount++] = String::from(#x);
 #include "../modules.h"
 }
 
 BuiltinModule *BuiltinModule::create() {
-	BuiltinModule *bm = GcObject::allocBuiltinModule();
+	BuiltinModule *bm = GcObject::alloc<BuiltinModule>();
 	bm->ctx           = nullptr;
 	return bm;
 }

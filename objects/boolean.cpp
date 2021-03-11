@@ -34,10 +34,7 @@ Value next_boolean_str(const Value *args, int numargs) {
 	return ValueTrue;
 }
 
-void Boolean::init() {
-	Class *BooleanClass = GcObject::BooleanClass;
-
-	BooleanClass->init("boolean", Class::ClassType::BUILTIN);
+void Boolean::init(Class *BooleanClass) {
 	BooleanClass->add_builtin_fn("fmt(_,_)", 2, next_boolean_fmt);
 	BooleanClass->add_builtin_fn("str(_)", 1, next_boolean_str);
 }

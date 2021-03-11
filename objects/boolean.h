@@ -5,7 +5,8 @@
 #include "string.h"
 
 struct Boolean {
-	static void init();
+
+	static void init(Class *c);
 };
 
 template <typename R> struct Format<R, bool> {

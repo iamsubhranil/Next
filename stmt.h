@@ -37,6 +37,7 @@ typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV, VIS_DEFAULT } Visibility;
 struct Statement {
   public:
 	GcObject obj;
+
 	enum Type {
 #define STMTTYPE(x) STMT_##x,
 #include "stmttypes.h"
@@ -56,15 +57,12 @@ struct Statement {
 	bool          is##x##Statement() { return type == STMT_##x; } \
 	x##Statement *to##x##Statement() { return (x##Statement *)this; }
 #include "stmttypes.h"
-	bool        isImport() { return (type == STMT_Import); }
-	void        accept(StatementVisitor *visitor);
-	void        mark();
-	void        release() {}
-	size_t      getSize(); // returns the actual allocated memory based on type
-	static void init();
+	bool   isImport() { return (type == STMT_Import); }
+	void   accept(StatementVisitor *visitor);
+	void   mark();
+	size_t getSize(); // returns the actual allocated memory based on type
 #ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr();
+	// const char *gc_repr();
 #endif
 };
 

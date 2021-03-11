@@ -121,9 +121,7 @@ struct Bytecode {
 	int load_slot_n(int n);
 	int load_slot_n(int pos, int n);
 
-	size_t getip();
-
-	static void      init();
+	size_t           getip();
 	static Bytecode *create();
 
 	// creates a copy of this bytecode for a derived class
@@ -134,15 +132,13 @@ struct Bytecode {
 	// 4) btx points to the same context
 	Bytecode *create_derived(int offset);
 
-	void mark() const {
+	void mark() {
 		GcObject::mark(values);
 		if(ctx != NULL)
 			GcObject::mark(ctx);
 	}
 
-	void release() const {
-		GcObject_free(bytecodes, sizeof(Opcode) * capacity);
-	}
+	void release() { GcObject_free(bytecodes, sizeof(Opcode) * capacity); }
 
 #ifdef DEBUG
 	void disassemble(WritableStream &o);
@@ -154,8 +150,4 @@ struct Bytecode {
 	void disassemble(WritableStream &os, const Opcode *o, size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "bytecode"; }
-#endif
 };

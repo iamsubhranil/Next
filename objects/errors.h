@@ -18,12 +18,17 @@
 struct Error {
 	GcObject obj;
 
+	// if any user class extends 'error', this
+	// is the class that it actually extends
+	// instead of builtin Error.
+	static Class *ErrorObjectClass;
+
 	String *message;
 
 	static Error *create(const String2 &message);
 	static Value  sete(const String2 &message);
 	static Value  sete(const char *message);
-	static void   init();
+	static void   init(Class *c);
 
 	static Value setTypeError(const String2 &o, const String2 &m,
 	                          const String2 &e, Value r, int arg);
@@ -32,7 +37,6 @@ struct Error {
 	static Value setIndexError(const char *m, int64_t l, int64_t h, int64_t r);
 
 	void mark() { GcObject::mark(message); }
-	void release() {}
 #ifdef DEBUG_GC
 	void          depend() { GcObject::depend(message); }
 	const String *gc_repr() { return message; }
@@ -49,10 +53,11 @@ struct Error {
 
 #define ERRORTYPE(x, name)                       \
 	struct x : public Error {                    \
+                                                 \
 		static x *   create(const String2 &msg); \
 		static Value sete(const String2 &msg);   \
 		static Value sete(const char *msg);      \
-		static void  init();                     \
+		static void  init(Class *c);             \
 		ERROR_GC_REPR                            \
 	};
 #include "error_types.h"

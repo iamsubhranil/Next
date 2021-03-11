@@ -39,7 +39,7 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 		bool             soft, isStatic;
 	};
 
-	ClassCompilationContext *   corectx;
+	const Class *               corectx;
 	ClassCompilationContext *   mtx;
 	ClassCompilationContext *   ctx;
 	FunctionCompilationContext *ftx;

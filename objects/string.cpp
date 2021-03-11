@@ -21,6 +21,11 @@ void String::init0() {
 #include "../stringvalues.h"
 }
 
+void String::patch_const_str(Class *stringClass) {
+#define SCONSTANT(n, s) String::const_##n->obj.klass = stringClass;
+#include "../stringvalues.h"
+}
+
 Value next_string_append(const Value *args, int numargs) {
 	(void)numargs;
 	String *res = args[0].toString();
@@ -154,10 +159,7 @@ Value next_string_upper(const Value *args, int numargs) {
 	return String::from(args[0].toString(), String::transform_upper);
 }
 
-void String::init() {
-	Class *StringClass = GcObject::StringClass;
-
-	StringClass->init("string", Class::BUILTIN);
+void String::init(Class *StringClass) {
 	StringClass->add_builtin_fn("append(_)", 1, &next_string_append, true);
 	StringClass->add_builtin_fn("contains(_)", 1, &next_string_contains);
 	StringClass->add_builtin_fn("fmt(_,_)", 2, &next_string_fmt);

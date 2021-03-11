@@ -6,7 +6,7 @@
 #include "symtab.h"
 
 FiberIterator *FiberIterator::from(Fiber *f) {
-	FiberIterator *fi = GcObject::allocFiberIterator();
+	FiberIterator *fi = GcObject::alloc<FiberIterator>();
 
 	fi->fiber   = f;
 	fi->hasNext = Value(f->state != Fiber::FINISHED);
@@ -42,10 +42,7 @@ Value &FiberIteratorHasNext(const Class *c, Value v, int field) {
 	return v.toFiberIterator()->hasNext;
 }
 
-void FiberIterator::init() {
-	Class *FiberIteratorClass = GcObject::FiberIteratorClass;
-
-	FiberIteratorClass->init("fiber_iterator", Class::ClassType::BUILTIN);
+void FiberIterator::init(Class *FiberIteratorClass) {
 	// has_next
 	FiberIteratorClass->add_sym(SymbolTable2::insert("has_next"), ValueTrue);
 	FiberIteratorClass->accessFn = FiberIteratorHasNext;

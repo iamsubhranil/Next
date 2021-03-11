@@ -336,7 +336,7 @@ struct Number {
 	}
 
 	static Value fmt(double val, FormatSpec *f, WritableStream *stream);
-	static void  init();
+	static void  init(Class *c);
 };
 
 template <typename R> struct Format<R, int> {

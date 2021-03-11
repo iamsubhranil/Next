@@ -22,12 +22,6 @@ struct SetIterator {
 	}
 
 	static SetIterator *from(Set *s);
-	static void         init();
+	static void         init(Class *c);
 	void                mark() { GcObject::mark(vs); }
-	void                release() {}
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "set_iterator"; }
-#endif
 };

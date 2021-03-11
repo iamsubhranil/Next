@@ -20,9 +20,9 @@ Value &FieldAccessFunction(const Class *c, Value v, int field) {
 	}
 }
 
-void Class::init(String2 s, ClassType typ, Class *mc) {
+void Class::init_class(String2 s, ClassType typ, Class *mc) {
 #ifdef DEBUG_GC
-	nameCopy.source = NULL;
+	nameCopy = NULL;
 #endif
 	name              = s;
 	type              = typ;
@@ -36,21 +36,21 @@ void Class::init(String2 s, ClassType typ, Class *mc) {
 	isMetaClass       = false;
 	superclass        = NULL;
 	accessFn          = FieldAccessFunction;
+	functions         = Array::create(1);
 	if(typ == BUILTIN && mc == nullptr) {
 		// for builtin classes with no defined metaclass,
 		// create a default metaclass
-		mc        = GcObject::ClassClass->copy();
+		mc        = Classes::get<Class>()->copy();
 		obj.klass = mc;
 		mc->name  = String::append(s, " metaclass");
 		metaclass = mc;
 	}
 	if(mc)
 		mc->isMetaClass = true;
-	functions = Array::create(1);
 }
 
-void Class::init(const char *n, ClassType typ, Class *mc) {
-	init(String::from(n), typ, mc);
+void Class::init_class(const char *n, ClassType typ, Class *mc) {
+	init_class(String::from(n), typ, mc);
 }
 
 void Class::add_sym(int sym, Value v) {
@@ -159,21 +159,23 @@ Class *Class::copy() {
 	// we want to inherit all functions that
 	// are already added, and then add new
 	// functions to this class.
-	s->functions = functions->copy();
-	s->numSlots  = numSlots;
-	s->module    = module;
-	s->accessFn  = accessFn;
+	if(functions)
+		s->functions = functions->copy();
+	s->numSlots = numSlots;
+	s->module   = module;
+	s->accessFn = accessFn;
 	if(module) {
 		s->static_values     = static_values;
 		s->static_slot_count = static_slot_count;
 	} else {
 		s->instance = instance;
 	}
+	s->objectSize = objectSize;
 	return s;
 }
 
 Class *Class::create() {
-	Class2 kls             = GcObject::allocClass();
+	Class2 kls             = GcObject::alloc<Class>();
 	kls->metaclass         = NULL;
 	kls->module            = NULL;
 	kls->name              = NULL;
@@ -184,8 +186,9 @@ Class *Class::create() {
 	kls->static_slot_count = 0;
 	kls->superclass        = NULL;
 	kls->accessFn          = FieldAccessFunction;
+	kls->objectSize        = 0;
 #ifdef DEBUG_GC
-	kls->nameCopy.source = NULL;
+	kls->nameCopy = NULL;
 #endif
 	return kls;
 }
@@ -263,7 +266,7 @@ Value next_class_derive(const Value *args, int numargs) {
 	Class *superclass = args[1].toClass();
 	// allow extension of the error class
 	if(superclass->type == Class::ClassType::BUILTIN &&
-	   superclass != GcObject::ErrorClass) {
+	   superclass != Classes::get<Error>()) {
 		RERR(Formatter::fmt(
 		         "Class '{}' cannot be derived from builtin class '{}'!",
 		         present->name, superclass->name)
@@ -286,8 +289,8 @@ Value next_class_derive(const Value *args, int numargs) {
 		         .toString());
 	}
 
-	if(superclass == GcObject::ErrorClass) {
-		superclass = GcObject::ErrorObjectClass;
+	if(superclass == Classes::get<Error>()) {
+		superclass = Error::ErrorObjectClass;
 	}
 
 	// now we can start derivation
@@ -295,8 +298,8 @@ Value next_class_derive(const Value *args, int numargs) {
 	// and we're done
 
 	// if we're extending 'error' make it look like so
-	if(superclass == GcObject::ErrorObjectClass) {
-		present->superclass = GcObject::ErrorClass;
+	if(superclass == Error::ErrorObjectClass) {
+		present->superclass = Classes::get<Error>();
 	}
 	return ValueNil;
 }
@@ -336,17 +339,7 @@ Value next_class_name(const Value *args, int numargs) {
 	return Value(args[0].toClass()->name);
 }
 
-void Class::init() {
-	Class *ClassClass = GcObject::ClassClass;
-	// create a metaclass by hand
-	Class2 ClassMetaClass     = Class::create();
-	ClassMetaClass->type      = Class::ClassType::BUILTIN;
-	ClassMetaClass->name      = String::from("class metaclass");
-	ClassMetaClass->accessFn  = FieldAccessFunction;
-	ClassMetaClass->functions = Array::create(1);
-	// initialize
-	ClassClass->init("class", BUILTIN, ClassMetaClass);
-	// make this class a subclass of the argument class
+void Class::init(Class *ClassClass) {
 	ClassClass->add_builtin_fn(" derive(_)", 1, next_class_derive);
 	// only returns true if sig is available and public
 	ClassClass->add_builtin_fn("has_fn(_)", 1, next_class_has_fn);
@@ -359,8 +352,12 @@ void Class::init() {
 
 #ifdef DEBUG_GC
 void Class::depend() {
-	if(nameCopy.source == NULL) {
-		nameCopy.source = utf8dup(name->strb());
+	if(nameCopy == NULL) {
+		nameCopy         = GcObject::allocString2(name->size + 1);
+		nameCopy->size   = name->size;
+		nameCopy->length = name->length;
+		nameCopy->hash_  = name->hash_;
+		memcpy(nameCopy->strb(), name->strb(), name->size + 1);
 	}
 	GcObject::depend(name);
 }

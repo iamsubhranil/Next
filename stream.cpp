@@ -1,8 +1,9 @@
 #include "stream.h"
 #include "objects/string.h"
+#include "utils.h"
 #include "value.h"
 
-StringStream::StringStream() : str(NULL), size(0), closed(false) {}
+StringStream::StringStream() : str(NULL), size(0), capacity(0), closed(false) {}
 
 std::size_t StringStream::write(const double &value) {
 	// from
@@ -25,7 +26,11 @@ std::size_t StringStream::write(const size_t &value) {
 }
 
 std::size_t StringStream::writebytes(const void *const &data, size_t bytes) {
-	str = GcObject_realloc(str, size, size + bytes);
+	if(size + bytes > capacity) {
+		size_t oldc = capacity;
+		capacity    = Utils::nextAllocationSize(capacity, size + bytes);
+		str         = GcObject_realloc(str, oldc, capacity);
+	}
 	std::memcpy((char *)str + size, data, bytes);
 	size += bytes;
 	return bytes;
@@ -46,8 +51,8 @@ Value StringStream::toString() {
 }
 
 StringStream::~StringStream() {
-	if(size) {
-		GcObject_free(str, size);
+	if(capacity) {
+		GcObject_free(str, capacity);
 	}
 }
 

@@ -81,14 +81,8 @@ void Bytecode::insertSlot() {
 	numSlots++;
 }
 
-void Bytecode::init() {
-	Class *BytecodeClass = GcObject::BytecodeClass;
-
-	BytecodeClass->init("bytecode", Class::ClassType::BUILTIN);
-}
-
 Bytecode *Bytecode::create() {
-	Bytecode2 code     = GcObject::allocBytecode();
+	Bytecode2 code     = GcObject::alloc<Bytecode>();
 	code->bytecodes    = (Opcode *)GcObject_malloc(sizeof(Opcode) * 1);
 	code->size         = 0;
 	code->capacity     = 1;
@@ -181,7 +175,7 @@ void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
 			switch(o->objType) {
-#define OBJTYPE(n)                               \
+#define OBJTYPE(n, c)                            \
 	case GcObject::OBJ_##n:                      \
 		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \
 		break;

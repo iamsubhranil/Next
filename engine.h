@@ -6,7 +6,8 @@
 #include "hashmap.h"
 
 class ExecutionEngine {
-	static HashMap<String *, GcObject *> loadedModules;
+	using ModuleMap = HashMap<String *, GcObject *>;
+	static ModuleMap *loadedModules;
 
 	// stack of unhandled exceptions
 	static Array *pendingExceptions;

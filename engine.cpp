@@ -12,48 +12,39 @@
 #include "objects/symtab.h"
 #include "printer.h"
 
-HashMap<String *, GcObject *> ExecutionEngine::loadedModules =
-    decltype(ExecutionEngine::loadedModules){};
-Array * ExecutionEngine::pendingExceptions     = nullptr;
-Array * ExecutionEngine::pendingFibers         = nullptr;
-Fiber * ExecutionEngine::currentFiber          = nullptr;
-Object *ExecutionEngine::CoreObject            = nullptr;
-size_t  ExecutionEngine::maxRecursionLimit     = 1024;
-size_t  ExecutionEngine::currentRecursionDepth = 0;
-bool    ExecutionEngine::isRunningRepl         = false;
+ExecutionEngine::ModuleMap *ExecutionEngine::loadedModules         = nullptr;
+Array *                     ExecutionEngine::pendingExceptions     = nullptr;
+Array *                     ExecutionEngine::pendingFibers         = nullptr;
+Fiber *                     ExecutionEngine::currentFiber          = nullptr;
+Object *                    ExecutionEngine::CoreObject            = nullptr;
+size_t                      ExecutionEngine::maxRecursionLimit     = 1024;
+size_t                      ExecutionEngine::currentRecursionDepth = 0;
+bool                        ExecutionEngine::isRunningRepl         = false;
 
 void ExecutionEngine::init() {
+	loadedModules = (ModuleMap *)GcObject_malloc(sizeof(ModuleMap));
+	::new(loadedModules) ModuleMap();
 	pendingExceptions = Array::create(1);
 	pendingFibers     = Array::create(1);
 	// create a new fiber
 	currentFiber = Fiber::create();
 	// make slot for core
 	currentFiber->stackTop++;
-	// register the module
-	Value v;
-	if(!registerModule(
-	       String::const_core,
-	       GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
-	           .toFunction(),
-	       &v)) {
-		panic("Initialization of core module failed");
-	} else {
-		CoreObject = v.toObject();
-	}
 }
 
 bool ExecutionEngine::isModuleRegistered(String *name) {
-	return loadedModules.contains(name) && loadedModules[name] != NULL;
+	return loadedModules && loadedModules->contains(name) &&
+	       loadedModules[0][name] != NULL;
 }
 
 GcObject *ExecutionEngine::getRegisteredModule(String *name) {
-	return loadedModules[name];
+	return loadedModules[0][name];
 }
 
 bool ExecutionEngine::registerModule(const String2 &name, Function *toplevel,
                                      Value *instance) {
 	if(execute(ValueNil, toplevel, instance, true)) {
-		loadedModules[name] = instance->toGcObject();
+		loadedModules[0][name] = instance->toGcObject();
 		return true;
 	}
 	return false;
@@ -148,10 +139,12 @@ void ExecutionEngine::mark() {
 	// we can't really remove the keys, i.e. paths,
 	// in the same time we traverse, so we keep those,
 	// and remove the modules themselves
-	for(auto &a : loadedModules) {
-		GcObject::mark(a.first);
-		if(a.second != NULL && !GcObject::isMarked(a.second))
-			loadedModules[a.first] = NULL;
+	if(loadedModules) {
+		for(auto &a : *loadedModules) {
+			GcObject::mark(a.first);
+			if(a.second != NULL && !GcObject::isMarked(a.second))
+				loadedModules[0][a.first] = NULL;
+		}
 	}
 }
 
