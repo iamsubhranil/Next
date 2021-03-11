@@ -23,8 +23,6 @@ struct Class {
 	Class * module; // a module is eventually an instance of a class
 	Class * metaclass;
 	Class * superclass; // pointer to the superclass
-	// if this is a builtin class, this stores the size of its objects
-	size_t objectSize;
 	// given an object and a field, this function returns
 	// the specific field for the object. since various builtin
 	// classes have various object types, this method takes a Value

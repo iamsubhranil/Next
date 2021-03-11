@@ -2,7 +2,7 @@
 
 #define OBJTYPE(r, n)                                                         \
 	Classes::ClassInfo<r> Classes::r##ClassInfo = {nullptr, nullptr, nullptr, \
-	                                               nullptr, nullptr};
+	                                               nullptr, nullptr, 0};
 OBJTYPE(Number, "")
 OBJTYPE(Boolean, "")
 OBJTYPE(Nil, "")

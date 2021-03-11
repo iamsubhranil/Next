@@ -12,11 +12,12 @@
 #include "stmt.h"
 #include "utils.h"
 
-size_t                GcObject::totalAllocated = 0;
-size_t                GcObject::next_gc        = 1024 * 1024 * 10;
-size_t                GcObject::max_gc         = 1024 * 1024 * 1024;
-GcObject::Generation *GcObject::generations[]  = {nullptr};
-size_t                GcObject::gc_count       = 0;
+size_t                GcObject::totalAllocated   = 0;
+size_t                GcObject::next_gc          = 1024 * 1024 * 10;
+size_t                GcObject::max_gc           = 1024 * 1024 * 1024;
+GcObject::Generation *GcObject::generations[]    = {nullptr};
+size_t                GcObject::gc_count         = 0;
+Map *                 GcObject::temporaryObjects = nullptr;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
@@ -27,7 +28,6 @@ static size_t counterCounter = 0;
 #define OBJTYPE(n, c) size_t n##Counter = counterCounter++;
 #include "objecttype.h"
 #endif
-Map *GcObject::temporaryObjects = nullptr;
 
 #ifdef GC_USE_STD_ALLOC
 #define MALLOC_CALL(x) std::malloc(x)
@@ -119,6 +119,10 @@ void GcObject::gc(bool force) {
 		Printer::println("Marking core..");
 #endif
 		mark(ExecutionEngine::CoreObject);
+#ifdef GC_PRINT_CLEANUP
+		Printer::println("Marking ErrorObjectClass..");
+#endif
+		mark(Error::ErrorObjectClass);
 #ifdef GC_PRINT_CLEANUP
 		Printer::println("[GC] Marking weak strings..");
 #endif
@@ -405,10 +409,10 @@ void GcObject::release(GcObject *obj) {
 			panic("Object type NONE should not be present in "
 			      "the list!");
 			break;
-#define OBJTYPE(n, c)                        \
-	case OBJ_##n: {                          \
-		release_(n, obj->klass->objectSize); \
-		break;                               \
+#define OBJTYPE(n, c)                                  \
+	case OBJ_##n: {                                    \
+		release_(n, Classes::n##ClassInfo.ObjectSize); \
+		break;                                         \
 	}
 #include "objecttype.h"
 		default: panic("Invalid object tag!"); break;
@@ -548,6 +552,8 @@ void GcObject::init() {
 	// initialize the object tracker
 	for(size_t i = 0; i < GC_NUM_GENERATIONS; i++)
 		generations[i] = Generation::create();
+	// initialize the hooks for Map type
+	Classes::getClassInfo<Map>()->set<Map>(nullptr);
 	// initialize the temporary tracker
 	// allocate it manually, Set::create
 	// itself uses temporary objects

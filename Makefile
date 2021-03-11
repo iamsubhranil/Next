@@ -38,6 +38,9 @@ debug_gc: debug
 debug_gc_stress: CXXFLAGS += -DGC_STRESS
 debug_gc_stress: debug
 
+gc_stress: CXXFLAGS += -DGC_STRESS -DGC_USE_STD_ALLOC
+gc_stress: profile
+
 debug_all: CXXFLAGS += -DDEBUG_INS -DDEBUG_CODEGEN -DDEBUG_GC_CLEANUP
 debug_all: debug
 

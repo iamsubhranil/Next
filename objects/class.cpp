@@ -170,7 +170,6 @@ Class *Class::copy() {
 	} else {
 		s->instance = instance;
 	}
-	s->objectSize = objectSize;
 	return s;
 }
 
@@ -186,7 +185,6 @@ Class *Class::create() {
 	kls->static_slot_count = 0;
 	kls->superclass        = NULL;
 	kls->accessFn          = FieldAccessFunction;
-	kls->objectSize        = 0;
 #ifdef DEBUG_GC
 	kls->nameCopy = NULL;
 #endif

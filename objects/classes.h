@@ -16,9 +16,10 @@ struct Classes {
 	template <typename T> using ZeroArg = void (T::*)();
 	template <typename T> using GcRepr  = const String *(T::*)();
 	template <typename T> struct ClassInfo {
-		Class *    klass;
-		ZeroArg<T> MarkFn, ReleaseFn, DependFn;
-		GcRepr<T>  GcReprFn;
+		Class *     klass;
+		ZeroArg<T>  MarkFn, ReleaseFn, DependFn;
+		GcRepr<T>   GcReprFn;
+		std::size_t ObjectSize;
 
 		// S has to obviously be equal to T, we just do
 		// this here to delay the instantiation of this
@@ -27,11 +28,12 @@ struct Classes {
 		// calls BuiltinModule::add_builtin_class, which in turn calls
 		// this.
 		template <typename S> void set(Class *c) {
-			klass     = c;
-			MarkFn    = FuncUtils::GetIfExists_mark<S, ZeroArg<T>>();
-			ReleaseFn = FuncUtils::GetIfExists_release<S, ZeroArg<T>>();
-			DependFn  = FuncUtils::GetIfExists_depend<S, ZeroArg<T>>();
-			GcReprFn  = FuncUtils::GetIfExists_gc_repr<S, GcRepr<T>>();
+			klass      = c;
+			MarkFn     = FuncUtils::GetIfExists_mark<S, ZeroArg<T>>();
+			ReleaseFn  = FuncUtils::GetIfExists_release<S, ZeroArg<T>>();
+			DependFn   = FuncUtils::GetIfExists_depend<S, ZeroArg<T>>();
+			GcReprFn   = FuncUtils::GetIfExists_gc_repr<S, GcRepr<T>>();
+			ObjectSize = sizeof(S);
 		}
 	};
 	template <typename T> static Class *       get();

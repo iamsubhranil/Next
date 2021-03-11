@@ -29,16 +29,9 @@ struct BuiltinModule {
 	template <typename T> static void register_hooks(const Class2 &c) {
 		Classes::ClassInfo<T> *ct = Classes::getClassInfo<T>();
 		ct->template set<T>(c);
-		// set<T>(c);
-		/* FuncUtils::GetIfExists_mark<T, Classes::ZeroArg<T>>(),
-		 FuncUtils::GetIfExists_release<T, Classes::ZeroArg<T>>(),
-		 FuncUtils::GetIfExists_depend<T, Classes::ZeroArg<T>>(),
-		 FuncUtils::GetIfExists_gc_repr<T, Classes::GcRepr<T>>());
-		 */
 	}
 	template <typename T>
 	void add_builtin_class(const Class2 &c, const char *name) {
-		c->objectSize = sizeof(T);
 		register_hooks<T>(c);
 		c->init_class(name, Class::ClassType::BUILTIN);
 		FuncUtils::CallStaticIfExists_init<T>(c);

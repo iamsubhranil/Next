@@ -362,15 +362,10 @@ void Core::preInit() {
 	// with their classes once they are created,
 	// since all of the init functions of all
 	// classes allocate some kind of object.
-#define OBJTYPE(x, c) Class2 x##Class = Class::create();
-#include "../objecttype.h"
+#define OBJTYPE(x, c)                  \
+	Class2 x##Class = Class::create(); \
+	BuiltinModule::register_hooks<x>(x##Class);
 	// add primitive classes
-	Class2 NumberClass  = Class::create();
-	Class2 BooleanClass = Class::create();
-	Class2 NilClass     = Class::create();
-
-	// assign the classes to the structs
-#define OBJTYPE(x, c) BuiltinModule::register_hooks<x>(x##Class);
 	OBJTYPE(Number, "")
 	OBJTYPE(Boolean, "")
 	OBJTYPE(Nil, "")
