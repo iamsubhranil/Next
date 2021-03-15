@@ -280,8 +280,7 @@ void *GcObject::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	gc(GC_STRESS);
 
 	GcObject *obj = (GcObject *)GcObject::malloc(s);
-	obj->setType(type);
-	obj->setClass(klass);
+	obj->setType(type, klass);
 
 	generations[0]->insert(obj);
 #ifdef DEBUG_GC
@@ -321,8 +320,7 @@ String *GcObject::allocString2(int numchar) {
 	// duplicate strings are freed immediately
 	String *s =
 	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
-	s->obj.setType(OBJ_String);
-	s->obj.setClass(Classes::get<String>());
+	s->obj.setType(OBJ_String, Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
 #endif

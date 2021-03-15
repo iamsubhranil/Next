@@ -51,27 +51,40 @@ template <typename T, size_t n> struct CustomArray;
 #define GC_MIN_TRACKED_OBJECTS_CAP 32
 
 struct GcObject {
-	const Class *klass_priv;
+	// last 48 bits contains the pointer
+	// next 8 bits contains the type
+	// MSB contains the marker bit
+	uint64_t obj_priv;
 	enum Type : std::uint8_t {
 		OBJ_NONE,
 #define OBJTYPE(n, c) OBJ_##n,
 #include "objecttype.h"
-	} objType_priv;
-
-	static constexpr uintptr_t Marker = ((uintptr_t)1)
-	                                    << ((sizeof(void *) * 8) - 1);
-	static constexpr uintptr_t PointerBits = 0x00007fffffffffff;
-	Type                       getType() { return objType_priv; }
-	const Class *              getClass() {
-        return (const Class *)((uintptr_t)klass_priv & PointerBits);
+	};
+	// last 48 bits
+	static constexpr uint64_t PointerBits = 0x0000ffffffffffff;
+	// next 8 bits
+	static constexpr uint64_t TypeBits = 0x00ff000000000000;
+	// MSB
+	static constexpr uint64_t Marker = ((uintptr_t)1) << 63;
+	Type         getType() { return (Type)((obj_priv & TypeBits) >> 48); }
+	const Class *getClass() { return (const Class *)(obj_priv & PointerBits); }
+	void         setType(Type t, const Class *c) {
+        // clear the all the bits
+        obj_priv = 0;
+        // add the class
+        obj_priv |= (uint64_t)c;
+        // add the type
+        obj_priv |= (uint64_t)(t) << 48;
 	}
-	void setType(Type t) { objType_priv = t; }
-	void setClass(const Class *c) { klass_priv = c; }
-	void markOwn() { klass_priv = (Class *)((uintptr_t)(klass_priv) | Marker); }
-	bool isMarked() { return ((uintptr_t)(klass_priv)&Marker); }
-	void unmarkOwn() {
-		klass_priv = (Class *)((uintptr_t)(klass_priv) ^ Marker);
+	void setClass(Class *c) {
+		// clear the existing class
+		obj_priv &= ~PointerBits;
+		// add the new class
+		obj_priv |= (uint64_t)c;
 	}
+	void markOwn() { obj_priv |= Marker; }
+	bool isMarked() { return obj_priv & Marker; }
+	void unmarkOwn() { obj_priv &= ~Marker; }
 
 	template <typename T> static Type getType() { return Type::OBJ_NONE; };
 
