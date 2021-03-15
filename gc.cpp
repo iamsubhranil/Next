@@ -462,10 +462,12 @@ void GcObject::mark(GcObject *p) {
 			Printer::Err("Object type NONE should not be "
 			             "present in the list!");
 			break;
-#define OBJTYPE(name, classname)                               \
-	case OBJ_##name:                                           \
-		if(Classes::name##ClassInfo.MarkFn)                    \
-			(((name *)p)->*Classes::name##ClassInfo.MarkFn)(); \
+#define OBJTYPE(name, classname)                      \
+	case OBJ_##name:                                  \
+		if(Classes::name##ClassInfo.MarkFn) {         \
+			auto a = Classes::name##ClassInfo.MarkFn; \
+			(((name *)p)->*a)();                      \
+		}                                             \
 		break;
 #include "objecttype.h"
 	}

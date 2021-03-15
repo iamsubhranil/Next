@@ -1,5 +1,7 @@
 #pragma once
 
+#define _USE_MATH_DEFINES // use constants from the library
+
 #include <tuple>
 #include <type_traits>
 
