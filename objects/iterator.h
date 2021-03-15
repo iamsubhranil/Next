@@ -21,7 +21,7 @@ struct Iterator {
 	static bool is_iterator(Value &v) {
 		if(!v.isGcObject())
 			return false;
-		switch(v.toGcObject()->objType) {
+		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                  \
 	case GcObject::OBJ_##x##Iterator: { \
 		return true;                    \
@@ -32,7 +32,7 @@ struct Iterator {
 	}
 
 	static bool has_next(Value v) {
-		switch(v.toGcObject()->objType) {
+		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                                   \
 	case GcObject::OBJ_##x##Iterator: {                  \
 		return v.to##x##Iterator()->hasNext.toBoolean(); \
@@ -45,7 +45,7 @@ struct Iterator {
 	}
 
 	static Value next(Value v) {
-		switch(v.toGcObject()->objType) {
+		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                      \
 	case GcObject::OBJ_##x##Iterator: {     \
 		return v.to##x##Iterator()->Next(); \
@@ -60,7 +60,7 @@ struct Iterator {
 	static Value &IteratorHasNextFn(const Class *c, Value v, int field) {
 		(void)c;
 		(void)field;
-		switch(v.toGcObject()->objType) {
+		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                       \
 	case GcObject::OBJ_##x##Iterator: {      \
 		return v.to##x##Iterator()->hasNext; \

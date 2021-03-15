@@ -174,7 +174,7 @@ void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 			break;
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
-			switch(o->objType) {
+			switch(o->getType()) {
 #define OBJTYPE(n, c)                            \
 	case GcObject::OBJ_##n:                      \
 		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \

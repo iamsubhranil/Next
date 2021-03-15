@@ -142,7 +142,7 @@ void ExecutionEngine::mark() {
 	if(loadedModules) {
 		for(auto &a : *loadedModules) {
 			GcObject::mark(a.first);
-			if(a.second != NULL && !GcObject::isMarked(a.second))
+			if(a.second != NULL && !a.second->isMarked())
 				loadedModules[0][a.first] = NULL;
 		}
 	}
@@ -237,7 +237,8 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 					// module is at 0 -> 0
 					v = matched->stack_[0]
 					        .toGcObject()
-					        ->klass->module->instance->slots(c.slot);
+					        ->getClass()
+					        ->module->instance->slots(c.slot);
 					break;
 				case CatchBlock::SlotType::CORE:
 					v = CoreObject->slots(c.slot);
@@ -245,8 +246,8 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				case CatchBlock::SlotType::MODULE_SUPER:
 					v = matched->stack_[0]
 					        .toGcObject()
-					        ->klass->superclass->module->instance->slots(
-					            c.slot);
+					        ->getClass()
+					        ->superclass->module->instance->slots(c.slot);
 					break;
 				default: break;
 			}
@@ -798,7 +799,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// the callable is placed before the arguments
 				Value v = fiber->stackTop[-numberOfArguments - 1];
 				ASSERT(v.isGcObject(), "Not a callable object!");
-				switch(v.toGcObject()->objType) {
+				switch(v.toGcObject()->getType()) {
 					case GcObject::OBJ_Class: {
 						// check if the class has a constructor with the given
 						// signature

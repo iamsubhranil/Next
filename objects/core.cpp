@@ -377,7 +377,7 @@ void Core::preInit() {
 
 	// set the class of the temporaryObjects set
 	// to the newly allocated one
-	GcObject::temporaryObjects->obj.klass = MapClass;
+	GcObject::temporaryObjects->obj.setClass(MapClass);
 }
 
 void addCoreClasses(BuiltinModule *m) {

@@ -165,7 +165,7 @@ struct Value {
 		switch(getType()) {
 			case Value::VAL_Number: return NumberClass;
 			case Value::VAL_Boolean: return BooleanClass;
-			case Value::VAL_GcObject: return toGcObject()->klass;
+			case Value::VAL_GcObject: return toGcObject()->getClass();
 			case Value::VAL_Pointer: return toPointer()->getClass();
 			case Value::VAL_NIL: return NilClass;
 		}

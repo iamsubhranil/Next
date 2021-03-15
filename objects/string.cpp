@@ -22,7 +22,7 @@ void String::init0() {
 }
 
 void String::patch_const_str(Class *stringClass) {
-#define SCONSTANT(n, s) String::const_##n->obj.klass = stringClass;
+#define SCONSTANT(n, s) String::const_##n->obj.setClass(stringClass);
 #include "../stringvalues.h"
 }
 

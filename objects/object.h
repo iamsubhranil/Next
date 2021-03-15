@@ -19,7 +19,7 @@ struct Object {
 
 	// gc functions
 	void mark() {
-		Class *c = GcObject::getMarkedClass(this);
+		const Class *c = obj.getClass();
 		for(int i = 0; i < c->numSlots; i++) {
 			GcObject::mark(slots(i));
 		}

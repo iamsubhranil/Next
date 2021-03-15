@@ -280,8 +280,8 @@ void *GcObject::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	gc(GC_STRESS);
 
 	GcObject *obj = (GcObject *)GcObject::malloc(s);
-	obj->objType  = type;
-	obj->klass    = klass;
+	obj->setType(type);
+	obj->setClass(klass);
 
 	generations[0]->insert(obj);
 #ifdef DEBUG_GC
@@ -321,8 +321,8 @@ String *GcObject::allocString2(int numchar) {
 	// duplicate strings are freed immediately
 	String *s =
 	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
-	s->obj.objType = OBJ_String;
-	s->obj.klass   = Classes::get<String>();
+	s->obj.setType(OBJ_String);
+	s->obj.setClass(Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
 #endif
@@ -389,7 +389,7 @@ void GcObject::release(GcObject *obj) {
 	// we need to pass the total allocated size to
 	// the memory manager, otherwise it will add the
 	// block to a different pool than the original
-	switch(obj->objType) {
+	switch(obj->getType()) {
 		case OBJ_String:
 			release_(String, sizeof(String) +
 			                     (sizeof(char) * ((String *)obj)->size + 1));
@@ -397,14 +397,14 @@ void GcObject::release(GcObject *obj) {
 			release_(Tuple,
 			         sizeof(Tuple) + (sizeof(Value) * ((Tuple *)obj)->size));
 		case OBJ_Object:
-			release_(Object,
-			         sizeof(Object) + (sizeof(Value) * obj->klass->numSlots));
+			release_(Object, sizeof(Object) +
+			                     (sizeof(Value) * obj->getClass()->numSlots));
 		case OBJ_Expression:
 			release_(Expression, ((Expression *)obj)->getSize());
 		case OBJ_Statement: release_(Statement, ((Statement *)obj)->getSize());
 		default: break;
 	}
-	switch(obj->objType) {
+	switch(obj->getType()) {
 		case OBJ_NONE:
 			panic("Object type NONE should not be present in "
 			      "the list!");
@@ -439,25 +439,24 @@ void GcObject::mark(Value *v, size_t num) {
 	}
 }
 
-constexpr uintptr_t marker = ((uintptr_t)1) << ((sizeof(void *) * 8) - 1);
-
 void GcObject::mark(GcObject *p) {
 	if(p == NULL)
 		return;
 	// if the object is already marked,
 	// leave it
-	if(isMarked(p))
+	if(p->isMarked())
 		return;
 	// first set the first bit of its class pointer
 	// to mark the object. because in case of the
 	// root class, its klass pointer points to the
 	// object itself.
-	const Class *k = p->klass;
-	p->klass       = (Class *)((uintptr_t)(p->klass) | marker);
+	const Class *k = p->getClass();
+	p->markOwn();
+	// p->klass = (Class *)((uintptr_t)(p->klass) | marker);
 	// then, mark its class
 	mark((GcObject *)k);
 	// finally, let it mark its members
-	switch(p->objType) {
+	switch(p->getType()) {
 		case OBJ_NONE:
 			Printer::Err("Object type NONE should not be "
 			             "present in the list!");
@@ -473,26 +472,29 @@ void GcObject::mark(GcObject *p) {
 	}
 }
 
+/*
 bool GcObject::isMarked(GcObject *p) {
-	// check the first bit of its class pointer
-	return ((uintptr_t)(p->klass) & marker);
-}
+    // check the first bit of its class pointer
+    return ((uintptr_t)(p->klass) & marker);
+}*/
 
 void GcObject::unmark(Value v) {
 	if(v.isGcObject())
-		unmark(v.toGcObject());
+		v.toGcObject()->unmarkOwn();
 	else if(v.isPointer())
 		unmark(v.toPointer());
 }
 
+/*
 void GcObject::unmark(GcObject *p) {
-	// clear the first bit of its class pointer
-	p->klass = (Class *)((uintptr_t)(p->klass) ^ marker);
-}
+    // clear the first bit of its class pointer
+    p->klass = (Class *)((uintptr_t)(p->klass) ^ marker);
+}*/
 
+/*
 Class *GcObject::getMarkedClass(const Object *o) {
-	return (Class *)((uintptr_t)o->obj.klass ^ marker);
-}
+    return (Class *)((uintptr_t)o->obj.klass ^ marker);
+}*/
 
 void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
 	Generation *generation = generations[genid];
@@ -517,7 +519,7 @@ void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
 			continue;
 #endif
 		// if it is not marked, release
-		if(!isMarked(v)) {
+		if(!v->isMarked()) {
 			if(v->isClass()) {
 				// it doesn't matter where we store
 				// the pointer now, since everything
@@ -532,7 +534,7 @@ void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
 		// it is marked, shift it left to the
 		// first non empty slot
 		else {
-			unmark(v);
+			v->unmarkOwn();
 			// it survived this generation, so put it in
 			// a parent generation, if there is one
 			put->insert(v);

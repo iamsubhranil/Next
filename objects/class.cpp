@@ -40,8 +40,8 @@ void Class::init_class(String2 s, ClassType typ, Class *mc) {
 	if(typ == BUILTIN && mc == nullptr) {
 		// for builtin classes with no defined metaclass,
 		// create a default metaclass
-		mc        = Classes::get<Class>()->copy();
-		obj.klass = mc;
+		mc = Classes::get<Class>()->copy();
+		obj.setClass(mc);
 		mc->name  = String::append(s, " metaclass");
 		metaclass = mc;
 	}
@@ -316,7 +316,7 @@ Value next_class_has_fn(const Value *args, int numargs) {
 
 Value next_class_get_class(const Value *args, int numargs) {
 	(void)numargs;
-	return Value(args[0].toGcObject()->klass);
+	return Value(args[0].toGcObject()->getClass());
 }
 
 Value next_class_get_fn(const Value *args, int numargs) {

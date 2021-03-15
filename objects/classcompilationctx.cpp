@@ -58,8 +58,8 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		ctx->metaclass = Classes::get<Class>()->copy();
 		// link the metaclass first, so it doesn't get
 		// garbage collected
-		ctx->compilingClass->obj.klass = ctx->metaclass;
-		ctx->metaclass->name           = String::append(n, " metaclass");
+		ctx->compilingClass->obj.setClass(ctx->metaclass);
+		ctx->metaclass->name = String::append(n, " metaclass");
 		// init the class with the metaclass
 		ctx->compilingClass->init_class(n, Class::ClassType::NORMAL,
 		                                ctx->metaclass);

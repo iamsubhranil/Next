@@ -51,12 +51,27 @@ template <typename T, size_t n> struct CustomArray;
 #define GC_MIN_TRACKED_OBJECTS_CAP 32
 
 struct GcObject {
-	const Class *klass;
+	const Class *klass_priv;
 	enum Type : std::uint8_t {
 		OBJ_NONE,
 #define OBJTYPE(n, c) OBJ_##n,
 #include "objecttype.h"
-	} objType;
+	} objType_priv;
+
+	static constexpr uintptr_t Marker = ((uintptr_t)1)
+	                                    << ((sizeof(void *) * 8) - 1);
+	static constexpr uintptr_t PointerBits = 0x00007fffffffffff;
+	Type                       getType() { return objType_priv; }
+	const Class *              getClass() {
+        return (const Class *)((uintptr_t)klass_priv & PointerBits);
+	}
+	void setType(Type t) { objType_priv = t; }
+	void setClass(const Class *c) { klass_priv = c; }
+	void markOwn() { klass_priv = (Class *)((uintptr_t)(klass_priv) | Marker); }
+	bool isMarked() { return ((uintptr_t)(klass_priv)&Marker); }
+	void unmarkOwn() {
+		klass_priv = (Class *)((uintptr_t)(klass_priv) ^ Marker);
+	}
 
 	template <typename T> static Type getType() { return Type::OBJ_NONE; };
 
@@ -78,7 +93,7 @@ struct GcObject {
 
 	// basic type check
 #define OBJTYPE(n, c) \
-	bool is##n() { return objType == OBJ_##n; }
+	bool is##n() { return getType() == OBJ_##n; }
 #include "objecttype.h"
 
 	// initializes all the core classes.
@@ -150,13 +165,8 @@ struct GcObject {
 	static void mark(r *val) { mark((GcObject *)val); }
 #include "objecttype.h"
 	static void mark(Value *v, size_t num);
-	static bool isMarked(GcObject *p);
 	static void unmark(Value v);
-	static void unmark(GcObject *p);
 
-	// get the class of an object which is
-	// already marked
-	static Class *getMarkedClass(const Object *o);
 	// this methods should be called by an
 	// object when it holds reference to an
 	// object which it does explicitly
