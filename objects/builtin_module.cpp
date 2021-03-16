@@ -93,7 +93,7 @@ void BuiltinModule::initModuleNames() {
 }
 
 BuiltinModule *BuiltinModule::create() {
-	BuiltinModule *bm = GcObject::alloc<BuiltinModule>();
+	BuiltinModule *bm = Gc::alloc<BuiltinModule>();
 	bm->ctx           = nullptr;
 	return bm;
 }

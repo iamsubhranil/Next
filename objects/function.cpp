@@ -17,7 +17,7 @@ Function *Function::from(const char *str, int arity, next_builtin_fn fn,
 
 Function *Function::create(const String2 &str, int arity, bool isva,
                            bool isStatic) {
-	Function2 f      = GcObject::alloc<Function>();
+	Function2 f      = Gc::alloc<Function>();
 	f->name          = str;
 	f->code          = NULL;
 	f->mode          = METHOD;

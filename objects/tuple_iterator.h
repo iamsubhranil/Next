@@ -18,5 +18,5 @@ struct TupleIterator {
 	static TupleIterator *from(Tuple *a);
 
 	static void init(Class *c);
-	void        mark() { GcObject::mark(tup); }
+	void        mark() { Gc::mark(tup); }
 };

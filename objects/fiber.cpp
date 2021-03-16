@@ -14,7 +14,7 @@
 #define FIBER_DEFAULT_FRAME_ALLOC 4
 
 Fiber *Fiber::create(Fiber *parent) {
-	Fiber *f = GcObject::alloc<Fiber>();
+	Fiber *f = Gc::alloc<Fiber>();
 	f->stack_ =
 	    (Value *)GcObject_malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
 	Utils::fillNil(f->stack_, FIBER_DEFAULT_STACK_ALLOC);

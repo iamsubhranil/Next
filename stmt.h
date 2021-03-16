@@ -8,7 +8,7 @@
 #include "stmttypes.h"
 
 #define NewStatement(x, ...)                                \
-	(::new(GcObject::allocStatement2(sizeof(x##Statement))) \
+	(::new(Gc::allocStatement2(sizeof(x##Statement))) \
 	     x##Statement(__VA_ARGS__))
 
 class StatementVisitor {
@@ -76,9 +76,9 @@ struct IfStatement : public Statement {
 	    : Statement(it, STMT_If), condition(cond), thenBlock(then),
 	      elseBlock(else_) {}
 	void mark() {
-		GcObject::mark(condition);
-		GcObject::mark(thenBlock);
-		GcObject::mark(elseBlock);
+		Gc::mark(condition);
+		Gc::mark(thenBlock);
+		Gc::mark(elseBlock);
 	}
 };
 
@@ -92,8 +92,8 @@ struct WhileStatement : public Statement {
 	    : Statement(w, STMT_While), condition(cond), thenBlock(then),
 	      isDo(isd) {}
 	void mark() {
-		GcObject::mark(condition);
-		GcObject::mark(thenBlock);
+		Gc::mark(condition);
+		Gc::mark(thenBlock);
 	}
 };
 
@@ -106,8 +106,8 @@ struct FnBodyStatement : public Statement {
 	    : Statement(t, STMT_FnBody), args(ar), body(b == nullptr ? nullptr : b),
 	      isva(isv) {}
 	void mark() {
-		GcObject::mark(args);
-		GcObject::mark(body);
+		Gc::mark(args);
+		Gc::mark(body);
 	}
 };
 
@@ -123,7 +123,7 @@ struct FnStatement : public Statement {
 	    : Statement(fn, STMT_Fn), name(n), body(fnBody), isMethod(ism),
 	      isStatic(iss), isNative(isn), isConstructor(isc), visibility(vis),
 	      arity(body->args->size - body->isva) {}
-	void mark() { GcObject::mark(body); }
+	void mark() { Gc::mark(body); }
 };
 
 struct VardeclStatement : public Statement {
@@ -132,7 +132,7 @@ struct VardeclStatement : public Statement {
 	Visibility  vis;
 	VardeclStatement(Token name, const Expression2 &e, Visibility v)
 	    : Statement(name, STMT_Vardecl), expr(e), vis(v) {}
-	void mark() { GcObject::mark(expr); }
+	void mark() { Gc::mark(expr); }
 };
 
 struct ClassStatement : public Statement {
@@ -151,7 +151,7 @@ struct ClassStatement : public Statement {
 		isDerived = isd;
 		derived   = d;
 	}
-	void mark() { GcObject::mark(declarations); }
+	void mark() { Gc::mark(declarations); }
 };
 
 struct VisibilityStatement : public Statement {
@@ -166,7 +166,7 @@ struct MemberVariableStatement : public Statement {
 	bool   isStatic;
 	MemberVariableStatement(Token t, const Array2 &mem, bool iss)
 	    : Statement(t, STMT_MemberVariable), members(mem), isStatic(iss) {}
-	void mark() { GcObject::mark(members); }
+	void mark() { Gc::mark(members); }
 };
 
 struct ImportStatement : public Statement {
@@ -174,7 +174,7 @@ struct ImportStatement : public Statement {
 	Array *import_;
 	ImportStatement(Token t, const Array2 &imp)
 	    : Statement(t, STMT_Import), import_(imp) {}
-	void mark() { GcObject::mark(import_); }
+	void mark() { Gc::mark(import_); }
 };
 
 struct TryStatement : public Statement {
@@ -184,8 +184,8 @@ struct TryStatement : public Statement {
 	TryStatement(Token t, const Statement2 &tr, const Array2 &catches)
 	    : Statement(t, STMT_Try), tryBlock(tr), catchBlocks(catches) {}
 	void mark() {
-		GcObject::mark(tryBlock);
-		GcObject::mark(catchBlocks);
+		Gc::mark(tryBlock);
+		Gc::mark(catchBlocks);
 	}
 };
 
@@ -195,7 +195,7 @@ struct CatchStatement : public Statement {
 	Statement *block;
 	CatchStatement(Token c, Token typ, Token var, const Statement2 &b)
 	    : Statement(c, STMT_Catch), typeName(typ), varName(var), block(b) {}
-	void mark() { GcObject::mark(block); }
+	void mark() { Gc::mark(block); }
 };
 
 struct BlockStatement : public Statement {
@@ -206,7 +206,7 @@ struct BlockStatement : public Statement {
 	    : Statement(t, STMT_Block), statements(nullptr), isStatic(false) {}
 	BlockStatement(Token t, const Array2 &sts, bool iss = false)
 	    : Statement(t, STMT_Block), statements(sts), isStatic(iss) {}
-	void mark() { GcObject::mark(statements); }
+	void mark() { Gc::mark(statements); }
 };
 
 struct ExpressionStatement : public Statement {
@@ -216,7 +216,7 @@ struct ExpressionStatement : public Statement {
 	    : Statement(t, STMT_Expression), exprs(nullptr) {}
 	ExpressionStatement(Token t, const Array2 &e)
 	    : Statement(t, STMT_Expression), exprs(e) {}
-	void mark() { GcObject::mark(exprs); }
+	void mark() { Gc::mark(exprs); }
 };
 
 struct ThrowStatement : public Statement {
@@ -224,7 +224,7 @@ struct ThrowStatement : public Statement {
 	Expression *expr;
 	ThrowStatement(Token t, const Expression2 &e)
 	    : Statement(t, STMT_Throw), expr(e) {}
-	void mark() { GcObject::mark(expr); }
+	void mark() { Gc::mark(expr); }
 };
 
 struct ReturnStatement : public Statement {
@@ -232,7 +232,7 @@ struct ReturnStatement : public Statement {
 	Expression *expr;
 	ReturnStatement(Token t, const Expression2 &e)
 	    : Statement(t, STMT_Return), expr(e) {}
-	void mark() { GcObject::mark(expr); }
+	void mark() { Gc::mark(expr); }
 };
 
 struct ForStatement : public Statement {
@@ -246,10 +246,10 @@ struct ForStatement : public Statement {
 	    : Statement(t, STMT_For), is_iterator(isi), cond(c), initializer(ini),
 	      incr(inc), body(b) {}
 	void mark() {
-		GcObject::mark(cond);
-		GcObject::mark(initializer);
-		GcObject::mark(incr);
-		GcObject::mark(body);
+		Gc::mark(cond);
+		Gc::mark(initializer);
+		Gc::mark(incr);
+		Gc::mark(body);
 	}
 };
 

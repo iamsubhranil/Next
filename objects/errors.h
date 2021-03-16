@@ -36,9 +36,9 @@ struct Error {
 	                          Value r, int arg);
 	static Value setIndexError(const char *m, int64_t l, int64_t h, int64_t r);
 
-	void mark() { GcObject::mark(message); }
+	void mark() { Gc::mark(message); }
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(message); }
+	void          depend() { Gc::depend(message); }
 	const String *gc_repr() { return message; }
 #endif
 };
@@ -46,7 +46,7 @@ struct Error {
 #ifdef DEBUG_GC
 #define ERROR_GC_REPR                           \
 	const String *gc_repr() { return message; } \
-	void          depend() { GcObject::depend(message); }
+	void          depend() { Gc::depend(message); }
 #else
 #define ERROR_GC_REPR
 #endif

@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 	// initialize the Gc, which in turn
 	// inits any custom memory allocators in
 	// use.
-	GcObject::init();
+	Gc::init();
 	// then, init core as everybody else
 	Value core = BuiltinModule::initBuiltinModule(0);
 	if(!core.isObject()) {

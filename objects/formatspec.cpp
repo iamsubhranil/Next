@@ -88,7 +88,7 @@ void FormatSpec::init(Class *FormatSpecClass) {
 FormatSpec *FormatSpec::from(char align, char fill, char sign, bool isalt,
                              bool signaware, int width, int precision,
                              char type) {
-	FormatSpec *fs = GcObject::alloc<FormatSpec>();
+	FormatSpec *fs = Gc::alloc<FormatSpec>();
 	fs->align      = align;
 	fs->fill       = fill;
 	fs->sign       = sign;

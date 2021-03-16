@@ -26,11 +26,11 @@ struct BoundMethod {
 
 	// gc functions
 	void mark() {
-		GcObject::mark(func);
-		GcObject::mark(binder);
+		Gc::mark(func);
+		Gc::mark(binder);
 	}
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(func); }
+	void          depend() { Gc::depend(func); }
 	const String *gc_repr();
 #endif
 };

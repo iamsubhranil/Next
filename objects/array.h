@@ -22,7 +22,7 @@ struct Array {
 	static void init(Class *c);
 
 	// gc functions
-	void mark() { GcObject::mark(values, size); }
+	void mark() { Gc::mark(values, size); }
 
 	void release() { GcObject_free(values, sizeof(Value) * capacity); }
 };

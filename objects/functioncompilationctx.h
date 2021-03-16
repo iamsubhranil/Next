@@ -29,10 +29,10 @@ struct FunctionCompilationContext {
 	create(String2 name, int arity, bool isStatic = false, bool isva = false);
 
 	void mark() {
-		GcObject::mark(f);
-		GcObject::mark(bcc);
+		Gc::mark(f);
+		Gc::mark(bcc);
 		for(auto &a : *slotmap) {
-			GcObject::mark(a.first);
+			Gc::mark(a.first);
 		}
 	}
 
@@ -45,7 +45,7 @@ struct FunctionCompilationContext {
 	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(f); }
+	void          depend() { Gc::depend(f); }
 	const String *gc_repr() { return f->name; }
 #endif
 };

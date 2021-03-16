@@ -112,7 +112,7 @@ Value next_array_str(const Value *args, int numargs) {
 }
 
 Array *Array::create(int size) {
-	Array *arr    = GcObject::alloc<Array>();
+	Array *arr    = Gc::alloc<Array>();
 	arr->capacity = Utils::nextAllocationSize(0, size);
 	arr->size     = 0;
 	arr->values   = (Value *)GcObject_malloc(sizeof(Value) * arr->capacity);

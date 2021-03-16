@@ -117,7 +117,7 @@ Value next_core_yield_1(const Value *args, int numargs) {
 Value next_core_gc(const Value *args, int numargs) {
 	(void)args;
 	(void)numargs;
-	GcObject::gc(true);
+	Gc::gc(true);
 	return ValueNil;
 }
 
@@ -366,7 +366,7 @@ void Core::preInit() {
 	// to keep them from garbage collected.
 #define OBJTYPE(x, c)                          \
 	Class *x##Class = Class::create();         \
-	GcObject::trackTemp((GcObject *)x##Class); \
+	Gc::trackTemp((GcObject *)x##Class); \
 	BuiltinModule::register_hooks<x>(x##Class);
 	// add primitive classes
 	OBJTYPE(Number, "")
@@ -378,7 +378,7 @@ void Core::preInit() {
 	String::init0();
 	SymbolTable2::init();
 
-	GcObject::temporaryObjects->obj.setClass(SetClass);
+	Gc::temporaryObjects->obj.setClass(SetClass);
 }
 
 void addCoreClasses(BuiltinModule *m) {
@@ -386,13 +386,13 @@ void addCoreClasses(BuiltinModule *m) {
 	// are garbage collected
 #define OBJTYPE(x, c)                              \
 	m->add_builtin_class<x>(Classes::get<x>(), c); \
-	GcObject::untrackTemp((GcObject *)Classes::get<x>());
+	Gc::untrackTemp((GcObject *)Classes::get<x>());
 #include "../objecttype.h"
 	// primitive classes are needed to be initialized after
 	// the Class itself is done.
 #define OBJTYPE(x, c)                              \
 	m->add_builtin_class<x>(Classes::get<x>(), c); \
-	GcObject::untrackTemp((GcObject *)Classes::get<x>());
+	Gc::untrackTemp((GcObject *)Classes::get<x>());
 	OBJTYPE(Number, "number")
 	OBJTYPE(Boolean, "bool")
 	OBJTYPE(Nil, "nil")

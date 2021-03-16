@@ -80,22 +80,22 @@ struct ClassCompilationContext {
 	void finalize();
 
 	void mark() {
-		for(auto &i : *members) GcObject::mark(i.first);
-		GcObject::mark(public_signatures);
-		GcObject::mark(private_signatures);
-		GcObject::mark(compilingClass);
-		GcObject::mark(fctxMap);
+		for(auto &i : *members) Gc::mark(i.first);
+		Gc::mark(public_signatures);
+		Gc::mark(private_signatures);
+		Gc::mark(compilingClass);
+		Gc::mark(fctxMap);
 		if(metaclass != NULL) {
-			GcObject::mark(metaclass);
+			Gc::mark(metaclass);
 		}
 		if(defaultConstructor != NULL) {
-			GcObject::mark(defaultConstructor);
+			Gc::mark(defaultConstructor);
 		}
 		if(cctxMap != NULL) {
-			GcObject::mark(cctxMap);
+			Gc::mark(cctxMap);
 		}
 		if(moduleContext != NULL) {
-			GcObject::mark(moduleContext);
+			Gc::mark(moduleContext);
 		}
 	}
 
@@ -107,7 +107,7 @@ struct ClassCompilationContext {
 	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(compilingClass); }
+	void          depend() { Gc::depend(compilingClass); }
 	const String *gc_repr() { return compilingClass->name; }
 #endif
 };

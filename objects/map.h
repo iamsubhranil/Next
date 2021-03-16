@@ -20,8 +20,8 @@ struct Map {
 	// gc functions
 	void mark() {
 		for(auto kv : vv) {
-			GcObject::mark(kv.first);
-			GcObject::mark(kv.second);
+			Gc::mark(kv.first);
+			Gc::mark(kv.second);
 		}
 	}
 

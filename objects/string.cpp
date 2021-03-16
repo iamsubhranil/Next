@@ -222,13 +222,13 @@ int String::hash_string(const void *sr, size_t size) {
 
 // val MUST be mallocated elsewhere
 String *String::insert(const void *val, size_t size, int hash_) {
-	String *s = GcObject::allocString2(size);
+	String *s = Gc::allocString2(size);
 	memcpy(s->strb(), val, size);
 	s->size   = size;
 	s->hash_  = hash_;
 	s->length = utf8len(val);
 	// track the string from now on
-	GcObject::tracker_insert((GcObject *)s);
+	Gc::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
 	return s;
 }
@@ -237,7 +237,7 @@ String *String::insert(String *s) {
 	// calculate the codepoint length
 	s->length = utf8len(s->strb());
 	// track the string from now on
-	GcObject::tracker_insert((GcObject *)s);
+	Gc::tracker_insert((GcObject *)s);
 	string_set->hset.insert(s);
 	return s;
 }
@@ -245,7 +245,7 @@ String *String::insert(String *s) {
 String *String::from(const void *v, size_t size, string_transform transform) {
 	// before allocating, first check whether the
 	// string already exists
-	String *val = GcObject::allocString2(size + 1);
+	String *val = Gc::allocString2(size + 1);
 	val->size   = size;
 	memcpy(val->strb(), v, size);
 	transform(val->strb(), size);
@@ -254,7 +254,7 @@ String *String::from(const void *v, size_t size, string_transform transform) {
 	auto res   = string_set->hset.find(val);
 	if(res != string_set->hset.end()) {
 		// free the duplicate string
-		GcObject::releaseString2(val);
+		Gc::releaseString2(val);
 		// return the original back
 		return (*res);
 	}
@@ -265,7 +265,7 @@ String *String::from(const void *v, size_t size, string_transform transform) {
 String *String::from(const void *val, size_t size) {
 	// before allocating, first check whether the
 	// string already exists
-	String *check = GcObject::allocString2(size + 1);
+	String *check = Gc::allocString2(size + 1);
 	memcpy(check->strb(), val, size);
 	check->size = size;
 	check->terminate();
@@ -273,7 +273,7 @@ String *String::from(const void *val, size_t size) {
 	auto res     = string_set->hset.find(check);
 	if(res != string_set->hset.end()) {
 		// free the duplicate string
-		GcObject::releaseString2(check);
+		Gc::releaseString2(check);
 		// return the original back
 		return (*res);
 	}
@@ -287,14 +287,14 @@ String *String::from(const String2 &s, string_transform transform) {
 
 String *String::from(utf8_int32_t c) {
 	size_t  cps = utf8codepointsize(c);
-	String *s   = GcObject::allocString2(cps + 1);
+	String *s   = Gc::allocString2(cps + 1);
 	utf8catcodepoint(s->strb(), c, cps);
 	s->size  = cps;
 	s->hash_ = hash_string(s->strb(), cps);
 	s->terminate();
 	auto res = string_set->hset.find(s);
 	if(res != string_set->hset.end()) {
-		GcObject::releaseString2(s);
+		Gc::releaseString2(s);
 		return *res;
 	}
 	return insert(s);
@@ -305,7 +305,7 @@ String *String::append(const String2 &val1, utf8_int32_t val2) {
 	size_t  size1 = val1->size;
 	size_t  size2 = utf8codepointsize(val2);
 	size_t  size  = size1 + size2;
-	String *ns    = GcObject::allocString2(size + 1);
+	String *ns    = Gc::allocString2(size + 1);
 	ns->size      = size;
 	memcpy(ns->strb(), val1->strb(), size1);
 	utf8catcodepoint((char *)ns->strb() + size1, val2, size2);
@@ -316,7 +316,7 @@ String *String::append(const String2 &val1, utf8_int32_t val2) {
 	if(res != string_set->hset.end()) {
 		// already one exists
 		// free the duplicate string
-		GcObject::releaseString2(ns);
+		Gc::releaseString2(ns);
 		// return the old one back
 		return (*res);
 	}
@@ -331,7 +331,7 @@ String *String::append(const void *val1, size_t size1, const void *val2,
                        size_t size2) {
 	// first create the new string
 	size_t  size = size1 + size2;
-	String *ns   = GcObject::allocString2(size + 1);
+	String *ns   = Gc::allocString2(size + 1);
 	ns->size     = size;
 	memcpy(ns->strb(), val1, size1);
 	memcpy((void *)((uintptr_t)ns->strb() + size1), val2, size2);
@@ -342,7 +342,7 @@ String *String::append(const void *val1, size_t size1, const void *val2,
 	if(res != string_set->hset.end()) {
 		// already one exists
 		// free the duplicate string
-		GcObject::releaseString2(ns);
+		Gc::releaseString2(ns);
 		// return the old one back
 		return (*res);
 	}
@@ -399,7 +399,7 @@ StringSet *StringSet::create() {
 void StringSet::mark() {
 	// for keep set
 	for(auto &a : hset) {
-		GcObject::mark(a);
+		Gc::mark(a);
 	}
 }
 

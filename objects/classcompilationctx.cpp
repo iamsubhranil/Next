@@ -6,7 +6,7 @@
 
 ClassCompilationContext *
 ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
-	ClassCompilationContext2 ctx = GcObject::alloc<ClassCompilationContext>();
+	ClassCompilationContext2 ctx = Gc::alloc<ClassCompilationContext>();
 	ctx->slotCount               = 0;
 	ctx->staticSlotCount         = 0;
 	ctx->isCompiled              = false;

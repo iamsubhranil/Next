@@ -37,6 +37,6 @@ struct Loader {
 			parser.mark();
 		}
 		if(!replModule.isNil())
-			GcObject::mark(replModule);
+			Gc::mark(replModule);
 	}
 };

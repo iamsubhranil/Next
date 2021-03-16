@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 BitsIterator *BitsIterator::from(Bits *b, TraversalType type) {
-	BitsIterator *bi  = GcObject::alloc<BitsIterator>();
+	BitsIterator *bi  = Gc::alloc<BitsIterator>();
 	bi->bits          = b;
 	bi->idx           = 0;
 	bi->hasNext       = Value(0 < b->size);

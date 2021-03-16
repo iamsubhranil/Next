@@ -15,7 +15,7 @@ struct Set {
 	// gc functions
 	void mark() {
 		for(auto v : hset) {
-			GcObject::mark(v);
+			Gc::mark(v);
 		}
 	}
 

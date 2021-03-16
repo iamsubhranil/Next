@@ -22,5 +22,5 @@ struct RangeIterator {
 	static RangeIterator *from(Range *r);
 
 	static void init(Class *c);
-	void        mark() { GcObject::mark(r); }
+	void        mark() { Gc::mark(r); }
 };

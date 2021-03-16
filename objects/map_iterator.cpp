@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 MapIterator *MapIterator::from(Map *m) {
-	MapIterator *mi = GcObject::alloc<MapIterator>();
+	MapIterator *mi = Gc::alloc<MapIterator>();
 	mi->vm          = m;
 	mi->startSize   = m->vv.size();
 	mi->start       = m->vv.begin();

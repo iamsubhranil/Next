@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 ArrayIterator *ArrayIterator::from(Array *a) {
-	ArrayIterator *ai = GcObject::alloc<ArrayIterator>();
+	ArrayIterator *ai = Gc::alloc<ArrayIterator>();
 	ai->arr           = a;
 	ai->idx           = 0;
 	ai->hasNext       = Value(0 < a->size);

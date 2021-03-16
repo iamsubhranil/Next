@@ -73,7 +73,7 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 }
 
 BoundMethod *BoundMethod::from(Function *f, Class *c) {
-	BoundMethod *b = GcObject::alloc<BoundMethod>();
+	BoundMethod *b = Gc::alloc<BoundMethod>();
 	b->binder      = Value(c);
 	b->func        = f;
 	b->type        = CLASS_BOUND;
@@ -81,7 +81,7 @@ BoundMethod *BoundMethod::from(Function *f, Class *c) {
 }
 
 BoundMethod *BoundMethod::from(Function *f, Object *o, Type t) {
-	BoundMethod *b = GcObject::alloc<BoundMethod>();
+	BoundMethod *b = Gc::alloc<BoundMethod>();
 	b->binder      = Value(o);
 	b->func        = f;
 	b->type        = t;
@@ -89,7 +89,7 @@ BoundMethod *BoundMethod::from(Function *f, Object *o, Type t) {
 }
 
 BoundMethod *BoundMethod::from(Function *f, Value v, Type t) {
-	BoundMethod *b = GcObject::alloc<BoundMethod>();
+	BoundMethod *b = Gc::alloc<BoundMethod>();
 	b->binder      = v;
 	b->func        = f;
 	b->type        = t;

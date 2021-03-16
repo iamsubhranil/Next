@@ -17,7 +17,7 @@ struct Tuple {
 	void mark() {
 		Value *v = (Value *)(this + 1);
 		for(int i = 0; i < size; i++) {
-			GcObject::mark(v[i]);
+			Gc::mark(v[i]);
 		}
 	}
 };

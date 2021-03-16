@@ -22,5 +22,5 @@ struct ArrayIterator {
 	static ArrayIterator *from(Array *a);
 
 	static void init(Class *c);
-	void        mark() { GcObject::mark(arr); }
+	void        mark() { Gc::mark(arr); }
 };

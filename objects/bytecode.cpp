@@ -82,7 +82,7 @@ void Bytecode::insertSlot() {
 }
 
 Bytecode *Bytecode::create() {
-	Bytecode2 code     = GcObject::alloc<Bytecode>();
+	Bytecode2 code     = Gc::alloc<Bytecode>();
 	code->bytecodes    = (Opcode *)GcObject_malloc(sizeof(Opcode) * 1);
 	code->size         = 0;
 	code->capacity     = 1;

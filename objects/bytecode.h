@@ -133,9 +133,9 @@ struct Bytecode {
 	Bytecode *create_derived(int offset);
 
 	void mark() {
-		GcObject::mark(values);
+		Gc::mark(values);
 		if(ctx != NULL)
-			GcObject::mark(ctx);
+			Gc::mark(ctx);
 	}
 
 	void release() { GcObject_free(bytecodes, sizeof(Opcode) * capacity); }

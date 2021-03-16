@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 SetIterator *SetIterator::from(Set *m) {
-	SetIterator *mi = GcObject::alloc<SetIterator>();
+	SetIterator *mi = Gc::alloc<SetIterator>();
 	mi->vs          = m;
 	mi->startSize   = m->hset.size();
 	mi->start       = m->hset.begin();

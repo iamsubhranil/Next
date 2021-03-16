@@ -7,7 +7,7 @@ FunctionCompilationContext *FunctionCompilationContext::create(String2 name,
                                                                bool    isStatic,
                                                                bool    isva) {
 	FunctionCompilationContext2 fcc =
-	    GcObject::alloc<FunctionCompilationContext>();
+	    Gc::alloc<FunctionCompilationContext>();
 	fcc->slotCount = 0;
 	fcc->bcc       = NULL;
 	fcc->f         = NULL;

@@ -138,17 +138,15 @@ struct GcObject {
 	size_t gen, idx;
 
 	void depend_();
-
-#define OBJTYPE(x, c) \
-	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
-#include "objecttype.h"
 #endif
 
 	// basic type check
 #define OBJTYPE(n, c) \
 	bool is##n() { return getType() == OBJ_##n; }
 #include "objecttype.h"
+};
 
+struct Gc {
 	// initializes all the core classes.
 	// this must be the first method
 	// that is called after the program
@@ -178,6 +176,9 @@ struct GcObject {
 
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC
+#define OBJTYPE(x, c) \
+	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
+#include "objecttype.h"
 	static void  gc_print(const char *file, int line, const char *message);
 	static void *malloc_print(const char *file, int line, size_t bytes);
 	static void *calloc_print(const char *file, int line, size_t num,
@@ -185,13 +186,12 @@ struct GcObject {
 	static void *realloc_print(const char *file, int line, void *mem,
 	                           size_t oldb, size_t newb);
 	static void free_print(const char *file, int line, void *mem, size_t bytes);
-#define GcObject_malloc(x) GcObject::malloc_print(__FILE__, __LINE__, (x))
-#define GcObject_calloc(x, y) \
-	GcObject::calloc_print(__FILE__, __LINE__, (x), (y))
+#define GcObject_malloc(x) Gc::malloc_print(__FILE__, __LINE__, (x))
+#define GcObject_calloc(x, y) Gc::calloc_print(__FILE__, __LINE__, (x), (y))
 #define GcObject_realloc(x, y, z) \
-	GcObject::realloc_print(__FILE__, __LINE__, (x), (y), (z))
+	Gc::realloc_print(__FILE__, __LINE__, (x), (y), (z))
 #define GcObject_free(x, y) \
-	{ GcObject::free_print(__FILE__, __LINE__, (x), (y)); }
+	{ Gc::free_print(__FILE__, __LINE__, (x), (y)); }
 	// macros to warn against direct malloc/free calls
 /*#define malloc(x)                                                           \
 	(std::wcout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
@@ -206,10 +206,10 @@ struct GcObject {
 	std::wcout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
 	::free((x));*/
 #else
-#define GcObject_malloc(x) GcObject::malloc(x)
-#define GcObject_calloc(x, y) GcObject::calloc(x, y)
-#define GcObject_realloc(x, y, z) GcObject::realloc(x, y, z)
-#define GcObject_free(x, y) GcObject::free(x, y)
+#define GcObject_malloc(x) Gc::malloc(x)
+#define GcObject_calloc(x, y) Gc::calloc(x, y)
+#define GcObject_realloc(x, y, z) Gc::realloc(x, y, z)
+#define GcObject_free(x, y) Gc::free(x, y)
 #endif
 	// marking and unmarking functions
 	static void mark(Value v);
@@ -242,7 +242,7 @@ struct GcObject {
 	static void setMaxGC(size_t v);
 
 	// memory management functions
-	static void *alloc(size_t s, Type type, const Class *klass);
+	static void *alloc(size_t s, GcObject::Type type, const Class *klass);
 	template <typename T> static T *alloc() {
 		return (T *)alloc(sizeof(T), GcObject::getType<T>(), Classes::get<T>());
 	}
@@ -278,12 +278,12 @@ template <typename T> struct GcTempObject {
 
 	void track() {
 		if(obj)
-			GcObject::trackTemp((GcObject *)obj);
+			Gc::trackTemp((GcObject *)obj);
 	}
 
 	void untrack() {
 		if(obj)
-			GcObject::untrackTemp((GcObject *)obj);
+			Gc::untrackTemp((GcObject *)obj);
 	}
 
   public:

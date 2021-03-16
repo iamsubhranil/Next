@@ -73,9 +73,9 @@ struct Function {
 
 	// gc functions
 	void mark() {
-		GcObject::mark(name);
+		Gc::mark(name);
 		if(getType() != BUILTIN) {
-			GcObject::mark(code);
+			Gc::mark(code);
 		}
 	}
 
@@ -93,7 +93,7 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(name); }
+	void          depend() { Gc::depend(name); }
 	const String *gc_repr() { return name; }
 #endif
 };

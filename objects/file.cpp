@@ -78,7 +78,7 @@ FILE *File::fopen(const void *name, const void *mode) {
 }
 
 Value File::create(FILE *f, uint8_t modes) {
-	File *fl       = GcObject::alloc<File>();
+	File *fl       = Gc::alloc<File>();
 	fl->streamSize = sizeof(FileStream);
 	fl->stream     = (Stream *)GcObject_malloc(sizeof(FileStream));
 	::new(fl->stream) FileStream(f, modes);
@@ -86,7 +86,7 @@ Value File::create(FILE *f, uint8_t modes) {
 }
 
 File *File::create(Stream *s) {
-	File *fl       = GcObject::alloc<File>();
+	File *fl       = Gc::alloc<File>();
 	fl->streamSize = 0;
 	fl->stream     = s;
 	return fl;

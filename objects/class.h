@@ -98,18 +98,18 @@ struct Class {
 	bool is_child_of(Class *parent) const;
 	// gc functions
 	void mark() {
-		GcObject::mark(name);
-		GcObject::mark(functions);
+		Gc::mark(name);
+		Gc::mark(functions);
 		if(metaclass)
-			GcObject::mark(metaclass);
+			Gc::mark(metaclass);
 		if(superclass)
-			GcObject::mark(superclass);
+			Gc::mark(superclass);
 		if(module != NULL) {
-			GcObject::mark(module);
+			Gc::mark(module);
 			if(static_slot_count > 0)
-				GcObject::mark(static_values, static_slot_count);
+				Gc::mark(static_values, static_slot_count);
 		} else if(instance != NULL) {
-			GcObject::mark(instance);
+			Gc::mark(instance);
 		}
 	}
 
@@ -118,7 +118,7 @@ struct Class {
 			GcObject_free(static_values, sizeof(Value) * static_slot_count);
 		}
 #ifdef DEBUG_GC
-		GcObject::releaseString2(nameCopy);
+		Gc::releaseString2(nameCopy);
 #endif
 	}
 

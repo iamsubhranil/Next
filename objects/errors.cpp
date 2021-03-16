@@ -5,7 +5,7 @@
 
 #define ERRORTYPE(x, name)                                          \
 	x *x::create(const String2 &m) {                                \
-		x *re       = GcObject::alloc<x>();                         \
+		x *re       = Gc::alloc<x>();                         \
 		re->message = m;                                            \
 		return re;                                                  \
 	}                                                               \
@@ -28,7 +28,7 @@
 Class *Error::ErrorObjectClass = nullptr;
 
 Error *Error::create(const String2 &m) {
-	Error *re   = GcObject::alloc<Error>();
+	Error *re   = Gc::alloc<Error>();
 	re->message = m;
 	return re;
 }

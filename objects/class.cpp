@@ -174,7 +174,7 @@ Class *Class::copy() {
 }
 
 Class *Class::create() {
-	Class2 kls             = GcObject::alloc<Class>();
+	Class2 kls             = Gc::alloc<Class>();
 	kls->metaclass         = NULL;
 	kls->module            = NULL;
 	kls->name              = NULL;
@@ -354,13 +354,13 @@ void Class::depend() {
 		if(!name) {
 			nameCopy = name = String::const_undefined;
 		} else {
-			nameCopy         = GcObject::allocString2(name->size + 1);
+			nameCopy         = Gc::allocString2(name->size + 1);
 			nameCopy->size   = name->size;
 			nameCopy->length = name->length;
 			nameCopy->hash_  = name->hash_;
 			memcpy(nameCopy->strb(), name->strb(), name->size + 1);
 		}
 	}
-	GcObject::depend(name);
+	Gc::depend(name);
 }
 #endif

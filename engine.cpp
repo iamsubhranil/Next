@@ -129,19 +129,19 @@ void ExecutionEngine::mark() {
 	// mark everything that is live on the stack
 	// this will recursively mark all the referenced
 	// objects
-	GcObject::mark(currentFiber);
+	Gc::mark(currentFiber);
 	// mark the core object
-	GcObject::mark(CoreObject);
+	Gc::mark(CoreObject);
 	// mark the pending exceptions and fibers
-	GcObject::mark(pendingExceptions);
-	GcObject::mark(pendingFibers);
+	Gc::mark(pendingExceptions);
+	Gc::mark(pendingFibers);
 	// the modules which are not marked, remove them.
 	// we can't really remove the keys, i.e. paths,
 	// in the same time we traverse, so we keep those,
 	// and remove the modules themselves
 	if(loadedModules) {
 		for(auto &a : *loadedModules) {
-			GcObject::mark(a.first);
+			Gc::mark(a.first);
 			if(a.second != NULL && !a.second->isMarked())
 				loadedModules[0][a.first] = NULL;
 		}
@@ -1144,7 +1144,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// allocated for us in the invoking
 				// constructor.
 				if(Stack[0].isNil()) {
-					Object *o = GcObject::allocObject(c);
+					Object *o = Gc::allocObject(c);
 					// assign the object to slot 0
 					Stack[0] = Value(o);
 					// if this is a module, store the instance to the class

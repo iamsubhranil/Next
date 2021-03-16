@@ -4,7 +4,7 @@
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	BytecodeCompilationContext2 bcc =
-	    GcObject::alloc<BytecodeCompilationContext>();
+	    Gc::alloc<BytecodeCompilationContext>();
 	bcc->code              = NULL;
 	bcc->ranges_           = (TokenRange *)GcObject_malloc(sizeof(TokenRange));
 	bcc->ranges_[0].token  = Token::PlaceholderToken;

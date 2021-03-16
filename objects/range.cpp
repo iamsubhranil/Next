@@ -5,7 +5,7 @@
 #include "symtab.h"
 
 Range *Range::create(int64_t from, int64_t to, int64_t step) {
-	Range *r = GcObject::alloc<Range>();
+	Range *r = Gc::alloc<Range>();
 
 	r->from = from;
 	r->to   = to;

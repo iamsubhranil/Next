@@ -1582,7 +1582,7 @@ void CodeGenerator::mark() {
 	// everything else will be recursively
 	// marked by the module that this
 	// compiler is compiling
-	GcObject::mark(mtx);
+	Gc::mark(mtx);
 	// mark the statements
-	GcObject::mark(currentlyCompiling);
+	Gc::mark(currentlyCompiling);
 }

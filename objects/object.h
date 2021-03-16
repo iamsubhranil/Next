@@ -21,7 +21,7 @@ struct Object {
 	void mark() {
 		const Class *c = obj.getClass();
 		for(int i = 0; i < c->numSlots; i++) {
-			GcObject::mark(slots(i));
+			Gc::mark(slots(i));
 		}
 	}
 
@@ -35,7 +35,7 @@ struct Object {
 	void release() {}
 
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(obj.getClass()); }
+	void          depend() { Gc::depend(obj.getClass()); }
 	const String *gc_repr() { return obj.getClass()->name; }
 #endif
 };

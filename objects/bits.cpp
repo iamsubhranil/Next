@@ -709,7 +709,7 @@ Value next_bits_unequal(const Value *args, int numargs) {
 }
 
 Bits *Bits::create(int64_t number_of_bits) {
-	Bits *b       = GcObject::alloc<Bits>();
+	Bits *b       = Gc::alloc<Bits>();
 	b->size       = number_of_bits;
 	b->chunkcount = (number_of_bits >> Bits::ChunkCountShift) +
 	                ((number_of_bits & Bits::ChunkRemainderAnd) != 0);

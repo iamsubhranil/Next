@@ -12,15 +12,15 @@
 #include "stmt.h"
 #include "utils.h"
 
-size_t                GcObject::totalAllocated   = 0;
-size_t                GcObject::next_gc          = 1024 * 1024 * 10;
-size_t                GcObject::max_gc           = 1024 * 1024 * 1024;
-GcObject::Generation *GcObject::generations[]    = {nullptr};
-size_t                GcObject::gc_count         = 0;
-Set *                 GcObject::temporaryObjects = nullptr;
+size_t          Gc::totalAllocated   = 0;
+size_t          Gc::next_gc          = 1024 * 1024 * 10;
+size_t          Gc::max_gc           = 1024 * 1024 * 1024;
+Gc::Generation *Gc::generations[]    = {nullptr};
+size_t          Gc::gc_count         = 0;
+Set *           Gc::temporaryObjects = nullptr;
 
 #ifdef DEBUG_GC
-size_t GcObject::GcCounters[] = {
+size_t Gc::GcCounters[] = {
 #define OBJTYPE(n, c) 0,
 #include "objecttype.h"
 };
@@ -69,14 +69,14 @@ static size_t counterCounter = 0;
 #define FREE(x, y) FREE_CALL(x, y)
 #endif
 
-void *GcObject::malloc(size_t bytes) {
+void *Gc::malloc(size_t bytes) {
 	void *m = MALLOC(bytes);
 	totalAllocated += bytes;
 	STORE_SIZE(m, bytes);
 	return m;
 }
 
-void *GcObject::calloc(size_t num, size_t bytes) {
+void *Gc::calloc(size_t num, size_t bytes) {
 	void *m = CALLOC_CALL(num, bytes);
 #ifdef GC_STORE_SIZE
 	// realloc to store the size
@@ -88,7 +88,7 @@ void *GcObject::calloc(size_t num, size_t bytes) {
 	return m;
 }
 
-void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
+void *Gc::realloc(void *mem, size_t oldb, size_t newb) {
 	void *n = REALLOC(mem, oldb, newb);
 	totalAllocated += newb;
 	totalAllocated -= oldb;
@@ -96,7 +96,7 @@ void *GcObject::realloc(void *mem, size_t oldb, size_t newb) {
 	return n;
 }
 
-void GcObject::free(void *mem, size_t bytes) {
+void Gc::free(void *mem, size_t bytes) {
 	FREE(mem, bytes);
 	totalAllocated -= bytes;
 }
@@ -104,7 +104,7 @@ void GcObject::free(void *mem, size_t bytes) {
 	template <> GcObject::Type GcObject::getType<n>() { return Type::OBJ_##n; }
 #include "objecttype.h"
 
-void GcObject::gc(bool force) {
+void Gc::gc(bool force) {
 	// check for gc
 	if(totalAllocated >= next_gc || force) {
 		gc_count++;
@@ -233,15 +233,15 @@ void GcObject::gc(bool force) {
 	}
 }
 
-void GcObject::setNextGC(size_t v) {
+void Gc::setNextGC(size_t v) {
 	next_gc = v;
 }
 
-void GcObject::setMaxGC(size_t v) {
+void Gc::setMaxGC(size_t v) {
 	max_gc = v;
 }
 
-void GcObject::tracker_insert(GcObject *g) {
+void Gc::tracker_insert(GcObject *g) {
 	generations[0]->insert(g);
 #ifdef DEBUG_GC
 	g->gen = 0;
@@ -249,13 +249,13 @@ void GcObject::tracker_insert(GcObject *g) {
 #endif
 }
 
-void *GcObject::alloc(size_t s, GcObject::Type type, const Class *klass) {
+void *Gc::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	// try for gc before allocation
 	// because the returned pointer
 	// may be less fragmented
 	gc(GC_STRESS);
 
-	GcObject *obj = (GcObject *)GcObject::malloc(s);
+	GcObject *obj = (GcObject *)Gc::malloc(s);
 	obj->setType(type, klass);
 
 	generations[0]->insert(obj);
@@ -267,7 +267,7 @@ void *GcObject::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	             (uintptr_t)obj);
 	switch(type) {
 #define OBJTYPE(x, c)                                              \
-	case OBJ_##x:                                                  \
+	case GcObject::OBJ_##x:                                        \
 		Printer::print(#x);                                        \
 		if(klass && klass->name)                                   \
 			Printer::print(" -> ", ANSI_COLOR_YELLOW, klass->name, \
@@ -282,49 +282,50 @@ void *GcObject::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	return obj;
 }
 
-Object *GcObject::allocObject(const Class *klass) {
+Object *Gc::allocObject(const Class *klass) {
 	// perform the whole allocation (object + slots)
 	// at once
-	Object *o = (Object *)alloc(
-	    sizeof(Object) + sizeof(Value) * klass->numSlots, OBJ_Object, klass);
+	Object *o =
+	    (Object *)alloc(sizeof(Object) + sizeof(Value) * klass->numSlots,
+	                    GcObject::OBJ_Object, klass);
 	Utils::fillNil(o->slots(), klass->numSlots);
 	return o;
 }
 
-String *GcObject::allocString2(int numchar) {
+String *Gc::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
 	String *s =
 	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
-	s->obj.setType(OBJ_String, Classes::get<String>());
+	s->obj.setType(GcObject::OBJ_String, Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
 #endif
 	return s;
 }
 
-void GcObject::releaseString2(String *s) {
+void Gc::releaseString2(String *s) {
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]--;
 #endif
 	GcObject_free(s, (sizeof(String) + (sizeof(char) * (s->size + 1))));
 }
 
-Tuple *GcObject::allocTuple2(int numobj) {
+Tuple *Gc::allocTuple2(int numobj) {
 	Tuple *t = (Tuple *)alloc(sizeof(Tuple) + (sizeof(Value) * numobj),
-	                          OBJ_Tuple, Classes::get<Tuple>());
+	                          GcObject::OBJ_Tuple, Classes::get<Tuple>());
 	return t;
 }
 
-Expression *GcObject::allocExpression2(size_t size) {
-	Expression *e =
-	    (Expression *)alloc(size, OBJ_Expression, Classes::get<Expression>());
+Expression *Gc::allocExpression2(size_t size) {
+	Expression *e = (Expression *)alloc(size, GcObject::OBJ_Expression,
+	                                    Classes::get<Expression>());
 	return e;
 }
 
-Statement *GcObject::allocStatement2(size_t size) {
-	Statement *s =
-	    (Statement *)alloc(size, OBJ_Statement, Classes::get<Statement>());
+Statement *Gc::allocStatement2(size_t size) {
+	Statement *s = (Statement *)alloc(size, GcObject::OBJ_Statement,
+	                                  Classes::get<Statement>());
 	return s;
 }
 
@@ -344,7 +345,7 @@ Statement *GcObject::allocStatement2(size_t size) {
 		GcCounters[type##Counter]--;                                           \
 		if(Classes::type##ClassInfo.ReleaseFn)                                 \
 			(((type *)obj)->*Classes::type##ClassInfo.ReleaseFn)();            \
-		GcObject::free(obj, bak);                                              \
+		Gc::free(obj, bak);                                                    \
 		return;                                                                \
 	}
 #else
@@ -353,38 +354,39 @@ Statement *GcObject::allocStatement2(size_t size) {
 		size_t bak = size;                                          \
 		if(Classes::type##ClassInfo.ReleaseFn)                      \
 			(((type *)obj)->*Classes::type##ClassInfo.ReleaseFn)(); \
-		GcObject::free(obj, bak);                                   \
+		Gc::free(obj, bak);                                         \
 		return;                                                     \
 	}
 #endif
 
-void GcObject::release(GcObject *obj) {
+void Gc::release(GcObject *obj) {
 	// for the types that are allocated contiguously,
 	// we need to pass the total allocated size to
 	// the memory manager, otherwise it will add the
 	// block to a different pool than the original
 	switch(obj->getType()) {
-		case OBJ_String:
+		case GcObject::OBJ_String:
 			release_(String, sizeof(String) +
 			                     (sizeof(char) * ((String *)obj)->size + 1));
-		case OBJ_Tuple:
+		case GcObject::OBJ_Tuple:
 			release_(Tuple,
 			         sizeof(Tuple) + (sizeof(Value) * ((Tuple *)obj)->size));
-		case OBJ_Object:
+		case GcObject::OBJ_Object:
 			release_(Object, sizeof(Object) +
 			                     (sizeof(Value) * obj->getClass()->numSlots));
-		case OBJ_Expression:
+		case GcObject::OBJ_Expression:
 			release_(Expression, ((Expression *)obj)->getSize());
-		case OBJ_Statement: release_(Statement, ((Statement *)obj)->getSize());
+		case GcObject::OBJ_Statement:
+			release_(Statement, ((Statement *)obj)->getSize());
 		default: break;
 	}
 	switch(obj->getType()) {
-		case OBJ_NONE:
+		case GcObject::OBJ_NONE:
 			panic("Object type NONE should not be present in "
 			      "the list!");
 			break;
 #define OBJTYPE(n, c)                                  \
-	case OBJ_##n: {                                    \
+	case GcObject::OBJ_##n: {                          \
 		release_(n, Classes::n##ClassInfo.ObjectSize); \
 		break;                                         \
 	}
@@ -393,27 +395,27 @@ void GcObject::release(GcObject *obj) {
 	}
 }
 
-void GcObject::release(Value v) {
+void Gc::release(Value v) {
 	if(v.isGcObject())
 		release(v.toGcObject());
 	else if(v.isPointer())
 		release(*v.toPointer());
 }
 
-void GcObject::mark(Value v) {
+void Gc::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
 	else if(v.isPointer() && (*v.toPointer()).isGcObject())
 		mark(v.toPointer()->toGcObject());
 }
 
-void GcObject::mark(Value *v, size_t num) {
+void Gc::mark(Value *v, size_t num) {
 	for(size_t i = 0; i < num; i++) {
 		mark(v[i]);
 	}
 }
 
-void GcObject::mark(GcObject *p) {
+void Gc::mark(GcObject *p) {
 	if(p == NULL)
 		return;
 	// if the object is already marked,
@@ -431,12 +433,12 @@ void GcObject::mark(GcObject *p) {
 	mark((GcObject *)k);
 	// finally, let it mark its members
 	switch(p->getType()) {
-		case OBJ_NONE:
+		case GcObject::OBJ_NONE:
 			Printer::Err("Object type NONE should not be "
 			             "present in the list!");
 			break;
 #define OBJTYPE(name, classname)                      \
-	case OBJ_##name:                                  \
+	case GcObject::OBJ_##name:                        \
 		if(Classes::name##ClassInfo.MarkFn) {         \
 			auto a = Classes::name##ClassInfo.MarkFn; \
 			(((name *)p)->*a)();                      \
@@ -446,7 +448,7 @@ void GcObject::mark(GcObject *p) {
 	}
 }
 
-void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
+void Gc::sweep(size_t genid, Class **unmarkedClassesHead) {
 	Generation *generation = generations[genid];
 	Generation *put        = generation;
 #ifdef DEBUG_GC
@@ -498,7 +500,7 @@ void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
 	generation->shrink();
 }
 
-void GcObject::init() {
+void Gc::init() {
 #ifndef GC_USE_STD_ALLOC
 	// initialize the memory manager
 	MemoryManager::init();
@@ -509,17 +511,17 @@ void GcObject::init() {
 	// init the set class
 	BuiltinModule::register_hooks<Set>(nullptr);
 
-	temporaryObjects = GcObject::alloc<Set>();
+	temporaryObjects = Gc::alloc<Set>();
 	::new(&temporaryObjects->hset) Set::SetType();
 }
 
-void GcObject::trackTemp(GcObject *g) {
+void Gc::trackTemp(GcObject *g) {
 	g->increaseRefCount();
 	if(g->getRefCount() == 1)
 		temporaryObjects->hset.insert(Value(g));
 }
 
-void GcObject::untrackTemp(GcObject *g) {
+void Gc::untrackTemp(GcObject *g) {
 	g->decreaseRefCount();
 	if(g->getRefCount() == 0)
 		temporaryObjects->hset.erase(Value(g));
@@ -532,16 +534,16 @@ void GcObject::depend_() {
 	// if(isMarked(this))
 	//	return;
 	// set the existing loc to NULL
-	generations[gen]->obj[idx] = NULL;
+	Gc::generations[gen]->obj[idx] = NULL;
 	// insert this to generations[0]
-	generations[0]->insert(this);
+	Gc::generations[0]->insert(this);
 	// set the new location
 	gen = 0;
-	idx = generations[0]->size - 1;
+	idx = Gc::generations[0]->size - 1;
 	// let the class declare its dependency
 	switch(getType()) {
 #define OBJTYPE(x, c)                                         \
-	case OBJ_##x:                                             \
+	case GcObject::OBJ_##x:                                   \
 		if(Classes::x##ClassInfo.DependFn)                    \
 			(((x *)this)->*Classes::x##ClassInfo.DependFn)(); \
 		break;
@@ -550,39 +552,38 @@ void GcObject::depend_() {
 	}
 }
 
-void GcObject::gc_print(const char *file, int line, const char *message) {
+void Gc::gc_print(const char *file, int line, const char *message) {
 	Printer::print(ANSI_FONT_BOLD, "[GC]", ANSI_COLOR_RESET,
-	               " [TA: ", GcObject::totalAllocated, "] ", file, ":", line,
-	               " -> ", message);
+	               " [TA: ", Gc::totalAllocated, "] ", file, ":", line, " -> ",
+	               message);
 }
 
-void *GcObject::malloc_print(const char *file, int line, size_t bytes) {
+void *Gc::malloc_print(const char *file, int line, size_t bytes) {
 	gc_print(file, line, ANSI_COLOR_GREEN "malloc: " ANSI_COLOR_RESET);
 	Printer::println(bytes, " bytes");
-	return GcObject::malloc(bytes);
+	return Gc::malloc(bytes);
 };
 
-void *GcObject::calloc_print(const char *file, int line, size_t num,
-                             size_t bytes) {
+void *Gc::calloc_print(const char *file, int line, size_t num, size_t bytes) {
 	gc_print(file, line, ANSI_COLOR_YELLOW "calloc: " ANSI_COLOR_RESET);
 	Printer::println(num, "*", bytes, " bytes");
-	return GcObject::calloc(num, bytes);
+	return Gc::calloc(num, bytes);
 };
 
-void *GcObject::realloc_print(const char *file, int line, void *mem,
-                              size_t oldb, size_t newb) {
+void *Gc::realloc_print(const char *file, int line, void *mem, size_t oldb,
+                        size_t newb) {
 	gc_print(file, line, ANSI_COLOR_CYAN "realloc: " ANSI_COLOR_RESET);
 	Printer::println(oldb, " -> ", newb, " bytes");
-	return GcObject::realloc(mem, oldb, newb);
+	return Gc::realloc(mem, oldb, newb);
 };
 
-void GcObject::free_print(const char *file, int line, void *mem, size_t size) {
+void Gc::free_print(const char *file, int line, void *mem, size_t size) {
 	gc_print(file, line, ANSI_COLOR_MAGENTA "free: " ANSI_COLOR_RESET);
 	Printer::println(size, " bytes");
-	return GcObject::free(mem, size);
+	return Gc::free(mem, size);
 };
 
-void GcObject::print_stat() {
+void Gc::print_stat() {
 	Printer::println("[GC] Object allocation counters");
 	size_t i = 0;
 #define OBJTYPE(r, c)                                   \

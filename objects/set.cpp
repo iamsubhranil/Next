@@ -5,7 +5,7 @@
 #include "set_iterator.h"
 
 Set *Set::create() {
-	Set2 v = GcObject::alloc<Set>();
+	Set2 v = Gc::alloc<Set>();
 	::new(&v->hset) SetType();
 	return v;
 }

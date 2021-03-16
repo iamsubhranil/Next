@@ -53,5 +53,5 @@ struct BuiltinModule {
 	static BuiltinModule *create();
 
 	static void initModuleNames();
-	void        mark() { GcObject::mark(ctx); }
+	void        mark() { Gc::mark(ctx); }
 };

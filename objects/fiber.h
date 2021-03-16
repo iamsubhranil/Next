@@ -129,7 +129,7 @@ struct Fiber {
 		if(f->isVarArg()) {
 			int    vaSlot    = f->arity + 1; // 0th slot stores the receiver
 			int    numVaargs = stackTop - (bakStack + vaSlot);
-			Tuple *t         = GcObject::allocTuple2(numVaargs);
+			Tuple *t         = Gc::allocTuple2(numVaargs);
 			t->size          = numVaargs;
 			memcpy(t->values(), &bakStack[vaSlot], sizeof(Value) * numVaargs);
 			bakStack[vaSlot] = t;
@@ -191,17 +191,17 @@ struct Fiber {
 	// engine is executing
 	void mark() {
 		// mark the active stack
-		GcObject::mark(stack_, stackTop - stack_);
+		Gc::mark(stack_, stackTop - stack_);
 		// mark the active functions
 		for(size_t i = 0; i < callFramePointer; i++) {
-			GcObject::mark(callFrames[i].f);
+			Gc::mark(callFrames[i].f);
 		}
 		// mark the parent if present
 		if(parent)
-			GcObject::mark(parent);
+			Gc::mark(parent);
 		// mark the iterator if present
 		if(fiberIterator)
-			GcObject::mark(fiberIterator);
+			Gc::mark(fiberIterator);
 	}
 
 	void release() {

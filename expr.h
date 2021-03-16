@@ -8,7 +8,7 @@
 #include "exprtypes.h"
 
 #define NewExpression(x, ...)                                 \
-	(::new(GcObject::allocExpression2(sizeof(x##Expression))) \
+	(::new(Gc::allocExpression2(sizeof(x##Expression))) \
 	     x##Expression(__VA_ARGS__))
 
 class ExpressionVisitor {
@@ -71,7 +71,7 @@ struct ArrayLiteralExpression : public Expression {
 	ArrayLiteralExpression(Token t, const Array2 &s)
 	    : Expression(t, EXPR_ArrayLiteral), exprs(s) {}
 
-	void mark() { GcObject::mark(exprs); }
+	void mark() { Gc::mark(exprs); }
 };
 
 struct AssignExpression : public Expression {
@@ -81,8 +81,8 @@ struct AssignExpression : public Expression {
 	                 const Expression2 &rvalue)
 	    : Expression(eq, EXPR_Assign), target(lvalue), val(rvalue) {}
 	void mark() {
-		GcObject::mark(target);
-		GcObject::mark(val);
+		Gc::mark(target);
+		Gc::mark(val);
 	}
 };
 
@@ -92,8 +92,8 @@ struct BinaryExpression : public Expression {
 	BinaryExpression(const Expression2 &l, Token op, const Expression2 &r)
 	    : Expression(op, EXPR_Binary), left(l), right(r) {}
 	void mark() {
-		GcObject::mark(left);
-		GcObject::mark(right);
+		Gc::mark(left);
+		Gc::mark(right);
 	}
 };
 
@@ -105,8 +105,8 @@ struct CallExpression : public Expression {
 	    : Expression(paren, EXPR_Call), callee(cle), arguments(args) {}
 
 	void mark() {
-		GcObject::mark(callee);
-		GcObject::mark(arguments);
+		Gc::mark(callee);
+		Gc::mark(arguments);
 	}
 };
 
@@ -129,8 +129,8 @@ struct GetExpression : public Expression {
 	    : Expression(name, EXPR_Get), object(obj), refer(r) {}
 
 	void mark() {
-		GcObject::mark(refer);
-		GcObject::mark(object);
+		Gc::mark(refer);
+		Gc::mark(object);
 	}
 };
 
@@ -140,7 +140,7 @@ struct GetThisOrSuperExpression : public Expression {
 	GetThisOrSuperExpression(Token tos, const Expression2 &r)
 	    : Expression(tos, EXPR_GetThisOrSuper), refer(r) {}
 
-	void mark() { GcObject::mark(refer); }
+	void mark() { Gc::mark(refer); }
 };
 
 struct GroupingExpression : public Expression {
@@ -150,7 +150,7 @@ struct GroupingExpression : public Expression {
 	GroupingExpression(Token brace, Array *e, bool ist)
 	    : Expression(brace, EXPR_Grouping), exprs(e), istuple(ist) {}
 
-	void mark() { GcObject::mark(exprs); }
+	void mark() { Gc::mark(exprs); }
 };
 
 struct HashmapLiteralExpression : public Expression {
@@ -160,8 +160,8 @@ struct HashmapLiteralExpression : public Expression {
 	    : Expression(t, EXPR_HashmapLiteral), keys(k), values(v) {}
 
 	void mark() {
-		GcObject::mark(keys);
-		GcObject::mark(values);
+		Gc::mark(keys);
+		Gc::mark(values);
 	}
 };
 
@@ -171,7 +171,7 @@ struct LiteralExpression : public Expression {
 	LiteralExpression(Value val, Token lit)
 	    : Expression(lit, EXPR_Literal), value(val) {}
 
-	void mark() { GcObject::mark(value); }
+	void mark() { Gc::mark(value); }
 };
 
 struct SetExpression : public Expression {
@@ -181,8 +181,8 @@ struct SetExpression : public Expression {
 	    : Expression(name, EXPR_Set), object(obj), value(val) {}
 
 	void mark() {
-		GcObject::mark(object);
-		GcObject::mark(value);
+		Gc::mark(object);
+		Gc::mark(value);
 	}
 };
 
@@ -192,7 +192,7 @@ struct PrefixExpression : public Expression {
 	PrefixExpression(Token op, const Expression2 &r)
 	    : Expression(op, EXPR_Prefix), right(r) {}
 
-	void mark() { GcObject::mark(right); }
+	void mark() { Gc::mark(right); }
 };
 
 struct PostfixExpression : public Expression {
@@ -201,7 +201,7 @@ struct PostfixExpression : public Expression {
 	PostfixExpression(const Expression2 &l, Token t)
 	    : Expression(t, EXPR_Postfix), left(l) {}
 
-	void mark() { GcObject::mark(left); }
+	void mark() { Gc::mark(left); }
 };
 
 struct SubscriptExpression : public Expression {
@@ -213,8 +213,8 @@ struct SubscriptExpression : public Expression {
 	    : Expression(name, EXPR_Subscript), object(obj), idx(i) {}
 
 	void mark() {
-		GcObject::mark(object);
-		GcObject::mark(idx);
+		Gc::mark(object);
+		Gc::mark(idx);
 	}
 };
 

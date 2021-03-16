@@ -140,7 +140,7 @@ void Map::init(Class *MapClass) {
 }
 
 Map *Map::create() {
-	Map2 vvm = GcObject::alloc<Map>();
+	Map2 vvm = Gc::alloc<Map>();
 	::new(&vvm->vv) MapType();
 	return vvm;
 }

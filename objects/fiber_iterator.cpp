@@ -6,7 +6,7 @@
 #include "symtab.h"
 
 FiberIterator *FiberIterator::from(Fiber *f) {
-	FiberIterator *fi = GcObject::alloc<FiberIterator>();
+	FiberIterator *fi = Gc::alloc<FiberIterator>();
 
 	fi->fiber   = f;
 	fi->hasNext = Value(f->state != Fiber::FINISHED);

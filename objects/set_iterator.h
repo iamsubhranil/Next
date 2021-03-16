@@ -23,5 +23,5 @@ struct SetIterator {
 
 	static SetIterator *from(Set *s);
 	static void         init(Class *c);
-	void                mark() { GcObject::mark(vs); }
+	void                mark() { Gc::mark(vs); }
 };

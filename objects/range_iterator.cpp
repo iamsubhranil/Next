@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 RangeIterator *RangeIterator::from(Range *r) {
-	RangeIterator *ri = GcObject::alloc<RangeIterator>();
+	RangeIterator *ri = Gc::alloc<RangeIterator>();
 	ri->r             = r;
 	ri->present       = r->from;
 	ri->hasNext       = Value(ri->present < r->to);

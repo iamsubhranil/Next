@@ -22,5 +22,5 @@ struct MapIterator {
 
 	static MapIterator *from(Map *m);
 	static void         init(Class *c);
-	void                mark() { GcObject::mark(vm); }
+	void                mark() { Gc::mark(vm); }
 };
