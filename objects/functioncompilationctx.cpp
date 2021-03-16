@@ -13,7 +13,7 @@ FunctionCompilationContext *FunctionCompilationContext::create(String2 name,
 	fcc->f         = NULL;
 	fcc->slotmap   = NULL;
 	// initialize the members
-	fcc->slotmap = (SlotMap *)GcObject_malloc(sizeof(SlotMap));
+	fcc->slotmap = (SlotMap *)Gc_malloc(sizeof(SlotMap));
 	::new(fcc->slotmap) SlotMap();
 	fcc->f       = Function::create(name, arity, isva, isStatic);
 	fcc->bcc     = BytecodeCompilationContext::create();

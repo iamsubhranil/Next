@@ -24,5 +24,5 @@ struct Array {
 	// gc functions
 	void mark() { Gc::mark(values, size); }
 
-	void release() { GcObject_free(values, sizeof(Value) * capacity); }
+	void release() { Gc_free(values, sizeof(Value) * capacity); }
 };

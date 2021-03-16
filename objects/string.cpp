@@ -391,7 +391,7 @@ void String::release() {
 }
 
 StringSet *StringSet::create() {
-	StringSet *s = (StringSet *)GcObject_malloc(sizeof(StringSet));
+	StringSet *s = (StringSet *)Gc_malloc(sizeof(StringSet));
 	::new(&s->hset) HashSet<String *, StringHash, StringEquals>();
 	return s;
 }
@@ -412,8 +412,8 @@ void String::release_all() {
 	string_set->hset.~Table();
 	keep_set->hset.~Table();
 
-	GcObject_free(string_set, sizeof(StringSet));
-	GcObject_free(keep_set, sizeof(StringSet));
+	Gc_free(string_set, sizeof(StringSet));
+	Gc_free(keep_set, sizeof(StringSet));
 }
 
 void String::keep() {

@@ -95,5 +95,5 @@ struct BytecodeCompilationContext {
 	static BytecodeCompilationContext *create();
 	void                               mark() { Gc::mark(code); }
 
-	void release() { GcObject_free(ranges_, sizeof(TokenRange) * capacity); }
+	void release() { Gc_free(ranges_, sizeof(TokenRange) * capacity); }
 };

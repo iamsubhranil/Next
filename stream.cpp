@@ -29,7 +29,7 @@ std::size_t StringStream::writebytes(const void *const &data, size_t bytes) {
 	if(size + bytes > capacity) {
 		size_t oldc = capacity;
 		capacity    = Utils::nextAllocationSize(capacity, size + bytes);
-		str         = GcObject_realloc(str, oldc, capacity);
+		str         = Gc_realloc(str, oldc, capacity);
 	}
 	std::memcpy((char *)str + size, data, bytes);
 	size += bytes;
@@ -52,7 +52,7 @@ Value StringStream::toString() {
 
 StringStream::~StringStream() {
 	if(capacity) {
-		GcObject_free(str, capacity);
+		Gc_free(str, capacity);
 	}
 }
 
@@ -65,15 +65,15 @@ std::size_t ReadableStream::read(std::size_t n, Utf8Source &source) {
 		size_t       cpsize = utf8codepointsize(val);
 		if(l == 0 || l != cpsize) {
 			if(totallen) {
-				GcObject_free(buf, totallen);
+				Gc_free(buf, totallen);
 			}
 			return l;
 		}
-		buf = (char *)GcObject_realloc(buf, totallen, totallen + l);
+		buf = (char *)Gc_realloc(buf, totallen, totallen + l);
 		utf8catcodepoint(&buf[totallen], val, l);
 		totallen += l;
 	}
-	buf           = (char *)GcObject_realloc(buf, totallen, totallen + 1);
+	buf           = (char *)Gc_realloc(buf, totallen, totallen + 1);
 	buf[totallen] = 0;
 	source        = Utf8Source(buf);
 	return totallen;
@@ -85,7 +85,7 @@ std::size_t FileStream::read(Utf8Source &source) {
 	int64_t end = ftell(file);
 	fseek(file, pos, SEEK_SET);
 	int64_t length = end - pos;
-	char *  buffer = (char *)GcObject_malloc(length + 1);
+	char *  buffer = (char *)Gc_malloc(length + 1);
 	size_t  out;
 	if((out = fread(buffer, length, 1, file)) != 1) {
 		return out;
@@ -108,11 +108,11 @@ std::size_t StdInputStream::read(Utf8Source &source) {
 			break;
 		}
 		size_t cpsize = utf8codepointsize(val);
-		buf = (char *)GcObject_realloc(buf, totallen, totallen + cpsize);
+		buf = (char *)Gc_realloc(buf, totallen, totallen + cpsize);
 		utf8catcodepoint(&buf[totallen], val, cpsize);
 		totallen += cpsize;
 	}
-	buf           = (char *)GcObject_realloc(buf, totallen, totallen + 1);
+	buf           = (char *)Gc_realloc(buf, totallen, totallen + 1);
 	buf[totallen] = 0;
 	source        = Utf8Source(buf);
 	return totallen;

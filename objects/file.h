@@ -52,7 +52,7 @@ struct File {
         if(streamSize > 0) {
             stream->close();
             stream->~Stream();
-            GcObject_free(stream, streamSize);
+            Gc_free(stream, streamSize);
         }
 	}
 };

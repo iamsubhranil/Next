@@ -296,7 +296,7 @@ String *Gc::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
 	String *s =
-	    (String *)GcObject_malloc(sizeof(String) + (sizeof(char) * numchar));
+	    (String *)Gc_malloc(sizeof(String) + (sizeof(char) * numchar));
 	s->obj.setType(GcObject::OBJ_String, Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
@@ -308,7 +308,7 @@ void Gc::releaseString2(String *s) {
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]--;
 #endif
-	GcObject_free(s, (sizeof(String) + (sizeof(char) * (s->size + 1))));
+	Gc_free(s, (sizeof(String) + (sizeof(char) * (s->size + 1))));
 }
 
 Tuple *Gc::allocTuple2(int numobj) {

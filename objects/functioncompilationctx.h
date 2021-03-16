@@ -38,7 +38,7 @@ struct FunctionCompilationContext {
 
 	void release() {
 		slotmap->~SlotMap();
-		GcObject_free(slotmap, sizeof(SlotMap));
+		Gc_free(slotmap, sizeof(SlotMap));
 	}
 
 #ifdef DEBUG

@@ -88,7 +88,7 @@ struct Fiber {
 
 		Value *oldstack = stack_;
 		size_t newsize  = Utils::powerOf2Ceil(stackPointer + e + 1);
-		stack_   = (Value *)GcObject_realloc(stack_, sizeof(Value) * stackSize,
+		stack_   = (Value *)Gc_realloc(stack_, sizeof(Value) * stackSize,
                                            sizeof(Value) * newsize);
 		stackTop = &stack_[stackPointer];
 		Utils::fillNil(stackTop, newsize - stackPointer);
@@ -106,7 +106,7 @@ struct Fiber {
 		if(callFramePointer < callFrameSize)
 			return;
 		size_t newsize = Utils::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)GcObject_realloc(
+		callFrames     = (CallFrame *)Gc_realloc(
             callFrames, sizeof(CallFrame) * callFrameSize,
             sizeof(CallFrame) * newsize);
 		callFrameSize = newsize;
@@ -205,8 +205,8 @@ struct Fiber {
 	}
 
 	void release() {
-		GcObject_free(stack_, sizeof(Value) * stackSize);
-		GcObject_free(callFrames, sizeof(CallFrame) * callFrameSize);
+		Gc_free(stack_, sizeof(Value) * stackSize);
+		Gc_free(callFrames, sizeof(CallFrame) * callFrameSize);
 	}
 
 	// runs the fiber until it returns somehow

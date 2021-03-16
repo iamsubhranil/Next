@@ -101,7 +101,7 @@ struct ClassCompilationContext {
 
 	void release() {
 		members->~MemberMap();
-		GcObject_free(members, sizeof(MemberMap));
+		Gc_free(members, sizeof(MemberMap));
 	}
 #ifdef DEBUG
 	void disassemble(WritableStream &o);

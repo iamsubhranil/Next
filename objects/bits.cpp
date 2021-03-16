@@ -716,7 +716,7 @@ Bits *Bits::create(int64_t number_of_bits) {
 	b->chunkcapacity = b->chunkcount * Bits::ChunkSize;
 	if(b->chunkcapacity == 0)
 		b->chunkcapacity = Bits::ChunkSize;
-	b->bytes = (Bits::ChunkType *)GcObject_malloc(
+	b->bytes = (Bits::ChunkType *)Gc_malloc(
 	    (b->chunkcapacity >> Bits::ChunkCountShift) * Bits::ChunkSizeByte);
 	return b;
 }
@@ -729,7 +729,7 @@ void Bits::resize(int64_t ns) {
 	size = ns;
 	// extend the capacity only if we are smaller
 	if(ns > chunkcapacity) {
-		bytes = (ChunkType *)GcObject_realloc(
+		bytes = (ChunkType *)Gc_realloc(
 		    bytes, oldchunkcount * ChunkSizeByte, chunkcount * ChunkSizeByte);
 		chunkcapacity = ns;
 	}

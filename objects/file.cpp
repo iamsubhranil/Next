@@ -80,7 +80,7 @@ FILE *File::fopen(const void *name, const void *mode) {
 Value File::create(FILE *f, uint8_t modes) {
 	File *fl       = Gc::alloc<File>();
 	fl->streamSize = sizeof(FileStream);
-	fl->stream     = (Stream *)GcObject_malloc(sizeof(FileStream));
+	fl->stream     = (Stream *)Gc_malloc(sizeof(FileStream));
 	::new(fl->stream) FileStream(f, modes);
 	return Value(fl);
 }
@@ -255,7 +255,7 @@ Value next_file_read_n(const Value *args, int numargs) {
 		TRYFORMATERROR("file.read(count) failed");
 	}
 	String2 s = String::from(dest.source);
-	GcObject_free((void *)dest.source, totallen + 1);
+	Gc_free((void *)dest.source, totallen + 1);
 	return Value(s);
 }
 
@@ -271,7 +271,7 @@ Value next_file_readall(const Value *args, int numargs) {
 		TRYFORMATERROR("file.readall() failed: reading failed");
 	}
 	String2 s = String::from(storage.source, size);
-	GcObject_free((void *)storage.source, size + 1);
+	Gc_free((void *)storage.source, size + 1);
 	return Value(s);
 }
 

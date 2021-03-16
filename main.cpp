@@ -34,7 +34,7 @@ String *getline() {
 		return NULL;
 	String2 lines = String::from(line, s);
 	if(s > 0)
-		GcObject_free((void *)line.source, s);
+		Gc_free((void *)line.source, s);
 	return lines;
 }
 

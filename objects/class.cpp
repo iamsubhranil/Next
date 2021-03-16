@@ -70,7 +70,7 @@ int Class::add_slot() {
 }
 
 int Class::add_static_slot() {
-	static_values = (Value *)GcObject_realloc(
+	static_values = (Value *)Gc_realloc(
 	    static_values, sizeof(Value) * static_slot_count,
 	    sizeof(Value) * (static_slot_count + 1));
 	static_values[static_slot_count] = ValueNil;

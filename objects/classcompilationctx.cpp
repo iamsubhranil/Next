@@ -21,7 +21,7 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	ctx->metaclass               = nullptr;
 	ctx->members                 = nullptr;
 	// initialize the members
-	ctx->members = (MemberMap *)GcObject_malloc(sizeof(MemberMap));
+	ctx->members = (MemberMap *)Gc_malloc(sizeof(MemberMap));
 	::new(ctx->members) MemberMap();
 	ctx->public_signatures  = Map::create();
 	ctx->private_signatures = Map::create();

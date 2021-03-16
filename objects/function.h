@@ -82,10 +82,10 @@ struct Function {
 	void release() {
 		for(size_t i = 0; i < numExceptions; i++) {
 			Exception e = exceptions[i];
-			GcObject_free(e.catches, sizeof(CatchBlock) * e.numCatches);
+			Gc_free(e.catches, sizeof(CatchBlock) * e.numCatches);
 		}
 		if(numExceptions > 0)
-			GcObject_free(exceptions, sizeof(Exception) * numExceptions);
+			Gc_free(exceptions, sizeof(Exception) * numExceptions);
 	}
 
 #ifdef DEBUG

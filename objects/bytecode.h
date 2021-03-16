@@ -138,7 +138,7 @@ struct Bytecode {
 			Gc::mark(ctx);
 	}
 
-	void release() { GcObject_free(bytecodes, sizeof(Opcode) * capacity); }
+	void release() { Gc_free(bytecodes, sizeof(Opcode) * capacity); }
 
 #ifdef DEBUG
 	void disassemble(WritableStream &o);

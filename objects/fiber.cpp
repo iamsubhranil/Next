@@ -16,12 +16,12 @@
 Fiber *Fiber::create(Fiber *parent) {
 	Fiber *f = Gc::alloc<Fiber>();
 	f->stack_ =
-	    (Value *)GcObject_malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
+	    (Value *)Gc_malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
 	Utils::fillNil(f->stack_, FIBER_DEFAULT_STACK_ALLOC);
 	f->stackTop  = f->stack_;
 	f->stackSize = FIBER_DEFAULT_STACK_ALLOC;
 
-	f->callFrames       = (CallFrame *)GcObject_malloc(sizeof(CallFrame) *
+	f->callFrames       = (CallFrame *)Gc_malloc(sizeof(CallFrame) *
                                                  FIBER_DEFAULT_FRAME_ALLOC);
 	f->callFramePointer = 0;
 	f->callFrameSize    = FIBER_DEFAULT_FRAME_ALLOC;

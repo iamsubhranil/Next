@@ -255,7 +255,7 @@ Scanner::Scanner(const void *file)
 		long fsize = ftell(source);
 		fseek(source, 0, SEEK_SET);
 
-		char *c = (char *)GcObject_malloc(fsize + 1);
+		char *c = (char *)Gc_malloc(fsize + 1);
 		fread(c, fsize, 1, source);
 		fclose(source);
 

@@ -22,7 +22,7 @@ size_t                      ExecutionEngine::currentRecursionDepth = 0;
 bool                        ExecutionEngine::isRunningRepl         = false;
 
 void ExecutionEngine::init() {
-	loadedModules = (ModuleMap *)GcObject_malloc(sizeof(ModuleMap));
+	loadedModules = (ModuleMap *)Gc_malloc(sizeof(ModuleMap));
 	::new(loadedModules) ModuleMap();
 	pendingExceptions = Array::create(1);
 	pendingFibers     = Array::create(1);

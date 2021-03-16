@@ -186,11 +186,11 @@ struct Gc {
 	static void *realloc_print(const char *file, int line, void *mem,
 	                           size_t oldb, size_t newb);
 	static void free_print(const char *file, int line, void *mem, size_t bytes);
-#define GcObject_malloc(x) Gc::malloc_print(__FILE__, __LINE__, (x))
-#define GcObject_calloc(x, y) Gc::calloc_print(__FILE__, __LINE__, (x), (y))
-#define GcObject_realloc(x, y, z) \
+#define Gc_malloc(x) Gc::malloc_print(__FILE__, __LINE__, (x))
+#define Gc_calloc(x, y) Gc::calloc_print(__FILE__, __LINE__, (x), (y))
+#define Gc_realloc(x, y, z) \
 	Gc::realloc_print(__FILE__, __LINE__, (x), (y), (z))
-#define GcObject_free(x, y) \
+#define Gc_free(x, y) \
 	{ Gc::free_print(__FILE__, __LINE__, (x), (y)); }
 	// macros to warn against direct malloc/free calls
 /*#define malloc(x)                                                           \
@@ -206,10 +206,10 @@ struct Gc {
 	std::wcout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
 	::free((x));*/
 #else
-#define GcObject_malloc(x) Gc::malloc(x)
-#define GcObject_calloc(x, y) Gc::calloc(x, y)
-#define GcObject_realloc(x, y, z) Gc::realloc(x, y, z)
-#define GcObject_free(x, y) Gc::free(x, y)
+#define Gc_malloc(x) Gc::malloc(x)
+#define Gc_calloc(x, y) Gc::calloc(x, y)
+#define Gc_realloc(x, y, z) Gc::realloc(x, y, z)
+#define Gc_free(x, y) Gc::free(x, y)
 #endif
 	// marking and unmarking functions
 	static void mark(Value v);

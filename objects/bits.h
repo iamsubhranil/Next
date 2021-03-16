@@ -23,6 +23,6 @@ struct Bits {
 
 	void resize(int64_t newsize);
 
-	void        release() { GcObject_free(bytes, chunkcount * ChunkSizeByte); }
+	void        release() { Gc_free(bytes, chunkcount * ChunkSizeByte); }
 	static void init(Class *c);
 };

@@ -115,7 +115,7 @@ struct Class {
 
 	void release() {
 		if(module != NULL && static_slot_count > 0) {
-			GcObject_free(static_values, sizeof(Value) * static_slot_count);
+			Gc_free(static_values, sizeof(Value) * static_slot_count);
 		}
 #ifdef DEBUG_GC
 		Gc::releaseString2(nameCopy);
