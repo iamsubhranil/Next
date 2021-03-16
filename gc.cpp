@@ -191,7 +191,7 @@ void GcObject::gc(bool force) {
 #ifdef DEBUG_GC
 					if(gen->at(j))
 #endif
-						unmark(gen->at(j));
+						gen->at(j)->unmarkOwn();
 				}
 			}
 			max /= GC_NEXT_GEN_THRESHOLD;
@@ -444,13 +444,6 @@ void GcObject::mark(GcObject *p) {
 		break;
 #include "objecttype.h"
 	}
-}
-
-void GcObject::unmark(Value v) {
-	if(v.isGcObject())
-		v.toGcObject()->unmarkOwn();
-	else if(v.isPointer())
-		unmark(v.toPointer());
 }
 
 void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {

@@ -218,7 +218,6 @@ struct GcObject {
 	static void mark(r *val) { mark((GcObject *)val); }
 #include "objecttype.h"
 	static void mark(Value *v, size_t num);
-	static void unmark(Value v);
 
 	// this methods should be called by an
 	// object when it holds reference to an
