@@ -4,7 +4,7 @@
 #ifndef GC_USE_STD_ALLOC
 #include "memman.h"
 #endif
-#include "func_utils.h"
+#include "objects/builtin_module.h"
 #include "objects/object.h"
 #include "objects/set.h"
 #include "objects/tuple.h"
@@ -17,7 +17,7 @@ size_t                GcObject::next_gc          = 1024 * 1024 * 10;
 size_t                GcObject::max_gc           = 1024 * 1024 * 1024;
 GcObject::Generation *GcObject::generations[]    = {nullptr};
 size_t                GcObject::gc_count         = 0;
-Map *                 GcObject::temporaryObjects = nullptr;
+Set *                 GcObject::temporaryObjects = nullptr;
 
 #ifdef DEBUG_GC
 size_t GcObject::GcCounters[] = {
@@ -132,13 +132,14 @@ void GcObject::gc(bool force) {
 #endif
 		SymbolTable2::mark();
 #ifdef GC_PRINT_CLEANUP
-		Printer::println("[GC] Marking temporary objects..");
-#endif
-		mark(temporaryObjects);
-#ifdef GC_PRINT_CLEANUP
 		Printer::println("[GC] Marking Engine..");
 #endif
 		ExecutionEngine::mark();
+#ifdef GC_PRINT_CLEANUP
+		Printer::println("[GC] Marking temporary objects..");
+#endif
+		mark(temporaryObjects);
+
 		size_t max = 1;
 		// make this constant
 		for(size_t i = 0; i < GC_NUM_GENERATIONS - 1; i++)
@@ -160,7 +161,7 @@ void GcObject::gc(bool force) {
 				// for all unmarked values, call depend
 				for(size_t j = 0; j < oldsize; j++) {
 					GcObject *v = generation->at(j);
-					if(v && !isMarked(v)) {
+					if(v && !v->isMarked()) {
 						v->depend_();
 					}
 				}
@@ -238,31 +239,6 @@ void GcObject::setNextGC(size_t v) {
 
 void GcObject::setMaxGC(size_t v) {
 	max_gc = v;
-}
-
-void GcObject::trackTemp(GcObject *g) {
-#ifdef DEBUG
-	// std::wcout << "[GC] Tracking " << g << "..\n";
-#endif
-	if(temporaryObjects->vv.contains(Value(g))) {
-		Value &v = temporaryObjects->vv[Value(g)];
-		v        = Value(v.toInteger() + 1);
-	} else
-		temporaryObjects->vv[Value(g)] = Value(1);
-}
-
-void GcObject::untrackTemp(GcObject *g) {
-#ifdef DEBUG
-	// std::wcout << "[GC] Untracking " << g << "..\n";
-#endif
-	Value &refCount = temporaryObjects->vv[Value(g)];
-	refCount        = Value(refCount.toInteger() - 1);
-	if(refCount.toInteger() == 0)
-		temporaryObjects->vv.erase(Value(g));
-}
-
-bool GcObject::isTempTracked(GcObject *o) {
-	return temporaryObjects->vv.contains(o);
 }
 
 void GcObject::tracker_insert(GcObject *g) {
@@ -470,29 +446,12 @@ void GcObject::mark(GcObject *p) {
 	}
 }
 
-/*
-bool GcObject::isMarked(GcObject *p) {
-    // check the first bit of its class pointer
-    return ((uintptr_t)(p->klass) & marker);
-}*/
-
 void GcObject::unmark(Value v) {
 	if(v.isGcObject())
 		v.toGcObject()->unmarkOwn();
 	else if(v.isPointer())
 		unmark(v.toPointer());
 }
-
-/*
-void GcObject::unmark(GcObject *p) {
-    // clear the first bit of its class pointer
-    p->klass = (Class *)((uintptr_t)(p->klass) ^ marker);
-}*/
-
-/*
-Class *GcObject::getMarkedClass(const Object *o) {
-    return (Class *)((uintptr_t)o->obj.klass ^ marker);
-}*/
 
 void GcObject::sweep(size_t genid, Class **unmarkedClassesHead) {
 	Generation *generation = generations[genid];
@@ -554,13 +513,23 @@ void GcObject::init() {
 	// initialize the object tracker
 	for(size_t i = 0; i < GC_NUM_GENERATIONS; i++)
 		generations[i] = Generation::create();
-	// initialize the hooks for Map type
-	Classes::getClassInfo<Map>()->set<Map>(nullptr);
-	// initialize the temporary tracker
-	// allocate it manually, Set::create
-	// itself uses temporary objects
-	temporaryObjects = GcObject::alloc<Map>();
-	::new(&temporaryObjects->vv) Map::MapType();
+	// init the set class
+	BuiltinModule::register_hooks<Set>(nullptr);
+
+	temporaryObjects = GcObject::alloc<Set>();
+	::new(&temporaryObjects->hset) Set::SetType();
+}
+
+void GcObject::trackTemp(GcObject *g) {
+	g->increaseRefCount();
+	if(g->getRefCount() == 1)
+		temporaryObjects->hset.insert(Value(g));
+}
+
+void GcObject::untrackTemp(GcObject *g) {
+	g->decreaseRefCount();
+	if(g->getRefCount() == 0)
+		temporaryObjects->hset.erase(Value(g));
 }
 
 #ifdef DEBUG_GC
@@ -577,11 +546,11 @@ void GcObject::depend_() {
 	gen = 0;
 	idx = generations[0]->size - 1;
 	// let the class declare its dependency
-	switch(objType) {
-#define OBJTYPE(x, c)                               \
-	case OBJ_##x:                                   \
-		if(Classes::x##DependFn)                    \
-			(((x *)this)->*Classes::x##DependFn)(); \
+	switch(getType()) {
+#define OBJTYPE(x, c)                                         \
+	case OBJ_##x:                                             \
+		if(Classes::x##ClassInfo.DependFn)                    \
+			(((x *)this)->*Classes::x##ClassInfo.DependFn)(); \
 		break;
 #include "objecttype.h"
 		default: panic("Invalid object type on depend!"); break;

@@ -5,6 +5,7 @@
 #include "objects/classes.h"
 #include <cstddef> // android somehow doesn't have size_t in stdint
 #include <cstdint>
+#include <functional>
 
 #ifndef DEBUG
 //#define DEBUG
@@ -52,7 +53,21 @@ template <typename T, size_t n> struct CustomArray;
 
 struct GcObject {
 	// last 48 bits contains the pointer
+	//
 	// next 8 bits contains the type
+	//
+	// next 7 bits contains the refcount, which marks
+	// it as a temporary object, and makes the gc
+	// not release it. since only 7 bits are
+	// used, it can go upto 127, and then it will
+	// round down to 0. that should not be a problem
+	// for now. although, increaseRefCount() is not
+	// sufficient from getting an object gc'ed though,
+	// the gc has to track it as a temporary. So,
+	// use trackTemp and untrackTemp to keep it
+	// alive, or use *2 structs, which automatically
+	// does that for you, per scope.
+	//
 	// MSB contains the marker bit
 	uint64_t obj_priv;
 	enum Type : std::uint8_t {
@@ -60,31 +75,56 @@ struct GcObject {
 #define OBJTYPE(n, c) OBJ_##n,
 #include "objecttype.h"
 	};
+
 	// last 48 bits
 	static constexpr uint64_t PointerBits = 0x0000ffffffffffff;
+	const Class *getClass() { return (const Class *)(obj_priv & PointerBits); }
+	void         setClass(Class *c) {
+        // clear the existing class
+        obj_priv &= ~PointerBits;
+        // add the new class
+        obj_priv |= (uint64_t)c;
+	}
+
 	// next 8 bits
 	static constexpr uint64_t TypeBits = 0x00ff000000000000;
+	Type getType() { return (Type)((obj_priv & TypeBits) >> 48); }
+	void setType(Type t, const Class *c) {
+		// clear the all the bits
+		obj_priv = 0;
+		// add the class
+		obj_priv |= (uint64_t)c;
+		// add the type
+		obj_priv |= (uint64_t)(t) << 48;
+	}
+
+	// next 7 bits
+	static constexpr uint64_t RefCountBits = 0x7f00000000000000;
+	// sets a new refcount
+	void setRefCount(uint8_t value) {
+		// clear the existing count
+		obj_priv &= ~RefCountBits;
+		// set the new count
+		obj_priv |= (uint64_t)value << 56;
+	}
+	// gets the correct refcount
+	uint8_t getRefCount() { return (obj_priv & RefCountBits) >> 56; }
+	// the following are not checked for 0 < refcount < 128
+	// bad things will happen if that limit is crossed
+	void increaseRefCount() {
+		// add a 1 to the refcount
+		obj_priv += ((uint64_t)1 << 56);
+	}
+	void decreaseRefCount() {
+		// subtract a 1 from the refcount
+		obj_priv -= ((uint64_t)1 << 56);
+	}
+
 	// MSB
 	static constexpr uint64_t Marker = ((uintptr_t)1) << 63;
-	Type         getType() { return (Type)((obj_priv & TypeBits) >> 48); }
-	const Class *getClass() { return (const Class *)(obj_priv & PointerBits); }
-	void         setType(Type t, const Class *c) {
-        // clear the all the bits
-        obj_priv = 0;
-        // add the class
-        obj_priv |= (uint64_t)c;
-        // add the type
-        obj_priv |= (uint64_t)(t) << 48;
-	}
-	void setClass(Class *c) {
-		// clear the existing class
-		obj_priv &= ~PointerBits;
-		// add the new class
-		obj_priv |= (uint64_t)c;
-	}
-	void markOwn() { obj_priv |= Marker; }
-	bool isMarked() { return obj_priv & Marker; }
-	void unmarkOwn() { obj_priv &= ~Marker; }
+	void                      markOwn() { obj_priv |= Marker; }
+	bool                      isMarked() { return obj_priv & Marker; }
+	void                      unmarkOwn() { obj_priv &= ~Marker; }
 
 	template <typename T> static Type getType() { return Type::OBJ_NONE; };
 
@@ -221,13 +261,9 @@ struct GcObject {
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
 
-	// track temporary objects
-	static Map *temporaryObjects; // pointers mapped to refcount
-	static void trackTemp(GcObject *o);
-	static void untrackTemp(GcObject *o);
-	// returns true if a pointer is already being tracked
-	static bool isTempTracked(GcObject *o);
-
+	static Set *temporaryObjects;
+	static void trackTemp(GcObject *g);
+	static void untrackTemp(GcObject *g);
 	// debug information
 #ifdef DEBUG_GC
 	static size_t GcCounters[];
@@ -241,7 +277,10 @@ template <typename T> struct GcTempObject {
   private:
 	T *obj;
 
-	void track() { GcObject::trackTemp((GcObject *)obj); }
+	void track() {
+		if(obj)
+			GcObject::trackTemp((GcObject *)obj);
+	}
 
 	void untrack() {
 		if(obj)

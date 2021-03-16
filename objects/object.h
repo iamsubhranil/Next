@@ -35,7 +35,7 @@ struct Object {
 	void release() {}
 
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(obj.klass); }
-	const String *gc_repr() { return obj.klass->name; }
+	void          depend() { GcObject::depend(obj.getClass()); }
+	const String *gc_repr() { return obj.getClass()->name; }
 #endif
 };

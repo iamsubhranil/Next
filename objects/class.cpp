@@ -351,11 +351,15 @@ void Class::init(Class *ClassClass) {
 #ifdef DEBUG_GC
 void Class::depend() {
 	if(nameCopy == NULL) {
-		nameCopy         = GcObject::allocString2(name->size + 1);
-		nameCopy->size   = name->size;
-		nameCopy->length = name->length;
-		nameCopy->hash_  = name->hash_;
-		memcpy(nameCopy->strb(), name->strb(), name->size + 1);
+		if(!name) {
+			nameCopy = name = String::const_undefined;
+		} else {
+			nameCopy         = GcObject::allocString2(name->size + 1);
+			nameCopy->size   = name->size;
+			nameCopy->length = name->length;
+			nameCopy->hash_  = name->hash_;
+			memcpy(nameCopy->strb(), name->strb(), name->size + 1);
+		}
 	}
 	GcObject::depend(name);
 }
