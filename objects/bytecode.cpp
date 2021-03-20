@@ -194,7 +194,7 @@ void Bytecode::disassemble_int(WritableStream &os, const Opcode *o) {
 }
 
 void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
-	disassemble_Value(os, values->values[(int)*o]);
+	disassemble_Value(os, values[(int)*o]);
 }
 
 void Bytecode::disassemble(WritableStream &os) {

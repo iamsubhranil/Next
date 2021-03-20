@@ -254,7 +254,7 @@ Value next_core_import1(const Value *args, int arity) {
 	}*/
 	// get the file name
 	Fiber *   f  = ExecutionEngine::getCurrentFiber();
-	Function *fu = f->callFrames[f->callFramePointer - 1].f;
+	Function *fu = (f->callFramePointer - 1)->f;
 	if(fu->getType() == Function::Type::BUILTIN) {
 		RERR("Builtin functions cannot call import(_)!");
 	}
@@ -364,8 +364,8 @@ void Core::preInit() {
 	// classes allocate some kind of object.
 	// we also manually track them as temporaries
 	// to keep them from garbage collected.
-#define OBJTYPE(x, c)                          \
-	Class *x##Class = Class::create();         \
+#define OBJTYPE(x, c)                    \
+	Class *x##Class = Class::create();   \
 	Gc::trackTemp((GcObject *)x##Class); \
 	BuiltinModule::register_hooks<x>(x##Class);
 	// add primitive classes

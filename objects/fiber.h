@@ -52,9 +52,9 @@ struct Fiber {
 	int    stackSize;
 
 	// the frame stack
-	Fiber::CallFrame *callFrames;
-	size_t            callFrameSize;
-	size_t            callFramePointer;
+	Fiber::CallFrame *callFrameBase;
+	int               callFrameSize;
+	Fiber::CallFrame *callFramePointer;
 
 	// the parent of this fiber, if any
 	Fiber *parent;
@@ -83,6 +83,8 @@ struct Fiber {
 	                                          const Value *args, int numArgs,
 	                                          bool returnToCaller);
 
+	inline int callFrameCount() { return callFramePointer - callFrameBase; }
+
 	// even if e is -ve, this will work
 	inline void ensureStack(int e) {
 		int stackPointer = stackTop - stack_;
@@ -98,53 +100,59 @@ struct Fiber {
 		stackSize = newsize;
 		if(stack_ != oldstack) {
 			// relocate the frames
-			for(size_t i = 0; i < callFramePointer; i++) {
-				callFrames[i].stack_ =
-				    stack_ + (callFrames[i].stack_ - oldstack);
+			size_t callframes = callFrameCount();
+			callFramePointer  = callFrameBase;
+			for(size_t i = 0; i < callframes; i++, callFramePointer++) {
+				callFramePointer->stack_ =
+				    stack_ + (callFramePointer->stack_ - oldstack);
 			}
 		}
 	}
 
 	inline void ensureFrame() {
-		if(callFramePointer < callFrameSize)
+		if(callFrameCount() < callFrameSize)
 			return;
-		size_t newsize = Utils::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)Gc_realloc(callFrames,
-                                             sizeof(CallFrame) * callFrameSize,
-                                             sizeof(CallFrame) * newsize);
-		callFrameSize  = newsize;
+		size_t newsize = Utils::powerOf2Ceil(callFrameSize + 1);
+		callFrameBase  = (CallFrame *)Gc_realloc(
+            callFrameBase, sizeof(CallFrame) * callFrameSize,
+            sizeof(CallFrame) * newsize);
+		callFramePointer = callFrameBase + callFrameSize;
+		callFrameSize    = newsize;
 	}
 
 	inline void appendMethodInternal(Function *f, int numArgs,
 	                                 bool returnToCaller) {
 
-		callFrames[callFramePointer].f              = f;
-		callFrames[callFramePointer].returnToCaller = returnToCaller;
-		callFrames[callFramePointer].locals         = f->code->values;
-		// numArgs number of elements are already on the stack
-		ensureStack(f->code->stackMaxSize - numArgs);
-		callFrames[callFramePointer].code = f->code->bytecodes;
-		// the 0th slot is reserved for the receiver
-		Value *bakStack = callFrames[callFramePointer].stack_ =
-		    &stackTop[-numArgs - 1];
+		Bytecode *code = f->code;
 
+		callFramePointer->f              = f;
+		callFramePointer->returnToCaller = returnToCaller;
+		callFramePointer->locals         = code->values;
+		// numArgs number of elements are already on the stack
+		ensureStack(code->stackMaxSize - numArgs);
+		callFramePointer->code = code->bytecodes;
+		// the 0th slot is reserved for the receiver
+		Value *bakStack = callFramePointer->stack_ = stackTop - numArgs - 1;
+
+		int  arity = f->arity;
+		bool isva  = f->isVarArg();
 		// if f is vararg, contract the extra args in a tuple
-		if(f->isVarArg()) {
-			int    vaSlot    = f->arity + 1; // 0th slot stores the receiver
+		if(isva) {
+			int    vaSlot    = arity + 1; // 0th slot stores the receiver
 			int    numVaargs = stackTop - (bakStack + vaSlot);
 			Tuple *t         = Gc::allocTuple2(numVaargs);
 			t->size          = numVaargs;
 			memcpy(t->values(), &bakStack[vaSlot], sizeof(Value) * numVaargs);
 			bakStack[vaSlot] = t;
 		}
+		int slots = code->numSlots;
 		// we have already managed the slot for the receiver
 		// and the arguments are already in place.
-		stackTop = bakStack + f->code->numSlots;
+		stackTop = bakStack + slots;
 		// explicitly clear empty slots of the function, which
 		// may contain pointer to objects which have already been
 		// garbage collected.
-		Utils::fillNil(bakStack + f->arity + f->isVarArg() + 1,
-		               f->code->numSlots - 1 - (f->arity + f->isVarArg()));
+		Utils::fillNil(bakStack + arity + isva + 1, slots - 1 - (arity + isva));
 	}
 
 	// appends an intra-class method, whose stack is already
@@ -158,7 +166,7 @@ struct Fiber {
 	                                               bool returnToCaller) {
 		ensureFrame();
 		appendMethodInternal(f, numArgs, returnToCaller);
-		return &callFrames[callFramePointer++];
+		return callFramePointer++;
 	}
 
 	// returns the frame on top after popping
@@ -170,7 +178,7 @@ struct Fiber {
 	}
 
 	inline Fiber::CallFrame *getCurrentFrame() {
-		return &callFrames[callFramePointer - 1];
+		return (callFramePointer - 1);
 	}
 
 	// does state = s, additionally toggles 'has_next'
@@ -196,8 +204,10 @@ struct Fiber {
 		// mark the active stack
 		Gc::mark(stack_, stackTop - stack_);
 		// mark the active functions
-		for(size_t i = 0; i < callFramePointer; i++) {
-			Gc::mark(callFrames[i].f);
+		size_t callframes = callFrameCount();
+		callFramePointer  = callFrameBase;
+		for(size_t i = 0; i < callframes; i++, callFramePointer++) {
+			Gc::mark(callFramePointer->f);
 		}
 		// mark the parent if present
 		if(parent)
@@ -209,7 +219,7 @@ struct Fiber {
 
 	void release() {
 		Gc_free(stack_, sizeof(Value) * stackSize);
-		Gc_free(callFrames, sizeof(CallFrame) * callFrameSize);
+		Gc_free(callFrameBase, sizeof(CallFrame) * callFrameSize);
 	}
 
 	// runs the fiber until it returns somehow

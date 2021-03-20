@@ -22,7 +22,7 @@ Value next_io_open1(const Value *args, int numargs) {
 	(void)numargs;
 	EXPECT(io, "open(filename)", 1, String);
 	Fiber *   f  = ExecutionEngine::getCurrentFiber();
-	Function *fu = f->callFrames[f->callFramePointer - 1].f;
+	Function *fu = (f->callFramePointer - 1)->f;
 	if(fu->getType() == Function::Type::BUILTIN) {
 		RERR("Builtin functions cannot call io.open(_)! Use File::create "
 		     "instead!");
@@ -38,7 +38,7 @@ Value next_io_open2(const Value *args, int numargs) {
 	EXPECT(io, "open(filename, mode)", 1, String);
 	EXPECT(io, "open(filename, mode)", 2, String);
 	Fiber *   f  = ExecutionEngine::getCurrentFiber();
-	Function *fu = f->callFrames[f->callFramePointer - 1].f;
+	Function *fu = (f->callFramePointer - 1)->f;
 	if(fu->getType() == Function::Type::BUILTIN) {
 		RERR("Builtin functions cannot call io.open(_)! Use File::create "
 		     "instead!");

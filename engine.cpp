@@ -57,7 +57,7 @@ void ExecutionEngine::setRunningRepl(bool s) {
 Fiber *ExecutionEngine::exitOrThrow() {
 	if(isRunningRepl) {
 		// pop all frames
-		while(currentFiber->callFramePointer > 0) currentFiber->popFrame();
+		while(currentFiber->callFrameCount() > 0) currentFiber->popFrame();
 		throw std::runtime_error("Unhandled exception thrown!");
 	} else {
 		exit(1);
@@ -67,8 +67,8 @@ Fiber *ExecutionEngine::exitOrThrow() {
 
 // using Bytecode::Opcodes
 void ExecutionEngine::printStackTrace(Fiber *fiber) {
-	int               i        = fiber->callFramePointer - 1;
-	Fiber::CallFrame *root     = &fiber->callFrames[i];
+	int               i        = fiber->callFrameCount() - 1;
+	Fiber::CallFrame *root     = &fiber->callFrameBase[i];
 	Fiber::CallFrame *f        = root;
 	String *          lastName = 0;
 	while(i >= 0) {
@@ -108,12 +108,12 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 			t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
 			t.highlight(true, "At ", Token::HighlightType::ERR);
 		}
-		f = &fiber->callFrames[--i];
+		f = &fiber->callFrameBase[--i];
 		if(i < 0 && fiber->parent != NULL) {
 			Printer::print("In a parent fiber \n");
 			fiber    = fiber->parent;
-			i        = fiber->callFramePointer - 1;
-			root     = &fiber->callFrames[i];
+			i        = fiber->callFrameCount() - 1;
+			root     = &fiber->callFrameBase[i];
 			f        = root;
 			lastName = 0;
 		}
@@ -192,10 +192,10 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	const Class *klass = thrown.getClass();
 	// Now find the frame by unwinding the stack
 	Fiber *           f                  = root;
-	int               num                = f->callFramePointer - 1;
+	int               num                = f->callFrameCount() - 1;
 	int               instructionPointer = 0;
 	Fiber::CallFrame *matched            = NULL;
-	Fiber::CallFrame *searching          = &f->callFrames[num];
+	Fiber::CallFrame *searching          = &f->callFrameBase[num];
 	Exception         block              = {0, NULL, 0, 0};
 	while(num >= 0 && matched == NULL) {
 		for(size_t i = 0; i < searching->f->numExceptions; i++) {
@@ -209,11 +209,11 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			}
 		}
 		if(--num > 0) {
-			searching = &f->callFrames[num];
+			searching = &f->callFrameBase[num];
 		} else if(f->parent != NULL) {
 			f         = f->parent;
-			num       = f->callFramePointer - 1;
-			searching = &f->callFrames[num];
+			num       = f->callFrameCount() - 1;
+			searching = &f->callFrameBase[num];
 		} else
 			break;
 	}
@@ -370,7 +370,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	fiber->setState(Fiber::RUNNING);
 
 	// check if the fiber actually has something to exec
-	if(fiber->callFramePointer == 0) {
+	if(fiber->callFrameCount() == 0) {
 		if((fiber = fiber->switch_()) == NULL) {
 			*returnValue = ValueNil;
 			return true;
@@ -557,7 +557,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		// otherwise, we continue normal execution
 		if(ret) {
 			RETURN(res);
-		} else if(fiber->callFramePointer == 0) {
+		} else if(fiber->callFrameCount() == 0) {
 			if((fiber = fiber->switch_()) == NULL) {
 				RETURN(res);
 			} else {
@@ -927,7 +927,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// if we have somewhere to return to,
 				// return there first. this would
 				// be true maximum number of times
-				if(fiber->callFramePointer > 0) {
+				if(fiber->callFrameCount() > 0) {
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
