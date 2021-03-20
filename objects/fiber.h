@@ -18,15 +18,18 @@ struct Fiber {
 	// A running instance of a Function
 	struct CallFrame {
 		union {
-			// Instruction Pointer
-			Bytecode::Opcode *code;
-			// Builtin fn
+			// either it's a Next compiled fn
+			struct {
+				// Instruction Pointer
+				Bytecode::Opcode *code;
+				// Stack
+				Value *stack_;
+				// Locals, a copy of code->values->values for easy access
+				Value *locals;
+			};
+			// or it's a Builtin fn
 			next_builtin_fn func;
 		};
-		// Stack
-		Value *stack_;
-		// Locals, a copy of code->values->values for easy access
-		Value *locals;
 		// Function
 		Function *f;
 		// This flag denotes whether the engine
