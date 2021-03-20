@@ -88,9 +88,9 @@ struct Fiber {
 
 		Value *oldstack = stack_;
 		size_t newsize  = Utils::powerOf2Ceil(stackPointer + e + 1);
-		stack_   = (Value *)Gc_realloc(stack_, sizeof(Value) * stackSize,
-                                           sizeof(Value) * newsize);
-		stackTop = &stack_[stackPointer];
+		stack_          = (Value *)Gc_realloc(stack_, sizeof(Value) * stackSize,
+                                     sizeof(Value) * newsize);
+		stackTop        = &stack_[stackPointer];
 		Utils::fillNil(stackTop, newsize - stackPointer);
 		stackSize = newsize;
 		if(stack_ != oldstack) {
@@ -106,10 +106,10 @@ struct Fiber {
 		if(callFramePointer < callFrameSize)
 			return;
 		size_t newsize = Utils::powerOf2Ceil(callFramePointer + 1);
-		callFrames     = (CallFrame *)Gc_realloc(
-            callFrames, sizeof(CallFrame) * callFrameSize,
-            sizeof(CallFrame) * newsize);
-		callFrameSize = newsize;
+		callFrames     = (CallFrame *)Gc_realloc(callFrames,
+                                             sizeof(CallFrame) * callFrameSize,
+                                             sizeof(CallFrame) * newsize);
+		callFrameSize  = newsize;
 	}
 
 	inline void appendMethodInternal(Function *f, int numArgs,
@@ -117,7 +117,7 @@ struct Fiber {
 
 		callFrames[callFramePointer].f              = f;
 		callFrames[callFramePointer].returnToCaller = returnToCaller;
-		callFrames[callFramePointer].locals         = f->code->values->values;
+		callFrames[callFramePointer].locals         = f->code->values;
 		// numArgs number of elements are already on the stack
 		ensureStack(f->code->stackMaxSize - numArgs);
 		callFrames[callFramePointer].code = f->code->bytecodes;

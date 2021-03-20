@@ -18,18 +18,18 @@ const char *Bytecode::OpcodeNames[] = {
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
 		size_t newcap = Utils::nextAllocationSize(capacity, size + 1);
-		bytecodes     = (Opcode *)Gc_realloc(
-            bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * newcap);
-		capacity = newcap;
+		bytecodes = (Opcode *)Gc_realloc(bytecodes, sizeof(Opcode) * capacity,
+		                                 sizeof(Opcode) * newcap);
+		capacity  = newcap;
 	}
 	bytecodes[size++] = code;
 }
 
 void Bytecode::finalize() {
 	if(size != capacity - 1) {
-		bytecodes = (Opcode *)Gc_realloc(
-		    bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * size);
-		capacity = size;
+		bytecodes = (Opcode *)Gc_realloc(bytecodes, sizeof(Opcode) * capacity,
+		                                 sizeof(Opcode) * size);
+		capacity  = size;
 	}
 }
 
@@ -91,12 +91,13 @@ Bytecode *Bytecode::create() {
 	code->ctx          = NULL;
 	code->values       = NULL;
 	code->numSlots     = 0;
-	code->values       = Array::create(1);
+	code->values       = NULL;
+	code->num_values   = 0;
 	return code;
 }
 
 #define next_int() (*ip++)
-#define next_Value() (values->values[next_int()])
+#define next_Value() (values[next_int()])
 Bytecode *Bytecode::create_derived(int offset) {
 	Bytecode2 b     = Bytecode::create();
 	b->numSlots     = numSlots;

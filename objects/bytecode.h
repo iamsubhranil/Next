@@ -41,7 +41,8 @@ struct Bytecode {
 	// Hence, this array stores the live objects
 	// on the bytecode, and marks them in case of
 	// a gc.
-	Array *values;
+	Value *values;
+	size_t num_values;
 
 #define OPCODE0(x, y)              \
 	size_t x() {                   \
@@ -101,13 +102,16 @@ struct Bytecode {
 	insert_type(int);
 
 	int add_constant(int x) { return x; }
-	int add_constant(Value v) const {
-		for(int i = 0; i < values->size; i++) {
-			if(values->values[i] == v)
+	int add_constant(Value v) {
+		for(size_t i = 0; i < num_values; i++) {
+			if(values[i] == v)
 				return i;
 		}
-		values->insert(v);
-		return (values->size - 1);
+		values = (Value *)Gc_realloc(values, sizeof(Value) * num_values,
+		                             sizeof(Value) * (num_values + 1));
+		values[num_values] = v;
+		num_values++;
+		return (num_values - 1);
 	}
 
 	void stackEffect(int x);
@@ -133,12 +137,15 @@ struct Bytecode {
 	Bytecode *create_derived(int offset);
 
 	void mark() {
-		Gc::mark(values);
+		Gc::mark(values, num_values);
 		if(ctx != NULL)
 			Gc::mark(ctx);
 	}
 
-	void release() { Gc_free(bytecodes, sizeof(Opcode) * capacity); }
+	void release() {
+		Gc_free(bytecodes, sizeof(Opcode) * capacity);
+		Gc_free(values, sizeof(Value) * num_values);
+	}
 
 #ifdef DEBUG
 	void disassemble(WritableStream &o);
