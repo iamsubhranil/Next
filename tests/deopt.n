@@ -1,0 +1,60 @@
+class test {
+    pub:
+        x
+        new(y) { 
+            x = y
+        }
+
+        fn size() {
+            ret x * 2
+        }
+}
+
+class test2 {
+    pub:
+        x
+        new(y) { 
+            x = y
+        }
+
+        fn size() {
+            ret x + 2
+        }
+}
+
+fn t(x) {
+    ret x.size()
+}
+
+fn ctor(x) {
+    ret x(3)
+}
+
+pub fn test() {
+    res = true
+    if(t(test(10)) != 20) {
+        println("[Error] Call optimization not working!")
+        res = false
+    }
+    if(t(test2(10)) != 12) {
+        println("[Error] Call deoptimization for method not working!")
+        res = false
+    }
+    if(t([1, 2, 3, 4]) != 4) {
+        println("[Error] Call deoptimization for builtin not working!")
+        res = false
+    }
+    if(ctor(test).x != 3) {
+        println("[Error] Call optimization for softcalls not working!")
+        res = false
+    }
+    if(ctor(test2).x != 3) {
+        println("[Error] Call deoptimization for softcalls not working!")
+        res = false
+    }
+    if(ctor(tuple).size() != 3) {
+        println("[Error] Call deoptimization for builtin softcalls not working!")
+        res = false
+    }
+    ret res
+}

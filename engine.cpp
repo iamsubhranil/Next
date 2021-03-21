@@ -389,6 +389,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
+	Value *           Locals             = presentFrame->locals;
+	Bytecode::Opcode *CallPatch          = nullptr;
 
 #define GOTOERROR() \
 	{ goto error; }
@@ -457,12 +459,13 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 #define RESTORE_FRAMEINFO()                        \
 	presentFrame       = fiber->getCurrentFrame(); \
 	InstructionPointer = presentFrame->code;       \
-	Stack              = presentFrame->stack_;
+	Stack              = presentFrame->stack_;     \
+	Locals             = presentFrame->locals;
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
 #define next_int() (*(++InstructionPointer))
-#define next_value() (presentFrame->locals[next_int()])
+#define next_value() (Locals[next_int()])
 	// std::std::wcout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// "";
 
@@ -793,6 +796,15 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+			CASE(call_fast_prepare) : {
+				CallPatch = InstructionPointer;
+				int a     = next_int();
+				(void)a;
+				int b = next_int();
+				(void)b;
+				DISPATCH();
+			}
+
 			CASE(call_soft) : {
 				int sym           = next_int();
 				numberOfArguments = next_int();
@@ -807,14 +819,19 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						ASSERT(c->has_fn(sym),
 						       "Constructor '{}' not found in class '{}'!",
 						       SymbolTable2::getString(sym), c->name);
+						// [performcall will take care of this]
 						// set the receiver to nil so that construct
 						// knows to create a new receiver
-						fiber->stackTop[-numberOfArguments - 1] = ValueNil;
+						// fiber->stackTop[-numberOfArguments - 1] = ValueNil;
 						// call the constructor
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
 					}
 					case GcObject::OBJ_BoundMethod: {
+						// we cannot really perform any optimizations for
+						// boundmethods, because they require verifications
+						// and stack adjustments.
+						CallPatch      = nullptr;
 						BoundMethod *b = v.toBoundMethod();
 						// verify the arguments
 						if(b->verify(&fiber->stackTop[-numberOfArguments],
@@ -853,34 +870,141 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				}
 			}
 
-			CASE(call_method_super) : CASE(call_method) : {
-				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				// goto methodcall;
-				// fallthrough
-			}
-
-		methodcall : {
-			Value &      v = fiber->stackTop[-numberOfArguments - 1];
-			const Class *c = v.getClass();
-			ASSERT_METHOD(methodToCall, c);
-			functionToCall = c->get_fn(methodToCall).toFunction();
-			goto performcall;
-		}
-
 			CASE(call_intra) : CASE(call) : {
 				int frame         = next_int();
 				numberOfArguments = next_int();
 				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
 				const Class *c    = v.getClass();
 				functionToCall    = c->get_fn(frame).toFunction();
-				// goto performcall;
-				// fallthrough
+				goto performcall;
 			}
 
+			CASE(call_method_super) : CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				goto methodcall;
+			}
+
+#define SKIPCALL()        \
+	InstructionPointer++; \
+	next_int();           \
+	next_int();           \
+	CallPatch = nullptr;
+
+#define FASTCALL_SOFT(type)                                               \
+	{                                                                     \
+		CallPatch         = InstructionPointer;                           \
+		int idxstart      = next_int();                                   \
+		numberOfArguments = next_int();                                   \
+		if(Locals[idxstart] == fiber->stackTop[-numberOfArguments - 1]) { \
+			functionToCall = Locals[idxstart + 1].toFunction();           \
+			/* set the receiver to nil so that construct                  \
+			knows to create a new receiver */                             \
+			fiber->stackTop[-numberOfArguments - 1] = ValueNil;           \
+			/* ignore the next opcode */                                  \
+			SKIPCALL();                                                   \
+			/* directly jump to the appropriate call */                   \
+			goto perform##type;                                           \
+		}                                                                 \
+		/* check failed, run the original opcode */                       \
+		DISPATCH();                                                       \
+	}
+
+			CASE(call_fast_builtin_soft) : { FASTCALL_SOFT(builtin); }
+
+			CASE(call_fast_method_soft) : { FASTCALL_SOFT(method); }
+
+#undef FASTCALL_SOFT
+
+#define FASTCALL(type)                                                \
+	{                                                                 \
+		CallPatch         = InstructionPointer;                       \
+		int idxstart      = next_int();                               \
+		numberOfArguments = next_int();                               \
+		/* get the cached class and function */                       \
+		const Class *c = Locals[idxstart].toClass();                  \
+		Function *   f = Locals[idxstart + 1].toFunction();           \
+		if(c == fiber->stackTop[-numberOfArguments - 1].getClass()) { \
+			functionToCall = f;                                       \
+			/* ignore the next opcode */                              \
+			SKIPCALL();                                               \
+			/* directly jump to the appropriate call */               \
+			goto perform##type;                                       \
+		}                                                             \
+		/* check failed, run the original opcode */                   \
+		DISPATCH();                                                   \
+	}
+
+			CASE(call_fast_builtin) : { FASTCALL(builtin); }
+
+			CASE(call_fast_method) : { FASTCALL(method); }
+
+#undef FASTCALL
+#undef SKIPCALL
+
+		methodcall : {
+			Value &      v = fiber->stackTop[-numberOfArguments - 1];
+			const Class *c = v.getClass();
+			ASSERT_METHOD(methodToCall, c);
+			functionToCall = c->get_fn(methodToCall).toFunction();
+			// goto performcall;
+			// fallthrough
+		}
+
 		performcall : {
+			// performs the call patch.
+			// call_soft has separate opcodes to maintain its stack,
+			// and all of the rest of the calls are handled by
+			// call_fast_builtin/call_fast_method, based on the
+			// type of the function going to be called.
+			//
+			// also stores the class and the function in the locals
+			// array.
+			if(CallPatch) {
+				Bytecode::Opcode *bak = InstructionPointer;
+				InstructionPointer    = CallPatch;
+				// get the index
+				int idx = next_int();
+				// ignore numberOfArguments for now
+				next_int();
+				// get the next opcode
+				Bytecode::Opcode op = *++InstructionPointer;
+				// if we are performing a softcall, patch
+				// accordingly.
+				if(op == Bytecode::Opcode::CODE_call_soft) {
+					*CallPatch =
+					    functionToCall->getType() == Function::Type::BUILTIN
+					        ? Bytecode::Opcode::CODE_call_fast_builtin_soft
+					        : Bytecode::Opcode::CODE_call_fast_method_soft;
+				} else {
+					// we are performing a normal method call
+					*CallPatch =
+					    functionToCall->getType() == Function::Type::BUILTIN
+					        ? Bytecode::Opcode::CODE_call_fast_builtin
+					        : Bytecode::Opcode::CODE_call_fast_method;
+				}
+				// store the receiver's class in the locals array
+				if(op == Bytecode::Opcode::CODE_call_soft) {
+					Locals[idx] = fiber->stackTop[-numberOfArguments - 1];
+					// if we are performing a softcall, it must only
+					// be a constructor call, so clear the 0th slot
+					// so that a new object is constructed by opcode
+					// 'construct'
+					fiber->stackTop[-numberOfArguments - 1] = ValueNil;
+				} else {
+					Locals[idx] = Value(
+					    fiber->stackTop[-numberOfArguments - 1].getClass());
+				}
+				// store the function
+				Locals[idx + 1] = Value(functionToCall);
+				// reset the patch pointer
+				CallPatch = nullptr;
+				// restore the ip
+				InstructionPointer = bak;
+			}
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
+				performbuiltin:
 					Value res;
 					// backup present frame
 					BACKUP_FRAMEINFO();
@@ -902,6 +1026,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 					goto error;
 				}
 				case Function::Type::METHOD:
+				performmethod:
 					BACKUP_FRAMEINFO();
 					fiber->appendMethodNoBuiltin(functionToCall,
 					                             numberOfArguments, false);

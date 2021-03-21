@@ -74,7 +74,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn, Array *stmts) {
 		                   .toStatement()
 		                   ->toExpressionStatement()
 		                   ->exprs->size;
-		btx->call(info.frameIdx, numexprs);
+		btx->call_(info.frameIdx, numexprs);
 		for(int i = 0; i < numexprs; i++) btx->pop_();
 	} else {
 		compileAll(stmts);
@@ -391,20 +391,20 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	if(force_soft) {
 		// generate the no name signature
 		int sig = SymbolTable2::insert(generateSignature(argSize));
-		btx->call_soft(sig, argSize);
+		btx->call_soft_(sig, argSize);
 	}
 	// If this a reference expression, dynamic dispatch will be used
 	else if(onRefer) {
 		if(inThis) {
 			// if its a 'this.' call, perform it like a method call
 			// on present object
-			btx->call_method(SymbolTable2::insert(signature), argSize);
+			btx->call_method_(SymbolTable2::insert(signature), argSize);
 			inThis = false;
 		} else if(thisOrSuper == 1) {
 			// this() calls are directly dispatched, intraclass
 			info = resolveCall(String::const_EmptyString, signature);
 			switch(info.type) {
-				case CLASS: btx->call_intra(info.frameIdx, argSize); break;
+				case CLASS: btx->call_intra_(info.frameIdx, argSize); break;
 				default:
 					lnerr_(call->callee->token,
 					       "No constructor with specified signature found in "
@@ -415,15 +415,15 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			onRefer = false;
 		} else {
 			if(inSuper) {
-				btx->call_method_super(SymbolTable2::insert(signature),
-				                       argSize);
+				btx->call_method_super_(SymbolTable2::insert(signature),
+				                        argSize);
 				inSuper = false;
 			} else if(thisOrSuper > 0) {
 				onRefer = false;
-				btx->call_method_super(SymbolTable2::insert(signature),
-				                       argSize);
+				btx->call_method_super_(SymbolTable2::insert(signature),
+				                        argSize);
 			} else {
-				btx->call_method(SymbolTable2::insert(signature), argSize);
+				btx->call_method_(SymbolTable2::insert(signature), argSize);
 			}
 		}
 	} else {
@@ -452,7 +452,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		if(info.soft) {
 			// generate the no name signature
 			int sig = SymbolTable2::insert(generateSignature(argSize));
-			btx->call_soft(sig, argSize);
+			btx->call_soft_(sig, argSize);
 		} else {
 			// function call
 			// the receiver is already loaded
@@ -463,9 +463,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 				       "function!");
 			}
 			if(info.type == CLASS)
-				btx->call_intra(info.frameIdx, argSize);
+				btx->call_intra_(info.frameIdx, argSize);
 			else
-				btx->call(info.frameIdx, argSize);
+				btx->call_(info.frameIdx, argSize);
 		}
 	}
 }
@@ -570,7 +570,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 		btx->insert_token(as->val->token);
 		as->val->accept(this);
 		btx->insert_token(as->token);
-		btx->call_method(SymbolTable2::const_sig_subscript_set, 2);
+		btx->call_method_(SymbolTable2::const_sig_subscript_set, 2);
 	} else {
 		// Resolve the expression
 		btx->insert_token(as->val->token);
@@ -632,14 +632,13 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 	lit->token.highlight();
 #endif
 	btx->insert_token(lit->token);
-	btx->push(lit->value);
-	/*
-	switch(lit->value.t) {
-	    case Value::VAL_Number: btx->pushd(lit->value.toNumber()); break;
-	    case Value::VAL_String: btx->pushs(lit->value.toString()); break;
-	    case Value::VAL_NIL: btx->pushn(); break;
-	    default: panic("Handling other values not implemented!");
-	}*/
+	// use explicit opcode for nil, since call optimizations
+	// pushes ValueNil in the preallocated local slots in
+	// the bytecode.
+	if(lit->value.getType() == Value::VAL_NIL)
+		btx->pushn();
+	else
+		btx->push(lit->value);
 }
 
 void CodeGenerator::visit(SetExpression *sete) {
@@ -726,7 +725,7 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 	sube->idx->accept(this);
 	onLHS = b;
 	if(!onLHS)
-		btx->call_method(SymbolTable2::const_sig_subscript_get, 1);
+		btx->call_method_(SymbolTable2::const_sig_subscript_get, 1);
 }
 
 void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
@@ -1074,7 +1073,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// then, evalute the RHS
 			it->right->accept(this);
 			// initialize the iterator by calling iterate() on RHS
-			btx->call_method(SymbolTable2::insert("iterate()"), 0);
+			btx->call_method_(SymbolTable2::insert("iterate()"), 0);
 			// check if this is a valid iterator
 			btx->iterator_verify();
 			// create a temp slot to store the iterator
@@ -1396,7 +1395,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 				loadVariable(k);
 				loadVariable(d);
 				btx->insert_token(ifs->token);
-				btx->call_method(SymbolTable2::const_sig_derive, 1);
+				btx->call_method_(SymbolTable2::const_sig_derive, 1);
 			}
 		}
 		inClass = true;
@@ -1426,7 +1425,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 			btx->push(i);
 		}
 		// make a call to ' import(_)'
-		btx->call(SymbolTable2::insert(" import(_)"), ifs->import_->size);
+		btx->call_(SymbolTable2::insert(" import(_)"), ifs->import_->size);
 		String *last = ifs->import_->values[ifs->import_->size - 1].toString();
 		// The name of the imported module for the
 		// importee module would be the last part

@@ -108,7 +108,8 @@ Bytecode *Bytecode::create_derived(int offset) {
 		Opcode o = *(ip++);
 		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
 		   o == CODE_load_module || o == CODE_construct ||
-		   o == CODE_call_intra || o == CODE_call_method_super) {
+		   o == CODE_call_intra || o == CODE_call_method_super ||
+		   o == CODE_call_fast_prepare) {
 			switch(o) {
 				case CODE_load_object_slot:
 					b->load_object_slot(next_int() + offset);
@@ -129,6 +130,12 @@ Bytecode *Bytecode::create_derived(int offset) {
 						b->call_method_super(SymbolTable2::insert(sym), arity);
 					break;
 				}
+				case CODE_call_fast_prepare:
+					next_int(); // ignore the index
+					b->call_fast_prepare(b->add_constant(ValueNil, false),
+					                     next_int());
+					b->add_constant(ValueNil, false);
+					break;
 
 				default: break;
 			}
@@ -195,6 +202,7 @@ void Bytecode::disassemble_int(WritableStream &os, const Opcode *o) {
 
 void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
 	disassemble_Value(os, values[(int)*o]);
+	os.write("\t(", (int)*o, ")");
 }
 
 void Bytecode::disassemble(WritableStream &os) {

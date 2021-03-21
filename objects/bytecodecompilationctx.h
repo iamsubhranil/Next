@@ -92,6 +92,25 @@ struct BytecodeCompilationContext {
 		}
 	}
 
+	void prepare_fast_call(int args) {
+		code->push_back(Bytecode::Opcode::CODE_call_fast_prepare);
+		code->push_back((Bytecode::Opcode)code->add_constant(ValueNil, false));
+		code->add_constant(ValueNil, false);
+		code->push_back((Bytecode::Opcode)args);
+	}
+
+#define PREPARE_CALLS(name)        \
+	size_t name##_(int x, int y) { \
+		prepare_fast_call(y);      \
+		return name(x, y);         \
+	}
+	PREPARE_CALLS(call)
+	PREPARE_CALLS(call_intra)
+	PREPARE_CALLS(call_method)
+	PREPARE_CALLS(call_method_super)
+	PREPARE_CALLS(call_soft)
+#undef PREPARE_CALLS
+
 	static BytecodeCompilationContext *create();
 	void                               mark() { Gc::mark(code); }
 

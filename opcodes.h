@@ -141,6 +141,17 @@ OPCODE1(iterate_next, 1, int)
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>
 OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 
+// this is a placeholder opcode, which will be
+// replaced by the engine as one of the optimized
+// call opcodes.
+OPCODE2(call_fast_prepare, 0, int, int)
+// performs a call on the (-arity - 1)
+// we will provide both the signature and the
+// arity. if the (-arity - 1) is a class, we will use
+// the signature to resolve the constructor.
+// otherwise, we will use the arity to validate
+// the boundmethod.
+OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
 // performs a call on the method with <argument>
 // receiver is stored at -arity - 1
 // both of these does the exact same thing, the
@@ -149,19 +160,32 @@ OPCODE1(jumpiffalse, -1, int) // <relative_jump_offset>
 // of an inherited class
 OPCODE2(call, 0, int, int)       // <symbol> <arity>
 OPCODE2(call_intra, 0, int, int) // <symbol> <arity>
-// performs a call on the (-arity - 1)
-// we will provide both the signature and the
-// arity. if the (-arity - 1) is a class, we will use
-// the signature to resolve the constructor.
-// otherwise, we will use the arity to validate
-// the boundmethod.
-OPCODE2(call_soft, 0, int, int) // <symbol> <arity>
 // performs obj.method(...), also checks for boundcalls
 // on member 'method' in obj.
 // second one just marks an unbound super call explicitly
 // so that it can be modified
 OPCODE2(call_method, 0, int, int)       // <symbol> <args>
 OPCODE2(call_method_super, 0, int, int) // <symbol> <args>
+
+// these four are optimized call opcodes, which is placed
+// by the engine, at runtime, after seeing the result
+// of one of the call* opcodes. all of these will
+// operate on two values, pointing to the 'local' array
+// of the bytecode. these two values are stored
+// consecutively in the two indices, pointed by
+// the first argument. first value is a class, second
+// value is a function. if the class of the receiver
+// matches this class, they will directly dispatch
+// to the appropriate type call for the function,
+// avoiding any further checks.
+// _soft opcodes perform a little differently,
+// and they are only optimized for soft constructor
+// calls, not for boundmethods. boundmethods
+// need additional stack manipulation and verification.
+OPCODE2(call_fast_builtin_soft, 0, int, int) // <index_start> <arity>
+OPCODE2(call_fast_method_soft, 0, int, int)  // <index_start> <arity>
+OPCODE2(call_fast_builtin, 0, int, int)      // <index_start> <arity>
+OPCODE2(call_fast_method, 0, int, int)       // <index_start> <arity>
 
 // return
 OPCODE0(ret, -1)

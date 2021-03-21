@@ -102,10 +102,12 @@ struct Bytecode {
 	insert_type(int);
 
 	int add_constant(int x) { return x; }
-	int add_constant(Value v) {
-		for(size_t i = 0; i < num_values; i++) {
-			if(values[i] == v)
-				return i;
+	int add_constant(Value v, bool check = true) {
+		if(check) {
+			for(size_t i = 0; i < num_values; i++) {
+				if(values[i] == v)
+					return i;
+			}
 		}
 		values = (Value *)Gc_realloc(values, sizeof(Value) * num_values,
 		                             sizeof(Value) * (num_values + 1));
