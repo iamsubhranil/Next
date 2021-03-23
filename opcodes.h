@@ -70,6 +70,13 @@ OPCODE0(lesseq, -1)
 OPCODE0(greater, -1)
 OPCODE0(greatereq, -1)
 
+OPCODE1(bcall_fast_prepare, 0, int)
+// OPCODE1(bcall_fast_method, 0, int)
+// OPCODE1(bcall_fast_builtin, 0, int)
+// direct comparison for eq and neq
+OPCODE1(bcall_fast_eq, 0, int)
+OPCODE1(bcall_fast_neq, 0, int)
+
 // Pushes a Value to the stack
 OPCODE1(push, 1, Value)
 OPCODE0(pushn, 1)
@@ -107,7 +114,23 @@ OPCODE0(load_module_super, 1)
 OPCODE0(load_module_core, 1)
 
 // Stores the TOS to <slot>
+OPCODE0(store_slot_0, 0)         // <slot_number>
+OPCODE0(store_slot_1, 0)         // <slot_number>
+OPCODE0(store_slot_2, 0)         // <slot_number>
+OPCODE0(store_slot_3, 0)         // <slot_number>
+OPCODE0(store_slot_4, 0)         // <slot_number>
+OPCODE0(store_slot_5, 0)         // <slot_number>
+OPCODE0(store_slot_6, 0)         // <slot_number>
+OPCODE0(store_slot_7, 0)         // <slot_number>
 OPCODE1(store_slot, 0, int)      // <slot_number>
+OPCODE0(store_slot_pop_0, -1)    // <slot_number>
+OPCODE0(store_slot_pop_1, -1)    // <slot_number>
+OPCODE0(store_slot_pop_2, -1)    // <slot_number>
+OPCODE0(store_slot_pop_3, -1)    // <slot_number>
+OPCODE0(store_slot_pop_4, -1)    // <slot_number>
+OPCODE0(store_slot_pop_5, -1)    // <slot_number>
+OPCODE0(store_slot_pop_6, -1)    // <slot_number>
+OPCODE0(store_slot_pop_7, -1)    // <slot_number>
 OPCODE1(store_slot_pop, -1, int) // <slot_number>
 // Store to TOS <slot>
 OPCODE1(store_tos_slot, -1, int)
@@ -122,20 +145,29 @@ OPCODE1(store_object_slot, 0, int)
 OPCODE2(store_static_slot, 1, int, Value) // <slot> <class>
 
 // verifies if the TOS is an iterator by checking
-// for has_next and next()
+// for has_next and next().
 // we do this once in the beginning of each for-in loop,
 // so that we don't have to do this at each iteration
 // of the loop. this should be safe, since in a for-in
 // loop, whatever is returned by the iterate(), is stored
 // in a temp slot and cannot be changed.
-OPCODE0(iterator_verify, 0)
+// it also takes an offset to the iterate_next* call,
+// to patch it at runtime for appropriate type,
+// and takes a class_index to cache the results of
+// the verification.
+OPCODE2(iterator_verify, 0, int, int) // <class_index> <offset>
 
 // Unconditional jump
 OPCODE1(jump, 0, int) // <relative_jump_offset>
-// TOS is the iterator object
+
+// TOS is the iterator object.
 // takes the offset to jump to in case
 // has_next is false
-OPCODE1(iterate_next, 1, int)
+// every builtin iterator has its own opcode
+#define ITERATOR(x, y) OPCODE1(iterate_next_builtin_##x, 1, int)
+#include "objects/iterator_types.h"
+OPCODE1(iterate_next_object_method, 1, int)
+OPCODE1(iterate_next_object_builtin, 1, int)
 
 // Pop, verify and jump
 OPCODE1(jumpiftrue, -1, int)  // <relative_jump_offset>

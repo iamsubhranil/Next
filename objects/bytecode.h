@@ -69,20 +69,20 @@ struct Bytecode {
 		return pos;                \
 	};
 
-#define OPCODE2(x, y, z, w)                    \
-	size_t x(z arg1, w arg2) {                 \
-		stackEffect(y);                        \
-		size_t bak = size;                     \
-		push_back(CODE_##x);                   \
-		insert_##z(arg1);                      \
-		insert_##w(arg2);                      \
-		return bak;                            \
-	};                                         \
-	size_t x(size_t pos, z arg1, w arg2) {     \
-		bytecodes[pos] = CODE_##x;             \
-		insert_##z(pos + 1, arg1);             \
-		insert_##w(pos + 1 + sizeof(z), arg2); \
-		return pos;                            \
+#define OPCODE2(x, y, z, w)                                       \
+	size_t x(z arg1, w arg2) {                                    \
+		stackEffect(y);                                           \
+		size_t bak = size;                                        \
+		push_back(CODE_##x);                                      \
+		insert_##z(arg1);                                         \
+		insert_##w(arg2);                                         \
+		return bak;                                               \
+	};                                                            \
+	size_t x(size_t pos, z arg1, w arg2) {                        \
+		bytecodes[pos] = CODE_##x;                                \
+		insert_##z(pos + 1, arg1);                                \
+		insert_##w(pos + 1 + (sizeof(z) / sizeof(Opcode)), arg2); \
+		return pos;                                               \
 	};
 #include "../opcodes.h"
 
@@ -126,6 +126,8 @@ struct Bytecode {
 	// optimized opcode instructions
 	int load_slot_n(int n);
 	int load_slot_n(int pos, int n);
+	int store_slot_n(int n);
+	int store_slot_pop_n(int n);
 
 	size_t           getip();
 	static Bytecode *create();

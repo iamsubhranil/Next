@@ -79,8 +79,17 @@ struct BytecodeCompilationContext {
 
 	int load_slot_n(int pos, int n) { return code->load_slot_n(pos, n); }
 
+	int store_slot_n(int n) { return code->store_slot_n(n); }
+	int store_slot_pop_n(int n) { return code->store_slot_pop_n(n); }
+
 	void pop_() {
-		if(lastOpcode == Bytecode::CODE_store_slot) {
+		if(lastOpcode >= Bytecode::CODE_store_slot_0 &&
+		   lastOpcode <= Bytecode::CODE_store_slot_7) {
+			code->bytecodes[code->getip()] =
+			    (Bytecode::Opcode)(Bytecode::CODE_store_slot_pop_0 +
+			                       (lastOpcode - Bytecode::CODE_store_slot_0));
+			code->stackEffect(-1);
+		} else if(lastOpcode == Bytecode::CODE_store_slot) {
 			code->bytecodes[code->getip() -
 			                sizeof(int) / sizeof(Bytecode::Opcode) - 1] =
 			    Bytecode::CODE_store_slot_pop;
@@ -99,6 +108,11 @@ struct BytecodeCompilationContext {
 		code->push_back((Bytecode::Opcode)args);
 	}
 
+	void prepare_fast_bcall() {
+		code->push_back(Bytecode::Opcode::CODE_bcall_fast_prepare);
+		code->push_back((Bytecode::Opcode)code->add_constant(ValueNil, false));
+	}
+
 #define PREPARE_CALLS(name)        \
 	size_t name##_(int x, int y) { \
 		prepare_fast_call(y);      \
@@ -110,6 +124,15 @@ struct BytecodeCompilationContext {
 	PREPARE_CALLS(call_method_super)
 	PREPARE_CALLS(call_soft)
 #undef PREPARE_CALLS
+
+#define PREPARE_BCALLS(name)  \
+	size_t name##_() {        \
+		prepare_fast_bcall(); \
+		return name();        \
+	}
+	PREPARE_BCALLS(eq)
+	PREPARE_BCALLS(neq)
+#undef PREPARE_BCALLS
 
 	static BytecodeCompilationContext *create();
 	void                               mark() { Gc::mark(code); }

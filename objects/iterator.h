@@ -57,6 +57,19 @@ struct Iterator {
 		}
 	}
 
+	static Type getType(Value v) {
+		switch(v.toGcObject()->getType()) {
+#define ITERATOR(x, c)                  \
+	case GcObject::OBJ_##x##Iterator: { \
+		return Type::x##Iterator;       \
+	}
+#include "iterator_types.h"
+			default:
+				panic("Non iterator type passed to Iterator::next");
+				return Type::ArrayIterator;
+		}
+	}
+
 	static Value &IteratorHasNextFn(const Class *c, Value v, int field) {
 		(void)c;
 		(void)field;

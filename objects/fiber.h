@@ -47,8 +47,8 @@ struct Fiber {
 	};
 
 	// the callstack
-	Value *stack_;
 	Value *stackTop;
+	Value *stack_;
 	int    stackSize;
 
 	// the frame stack

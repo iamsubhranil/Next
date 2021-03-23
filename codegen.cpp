@@ -208,8 +208,8 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case Token::Type::TOKEN_PIPE: btx->bor(); break;
 		case Token::Type::TOKEN_AMPERSAND: btx->band(); break;
 		case Token::Type::TOKEN_BANG: btx->lnot(); break;
-		case Token::Type::TOKEN_EQUAL_EQUAL: btx->eq(); break;
-		case Token::Type::TOKEN_BANG_EQUAL: btx->neq(); break;
+		case Token::Type::TOKEN_EQUAL_EQUAL: btx->eq_(); break;
+		case Token::Type::TOKEN_BANG_EQUAL: btx->neq_(); break;
 		case Token::Type::TOKEN_LESS: btx->less(); break;
 		case Token::Type::TOKEN_LESS_EQUAL: btx->lesseq(); break;
 		case Token::Type::TOKEN_LESS_LESS: btx->blshift(); break;
@@ -760,7 +760,7 @@ void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 		btx->store_field(lastMemberReferenced);
 	} else {
 		switch(variableInfo.position) {
-			case LOCAL: btx->store_slot(variableInfo.slot); break;
+			case LOCAL: btx->store_slot_n(variableInfo.slot); break;
 			case MODULE:
 				loadPresentModule();
 				btx->store_tos_slot(variableInfo.slot);
@@ -1074,18 +1074,24 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			it->right->accept(this);
 			// initialize the iterator by calling iterate() on RHS
 			btx->call_method_(SymbolTable2::insert("iterate()"), 0);
-			// check if this is a valid iterator
-			btx->iterator_verify();
+			// check if this is a valid iterator and
+			// cache the resulting class in the locals array
+			int local = btx->code->add_constant(ValueNil, false);
+			int entry = btx->iterator_verify(local, 0);
 			// create a temp slot to store the iterator
 			int slot = createTempSlot();
-			btx->store_slot_pop(slot);
+			btx->store_slot_pop_n(slot);
 			// load the iterator in the beginning of the loop
 			int start = btx->load_slot_n(slot);
-			// iterate_next will check has_next on TOS
+			// iterate_next* will check has_next on TOS
 			// if has_next is false, it will jump to the given offset
 			// else, it will call next() on TOS
-			// this will also pop the iterator when has_next is false
-			int exit_ = btx->iterate_next(0);
+			// this will also pop the iterator when has_next is false.
+			// this will be patched by iterator_verify at runtime
+			// for the appropriate iterator type.
+			int exit_ = btx->iterate_next_object_method(0);
+			// tell the offset to iterator_verify
+			btx->iterator_verify(entry, local, exit_ - entry);
 			// store the next value in the given variable
 			storeVariable(var);
 			btx->pop_();
@@ -1094,7 +1100,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// jump back to iterate
 			btx->jump(start - btx->getip());
 			// patch the exit
-			btx->iterate_next(exit_, btx->getip() - exit_);
+			btx->iterate_next_object_method(exit_, btx->getip() - exit_);
 			// pop the scope
 			popScope();
 			// patch pending breaks
@@ -1562,7 +1568,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 		}
 		e->add_catch(v.slot, st, btx->getip());
 		// store the thrown object
-		btx->store_slot_pop(receiver);
+		btx->store_slot_pop_n(receiver);
 	}
 	ifs->block->accept(this);
 }

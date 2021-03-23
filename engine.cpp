@@ -637,12 +637,16 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// to call method on non primitive types
 				if(TOP.isGcObject() &&
 				   TOP.getClass()->has_fn(SymbolTable2::const_sig_neq)) {
+					CallPatch         = nullptr;
 					methodToCall      = SymbolTable2::const_sig_neq;
 					numberOfArguments = 1;
 					PUSH(rightOperand);
 					goto methodcall;
 				}
-				TOP = TOP != rightOperand;
+				*CallPatch = Bytecode::Opcode::CODE_bcall_fast_neq;
+				Locals[*(CallPatch + 1)] = Value(TOP.getClass());
+				CallPatch                = nullptr;
+				TOP                      = TOP != rightOperand;
 				DISPATCH();
 			}
 
@@ -650,12 +654,48 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				rightOperand = POP();
 				if(TOP.isGcObject() &&
 				   TOP.getClass()->has_fn(SymbolTable2::const_sig_eq)) {
+					CallPatch         = nullptr;
 					methodToCall      = SymbolTable2::const_sig_eq;
 					numberOfArguments = 1;
 					PUSH(rightOperand);
 					goto methodcall;
 				}
-				TOP = TOP == rightOperand;
+				*CallPatch               = Bytecode::Opcode::CODE_bcall_fast_eq;
+				Locals[*(CallPatch + 1)] = Value(TOP.getClass());
+				CallPatch                = nullptr;
+				TOP                      = TOP == rightOperand;
+				DISPATCH();
+			}
+
+			CASE(bcall_fast_prepare) : {
+				CallPatch = InstructionPointer;
+				(void)next_int();
+				DISPATCH();
+			}
+
+			CASE(bcall_fast_eq) : {
+				CallPatch  = InstructionPointer;
+				int    idx = next_int();
+				Class *c   = Locals[idx].toClass();
+				if(fiber->stackTop[-2].getClass() == c) {
+					rightOperand = POP();
+					TOP          = TOP == rightOperand;
+					CallPatch    = nullptr;
+					InstructionPointer++; // skip next eq
+				}
+				DISPATCH();
+			}
+
+			CASE(bcall_fast_neq) : {
+				CallPatch  = InstructionPointer;
+				int    idx = next_int();
+				Class *c   = Locals[idx].toClass();
+				if(fiber->stackTop[-2].getClass() == c) {
+					rightOperand = POP();
+					TOP          = TOP != rightOperand;
+					CallPatch    = nullptr;
+					InstructionPointer++; // skip next neq
+				}
 				DISPATCH();
 			}
 
@@ -734,14 +774,42 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 			CASE(iterator_verify) : {
-				Value &it = TOP;
+				Bytecode::Opcode *present              = InstructionPointer;
+				int               idx                  = next_int();
+				int               iterator_next_offset = next_int();
+				// if it is the same iterator, we have nothing to do
+				if(TOP.getClass() == Locals[idx].toClass()) {
+					DISPATCH();
+				}
+				Value &it   = TOP;
+				Locals[idx] = Value(it.getClass()); // cache the class
 				if(Iterator::is_iterator(it)) {
+					Iterator::Type t = Iterator::getType(it);
+					// mark the iterate next as specialized builtin call
+					switch(t) {
+#define ITERATOR(x, y)                               \
+	case Iterator::Type::x##Iterator:                \
+		*(present + iterator_next_offset) =          \
+		    Bytecode::CODE_iterate_next_builtin_##x; \
+		break;
+#include "objects/iterator_types.h"
+					}
 					DISPATCH();
 				}
 				int          field = SymbolTable2::const_field_has_next;
 				const Class *c     = it.getClass();
 				ASSERT_FIELD();
 				ASSERT_METHOD(SymbolTable2::const_sig_next, c);
+				Function *f =
+				    c->get_fn(SymbolTable2::const_sig_next).toFunction();
+				// patch the next() call
+				if(f->getType() == Function::Type::BUILTIN) {
+					*(present + iterator_next_offset) =
+					    Bytecode::CODE_iterate_next_object_builtin;
+				} else {
+					*(present + iterator_next_offset) =
+					    Bytecode::CODE_iterate_next_object_method;
+				}
 				DISPATCH();
 			}
 
@@ -750,31 +818,43 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				JUMPTO_OFFSET(offset); // offset the relative jump address
 			}
 
-			CASE(iterate_next) : {
-				int    offset = next_int();
-				Value &it     = TOP;
-				if(Iterator::is_iterator(it)) {
-					if(!Iterator::has_next(it)) {
-						POP();
-						JUMPTO_OFFSET(offset);
-					} else {
-						TOP = Iterator::next(it);
-						DISPATCH();
-					}
-				}
-				const Class *c        = it.getClass();
-				int          field    = SymbolTable2::const_field_has_next;
-				Value        has_next = c->accessFn(c, it, field);
-				if(is_falsey(has_next)) {
-					POP();
-					JUMPTO_OFFSET(offset);
-				} else {
-					functionToCall =
-					    c->get_fn(SymbolTable2::const_sig_next).toFunction();
-					numberOfArguments = 0;
-					goto performcall;
-				}
+#define ITERATOR(x, y)                               \
+	CASE(iterate_next_builtin_##x) : {               \
+		int          offset = next_int();            \
+		x##Iterator *it     = TOP.to##x##Iterator(); \
+		if(!it->hasNext.toBoolean()) {               \
+			POP();                                   \
+			JUMPTO_OFFSET(offset);                   \
+		} else {                                     \
+			TOP = it->Next();                        \
+			DISPATCH();                              \
+		}                                            \
+	}
+#include "objects/iterator_types.h"
+
+#define ITERATE_NEXT_OBJECT(type)                                     \
+	{                                                                 \
+		int          offset   = next_int();                           \
+		Value &      it       = TOP;                                  \
+		const Class *c        = it.getClass();                        \
+		int          field    = SymbolTable2::const_field_has_next;   \
+		Value        has_next = c->accessFn(c, it, field);            \
+		if(is_falsey(has_next)) {                                     \
+			POP();                                                    \
+			JUMPTO_OFFSET(offset);                                    \
+		} else {                                                      \
+			functionToCall =                                          \
+			    c->get_fn(SymbolTable2::const_sig_next).toFunction(); \
+			numberOfArguments = 0;                                    \
+			goto perform##type;                                       \
+		}                                                             \
+	}
+
+			CASE(iterate_next_object_builtin) : {
+				ITERATE_NEXT_OBJECT(builtin);
 			}
+
+			CASE(iterate_next_object_method) : { ITERATE_NEXT_OBJECT(method); }
 
 			CASE(jumpiftrue) : {
 				Value v   = POP();
@@ -813,8 +893,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				ASSERT(v.isGcObject(), "Not a callable object!");
 				switch(v.toGcObject()->getType()) {
 					case GcObject::OBJ_Class: {
-						// check if the class has a constructor with the given
-						// signature
+						// check if the class has a constructor with the
+						// given signature
 						Class *c = v.toClass();
 						ASSERT(c->has_fn(sym),
 						       "Constructor '{}' not found in class '{}'!",
@@ -822,8 +902,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						// [performcall will take care of this]
 						// set the receiver to nil so that construct
 						// knows to create a new receiver
-						// fiber->stackTop[-numberOfArguments - 1] = ValueNil;
-						// call the constructor
+						// fiber->stackTop[-numberOfArguments - 1] =
+						// ValueNil; call the constructor
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
 					}
@@ -852,8 +932,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 								for(int i = -numberOfArguments - 1; i < 0; i++)
 									fiber->stackTop[i] = fiber->stackTop[i + 1];
 								fiber->stackTop--;
-								// we also decrement numberOfArguments to denote
-								// actual argument count minus the instance
+								// we also decrement numberOfArguments to
+								// denote actual argument count minus the
+								// instance
 								numberOfArguments--;
 								break;
 							}
@@ -1115,11 +1196,40 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+#define STORE_SLOT(n)        \
+	CASE(store_slot_##n) : { \
+		Stack[n] = TOP;      \
+		DISPATCH();          \
+	}
+
+			STORE_SLOT(0)
+			STORE_SLOT(1)
+			STORE_SLOT(2)
+			STORE_SLOT(3)
+			STORE_SLOT(4)
+			STORE_SLOT(5)
+			STORE_SLOT(6)
+			STORE_SLOT(7)
+
 			CASE(store_slot) : {
 				rightOperand = TOP;
 				goto do_store_slot;
 			}
 
+#define STORE_SLOT_POP(n)        \
+	CASE(store_slot_pop_##n) : { \
+		Stack[n] = POP();        \
+		DISPATCH();              \
+	}
+
+			STORE_SLOT_POP(0)
+			STORE_SLOT_POP(1)
+			STORE_SLOT_POP(2)
+			STORE_SLOT_POP(3)
+			STORE_SLOT_POP(4)
+			STORE_SLOT_POP(5)
+			STORE_SLOT_POP(6)
+			STORE_SLOT_POP(7)
 			CASE(store_slot_pop) : { rightOperand = POP(); }
 
 		do_store_slot : {
