@@ -228,9 +228,17 @@ OPCODE1(construct, 0, Value) // <class>
 // Pop the object from TOS and push
 // the required field
 OPCODE1(load_field, 0, int) // <symbol>
+// Optimized opcodes, patched by load_field at runtime
+OPCODE2(load_field_fast, 0, int, int)
+OPCODE2(load_field_slot, 0, int, int)   // <index> <slot>
+OPCODE2(load_field_static, 0, int, int) // <index> <slot>
 // Pop the object from TOS and assign
 // the value at present TOS to the field
 OPCODE1(store_field, -1, int) // <symbol>
+// Optimized opcodes, patched by load_field at runtime
+OPCODE2(store_field_fast, 0, int, int)
+OPCODE2(store_field_slot, 0, int, int)   // <index> <slot>
+OPCODE2(store_field_static, 0, int, int) // <index> <slot>
 
 // Pops the value at TOS and starts stack unwinding
 // until a frame with matching exception handler is

@@ -3,9 +3,8 @@
 #include "class.h"
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
-	BytecodeCompilationContext2 bcc =
-	    Gc::alloc<BytecodeCompilationContext>();
-	bcc->code              = NULL;
+	BytecodeCompilationContext2 bcc = Gc::alloc<BytecodeCompilationContext>();
+	bcc->code                       = NULL;
 	bcc->ranges_           = (TokenRange *)Gc_malloc(sizeof(TokenRange));
 	bcc->ranges_[0].token  = Token::PlaceholderToken;
 	bcc->ranges_[0].range_ = 0;
@@ -14,6 +13,7 @@ BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	bcc->present_range     = 0;
 	bcc->code              = Bytecode::create();
 	bcc->code->ctx         = bcc;
+	bcc->lastOpcode        = Bytecode::CODE_add;
 	return bcc;
 }
 

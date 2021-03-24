@@ -123,12 +123,6 @@ struct Bytecode {
 	// remove excess allocation
 	void finalize();
 
-	// optimized opcode instructions
-	int load_slot_n(int n);
-	int load_slot_n(int pos, int n);
-	int store_slot_n(int n);
-	int store_slot_pop_n(int n);
-
 	size_t           getip();
 	static Bytecode *create();
 

@@ -651,7 +651,7 @@ void CodeGenerator::visit(SetExpression *sete) {
 		bool b = onLHS;
 		onLHS  = true;
 		sete->object->accept(this);
-		btx->store_field(lastMemberReferenced);
+		btx->store_field_(lastMemberReferenced);
 		onLHS = b;
 	}
 }
@@ -730,7 +730,7 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 
 void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 	if(isref) {
-		btx->load_field(lastMemberReferenced);
+		btx->load_field_(lastMemberReferenced);
 	} else {
 		switch(variableInfo.position) {
 			case LOCAL: btx->load_slot_n(variableInfo.slot); break;
@@ -757,7 +757,7 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 
 void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 	if(isref) {
-		btx->store_field(lastMemberReferenced);
+		btx->store_field_(lastMemberReferenced);
 	} else {
 		switch(variableInfo.position) {
 			case LOCAL: btx->store_slot_n(variableInfo.slot); break;
@@ -908,7 +908,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 		if(onLHS)
 			lastMemberReferenced = SymbolTable2::insert(name);
 		else
-			btx->load_field(SymbolTable2::insert(name));
+			btx->load_field_(SymbolTable2::insert(name));
 	}
 }
 

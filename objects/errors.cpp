@@ -5,7 +5,7 @@
 
 #define ERRORTYPE(x, name)                                          \
 	x *x::create(const String2 &m) {                                \
-		x *re       = Gc::alloc<x>();                         \
+		x *re       = Gc::alloc<x>();                               \
 		re->message = m;                                            \
 		return re;                                                  \
 	}                                                               \
@@ -82,10 +82,10 @@ Function2 ErrorObjectClassConstructor(Class *c) {
 	f->code->insertSlot(); // this
 	f->code->insertSlot(); // x
 	f->code->construct(c);
-	f->code->load_slot_n(1);
+	f->code->load_slot_1();
 	f->code->store_object_slot(0);
 	f->code->pop();
-	f->code->load_slot_n(0);
+	f->code->load_slot_0();
 	f->code->ret();
 	return f;
 }

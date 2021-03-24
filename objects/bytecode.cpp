@@ -33,70 +33,6 @@ void Bytecode::finalize() {
 	}
 }
 
-int Bytecode::load_slot_n(int n) {
-	if(n < 8) {
-		switch(n) {
-			case 0: return load_slot_0();
-			case 1: return load_slot_1();
-			case 2: return load_slot_2();
-			case 3: return load_slot_3();
-			case 4: return load_slot_4();
-			case 5: return load_slot_5();
-			case 6: return load_slot_6();
-			case 7: return load_slot_7();
-		};
-	}
-	return load_slot(n);
-}
-
-int Bytecode::load_slot_n(int pos, int n) {
-	if(n < 8) {
-		switch(n) {
-			case 0: return load_slot_0(pos);
-			case 1: return load_slot_1(pos);
-			case 2: return load_slot_2(pos);
-			case 3: return load_slot_3(pos);
-			case 4: return load_slot_4(pos);
-			case 5: return load_slot_5(pos);
-			case 6: return load_slot_6(pos);
-			case 7: return load_slot_7(pos);
-		};
-	}
-	return load_slot(pos, n);
-}
-
-int Bytecode::store_slot_n(int n) {
-	if(n < 8) {
-		switch(n) {
-			case 0: return store_slot_0();
-			case 1: return store_slot_1();
-			case 2: return store_slot_2();
-			case 3: return store_slot_3();
-			case 4: return store_slot_4();
-			case 5: return store_slot_5();
-			case 6: return store_slot_6();
-			case 7: return store_slot_7();
-		};
-	}
-	return store_slot(n);
-}
-
-int Bytecode::store_slot_pop_n(int n) {
-	if(n < 8) {
-		switch(n) {
-			case 0: return store_slot_pop_0();
-			case 1: return store_slot_pop_1();
-			case 2: return store_slot_pop_2();
-			case 3: return store_slot_pop_3();
-			case 4: return store_slot_pop_4();
-			case 5: return store_slot_pop_5();
-			case 6: return store_slot_pop_6();
-			case 7: return store_slot_pop_7();
-		};
-	}
-	return store_slot_pop(n);
-}
-
 size_t Bytecode::getip() {
 	return size;
 }
@@ -141,7 +77,8 @@ Bytecode *Bytecode::create_derived(int offset) {
 		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
 		   o == CODE_load_module || o == CODE_construct ||
 		   o == CODE_call_intra || o == CODE_call_method_super ||
-		   o == CODE_call_fast_prepare || o == CODE_bcall_fast_prepare) {
+		   o == CODE_call_fast_prepare || o == CODE_bcall_fast_prepare ||
+		   o == CODE_load_field_fast || o == CODE_store_field_fast) {
 			switch(o) {
 				case CODE_load_object_slot:
 					b->load_object_slot(next_int() + offset);
@@ -171,6 +108,16 @@ Bytecode *Bytecode::create_derived(int offset) {
 				case CODE_bcall_fast_prepare:
 					next_int(); // ignore the index
 					b->bcall_fast_prepare(b->add_constant(ValueNil, false));
+					break;
+				case CODE_load_field_fast:
+					next_int(); // ignore the index
+					next_int(); // ignore the slot
+					b->load_field_fast(b->add_constant(ValueNil, false), 0);
+					break;
+				case CODE_store_field_fast:
+					next_int(); // ignore the index
+					next_int(); // ignore the slot
+					b->store_field_fast(b->add_constant(ValueNil, false), 0);
 					break;
 
 				default: break;
@@ -243,6 +190,12 @@ void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
 
 void Bytecode::disassemble(WritableStream &os) {
 	os.write("StackSize: ", stackMaxSize, "\n");
+	int cache = 0;
+	for(int i = 0; i < num_values; i++) {
+		if(values[i] == ValueNil)
+			cache++;
+	}
+	os.write("Locals: ", num_values, " (Cache ", cache, ")\n");
 	os.write("Bytecodes: \n");
 	for(size_t i = 0; i < size;) {
 		disassemble(os, bytecodes, &i);

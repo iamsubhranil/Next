@@ -1257,12 +1257,116 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+			CASE(load_field_fast) : {
+				// dummy opcode, to be replaced by load_field
+				CallPatch = InstructionPointer;
+				next_int();
+				next_int();
+				DISPATCH();
+			}
+
+			CASE(load_field_slot) : {
+				// directly loads the value from the slot
+				// if the class is matched
+				CallPatch = InstructionPointer;
+				int idx   = next_int();
+				int slot  = next_int();
+				if(Locals[idx].toClass() == TOP.getClass()) {
+					CallPatch = nullptr;
+					TOP       = TOP.toObject()->slots(slot);
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
+				DISPATCH();
+			}
+
+			CASE(load_field_static) : {
+				// directly loads the value from the static
+				// member if the class is matched
+				CallPatch    = InstructionPointer;
+				int    idx   = next_int();
+				int    field = next_int();
+				Class *c     = Locals[idx].toClass();
+				if(c == TOP.getClass()) {
+					CallPatch = nullptr;
+					TOP       = *c->get_fn(field).toPointer();
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
+				DISPATCH();
+			}
+
 			CASE(load_field) : {
 				int          field = next_int();
 				Value        v     = POP();
 				const Class *c     = v.getClass();
 				ASSERT_FIELD();
 				PUSH(c->accessFn(c, v, field));
+				if(c->type != Class::ClassType::BUILTIN) {
+					// this is not a builtin class, so we can optimize
+					// the access
+					Value v = c->get_fn(field);
+					if(v.isNumber()) {
+						// this is a slot, so store the slot index
+						*CallPatch       = Bytecode::CODE_load_field_slot;
+						*(CallPatch + 2) = (Bytecode::Opcode)v.toInteger();
+					} else {
+						// this is a static member, so store the field
+						*CallPatch       = Bytecode::CODE_load_field_static;
+						*(CallPatch + 2) = (Bytecode::Opcode)field;
+					}
+					int idx = *(CallPatch + 1);
+					// store the class
+					Locals[idx] = Value(c);
+				}
+				CallPatch = nullptr;
+				DISPATCH();
+			}
+
+			CASE(store_field_fast) : {
+				// dummy opcode, to be patched by store_field
+				CallPatch = InstructionPointer;
+				next_int();
+				next_int();
+				DISPATCH();
+			}
+
+			CASE(store_field_slot) : {
+				// directly store to the slot if the class is matched
+				CallPatch = InstructionPointer;
+				int idx   = next_int();
+				int slot  = next_int();
+				if(Locals[idx].toClass() == TOP.getClass()) {
+					Value v                   = POP();
+					CallPatch                 = nullptr;
+					v.toObject()->slots(slot) = TOP;
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
+				DISPATCH();
+			}
+
+			CASE(store_field_static) : {
+				// directly store to the static member if the class is matched
+				CallPatch    = InstructionPointer;
+				int    idx   = next_int();
+				int    field = next_int();
+				Class *c     = Locals[idx].toClass();
+				if(c == TOP.getClass()) {
+					CallPatch = nullptr;
+					POP();
+					*c->get_fn(field).toPointer() = TOP;
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
 				DISPATCH();
 			}
 
@@ -1272,6 +1376,23 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				const Class *c     = v.getClass();
 				ASSERT_FIELD();
 				c->accessFn(c, v, field) = TOP;
+				if(c->type != Class::ClassType::BUILTIN) {
+					// this is not a builtin class, so
+					// we can optimize the access
+					Value v = c->get_fn(field);
+					if(v.isNumber()) {
+						// this is a slot store, so store the slot index
+						*CallPatch       = Bytecode::CODE_store_field_slot;
+						*(CallPatch + 2) = (Bytecode::Opcode)v.toInteger();
+					} else {
+						// this is a static field store, so store the field
+						*CallPatch       = Bytecode::CODE_store_field_static;
+						*(CallPatch + 2) = (Bytecode::Opcode)field;
+					}
+					// store the class
+					Locals[*(CallPatch + 1)] = Value(c);
+				}
+				CallPatch = nullptr;
 				DISPATCH();
 			}
 

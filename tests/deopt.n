@@ -1,24 +1,45 @@
 class test {
     pub:
         x
+        has_next
         new(y) { 
             x = y
+            has_next = x > 10
         }
 
         fn size() {
             ret x * 2
+        }
+
+        op ==(y) {
+            ret x != y
+        }
+
+        op !=(y) {
+            ret x == y
         }
 }
 
 class test2 {
     pub:
         x
+        static has_next
+
         new(y) { 
             x = y
+            has_next = y*120
         }
 
         fn size() {
             ret x + 2
+        }
+
+        op !=(y) {
+            ret x != y
+        }
+
+        op ==(y) {
+            ret x == y
         }
 }
 
@@ -28,6 +49,18 @@ fn t(x) {
 
 fn ctor(x) {
     ret x(3)
+}
+
+fn eq(x, y) {
+    ret x == y
+}
+
+fn neq(x, y) {
+    ret x != y
+}
+
+fn mem(x) {
+    ret x.has_next
 }
 
 pub fn test() {
@@ -54,6 +87,42 @@ pub fn test() {
     }
     if(ctor(tuple).size() != 3) {
         println("[Error] Call deoptimization for builtin softcalls not working!")
+        res = false
+    }
+    if(eq(test(10), 10) != false) {
+        println("[Error] Eq optimization not working!")
+        res = false
+    }
+    if(neq(test(10), 10) != true) {
+        println("[Error] Neq optimization not working!")
+        res = false
+    }
+    if(eq(test2(10), 10) != true) {
+        println("[Error] Eq deoptimization not working!")
+        res = false
+    }
+    if(neq(test2(10), 10) != false) {
+        println("[Error] Neq deoptimization not working!")
+        res = false
+    }
+    if(eq(1, 2) != false) {
+        println("[Error] Eq deoptimization not working!")
+        res = false
+    }
+    if(neq(1, 1) != false) {
+        println("[Error] Neq deoptimization not working!")
+        res = false
+    }
+    if(mem(test(11)) != true) {
+        println("[Error] Member access optimization not working!")
+        res = false
+    }
+    if(mem(test2(11)) != 1320) {
+        println("[Error] Member access deoptimization not working!")
+        res = false
+    }
+    if(mem(range(10).iterate()) != true) {
+        println("[Error] Member access deoptimization not working!")
         res = false
     }
     ret res

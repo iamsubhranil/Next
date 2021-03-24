@@ -64,7 +64,7 @@ modules = {prepost: "Pre and post increment/decrements",
         bitstest: "Bit arrays",
         mathtest: "Module: math",
         filetest: "File I/O",
-        deopt: "Call Deoptimization"}
+        deopt: "Bytecode Deoptimization"}
 
 // find the maximum length
 len = 0
