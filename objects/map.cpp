@@ -123,11 +123,8 @@ Value next_map_construct(const Value *args, int numargs) {
 	return Value(Map::create());
 }
 
-void Map::init() {
-	Class *MapClass = GcObject::MapClass;
-
+void Map::init(Class *MapClass) {
 	// Initialize map class
-	MapClass->init("map", Class::BUILTIN);
 	MapClass->add_builtin_fn("()", 0, next_map_construct);
 	MapClass->add_builtin_fn("clear()", 0, next_map_clear);
 	MapClass->add_builtin_fn_nest("has(_)", 1, next_map_has); // can nest
@@ -143,7 +140,7 @@ void Map::init() {
 }
 
 Map *Map::create() {
-	Map2 vvm = GcObject::allocMap();
+	Map2 vvm = Gc::alloc<Map>();
 	::new(&vvm->vv) MapType();
 	return vvm;
 }

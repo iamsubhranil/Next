@@ -62,7 +62,7 @@ Value Formatter::valuefmt(WritableStream &stream, const Value *args,
 
 Value Formatter::valuefmt(const Value *args, int numargs) {
 	StringStream s;
-	Value              ret = valuefmt(s, args, numargs);
+	Value        ret = valuefmt(s, args, numargs);
 	if(ret != ValueTrue) {
 		return ret;
 	}

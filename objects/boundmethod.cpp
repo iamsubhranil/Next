@@ -37,10 +37,8 @@ Value next_boundmethod_binder(const Value *args, int numargs) {
 	return Value(args[0].toBoundMethod()->binder);
 }
 
-void BoundMethod::init() {
-	Class *BoundMethodClass = GcObject::BoundMethodClass;
+void BoundMethod::init(Class *BoundMethodClass) {
 
-	BoundMethodClass->init("boundmethod", Class::ClassType::BUILTIN);
 	BoundMethodClass->add_builtin_fn("get_fn()", 0, next_boundmethod_fn);
 	BoundMethodClass->add_builtin_fn("get_binder()", 0,
 	                                 next_boundmethod_binder);
@@ -75,7 +73,7 @@ BoundMethod::Status BoundMethod::verify(const Value *args, int arity) {
 }
 
 BoundMethod *BoundMethod::from(Function *f, Class *c) {
-	BoundMethod *b = GcObject::allocBoundMethod();
+	BoundMethod *b = Gc::alloc<BoundMethod>();
 	b->binder      = Value(c);
 	b->func        = f;
 	b->type        = CLASS_BOUND;
@@ -83,7 +81,7 @@ BoundMethod *BoundMethod::from(Function *f, Class *c) {
 }
 
 BoundMethod *BoundMethod::from(Function *f, Object *o, Type t) {
-	BoundMethod *b = GcObject::allocBoundMethod();
+	BoundMethod *b = Gc::alloc<BoundMethod>();
 	b->binder      = Value(o);
 	b->func        = f;
 	b->type        = t;
@@ -91,7 +89,7 @@ BoundMethod *BoundMethod::from(Function *f, Object *o, Type t) {
 }
 
 BoundMethod *BoundMethod::from(Function *f, Value v, Type t) {
-	BoundMethod *b = GcObject::allocBoundMethod();
+	BoundMethod *b = Gc::alloc<BoundMethod>();
 	b->binder      = v;
 	b->func        = f;
 	b->type        = t;

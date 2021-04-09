@@ -29,7 +29,7 @@ template <typename T> struct CustomDeque {
 			size_t new_size = chunk_map_size * 2;
 			// allocate the new map
 			chunk_map =
-			    (T **)GcObject_realloc(chunk_map, sizeof(T *) * chunk_map_size,
+			    (T **)Gc_realloc(chunk_map, sizeof(T *) * chunk_map_size,
 			                           sizeof(T *) * new_size);
 			// make the new cells null
 			for(size_t i = chunk_map_size; i < new_size; i++)
@@ -78,11 +78,11 @@ template <typename T> struct CustomDeque {
 	}
 
 	void allocate_chunk_at(size_t idx) {
-		chunk_map[idx] = (T *)GcObject_malloc(sizeof(T) * ItemsPerChunk);
+		chunk_map[idx] = (T *)Gc_malloc(sizeof(T) * ItemsPerChunk);
 	}
 
 	void release_chunk_at(size_t idx) {
-		GcObject_free(chunk_map[idx], sizeof(T) * ItemsPerChunk);
+		Gc_free(chunk_map[idx], sizeof(T) * ItemsPerChunk);
 		chunk_map[idx] = nullptr;
 	}
 
@@ -153,7 +153,7 @@ template <typename T> struct CustomDeque {
 
 	CustomDeque<T>() {
 		// we'll allocate one chunk initially
-		chunk_map      = (T **)GcObject_malloc(sizeof(T *));
+		chunk_map      = (T **)Gc_malloc(sizeof(T *));
 		chunk_map_size = 1;
 		first_chunk_at = 0;
 		last_chunk_at  = 0;
@@ -164,7 +164,7 @@ template <typename T> struct CustomDeque {
 
 	~CustomDeque<T>() {
 		for(size_t i = 0; i < chunk_map_size; i++)
-			GcObject_free(chunk_map[i], sizeof(T) * ItemsPerChunk);
-		GcObject_free(chunk_map, sizeof(T *) * chunk_map_size);
+			Gc_free(chunk_map[i], sizeof(T) * ItemsPerChunk);
+		Gc_free(chunk_map, sizeof(T *) * chunk_map_size);
 	}
 };

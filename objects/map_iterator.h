@@ -21,12 +21,6 @@ struct MapIterator {
 	}
 
 	static MapIterator *from(Map *m);
-	static void         init();
-	void                mark() { GcObject::mark(vm); }
-	void                release() {}
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "map_iterator"; }
-#endif
+	static void         init(Class *c);
+	void                mark() { Gc::mark(vm); }
 };

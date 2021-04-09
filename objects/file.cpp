@@ -78,15 +78,15 @@ FILE *File::fopen(const void *name, const void *mode) {
 }
 
 Value File::create(FILE *f, uint8_t modes) {
-	File *fl       = GcObject::allocFile();
+	File *fl       = Gc::alloc<File>();
 	fl->streamSize = sizeof(FileStream);
-	fl->stream     = (Stream *)GcObject_malloc(sizeof(FileStream));
+	fl->stream     = (Stream *)Gc_malloc(sizeof(FileStream));
 	::new(fl->stream) FileStream(f, modes);
 	return Value(fl);
 }
 
 File *File::create(Stream *s) {
-	File *fl       = GcObject::allocFile();
+	File *fl       = Gc::alloc<File>();
 	fl->streamSize = 0;
 	fl->stream     = s;
 	return fl;
@@ -255,7 +255,7 @@ Value next_file_read_n(const Value *args, int numargs) {
 		TRYFORMATERROR("file.read(count) failed");
 	}
 	String2 s = String::from(dest.source);
-	GcObject_free((void *)dest.source, totallen + 1);
+	Gc_free((void *)dest.source, totallen + 1);
 	return Value(s);
 }
 
@@ -271,7 +271,7 @@ Value next_file_readall(const Value *args, int numargs) {
 		TRYFORMATERROR("file.readall() failed: reading failed");
 	}
 	String2 s = String::from(storage.source, size);
-	GcObject_free((void *)storage.source, size + 1);
+	Gc_free((void *)storage.source, size + 1);
 	return Value(s);
 }
 
@@ -292,10 +292,7 @@ Value next_file_fmt(const Value *args, int numargs) {
 	return ret;
 }
 
-void File::init() {
-	Class *FileClass = GcObject::FileClass;
-
-	FileClass->init("File", Class::ClassType::BUILTIN);
+void File::init(Class *FileClass) {
 	FileClass->add_builtin_fn("close()", 0, next_file_close);
 	FileClass->add_builtin_fn("flush()", 0, next_file_flush);
 	// movement

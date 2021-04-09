@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 BitsIterator *BitsIterator::from(Bits *b, TraversalType type) {
-	BitsIterator *bi  = GcObject::allocBitsIterator();
+	BitsIterator *bi  = Gc::alloc<BitsIterator>();
 	bi->bits          = b;
 	bi->idx           = 0;
 	bi->hasNext       = Value(0 < b->size);
@@ -15,10 +15,10 @@ Value next_bits_iterator_iterate(const Value *args, int numargs) {
 	return args[0];
 }
 
-void BitsIterator::init() {
-	Iterator::initIteratorClass(GcObject::BitsIteratorClass, "bits_iterator",
+void BitsIterator::init(Class *BitsIteratorClass) {
+	Iterator::initIteratorClass(BitsIteratorClass,
 	                            Iterator::Type::BitsIterator);
 	// returns itself. used by as_bytes()/as_ints()
-	GcObject::BitsIteratorClass->add_builtin_fn("iterate()", 0,
-	                                            next_bits_iterator_iterate);
+	BitsIteratorClass->add_builtin_fn("iterate()", 0,
+	                                  next_bits_iterator_iterate);
 }

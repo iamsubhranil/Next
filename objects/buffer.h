@@ -14,7 +14,7 @@ template <typename T> class Buffer {
 	Buffer() {
 		cap = 1;
 		s   = 0;
-		buf = (T *)GcObject_malloc(sizeof(T) * cap);
+		buf = (T *)Gc_malloc(sizeof(T) * cap);
 	}
 
 	// conservative denotes whether to allocate only
@@ -26,7 +26,7 @@ template <typename T> class Buffer {
 			size_t ns = res + 1;
 			if(!conservative)
 				ns = Utils::nextAllocationSize(cap, res);
-			buf = (T *)GcObject_realloc(buf, sizeof(T) * cap, sizeof(T) * ns);
+			buf = (T *)Gc_realloc(buf, sizeof(T) * cap, sizeof(T) * ns);
 			cap = ns;
 		}
 	}
@@ -48,7 +48,7 @@ template <typename T> class Buffer {
 	size_t size() { return s; }
 
 	void release() {
-		GcObject_free(buf, sizeof(T) * cap);
+		Gc_free(buf, sizeof(T) * cap);
 		buf = NULL;
 		cap = 0;
 		s   = 0;

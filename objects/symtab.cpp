@@ -41,6 +41,6 @@ const void *SymbolTable2::get(int64_t id) {
 }
 
 void SymbolTable2::mark() {
-	GcObject::mark(stringMap);
-	GcObject::mark(intMap);
+	Gc::mark(stringMap);
+	Gc::mark(intMap);
 }

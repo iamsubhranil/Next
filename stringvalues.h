@@ -60,6 +60,7 @@ SCONSTANT(sig_fmt2, "fmt(_,_)")
 SCONSTANT(sig_derive, " derive(_)")
 SCONSTANT(sig_next, "next()")
 SCONSTANT(field_has_next, "has_next")
+SCONSTANT(undefined, "<undefined>")
 
 SYMCONSTANT(sig_add)
 SYMCONSTANT(sig_sub)

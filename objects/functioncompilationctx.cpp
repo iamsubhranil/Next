@@ -2,26 +2,18 @@
 #include "bytecodecompilationctx.h"
 #include "class.h"
 
-void FunctionCompilationContext::init() {
-	Class *FunctionCompilationContextClass =
-	    GcObject::FunctionCompilationContextClass;
-
-	FunctionCompilationContextClass->init("function_compilation_context",
-	                                      Class::ClassType::BUILTIN);
-}
-
 FunctionCompilationContext *FunctionCompilationContext::create(String2 name,
                                                                int     arity,
                                                                bool    isStatic,
                                                                bool    isva) {
 	FunctionCompilationContext2 fcc =
-	    GcObject::allocFunctionCompilationContext();
+	    Gc::alloc<FunctionCompilationContext>();
 	fcc->slotCount = 0;
 	fcc->bcc       = NULL;
 	fcc->f         = NULL;
 	fcc->slotmap   = NULL;
 	// initialize the members
-	fcc->slotmap = (SlotMap *)GcObject_malloc(sizeof(SlotMap));
+	fcc->slotmap = (SlotMap *)Gc_malloc(sizeof(SlotMap));
 	::new(fcc->slotmap) SlotMap();
 	fcc->f       = Function::create(name, arity, isva, isStatic);
 	fcc->bcc     = BytecodeCompilationContext::create();

@@ -36,8 +36,6 @@ struct Printer {
 	static WritableStream &StdErrStream;
 	static ReadableStream &StdInStream;
 
-	static void init();
-
 	template <typename... T>
 	static std::size_t print(WritableStream &w, const T &...args) {
 		return w.write(args...);

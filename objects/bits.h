@@ -23,12 +23,6 @@ struct Bits {
 
 	void resize(int64_t newsize);
 
-	void mark() {}
-	void release() { GcObject_free(bytes, chunkcapacity); }
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "<bits>"; }
-#endif
-
-	static void init();
+	void        release() { Gc_free(bytes, chunkcount * ChunkSizeByte); }
+	static void init(Class *c);
 };

@@ -5,7 +5,7 @@
 #include "symtab.h"
 
 Range *Range::create(int64_t from, int64_t to, int64_t step) {
-	Range *r = GcObject::allocRange();
+	Range *r = Gc::alloc<Range>();
 
 	r->from = from;
 	r->to   = to;
@@ -75,10 +75,7 @@ Value next_range_iterate(const Value *args, int numargs) {
 	return RangeIterator::from(args[0].toRange());
 }
 
-void Range::init() {
-	Class *RangeClass = GcObject::RangeClass;
-
-	RangeClass->init("range", Class::ClassType::BUILTIN);
+void Range::init(Class *RangeClass) {
 	// methods
 	RangeClass->add_builtin_fn("(_)", 1, next_range_construct_1);
 	RangeClass->add_builtin_fn("(_,_)", 2, next_range_construct_2);

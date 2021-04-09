@@ -18,51 +18,19 @@ const char *Bytecode::OpcodeNames[] = {
 void Bytecode::push_back(Opcode code) {
 	if(size == capacity) {
 		size_t newcap = Utils::nextAllocationSize(capacity, size + 1);
-		bytecodes     = (Opcode *)GcObject_realloc(
-            bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * newcap);
-		capacity = newcap;
+		bytecodes = (Opcode *)Gc_realloc(bytecodes, sizeof(Opcode) * capacity,
+		                                 sizeof(Opcode) * newcap);
+		capacity  = newcap;
 	}
 	bytecodes[size++] = code;
 }
 
 void Bytecode::finalize() {
 	if(size != capacity - 1) {
-		bytecodes = (Opcode *)GcObject_realloc(
-		    bytecodes, sizeof(Opcode) * capacity, sizeof(Opcode) * size);
-		capacity = size;
+		bytecodes = (Opcode *)Gc_realloc(bytecodes, sizeof(Opcode) * capacity,
+		                                 sizeof(Opcode) * size);
+		capacity  = size;
 	}
-}
-
-int Bytecode::load_slot_n(int n) {
-	if(n < 8) {
-		switch(n) {
-			case 0: return load_slot_0();
-			case 1: return load_slot_1();
-			case 2: return load_slot_2();
-			case 3: return load_slot_3();
-			case 4: return load_slot_4();
-			case 5: return load_slot_5();
-			case 6: return load_slot_6();
-			case 7: return load_slot_7();
-		};
-	}
-	return load_slot(n);
-}
-
-int Bytecode::load_slot_n(int pos, int n) {
-	if(n < 8) {
-		switch(n) {
-			case 0: return load_slot_0(pos);
-			case 1: return load_slot_1(pos);
-			case 2: return load_slot_2(pos);
-			case 3: return load_slot_3(pos);
-			case 4: return load_slot_4(pos);
-			case 5: return load_slot_5(pos);
-			case 6: return load_slot_6(pos);
-			case 7: return load_slot_7(pos);
-		};
-	}
-	return load_slot(pos, n);
 }
 
 size_t Bytecode::getip() {
@@ -81,15 +49,9 @@ void Bytecode::insertSlot() {
 	numSlots++;
 }
 
-void Bytecode::init() {
-	Class *BytecodeClass = GcObject::BytecodeClass;
-
-	BytecodeClass->init("bytecode", Class::ClassType::BUILTIN);
-}
-
 Bytecode *Bytecode::create() {
-	Bytecode2 code     = GcObject::allocBytecode();
-	code->bytecodes    = (Opcode *)GcObject_malloc(sizeof(Opcode) * 1);
+	Bytecode2 code     = Gc::alloc<Bytecode>();
+	code->bytecodes    = (Opcode *)Gc_malloc(sizeof(Opcode) * 1);
 	code->size         = 0;
 	code->capacity     = 1;
 	code->stackSize    = 1;
@@ -97,12 +59,13 @@ Bytecode *Bytecode::create() {
 	code->ctx          = NULL;
 	code->values       = NULL;
 	code->numSlots     = 0;
-	code->values       = Array::create(1);
+	code->values       = NULL;
+	code->num_values   = 0;
 	return code;
 }
 
 #define next_int() (*ip++)
-#define next_Value() (values->values[next_int()])
+#define next_Value() (values[next_int()])
 Bytecode *Bytecode::create_derived(int offset) {
 	Bytecode2 b     = Bytecode::create();
 	b->numSlots     = numSlots;
@@ -113,7 +76,9 @@ Bytecode *Bytecode::create_derived(int offset) {
 		Opcode o = *(ip++);
 		if(o == CODE_load_object_slot || o == CODE_store_object_slot ||
 		   o == CODE_load_module || o == CODE_construct ||
-		   o == CODE_call_intra || o == CODE_call_method_super) {
+		   o == CODE_call_intra || o == CODE_call_method_super ||
+		   o == CODE_call_fast_prepare || o == CODE_bcall_fast_prepare ||
+		   o == CODE_load_field_fast || o == CODE_store_field_fast) {
 			switch(o) {
 				case CODE_load_object_slot:
 					b->load_object_slot(next_int() + offset);
@@ -134,6 +99,26 @@ Bytecode *Bytecode::create_derived(int offset) {
 						b->call_method_super(SymbolTable2::insert(sym), arity);
 					break;
 				}
+				case CODE_call_fast_prepare:
+					next_int(); // ignore the index
+					b->call_fast_prepare(b->add_constant(ValueNil, false),
+					                     next_int());
+					b->add_constant(ValueNil, false);
+					break;
+				case CODE_bcall_fast_prepare:
+					next_int(); // ignore the index
+					b->bcall_fast_prepare(b->add_constant(ValueNil, false));
+					break;
+				case CODE_load_field_fast:
+					next_int(); // ignore the index
+					next_int(); // ignore the slot
+					b->load_field_fast(b->add_constant(ValueNil, false), 0);
+					break;
+				case CODE_store_field_fast:
+					next_int(); // ignore the index
+					next_int(); // ignore the slot
+					b->store_field_fast(b->add_constant(ValueNil, false), 0);
+					break;
 
 				default: break;
 			}
@@ -180,8 +165,8 @@ void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 			break;
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
-			switch(o->objType) {
-#define OBJTYPE(n)                               \
+			switch(o->getType()) {
+#define OBJTYPE(n, c)                            \
 	case GcObject::OBJ_##n:                      \
 		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \
 		break;
@@ -199,11 +184,18 @@ void Bytecode::disassemble_int(WritableStream &os, const Opcode *o) {
 }
 
 void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
-	disassemble_Value(os, values->values[(int)*o]);
+	disassemble_Value(os, values[(int)*o]);
+	os.write("\t(", (int)*o, ")");
 }
 
 void Bytecode::disassemble(WritableStream &os) {
 	os.write("StackSize: ", stackMaxSize, "\n");
+	int cache = 0;
+	for(int i = 0; i < num_values; i++) {
+		if(values[i] == ValueNil)
+			cache++;
+	}
+	os.write("Locals: ", num_values, " (Cache ", cache, ")\n");
 	os.write("Bytecodes: \n");
 	for(size_t i = 0; i < size;) {
 		disassemble(os, bytecodes, &i);

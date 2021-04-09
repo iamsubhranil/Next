@@ -3,14 +3,32 @@
 #include "../import.h"
 #include "../loader.h"
 #include "../printer.h"
+#include "array.h"
+#include "array_iterator.h"
+#include "bits.h"
+#include "bits_iterator.h"
+#include "boundmethod.h"
 #include "buffer.h"
+#include "builtin_module.h"
+#include "bytecode.h"
 #include "bytecodecompilationctx.h"
+#include "class.h"
 #include "classcompilationctx.h"
 #include "errors.h"
 #include "fiber.h"
 #include "file.h"
+#include "function.h"
 #include "functioncompilationctx.h"
+#include "map.h"
+#include "map_iterator.h"
+#include "nil.h"
+#include "range.h"
+#include "range_iterator.h"
+#include "set.h"
+#include "set_iterator.h"
 #include "symtab.h"
+#include "tuple.h"
+#include "tuple_iterator.h"
 
 #include <time.h>
 
@@ -99,7 +117,7 @@ Value next_core_yield_1(const Value *args, int numargs) {
 Value next_core_gc(const Value *args, int numargs) {
 	(void)args;
 	(void)numargs;
-	GcObject::gc(true);
+	Gc::gc(true);
 	return ValueNil;
 }
 
@@ -236,7 +254,7 @@ Value next_core_import1(const Value *args, int arity) {
 	}*/
 	// get the file name
 	Fiber *   f  = ExecutionEngine::getCurrentFiber();
-	Function *fu = f->callFrames[f->callFramePointer - 1].f;
+	Function *fu = (f->callFramePointer - 1)->f;
 	if(fu->getType() == Function::Type::BUILTIN) {
 		RERR("Builtin functions cannot call import(_)!");
 	}
@@ -305,47 +323,84 @@ Value next_core_import2(const Value *args, int numargs) {
 	return next_core_import1(parts->values, parts->size);
 }
 
-void add_builtin_fn(const char *n, int arity, next_builtin_fn fn,
-                    bool isva = false) {
-	String2   s = String::from(n);
-	Function2 f = Function::from(s, arity, fn, isva);
-	GcObject::CoreContext->add_public_fn(s, f);
-}
-
-void Core::addCoreFunctions() {
-	add_builtin_fn("clock()", 0, next_core_clock);
-	add_builtin_fn("type_of(_)", 1, next_core_type_of);
-	add_builtin_fn("is_same_type(_,_)", 2, next_core_is_same_type);
-	add_builtin_fn("yield()", 0, next_core_yield_0, false);  // can switch
-	add_builtin_fn("yield(_)", 1, next_core_yield_1, false); // can switch
-	add_builtin_fn("gc()", 0, next_core_gc);
-	add_builtin_fn("input()", 0, next_core_input0);
-	add_builtin_fn("exit()", 0, next_core_exit);
-	add_builtin_fn("exit(_)", 1, next_core_exit1);
-	add_builtin_fn("input(_)", 1, next_core_input1, false);   // can nest
-	add_builtin_fn(" import(_)", 1, next_core_import1, true); // is va, can nest
-	add_builtin_fn("import_file(_)", 1, next_core_import2, false); // can nest
+void addCoreFunctions(BuiltinModule *m) {
+	m->add_builtin_fn("clock()", 0, next_core_clock);
+	m->add_builtin_fn("type_of(_)", 1, next_core_type_of);
+	m->add_builtin_fn("is_same_type(_,_)", 2, next_core_is_same_type);
+	m->add_builtin_fn("yield()", 0, next_core_yield_0, false);  // can switch
+	m->add_builtin_fn("yield(_)", 1, next_core_yield_1, false); // can switch
+	m->add_builtin_fn("gc()", 0, next_core_gc);
+	m->add_builtin_fn("input()", 0, next_core_input0);
+	m->add_builtin_fn("exit()", 0, next_core_exit);
+	m->add_builtin_fn("exit(_)", 1, next_core_exit1);
+	m->add_builtin_fn("input(_)", 1, next_core_input1, false); // can nest
+	m->add_builtin_fn(" import(_)", 1, next_core_import1,
+	                  true); // is va, can nest
+	m->add_builtin_fn("import_file(_)", 1, next_core_import2,
+	                  false); // can nest
 	// all of these can nest
-	add_builtin_fn("print()", 0, next_core_print, true);
-	add_builtin_fn("println()", 0, next_core_println, true);
-	add_builtin_fn("fmt(_)", 1, next_core_format, true);
-	add_builtin_fn(" printRepl(_)", 1, next_core_printRepl, true);
-	add_builtin_fn("str(_)", 1,
-	               next_core_str); // calls str(_) or str() appropriately
+	m->add_builtin_fn("print()", 0, next_core_print, true);
+	m->add_builtin_fn("println()", 0, next_core_println, true);
+	m->add_builtin_fn("fmt(_)", 1, next_core_format, true);
+	m->add_builtin_fn(" printRepl(_)", 1, next_core_printRepl, true);
+	m->add_builtin_fn("str(_)", 1,
+	                  next_core_str); // calls str(_) or str() appropriately
 }
 
-void addClocksPerSec() {
-	String2 n = String::from("clocks_per_sec");
-	GcObject::CoreContext->add_public_mem(n);
-	int s = GcObject::CoreContext->get_mem_slot(n);
-	GcObject::CoreContext->defaultConstructor->bcc->push(Value(CLOCKS_PER_SEC));
-	GcObject::CoreContext->defaultConstructor->bcc->store_object_slot(s);
+void addClocksPerSec(BuiltinModule *m) {
+	m->add_builtin_variable("clocks_per_sec", Value(CLOCKS_PER_SEC));
 }
 
-void Core::addCoreVariables() {
-	addClocksPerSec();
+void addCoreVariables(BuiltinModule *m) {
+	addClocksPerSec(m);
+}
+
+void Core::preInit() {
+	// first, create all the classes, and
+	// then call init
+	// this helps us not to rebind the objects
+	// with their classes once they are created,
+	// since all of the init functions of all
+	// classes allocate some kind of object.
+	// we also manually track them as temporaries
+	// to keep them from garbage collected.
+#define OBJTYPE(x, c)                    \
+	Class *x##Class = Class::create();   \
+	Gc::trackTemp((GcObject *)x##Class); \
+	BuiltinModule::register_hooks<x>(x##Class);
+	// add primitive classes
+	OBJTYPE(Number, "")
+	OBJTYPE(Boolean, "")
+	OBJTYPE(Nil, "")
+#include "../objecttype.h"
+
+	// initialize the string set and symbol table
+	String::init0();
+	SymbolTable2::init();
+
+	Gc::temporaryObjects->obj.setClass(SetClass);
+}
+
+void addCoreClasses(BuiltinModule *m) {
+	// remove them from the temporary set after they
+	// are garbage collected
+#define OBJTYPE(x, c)                              \
+	m->add_builtin_class<x>(Classes::get<x>(), c); \
+	Gc::untrackTemp((GcObject *)Classes::get<x>());
+#include "../objecttype.h"
+	// primitive classes are needed to be initialized after
+	// the Class itself is done.
+#define OBJTYPE(x, c)                              \
+	m->add_builtin_class<x>(Classes::get<x>(), c); \
+	Gc::untrackTemp((GcObject *)Classes::get<x>());
+	OBJTYPE(Number, "number")
+	OBJTYPE(Boolean, "bool")
+	OBJTYPE(Nil, "nil")
 }
 
 void Core::init(BuiltinModule *m) {
-	(void)m;
+	addCoreClasses(m);
+
+	addCoreFunctions(m);
+	addCoreVariables(m);
 }

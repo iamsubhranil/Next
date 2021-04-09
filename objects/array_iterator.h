@@ -21,12 +21,6 @@ struct ArrayIterator {
 
 	static ArrayIterator *from(Array *a);
 
-	static void init();
-	void        mark() { GcObject::mark(arr); }
-	void        release() {}
-
-#ifdef DEBUG_GC
-	void             depend() {}
-	const Utf8Source gc_repr() { return Utf8Source("array_iterator"); }
-#endif
+	static void init(Class *c);
+	void        mark() { Gc::mark(arr); }
 };

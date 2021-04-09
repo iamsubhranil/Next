@@ -294,7 +294,7 @@ class Parser {
 	getInfixParselet(Token::Type type); // return an infixparselet for the token
 	// release the parselets
 	void releaseAll();
-	void mark() { GcObject::mark(declarations); }
+	void mark() { Gc::mark(declarations); }
 };
 
 class ParseException : public std::runtime_error {

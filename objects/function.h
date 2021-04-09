@@ -22,7 +22,8 @@ struct Exception {
 
 struct Function {
 	GcObject obj;
-	String * name;
+
+	String *name;
 	union {
 		Bytecode *      code;
 		next_builtin_fn func;
@@ -55,7 +56,7 @@ struct Function {
 	// a new one, and return that.
 	Exception *create_exception_block(int from, int to);
 
-	static void      init();
+	static void      init(Class *c);
 	static Function *create(const String2 &name, int arity, bool isva = false,
 	                        bool isStatic = false);
 	static Function *from(const char *str, int arity, next_builtin_fn fn,
@@ -71,20 +72,20 @@ struct Function {
 	Function *create_derived(int slotoffset);
 
 	// gc functions
-	void mark() const {
-		GcObject::mark(name);
+	void mark() {
+		Gc::mark(name);
 		if(getType() != BUILTIN) {
-			GcObject::mark(code);
+			Gc::mark(code);
 		}
 	}
 
-	void release() const {
+	void release() {
 		for(size_t i = 0; i < numExceptions; i++) {
 			Exception e = exceptions[i];
-			GcObject_free(e.catches, sizeof(CatchBlock) * e.numCatches);
+			Gc_free(e.catches, sizeof(CatchBlock) * e.numCatches);
 		}
 		if(numExceptions > 0)
-			GcObject_free(exceptions, sizeof(Exception) * numExceptions);
+			Gc_free(exceptions, sizeof(Exception) * numExceptions);
 	}
 
 #ifdef DEBUG
@@ -92,7 +93,7 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(name); }
+	void          depend() { Gc::depend(name); }
 	const String *gc_repr() { return name; }
 #endif
 };

@@ -294,7 +294,7 @@ Statement *FnDeclaration::parse(Parser *p, Token t, Visibility vis) {
 void ClassDeclaration::registerParselet(Token::Type t, StatementParselet *p) {
 	if(!classBodyParselets) { // if the map is not allocated, allocate it
 		classBodyParselets =
-		    (ClassBodyParselet *)GcObject_malloc(sizeof(ClassBodyParselet));
+		    (ClassBodyParselet *)Gc_malloc(sizeof(ClassBodyParselet));
 		::new(classBodyParselets) ClassBodyParselet();
 	}
 	if(!classBodyParselets->contains(t))

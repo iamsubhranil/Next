@@ -5,25 +5,19 @@
 #include "errors.h"
 
 struct Tuple {
-	GcObject      obj;
+	GcObject obj;
+
 	int           size;
 	static Tuple *create(int size);
 
 	inline Value *values() const { return (Value *)(this + 1); }
 
-	static void init();
+	static void init(Class *c);
 
 	void mark() {
 		Value *v = (Value *)(this + 1);
 		for(int i = 0; i < size; i++) {
-			GcObject::mark(v[i]);
+			Gc::mark(v[i]);
 		}
 	}
-
-	void release() const {}
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "tuple"; }
-#endif
 };

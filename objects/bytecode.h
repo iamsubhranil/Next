@@ -41,7 +41,8 @@ struct Bytecode {
 	// Hence, this array stores the live objects
 	// on the bytecode, and marks them in case of
 	// a gc.
-	Array *values;
+	Value *values;
+	size_t num_values;
 
 #define OPCODE0(x, y)              \
 	size_t x() {                   \
@@ -68,20 +69,20 @@ struct Bytecode {
 		return pos;                \
 	};
 
-#define OPCODE2(x, y, z, w)                    \
-	size_t x(z arg1, w arg2) {                 \
-		stackEffect(y);                        \
-		size_t bak = size;                     \
-		push_back(CODE_##x);                   \
-		insert_##z(arg1);                      \
-		insert_##w(arg2);                      \
-		return bak;                            \
-	};                                         \
-	size_t x(size_t pos, z arg1, w arg2) {     \
-		bytecodes[pos] = CODE_##x;             \
-		insert_##z(pos + 1, arg1);             \
-		insert_##w(pos + 1 + sizeof(z), arg2); \
-		return pos;                            \
+#define OPCODE2(x, y, z, w)                                       \
+	size_t x(z arg1, w arg2) {                                    \
+		stackEffect(y);                                           \
+		size_t bak = size;                                        \
+		push_back(CODE_##x);                                      \
+		insert_##z(arg1);                                         \
+		insert_##w(arg2);                                         \
+		return bak;                                               \
+	};                                                            \
+	size_t x(size_t pos, z arg1, w arg2) {                        \
+		bytecodes[pos] = CODE_##x;                                \
+		insert_##z(pos + 1, arg1);                                \
+		insert_##w(pos + 1 + (sizeof(z) / sizeof(Opcode)), arg2); \
+		return pos;                                               \
 	};
 #include "../opcodes.h"
 
@@ -101,13 +102,18 @@ struct Bytecode {
 	insert_type(int);
 
 	int add_constant(int x) { return x; }
-	int add_constant(Value v) const {
-		for(int i = 0; i < values->size; i++) {
-			if(values->values[i] == v)
-				return i;
+	int add_constant(Value v, bool check = true) {
+		if(check) {
+			for(size_t i = 0; i < num_values; i++) {
+				if(values[i] == v)
+					return i;
+			}
 		}
-		values->insert(v);
-		return (values->size - 1);
+		values = (Value *)Gc_realloc(values, sizeof(Value) * num_values,
+		                             sizeof(Value) * (num_values + 1));
+		values[num_values] = v;
+		num_values++;
+		return (num_values - 1);
 	}
 
 	void stackEffect(int x);
@@ -117,13 +123,7 @@ struct Bytecode {
 	// remove excess allocation
 	void finalize();
 
-	// optimized opcode instructions
-	int load_slot_n(int n);
-	int load_slot_n(int pos, int n);
-
-	size_t getip();
-
-	static void      init();
+	size_t           getip();
 	static Bytecode *create();
 
 	// creates a copy of this bytecode for a derived class
@@ -134,14 +134,15 @@ struct Bytecode {
 	// 4) btx points to the same context
 	Bytecode *create_derived(int offset);
 
-	void mark() const {
-		GcObject::mark(values);
+	void mark() {
+		Gc::mark(values, num_values);
 		if(ctx != NULL)
-			GcObject::mark(ctx);
+			Gc::mark(ctx);
 	}
 
-	void release() const {
-		GcObject_free(bytecodes, sizeof(Opcode) * capacity);
+	void release() {
+		Gc_free(bytecodes, sizeof(Opcode) * capacity);
+		Gc_free(values, sizeof(Value) * num_values);
 	}
 
 #ifdef DEBUG
@@ -154,8 +155,4 @@ struct Bytecode {
 	void disassemble(WritableStream &os, const Opcode *o, size_t *ip = NULL);
 #endif
 	static const char *OpcodeNames[];
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "bytecode"; }
-#endif
 };

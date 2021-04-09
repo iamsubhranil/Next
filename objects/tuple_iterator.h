@@ -17,12 +17,6 @@ struct TupleIterator {
 
 	static TupleIterator *from(Tuple *a);
 
-	static void init();
-	void        mark() { GcObject::mark(tup); }
-	void        release() {}
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "tuple_iterator"; }
-#endif
+	static void init(Class *c);
+	void        mark() { Gc::mark(tup); }
 };

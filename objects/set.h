@@ -6,22 +6,18 @@
 
 struct Set {
 	GcObject               obj;
+	static Class *         klass;
 	typedef HashSet<Value> SetType;
 	SetType                hset;
 	static Set *           create();
-	static void            init();
+	static void            init(Class *c);
 
 	// gc functions
-	void mark() const {
+	void mark() {
 		for(auto v : hset) {
-			GcObject::mark(v);
+			Gc::mark(v);
 		}
 	}
 
-	void release() const { hset.~SetType(); }
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "set"; }
-#endif
+	void release() { hset.~SetType(); }
 };

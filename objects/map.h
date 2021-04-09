@@ -5,10 +5,11 @@
 
 struct Map {
 	GcObject                      obj;
+	static Class *                klass;
 	typedef HashMap<Value, Value> MapType;
 	MapType                       vv;
 	static Map *                  create();
-	static void                   init();
+	static void                   init(Class *c);
 	Value &                       operator[](const Value &v);
 	Value &                       operator[](Value &&v);
 
@@ -17,16 +18,12 @@ struct Map {
 	static Map *from(const Value *args, int numArg);
 
 	// gc functions
-	void mark() const {
+	void mark() {
 		for(auto kv : vv) {
-			GcObject::mark(kv.first);
-			GcObject::mark(kv.second);
+			Gc::mark(kv.first);
+			Gc::mark(kv.second);
 		}
 	}
 
-	void release() const { vv.~MapType(); }
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "map"; }
-#endif
+	void release() { vv.~MapType(); }
 };

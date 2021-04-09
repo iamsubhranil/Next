@@ -186,7 +186,7 @@ void *utf8dup(const void *src) {
 	// first
 	size_t bytes = utf8size(src) + 1;
 
-	n = (char *)GcObject_malloc(bytes);
+	n = (char *)Gc_malloc(bytes);
 
 	if(utf8_null == n) {
 		// out of memory so we bail
@@ -456,7 +456,7 @@ void *utf8ndup(const void *src, size_t n) {
 	// to be used later in the copy byte by byte.
 	n = bytes;
 
-	c = (char *)GcObject_malloc(bytes + 1);
+	c = (char *)Gc_malloc(bytes + 1);
 	if(utf8_null == c) {
 		// out of memory so we bail
 		return utf8_null;

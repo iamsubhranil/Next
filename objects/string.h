@@ -15,6 +15,7 @@ typedef void(string_transform)(void *dest, size_t size);
 
 struct String {
 	GcObject          obj;
+	static Class *    klass;
 	int               size; // size in bytes, excluding the \0
 	int               hash_;
 	int               length; // number of codepoints
@@ -37,13 +38,15 @@ struct String {
 	static StringSet *keep_set;
 	static StringSet *string_set;
 	static void       init0();
-	static void       init();
-	static String *   from(utf8_int32_t c);
-	static String *   from(const void *val) { return from(val, utf8size(val)); }
-	static String *   from(const Utf8Source &val) { return from(val.source); }
-	static String *   from(const void *val, size_t size);
-	static String *   from(const Utf8Source &val, size_t size) {
-        return from(val.source, size);
+	// patch the class of the constant strings after the string class is created
+	static void    patch_const_str(Class *stringClass);
+	static void    init(Class *c);
+	static String *from(utf8_int32_t c);
+	static String *from(const void *val) { return from(val, utf8size(val)); }
+	static String *from(const Utf8Source &val) { return from(val.source); }
+	static String *from(const void *val, size_t size);
+	static String *from(const Utf8Source &val, size_t size) {
+		return from(val.source, size);
 	}
 	static String *from(const void *start, const void *end, size_t len);
 	static String *from(const void *val, size_t size,

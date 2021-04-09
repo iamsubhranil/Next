@@ -7,7 +7,7 @@
 #include "tuple_iterator.h"
 
 Tuple *Tuple::create(int size) {
-	Tuple *t = GcObject::allocTuple2(size);
+	Tuple *t = Gc::allocTuple2(size);
 	t->size  = size;
 	Utils::fillNil(t->values(), size);
 	return t;
@@ -30,7 +30,7 @@ Value next_tuple_copy(const Value *args, int numargs) {
 	// we avoid Tuple::create here, because
 	// that's going to call fillNil. The slots
 	// are going to be written over anyway.
-	Tuple *nt = GcObject::allocTuple2(t->size);
+	Tuple *nt = Gc::allocTuple2(t->size);
 	nt->size  = t->size;
 	memcpy(nt->values(), t->values(), sizeof(Value) * t->size);
 	return Value(nt);
@@ -106,10 +106,7 @@ Value next_tuple_str(const Value *args, int numargs) {
 	return ValueTrue;
 }
 
-void Tuple::init() {
-	Class *TupleClass = GcObject::TupleClass;
-
-	TupleClass->init("tuple", Class::ClassType::BUILTIN);
+void Tuple::init(Class *TupleClass) {
 	TupleClass->add_builtin_fn("(_)", 1, next_tuple_construct_1);
 	TupleClass->add_builtin_fn("copy()", 0, next_tuple_copy);
 	TupleClass->add_builtin_fn("iterate()", 0, next_tuple_iterate);

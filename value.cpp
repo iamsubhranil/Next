@@ -1,7 +1,11 @@
 #include "value.h"
 #include "engine.h"
+#include "objects/boolean.h"
 #include "objects/class.h"
+#include "objects/classes.h"
 #include "objects/file.h"
+#include "objects/nil.h"
+#include "objects/number.h"
 #include "objects/string.h"
 #include "objects/symtab.h"
 #include "stream.h"
@@ -13,6 +17,10 @@ String *Value::ValueTypeStrings[] = {
 #include "valuetypes.h"
 };
 
+Class *Value::NumberClass  = nullptr;
+Class *Value::BooleanClass = nullptr;
+Class *Value::NilClass     = nullptr;
+
 void Value::init() {
 	int i = 0;
 
@@ -20,6 +28,10 @@ void Value::init() {
 	ValueTypeStrings[i++] = String::const_Nil;
 #define TYPE(r, n) ValueTypeStrings[i++] = String::const_type_##n;
 #include "valuetypes.h"
+
+	NumberClass  = Classes::get<Number>();
+	BooleanClass = Classes::get<Boolean>();
+	NilClass     = Classes::get<Nil>();
 }
 
 Value Value::write(File *f) const {

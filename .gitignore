@@ -390,3 +390,5 @@ MigrationBackup/
 FodyWeavers.xsd
 
 tests/file_write_test.next
+
+*.dll

@@ -46,12 +46,6 @@ struct BitsIterator {
 
 	static BitsIterator *from(Bits *b, TraversalType type = BIT);
 
-	static void init();
-	void        mark() { GcObject::mark(bits); }
-	void        release() {}
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "bits_iterator"; }
-#endif
+	static void init(Class *c);
+	void        mark() { Gc::mark(bits); }
 };

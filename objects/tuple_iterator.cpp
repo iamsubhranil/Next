@@ -2,7 +2,7 @@
 #include "iterator.h"
 
 TupleIterator *TupleIterator::from(Tuple *a) {
-	TupleIterator *ti = GcObject::allocTupleIterator();
+	TupleIterator *ti = Gc::alloc<TupleIterator>();
 	ti->tup           = a;
 	ti->idx           = 0;
 	ti->hasNext       = Value(0 < a->size);
@@ -10,7 +10,7 @@ TupleIterator *TupleIterator::from(Tuple *a) {
 	return ti;
 }
 
-void TupleIterator::init() {
-	Iterator::initIteratorClass(GcObject::TupleIteratorClass, "tuple_iterator",
+void TupleIterator::init(Class *TupleIteratorClass) {
+	Iterator::initIteratorClass(TupleIteratorClass,
 	                            Iterator::Type::TupleIterator);
 }

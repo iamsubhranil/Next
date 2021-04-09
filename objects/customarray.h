@@ -14,18 +14,18 @@ template <typename T, std::size_t mincap = 0> struct CustomArray {
 		if(mincap > 0)
 			resize(mincap);
 	}
-	~CustomArray<T, mincap>() { GcObject_free(obj, sizeof(T) * capacity); }
+	~CustomArray<T, mincap>() { Gc_free(obj, sizeof(T) * capacity); }
 
 	static CustomArray<T, mincap> *create() {
-		CustomArray<T, mincap> *ret = (CustomArray<T, mincap> *)GcObject_malloc(
+		CustomArray<T, mincap> *ret = (CustomArray<T, mincap> *)Gc_malloc(
 		    sizeof(CustomArray<T, mincap>));
 		::new(ret) CustomArray<T, mincap>();
 		return ret;
 	}
 
 	static void release(CustomArray<T> *t) {
-		GcObject_free(t->obj, sizeof(T) * t->capacity);
-		GcObject_free(t, sizeof(CustomArray<T, mincap>));
+		Gc_free(t->obj, sizeof(T) * t->capacity);
+		Gc_free(t, sizeof(CustomArray<T, mincap>));
 	}
 
 	T &at(size_t idx) { return obj[idx]; }
@@ -38,7 +38,7 @@ template <typename T, std::size_t mincap = 0> struct CustomArray {
 	void resize(size_t newSize) {
 		if(newSize > capacity) {
 			newSize  = Utils::nextAllocationSize(capacity, newSize);
-			obj      = (T *)GcObject_realloc(obj, sizeof(T) * capacity,
+			obj      = (T *)Gc_realloc(obj, sizeof(T) * capacity,
                                         sizeof(T) * newSize);
 			capacity = newSize;
 		}
@@ -48,7 +48,7 @@ template <typename T, std::size_t mincap = 0> struct CustomArray {
 			size_t newSize = mincap;
 			if(size > mincap)
 				newSize = Utils::nextAllocationSize(0, size);
-			obj      = (T *)GcObject_realloc(obj, sizeof(T) * capacity,
+			obj      = (T *)Gc_realloc(obj, sizeof(T) * capacity,
                                         sizeof(T) * newSize);
 			capacity = newSize;
 		}

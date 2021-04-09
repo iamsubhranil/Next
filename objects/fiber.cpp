@@ -14,16 +14,15 @@
 #define FIBER_DEFAULT_FRAME_ALLOC 4
 
 Fiber *Fiber::create(Fiber *parent) {
-	Fiber *f = GcObject::allocFiber();
-	f->stack_ =
-	    (Value *)GcObject_malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
+	Fiber *f  = Gc::alloc<Fiber>();
+	f->stack_ = (Value *)Gc_malloc(sizeof(Value) * FIBER_DEFAULT_STACK_ALLOC);
 	Utils::fillNil(f->stack_, FIBER_DEFAULT_STACK_ALLOC);
 	f->stackTop  = f->stack_;
 	f->stackSize = FIBER_DEFAULT_STACK_ALLOC;
 
-	f->callFrames       = (CallFrame *)GcObject_malloc(sizeof(CallFrame) *
-                                                 FIBER_DEFAULT_FRAME_ALLOC);
-	f->callFramePointer = 0;
+	f->callFrameBase =
+	    (CallFrame *)Gc_malloc(sizeof(CallFrame) * FIBER_DEFAULT_FRAME_ALLOC);
+	f->callFramePointer = f->callFrameBase;
 	f->callFrameSize    = FIBER_DEFAULT_FRAME_ALLOC;
 	f->parent           = parent;
 
@@ -39,8 +38,8 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, int numArgs,
 			return appendMethodNoBuiltin(f, numArgs, returnToCaller);
 		case Function::BUILTIN:
 			ensureFrame();
-			callFrames[callFramePointer].f              = f;
-			callFrames[callFramePointer].returnToCaller = returnToCaller;
+			callFramePointer->f              = f;
+			callFramePointer->returnToCaller = returnToCaller;
 			// the only way a builtin_fn can be appended to the
 			// call stack is by appendBoundMethod, which
 			// manually lays down the arguments to the stack
@@ -48,14 +47,14 @@ Fiber::CallFrame *Fiber::appendMethod(Function *f, int numArgs,
 			// present on the stack.
 			// we don't need slot for the args
 			// ensureStack(f->arity);
-			callFrames[callFramePointer].func = f->func;
+			callFramePointer->func = f->func;
 			// the 0th slot is reserved for the receiver
-			callFrames[callFramePointer].stack_ = &stackTop[-numArgs - 1];
+			callFramePointer->stack_ = stackTop - numArgs - 1;
 			// stackTop += f->arity;
 			break;
 	}
 
-	return &callFrames[callFramePointer++];
+	return callFramePointer++;
 }
 
 Fiber::CallFrame *Fiber::appendBoundMethodDirect(Value v, Function *f,
@@ -132,7 +131,7 @@ Value Fiber::run() {
 			}
 			// if don't have any more frames in this
 			// fiber, we switch
-			if(callFramePointer == 0) {
+			if(callFrameCount() == 0) {
 				setState(Fiber::FINISHED);
 				ExecutionEngine::setCurrentFiber(bak);
 				return result;
@@ -241,10 +240,7 @@ Value next_fiber_construct_x(const Value *args, int numargs) {
 	return Value(f);
 }
 
-void Fiber::init() {
-	Class *FiberClass = GcObject::FiberClass;
-
-	FiberClass->init("fiber", Class::ClassType::BUILTIN);
+void Fiber::init(Class *FiberClass) {
 
 	/*
 	 *  So the fiber api should look like the following

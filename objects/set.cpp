@@ -5,7 +5,7 @@
 #include "set_iterator.h"
 
 Set *Set::create() {
-	Set2 v = GcObject::allocSet();
+	Set2 v = Gc::alloc<Set>();
 	::new(&v->hset) SetType();
 	return v;
 }
@@ -91,11 +91,8 @@ Value next_set_construct(const Value *args, int numargs) {
 	return Value(Set::create());
 }
 
-void Set::init() {
-	Class *SetClass = GcObject::SetClass;
-
+void Set::init(Class *SetClass) {
 	// Initialize set class
-	SetClass->init("set", Class::BUILTIN);
 	SetClass->add_builtin_fn("()", 0, next_set_construct);
 	SetClass->add_builtin_fn("clear()", 0, next_set_clear);
 	SetClass->add_builtin_fn_nest("insert(_)", 1,

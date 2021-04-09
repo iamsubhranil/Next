@@ -73,11 +73,7 @@ Value next_format_spec_type(const Value *args, int numargs) {
 	return String::from(&type, 1);
 }
 
-void FormatSpec::init() {
-	Class *FormatSpecClass = GcObject::FormatSpecClass;
-
-	FormatSpecClass->init("format_spec", Class::ClassType::BUILTIN);
-
+void FormatSpec::init(Class *FormatSpecClass) {
 	FormatSpecClass->add_builtin_fn("align()", 0, next_format_spec_align);
 	FormatSpecClass->add_builtin_fn("fill()", 0, next_format_spec_fill);
 	FormatSpecClass->add_builtin_fn("sign()", 0, next_format_spec_sign);
@@ -92,7 +88,7 @@ void FormatSpec::init() {
 FormatSpec *FormatSpec::from(char align, char fill, char sign, bool isalt,
                              bool signaware, int width, int precision,
                              char type) {
-	FormatSpec *fs = GcObject::allocFormatSpec();
+	FormatSpec *fs = Gc::alloc<FormatSpec>();
 	fs->align      = align;
 	fs->fill       = fill;
 	fs->sign       = sign;

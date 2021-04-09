@@ -6,6 +6,7 @@
 
 struct Loader {
 	GcObject obj;
+
 	// All error handling is done internally.
 	// The function just returns a NULL to
 	// denote a (un)successful load.
@@ -36,14 +37,6 @@ struct Loader {
 			parser.mark();
 		}
 		if(!replModule.isNil())
-			GcObject::mark(replModule);
+			Gc::mark(replModule);
 	}
-	void release() {}
-
-	static void init();
-
-#ifdef DEBUG_GC
-	void             depend() {}
-	const Utf8Source gc_repr() { return Utf8Source("loader"); }
-#endif
 };

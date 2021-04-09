@@ -5,9 +5,10 @@
 
 struct Array {
 	GcObject obj;
-	Value *  values;
-	int      capacity;
-	int      size;
+
+	Value *values;
+	int    capacity;
+	int    size;
 
 	// array functions
 	static Array *create(int capacity);
@@ -18,15 +19,10 @@ struct Array {
 
 	Array *copy();
 	// class loader
-	static void init();
+	static void init(Class *c);
 
 	// gc functions
-	void mark() const { GcObject::mark(values, size); }
+	void mark() { Gc::mark(values, size); }
 
-	void release() const { GcObject_free(values, sizeof(Value) * capacity); }
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "array"; }
-#endif
+	void release() { Gc_free(values, sizeof(Value) * capacity); }
 };

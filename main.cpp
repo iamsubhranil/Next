@@ -1,4 +1,5 @@
 #include "loader.h"
+#include "objects/builtin_module.h"
 #include "printer.h"
 
 #include <clocale>
@@ -33,7 +34,7 @@ String *getline() {
 		return NULL;
 	String2 lines = String::from(line, s);
 	if(s > 0)
-		GcObject_free((void *)line.source, s);
+		Gc_free((void *)line.source, s);
 	return lines;
 }
 
@@ -45,9 +46,21 @@ int main(int argc, char *argv[]) {
 #define TYPE(r, n) Printer::fmt(#n " : {:x}\n", (uintptr_t)QNAN_##n);
 #include "valuetypes.h"
 #endif
-	GcObject::init();
+	// initialize the Gc, which in turn
+	// inits any custom memory allocators in
+	// use.
+	Gc::init();
+	// then, init core as everybody else
+	Value core = BuiltinModule::initBuiltinModule(0);
+	if(!core.isObject()) {
+		Printer::Err("Initialization of core module failed!");
+		return 1;
+	}
+	// init Value, which binds strings and classes
 	Value::init();
-	ExecutionEngine::init();
+	// bind the core module to the engine
+	ExecutionEngine::CoreObject = core.toObject();
+	// now run.
 	if(argc > 1) {
 		Loader2 loader = Loader::create();
 		loader->compile_and_load(argv[1], true);

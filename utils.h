@@ -34,7 +34,7 @@ struct Utils {
 	}
 
 	static inline void fillNil(Value *arr, int size) {
-		for(int i = 0; i < size; i++) arr[i] = ValueNil;
+		std::fill_n(arr, size, ValueNil);
 	}
 
 	static const size_t MinAllocationSize = 8;

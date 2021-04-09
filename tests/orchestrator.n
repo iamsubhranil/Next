@@ -32,6 +32,7 @@ import randtest
 import bitstest
 import mathtest
 import filetest
+import deopt
 
 modules = {prepost: "Pre and post increment/decrements",
         iftest: "Short circuits",
@@ -62,7 +63,8 @@ modules = {prepost: "Pre and post increment/decrements",
         randtest: "Module: random",
         bitstest: "Bit arrays",
         mathtest: "Module: math",
-        filetest: "File I/O"}
+        filetest: "File I/O",
+        deopt: "Bytecode Deoptimization"}
 
 // find the maximum length
 len = 0

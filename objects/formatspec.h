@@ -13,13 +13,5 @@ struct FormatSpec {
 	                        bool signaware, int width, int precision,
 	                        char type);
 
-	static void init();
-
-	void mark() {}
-	void release() {}
-
-#ifdef DEBUG_GC
-	void        depend() {}
-	const char *gc_repr() { return "format_spec"; }
-#endif
+	static void init(Class *c);
 };

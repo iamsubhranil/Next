@@ -2,8 +2,10 @@
 
 #define _USE_MATH_DEFINES
 
+#include "objects/classes.h"
 #include <cstddef> // android somehow doesn't have size_t in stdint
 #include <cstdint>
+#include <functional>
 
 #ifndef DEBUG
 //#define DEBUG
@@ -37,7 +39,7 @@ struct Expr;
 struct Statement;
 template <typename T, size_t n> struct CustomArray;
 
-#define OBJTYPE(name) struct name;
+#define OBJTYPE(n, c) struct n;
 #include "objecttype.h"
 
 #ifdef GC_STRESS
@@ -50,12 +52,81 @@ template <typename T, size_t n> struct CustomArray;
 #define GC_MIN_TRACKED_OBJECTS_CAP 32
 
 struct GcObject {
-	const Class *klass;
-	enum GcObjectType : std::uint8_t {
+	// last 48 bits contains the pointer
+	//
+	// next 8 bits contains the type
+	//
+	// next 7 bits contains the refcount, which marks
+	// it as a temporary object, and makes the gc
+	// not release it. since only 7 bits are
+	// used, it can go upto 127, and then it will
+	// round down to 0. that should not be a problem
+	// for now. although, increaseRefCount() is not
+	// sufficient from getting an object gc'ed though,
+	// the gc has to track it as a temporary. So,
+	// use trackTemp and untrackTemp to keep it
+	// alive, or use *2 structs, which automatically
+	// does that for you, per scope.
+	//
+	// MSB contains the marker bit
+	uint64_t obj_priv;
+	enum Type : std::uint8_t {
 		OBJ_NONE,
-#define OBJTYPE(n) OBJ_##n,
+#define OBJTYPE(n, c) OBJ_##n,
 #include "objecttype.h"
-	} objType;
+	};
+
+	// last 48 bits
+	static constexpr uint64_t PointerBits = 0x0000ffffffffffff;
+	const Class *getClass() { return (const Class *)(obj_priv & PointerBits); }
+	void         setClass(Class *c) {
+        // clear the existing class
+        obj_priv &= ~PointerBits;
+        // add the new class
+        obj_priv |= (uint64_t)c;
+	}
+
+	// next 8 bits
+	static constexpr uint64_t TypeBits = 0x00ff000000000000;
+	Type getType() { return (Type)((obj_priv & TypeBits) >> 48); }
+	void setType(Type t, const Class *c) {
+		// clear the all the bits
+		obj_priv = 0;
+		// add the class
+		obj_priv |= (uint64_t)c;
+		// add the type
+		obj_priv |= (uint64_t)(t) << 48;
+	}
+
+	// next 7 bits
+	static constexpr uint64_t RefCountBits = 0x7f00000000000000;
+	// sets a new refcount
+	void setRefCount(uint8_t value) {
+		// clear the existing count
+		obj_priv &= ~RefCountBits;
+		// set the new count
+		obj_priv |= (uint64_t)value << 56;
+	}
+	// gets the correct refcount
+	uint8_t getRefCount() { return (obj_priv & RefCountBits) >> 56; }
+	// the following are not checked for 0 < refcount < 128
+	// bad things will happen if that limit is crossed
+	void increaseRefCount() {
+		// add a 1 to the refcount
+		obj_priv += ((uint64_t)1 << 56);
+	}
+	void decreaseRefCount() {
+		// subtract a 1 from the refcount
+		obj_priv -= ((uint64_t)1 << 56);
+	}
+
+	// MSB
+	static constexpr uint64_t Marker = ((uintptr_t)1) << 63;
+	void                      markOwn() { obj_priv |= Marker; }
+	bool                      isMarked() { return obj_priv & Marker; }
+	void                      unmarkOwn() { obj_priv &= ~Marker; }
+
+	template <typename T> static Type getType() { return Type::OBJ_NONE; };
 
 #ifdef DEBUG_GC
 	// A pointer to the index of the generation that
@@ -67,17 +138,15 @@ struct GcObject {
 	size_t gen, idx;
 
 	void depend_();
-
-#define OBJTYPE(x) \
-	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
-#include "objecttype.h"
 #endif
 
 	// basic type check
-#define OBJTYPE(n) \
-	bool is##n() { return objType == OBJ_##n; }
+#define OBJTYPE(n, c) \
+	bool is##n() { return getType() == OBJ_##n; }
 #include "objecttype.h"
+};
 
+struct Gc {
 	// initializes all the core classes.
 	// this must be the first method
 	// that is called after the program
@@ -107,6 +176,9 @@ struct GcObject {
 
 	// macros for getting the call site in debug mode
 #ifdef DEBUG_GC
+#define OBJTYPE(x, c) \
+	static void depend(const x *obj) { ((GcObject *)obj)->depend_(); }
+#include "objecttype.h"
 	static void  gc_print(const char *file, int line, const char *message);
 	static void *malloc_print(const char *file, int line, size_t bytes);
 	static void *calloc_print(const char *file, int line, size_t num,
@@ -114,13 +186,12 @@ struct GcObject {
 	static void *realloc_print(const char *file, int line, void *mem,
 	                           size_t oldb, size_t newb);
 	static void free_print(const char *file, int line, void *mem, size_t bytes);
-#define GcObject_malloc(x) GcObject::malloc_print(__FILE__, __LINE__, (x))
-#define GcObject_calloc(x, y) \
-	GcObject::calloc_print(__FILE__, __LINE__, (x), (y))
-#define GcObject_realloc(x, y, z) \
-	GcObject::realloc_print(__FILE__, __LINE__, (x), (y), (z))
-#define GcObject_free(x, y) \
-	{ GcObject::free_print(__FILE__, __LINE__, (x), (y)); }
+#define Gc_malloc(x) Gc::malloc_print(__FILE__, __LINE__, (x))
+#define Gc_calloc(x, y) Gc::calloc_print(__FILE__, __LINE__, (x), (y))
+#define Gc_realloc(x, y, z) \
+	Gc::realloc_print(__FILE__, __LINE__, (x), (y), (z))
+#define Gc_free(x, y) \
+	{ Gc::free_print(__FILE__, __LINE__, (x), (y)); }
 	// macros to warn against direct malloc/free calls
 /*#define malloc(x)                                                           \
 	(std::wcout << __FILE__ << ":" << __LINE__ << " Using direct malloc!\n", \
@@ -135,25 +206,19 @@ struct GcObject {
 	std::wcout << __FILE__ << ":" << __LINE__ << " Using direct free!\n"; \
 	::free((x));*/
 #else
-#define GcObject_malloc(x) GcObject::malloc(x)
-#define GcObject_calloc(x, y) GcObject::calloc(x, y)
-#define GcObject_realloc(x, y, z) GcObject::realloc(x, y, z)
-#define GcObject_free(x, y) GcObject::free(x, y)
+#define Gc_malloc(x) Gc::malloc(x)
+#define Gc_calloc(x, y) Gc::calloc(x, y)
+#define Gc_realloc(x, y, z) Gc::realloc(x, y, z)
+#define Gc_free(x, y) Gc::free(x, y)
 #endif
 	// marking and unmarking functions
 	static void mark(Value v);
 	static void mark(GcObject *p);
-#define OBJTYPE(n) \
-	static void mark(n *val) { mark((GcObject *)val); };
+#define OBJTYPE(r, n) \
+	static void mark(r *val) { mark((GcObject *)val); }
 #include "objecttype.h"
 	static void mark(Value *v, size_t num);
-	static bool isMarked(GcObject *p);
-	static void unmark(Value v);
-	static void unmark(GcObject *p);
 
-	// get the class of an object which is
-	// already marked
-	static Class *getMarkedClass(const Object *o);
 	// this methods should be called by an
 	// object when it holds reference to an
 	// object which it does explicitly
@@ -177,15 +242,10 @@ struct GcObject {
 	static void setMaxGC(size_t v);
 
 	// memory management functions
-	static void *alloc(size_t s, GcObjectType type, const Class *klass);
-#define OBJTYPE(n)          \
-	static Class *n##Class; \
-	static n *    alloc##n();
-#include "objecttype.h"
-	// if any user class extends 'error', this
-	// is the class that it actually extends
-	// instead of builtin Error.
-	static Class *ErrorObjectClass;
+	static void *alloc(size_t s, GcObject::Type type, const Class *klass);
+	template <typename T> static T *alloc() {
+		return (T *)alloc(sizeof(T), GcObject::getType<T>(), Classes::get<T>());
+	}
 	// makes a contiguous allocation of a String
 	// object along with its characters, the string
 	// is not yet tracked by the gc
@@ -197,55 +257,38 @@ struct GcObject {
 	// expressions and statements require custom sizes
 	static Expression *allocExpression2(size_t size);
 	static Statement * allocStatement2(size_t size);
-	// primitive classes
-	static Class *NumberClass;
-	static Class *BooleanClass;
-	// core module and its context
-	static Class *                  CoreModule;
-	static ClassCompilationContext *CoreContext;
 	// allocate an object with the given class
 	static Object *allocObject(const Class *klass);
 
-	// track temporary objects
 	static Set *temporaryObjects;
-	static void trackTemp(GcObject *o);
-	static void untrackTemp(GcObject *o);
-	// returns true if a pointer is already being tracked
-	static bool isTempTracked(GcObject *o);
-
+	static void trackTemp(GcObject *g);
+	static void untrackTemp(GcObject *g);
 	// debug information
 #ifdef DEBUG_GC
 	static size_t GcCounters[];
 	static void   print_stat();
 #endif
 };
+#define OBJTYPE(n, c) template <> GcObject::Type GcObject::getType<n>();
+#include "objecttype.h"
 
 template <typename T> struct GcTempObject {
   private:
-	T *  obj;
-	bool own;
+	T *obj;
 
 	void track() {
-		if(obj) {
-			// first check if the object is already being tracked
-			// if it is already being tracked, we're not
-			// the one who started tracking this, so we will
-			// not be the one to do this now.
-			own = !GcObject::isTempTracked((GcObject *)obj);
-			if(own)
-				GcObject::trackTemp((GcObject *)obj);
-		}
+		if(obj)
+			Gc::trackTemp((GcObject *)obj);
 	}
 
 	void untrack() {
-		if(obj && own) {
-			GcObject::untrackTemp((GcObject *)obj);
-		}
+		if(obj)
+			Gc::untrackTemp((GcObject *)obj);
 	}
 
   public:
-	GcTempObject() : obj(nullptr), own(false) {}
-	GcTempObject(T *o) : obj(o), own(false) { track(); }
+	GcTempObject() : obj(nullptr) {}
+	GcTempObject(T *o) : obj(o) { track(); }
 
 	~GcTempObject() { untrack(); }
 
@@ -268,9 +311,8 @@ template <typename T> struct GcTempObject {
 	GcTempObject<T> &operator=(const GcTempObject<T> &o) = delete;
 	// allow move construct and move assign
 	GcTempObject(GcTempObject<T> &&o) {
-		obj   = o.obj;
+		obj   = o.obj; // it is already being tracked
 		o.obj = nullptr;
-		track();
 	}
 
 	GcTempObject<T> &operator=(GcTempObject<T> &&o) {
@@ -281,5 +323,5 @@ template <typename T> struct GcTempObject {
 	}
 };
 
-#define OBJTYPE(x) using x##2 = GcTempObject<x>;
+#define OBJTYPE(x, c) using x##2 = GcTempObject<x>;
 #include "objecttype.h"

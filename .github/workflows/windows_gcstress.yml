@@ -11,4 +11,4 @@ jobs:
     - uses: actions/checkout@v2
     - uses: microsoft/setup-msbuild@v1.0.2
     - name: Running GC Stress Benchmarks
-      run: msbuild /p:Configuration=DebugGcStress /p:OutDir=. && .\\Next.exe tests\\benchmark_orchestrator_gc.n
+      run: msbuild /p:Configuration=GcStress /p:OutDir=. && .\\Next.exe tests\\benchmark_orchestrator_gc.n

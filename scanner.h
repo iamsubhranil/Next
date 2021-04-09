@@ -72,8 +72,8 @@ typedef struct Token {
 	Token(Type t, Utf8Source s, Utf8Source r, int l, int ln, Utf8Source f)
 	    : type(t), start(s), source(r), length(l), line(ln), fileName(f) {}
 	Token()
-	    : type(TOKEN_EOF), start(NULL), source(NULL), length(0), line(0),
-	      fileName(NULL) {}
+	    : type(TOKEN_EOF), start((void *)NULL), source((void *)NULL), length(0),
+	      line(0), fileName((void *)NULL) {}
 	static Token from(Type t, Scanner *s);
 	static Token errorToken(const char *message, Scanner *s);
 	void         highlight(bool showFileName = false, const char *prefix = NULL,

@@ -21,12 +21,6 @@ struct RangeIterator {
 
 	static RangeIterator *from(Range *r);
 
-	static void init();
-	void        mark() { GcObject::mark(r); }
-	void        release() {}
-
-#ifdef DEBUG_GC
-	void             depend() {}
-	const Utf8Source gc_repr() { return Utf8Source("range_iterator"); }
-#endif
+	static void init(Class *c);
+	void        mark() { Gc::mark(r); }
 };

@@ -28,26 +28,24 @@ struct FunctionCompilationContext {
 	static FunctionCompilationContext *
 	create(String2 name, int arity, bool isStatic = false, bool isva = false);
 
-	static void init();
-
-	void mark() const {
-		GcObject::mark(f);
-		GcObject::mark(bcc);
+	void mark() {
+		Gc::mark(f);
+		Gc::mark(bcc);
 		for(auto &a : *slotmap) {
-			GcObject::mark(a.first);
+			Gc::mark(a.first);
 		}
 	}
 
-	void release() const {
+	void release() {
 		slotmap->~SlotMap();
-		GcObject_free(slotmap, sizeof(SlotMap));
+		Gc_free(slotmap, sizeof(SlotMap));
 	}
 
 #ifdef DEBUG
 	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(f); }
+	void          depend() { Gc::depend(f); }
 	const String *gc_repr() { return f->name; }
 #endif
 };

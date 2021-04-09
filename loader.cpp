@@ -110,15 +110,10 @@ void registerParselets(Parser *p) {
 }
 
 Loader *Loader::create() {
-	Loader *l      = GcObject::allocLoader();
+	Loader *l      = Gc::alloc<Loader>();
 	l->isCompiling = false;
 	l->replModule  = ValueNil;
 	return l;
-}
-
-void Loader::init() {
-	Class *LoaderClass = GcObject::LoaderClass;
-	LoaderClass->init("loader", Class::ClassType::BUILTIN);
 }
 
 GcObject *Loader::compile_and_load(const String2 &fileName, bool execute) {
@@ -233,7 +228,7 @@ Value Loader::compile_and_load_from_source(const void *             source,
 		// to reallocate the object
 		if(mod.isObject()) {
 			if(slots != modulectx->get_class()->numSlots) {
-				Object *bak = GcObject::allocObject(modulectx->get_class());
+				Object *bak = Gc::allocObject(modulectx->get_class());
 				// copy the old values
 				Object *old = mod.toObject();
 				for(int i = 0; i < slots; i++) {
@@ -243,7 +238,7 @@ Value Loader::compile_and_load_from_source(const void *             source,
 				replModule = mod = bak;
 			}
 		} else {
-			replModule = mod = GcObject::allocObject(modulectx->get_class());
+			replModule = mod = Gc::allocObject(modulectx->get_class());
 		}
 		if(execute) {
 			ExecutionEngine::execute(

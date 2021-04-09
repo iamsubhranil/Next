@@ -13,8 +13,14 @@ Global
 		DebugGc|x86 = DebugGc|x86
 		DebugGcStress|x64 = DebugGcStress|x64
 		DebugGcStress|x86 = DebugGcStress|x86
+		GcStress|x64 = GcStress|x64
+		GcStress|x86 = GcStress|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
+		ReleasePgoApply|x64 = ReleasePgoApply|x64
+		ReleasePgoApply|x86 = ReleasePgoApply|x86
+		ReleasePgoBuild|x64 = ReleasePgoBuild|x64
+		ReleasePgoBuild|x86 = ReleasePgoBuild|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Debug|x64.ActiveCfg = Debug|x64
@@ -29,10 +35,22 @@ Global
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x64.Build.0 = DebugGcStress|x64
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x86.ActiveCfg = DebugGcStress|Win32
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.DebugGcStress|x86.Build.0 = DebugGcStress|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.GcStress|x64.ActiveCfg = GcStress|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.GcStress|x64.Build.0 = GcStress|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.GcStress|x86.ActiveCfg = GcStress|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.GcStress|x86.Build.0 = GcStress|Win32
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x64.ActiveCfg = Release|x64
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x64.Build.0 = Release|x64
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x86.ActiveCfg = Release|Win32
 		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.Release|x86.Build.0 = Release|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoApply|x64.ActiveCfg = ReleasePgoApply|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoApply|x64.Build.0 = ReleasePgoApply|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoApply|x86.ActiveCfg = ReleasePgoApply|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoApply|x86.Build.0 = ReleasePgoApply|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoBuild|x64.ActiveCfg = ReleasePgoBuild|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoBuild|x64.Build.0 = ReleasePgoBuild|x64
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoBuild|x86.ActiveCfg = ReleasePgoBuild|Win32
+		{2CAAE1F5-B5F8-4287-AC71-7668DB3DBE99}.ReleasePgoBuild|x86.Build.0 = ReleasePgoBuild|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

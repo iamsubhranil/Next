@@ -3,10 +3,9 @@
 #include "class.h"
 
 BytecodeCompilationContext *BytecodeCompilationContext::create() {
-	BytecodeCompilationContext2 bcc =
-	    GcObject::allocBytecodeCompilationContext();
-	bcc->code              = NULL;
-	bcc->ranges_           = (TokenRange *)GcObject_malloc(sizeof(TokenRange));
+	BytecodeCompilationContext2 bcc = Gc::alloc<BytecodeCompilationContext>();
+	bcc->code                       = NULL;
+	bcc->ranges_           = (TokenRange *)Gc_malloc(sizeof(TokenRange));
 	bcc->ranges_[0].token  = Token::PlaceholderToken;
 	bcc->ranges_[0].range_ = 0;
 	bcc->size              = 0;
@@ -14,21 +13,14 @@ BytecodeCompilationContext *BytecodeCompilationContext::create() {
 	bcc->present_range     = 0;
 	bcc->code              = Bytecode::create();
 	bcc->code->ctx         = bcc;
+	bcc->lastOpcode        = Bytecode::CODE_add;
 	return bcc;
-}
-
-void BytecodeCompilationContext::init() {
-	Class *BytecodeCompilationContextClass =
-	    GcObject::BytecodeCompilationContextClass;
-
-	BytecodeCompilationContextClass->init("bytecode_compilation_ctx",
-	                                      Class::ClassType::BUILTIN);
 }
 
 void BytecodeCompilationContext::insert_token(Token t) {
 	if(size == capacity) {
 		size_t n = Utils::nextAllocationSize(capacity, size + 1);
-		ranges_  = (TokenRange *)GcObject_realloc(
+		ranges_  = (TokenRange *)Gc_realloc(
             ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * n);
 		std::fill_n(&ranges_[capacity], n - capacity,
 		            TokenRange{Token::PlaceholderToken, 0});
@@ -57,7 +49,7 @@ Token BytecodeCompilationContext::get_token(size_t ip) {
 
 void BytecodeCompilationContext::finalize() {
 	if(size != capacity) {
-		ranges_ = (TokenRange *)GcObject_realloc(
+		ranges_ = (TokenRange *)Gc_realloc(
 		    ranges_, sizeof(TokenRange) * capacity, sizeof(TokenRange) * size);
 		capacity = size;
 	}

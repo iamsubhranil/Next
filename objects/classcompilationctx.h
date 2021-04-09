@@ -19,12 +19,13 @@ struct ClassCompilationContext {
 	};
 	typedef HashMap<String *, ClassCompilationContext::MemberInfo> MemberMap;
 
-	GcObject   obj;
+	GcObject obj;
+
 	MemberMap *members;            // string:slot
 	Map *      public_signatures;  // string:token to report overload errors
 	Map *      private_signatures; // string:token
-	Class *    klass;     // generated runtime representation of a class
-	Class *    metaclass; // metaclass of the class
+	Class *    compilingClass; // generated runtime representation of a class
+	Class *    metaclass;      // metaclass of the class
 	Map *      fctxMap; // a classctx also keeps track of all the function ctxes
 	Map *      cctxMap; // a modulectx keeps track of classctxes declared inside
 	// super context
@@ -78,37 +79,35 @@ struct ClassCompilationContext {
 
 	void finalize();
 
-	static void init();
-
-	void mark() const {
-		for(auto &i : *members) GcObject::mark(i.first);
-		GcObject::mark(public_signatures);
-		GcObject::mark(private_signatures);
-		GcObject::mark(klass);
-		GcObject::mark(fctxMap);
+	void mark() {
+		for(auto &i : *members) Gc::mark(i.first);
+		Gc::mark(public_signatures);
+		Gc::mark(private_signatures);
+		Gc::mark(compilingClass);
+		Gc::mark(fctxMap);
 		if(metaclass != NULL) {
-			GcObject::mark(metaclass);
+			Gc::mark(metaclass);
 		}
 		if(defaultConstructor != NULL) {
-			GcObject::mark(defaultConstructor);
+			Gc::mark(defaultConstructor);
 		}
 		if(cctxMap != NULL) {
-			GcObject::mark(cctxMap);
+			Gc::mark(cctxMap);
 		}
 		if(moduleContext != NULL) {
-			GcObject::mark(moduleContext);
+			Gc::mark(moduleContext);
 		}
 	}
 
-	void release() const {
+	void release() {
 		members->~MemberMap();
-		GcObject_free(members, sizeof(MemberMap));
+		Gc_free(members, sizeof(MemberMap));
 	}
 #ifdef DEBUG
 	void disassemble(WritableStream &o);
 #endif
 #ifdef DEBUG_GC
-	void          depend() { GcObject::depend(klass); }
-	const String *gc_repr() { return klass->name; }
+	void          depend() { Gc::depend(compilingClass); }
+	const String *gc_repr() { return compilingClass->name; }
 #endif
 };

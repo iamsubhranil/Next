@@ -7,6 +7,7 @@
 #include "objects/bytecodecompilationctx.h"
 #include "objects/function.h"
 #include "objects/functioncompilationctx.h"
+#include "objects/object.h"
 #include "objects/symtab.h"
 
 #define lnerr_(t, ...)                                     \
@@ -37,7 +38,7 @@ CodeGenerator::CodeGenerator() {
 	ctx                = NULL;
 	ftx                = NULL;
 	btx                = NULL;
-	corectx            = GcObject::CoreContext;
+	corectx            = Value(ExecutionEngine::CoreObject).getClass();
 	currentlyCompiling = nullptr;
 
 	expressionNoPop = false;
@@ -73,7 +74,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn, Array *stmts) {
 		                   .toStatement()
 		                   ->toExpressionStatement()
 		                   ->exprs->size;
-		btx->call(info.frameIdx, numexprs);
+		btx->call_(info.frameIdx, numexprs);
 		for(int i = 0; i < numexprs; i++) btx->pop_();
 	} else {
 		compileAll(stmts);
@@ -207,8 +208,8 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 		case Token::Type::TOKEN_PIPE: btx->bor(); break;
 		case Token::Type::TOKEN_AMPERSAND: btx->band(); break;
 		case Token::Type::TOKEN_BANG: btx->lnot(); break;
-		case Token::Type::TOKEN_EQUAL_EQUAL: btx->eq(); break;
-		case Token::Type::TOKEN_BANG_EQUAL: btx->neq(); break;
+		case Token::Type::TOKEN_EQUAL_EQUAL: btx->eq_(); break;
+		case Token::Type::TOKEN_BANG_EQUAL: btx->neq_(); break;
 		case Token::Type::TOKEN_LESS: btx->less(); break;
 		case Token::Type::TOKEN_LESS_EQUAL: btx->lesseq(); break;
 		case Token::Type::TOKEN_LESS_LESS: btx->blshift(); break;
@@ -292,19 +293,19 @@ CodeGenerator::CallInfo CodeGenerator::resolveCall(const String2 &name,
 		    mtx->get_class()->get_fn(info.frameIdx).toFunction()->isStatic();
 		return info;
 	}
+	int64_t nid = SymbolTable2::insert(name);
 	// try searching in core
-	else if(corectx->has_mem(name)) {
+	if(corectx->has_fn(nid) && corectx->get_fn(nid).isInteger()) {
 		info.type     = CORE;
-		info.frameIdx = corectx->get_mem_slot(name);
+		info.frameIdx = corectx->get_fn(nid).toInteger();
 		return info;
-	} else if(corectx->has_fn(signature)) {
+	}
+	int64_t sid = SymbolTable2::insert(signature);
+	if(corectx->has_fn(sid) && corectx->get_fn(sid).isFunction()) {
 		info.type     = CORE;
-		info.frameIdx = corectx->get_fn_sym(signature);
+		info.frameIdx = sid;
 		info.soft     = false;
-		info.isStatic = corectx->get_class()
-		                    ->get_fn(info.frameIdx)
-		                    .toFunction()
-		                    ->isStatic();
+		info.isStatic = corectx->get_fn(sid).toFunction()->isStatic();
 		return info;
 	}
 
@@ -390,20 +391,20 @@ void CodeGenerator::emitCall(CallExpression *call) {
 	if(force_soft) {
 		// generate the no name signature
 		int sig = SymbolTable2::insert(generateSignature(argSize));
-		btx->call_soft(sig, argSize);
+		btx->call_soft_(sig, argSize);
 	}
 	// If this a reference expression, dynamic dispatch will be used
 	else if(onRefer) {
 		if(inThis) {
 			// if its a 'this.' call, perform it like a method call
 			// on present object
-			btx->call_method(SymbolTable2::insert(signature), argSize);
+			btx->call_method_(SymbolTable2::insert(signature), argSize);
 			inThis = false;
 		} else if(thisOrSuper == 1) {
 			// this() calls are directly dispatched, intraclass
 			info = resolveCall(String::const_EmptyString, signature);
 			switch(info.type) {
-				case CLASS: btx->call_intra(info.frameIdx, argSize); break;
+				case CLASS: btx->call_intra_(info.frameIdx, argSize); break;
 				default:
 					lnerr_(call->callee->token,
 					       "No constructor with specified signature found in "
@@ -414,15 +415,15 @@ void CodeGenerator::emitCall(CallExpression *call) {
 			onRefer = false;
 		} else {
 			if(inSuper) {
-				btx->call_method_super(SymbolTable2::insert(signature),
-				                       argSize);
+				btx->call_method_super_(SymbolTable2::insert(signature),
+				                        argSize);
 				inSuper = false;
 			} else if(thisOrSuper > 0) {
 				onRefer = false;
-				btx->call_method_super(SymbolTable2::insert(signature),
-				                       argSize);
+				btx->call_method_super_(SymbolTable2::insert(signature),
+				                        argSize);
 			} else {
-				btx->call_method(SymbolTable2::insert(signature), argSize);
+				btx->call_method_(SymbolTable2::insert(signature), argSize);
 			}
 		}
 	} else {
@@ -451,7 +452,7 @@ void CodeGenerator::emitCall(CallExpression *call) {
 		if(info.soft) {
 			// generate the no name signature
 			int sig = SymbolTable2::insert(generateSignature(argSize));
-			btx->call_soft(sig, argSize);
+			btx->call_soft_(sig, argSize);
 		} else {
 			// function call
 			// the receiver is already loaded
@@ -462,9 +463,9 @@ void CodeGenerator::emitCall(CallExpression *call) {
 				       "function!");
 			}
 			if(info.type == CLASS)
-				btx->call_intra(info.frameIdx, argSize);
+				btx->call_intra_(info.frameIdx, argSize);
 			else
-				btx->call(info.frameIdx, argSize);
+				btx->call_(info.frameIdx, argSize);
 		}
 	}
 }
@@ -494,9 +495,11 @@ CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
 			if(mtx->has_mem(name)) {
 				return VarInfo{mtx->get_mem_slot(name), MODULE, false};
 			}
+			int64_t nid = SymbolTable2::insert(name);
 			// Check if it is in core
-			if(corectx->has_mem(name)) {
-				return VarInfo{corectx->get_mem_slot(name), CORE, false};
+			if(corectx->has_fn(nid) && corectx->get_fn(nid).isInteger()) {
+				return VarInfo{(int)corectx->get_fn(nid).toInteger(), CORE,
+				               false};
 			}
 		}
 	}
@@ -567,7 +570,7 @@ void CodeGenerator::visit(AssignExpression *as) {
 		btx->insert_token(as->val->token);
 		as->val->accept(this);
 		btx->insert_token(as->token);
-		btx->call_method(SymbolTable2::const_sig_subscript_set, 2);
+		btx->call_method_(SymbolTable2::const_sig_subscript_set, 2);
 	} else {
 		// Resolve the expression
 		btx->insert_token(as->val->token);
@@ -629,14 +632,13 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 	lit->token.highlight();
 #endif
 	btx->insert_token(lit->token);
-	btx->push(lit->value);
-	/*
-	switch(lit->value.t) {
-	    case Value::VAL_Number: btx->pushd(lit->value.toNumber()); break;
-	    case Value::VAL_String: btx->pushs(lit->value.toString()); break;
-	    case Value::VAL_NIL: btx->pushn(); break;
-	    default: panic("Handling other values not implemented!");
-	}*/
+	// use explicit opcode for nil, since call optimizations
+	// pushes ValueNil in the preallocated local slots in
+	// the bytecode.
+	if(lit->value.getType() == Value::VAL_NIL)
+		btx->pushn();
+	else
+		btx->push(lit->value);
 }
 
 void CodeGenerator::visit(SetExpression *sete) {
@@ -649,7 +651,7 @@ void CodeGenerator::visit(SetExpression *sete) {
 		bool b = onLHS;
 		onLHS  = true;
 		sete->object->accept(this);
-		btx->store_field(lastMemberReferenced);
+		btx->store_field_(lastMemberReferenced);
 		onLHS = b;
 	}
 }
@@ -678,7 +680,8 @@ void CodeGenerator::validateThisOrSuper(Token tos) {
 		lnerr_(tos, "Cannot use this/super inside a static method!");
 	} else if(!ctx->isDerived && tos.type == Token::Type::TOKEN_super) {
 		// we cannot use super inside a class which is not derived
-		lnerr_(tos, "Cannot use 'super' inside class '", ctx->klass->name,
+		lnerr_(tos, "Cannot use 'super' inside class '",
+		       ctx->compilingClass->name,
 		       "' which is not derived "
 		       "from anything!");
 	}
@@ -722,12 +725,12 @@ void CodeGenerator::visit(SubscriptExpression *sube) {
 	sube->idx->accept(this);
 	onLHS = b;
 	if(!onLHS)
-		btx->call_method(SymbolTable2::const_sig_subscript_get, 1);
+		btx->call_method_(SymbolTable2::const_sig_subscript_get, 1);
 }
 
 void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 	if(isref) {
-		btx->load_field(lastMemberReferenced);
+		btx->load_field_(lastMemberReferenced);
 	} else {
 		switch(variableInfo.position) {
 			case LOCAL: btx->load_slot_n(variableInfo.slot); break;
@@ -737,7 +740,8 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->load_static_slot(variableInfo.slot, ctx->klass);
+					btx->load_static_slot(variableInfo.slot,
+					                      ctx->compilingClass);
 				else
 					btx->load_object_slot(variableInfo.slot);
 				break;
@@ -753,17 +757,18 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 
 void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 	if(isref) {
-		btx->store_field(lastMemberReferenced);
+		btx->store_field_(lastMemberReferenced);
 	} else {
 		switch(variableInfo.position) {
-			case LOCAL: btx->store_slot(variableInfo.slot); break;
+			case LOCAL: btx->store_slot_n(variableInfo.slot); break;
 			case MODULE:
 				loadPresentModule();
 				btx->store_tos_slot(variableInfo.slot);
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->store_static_slot(variableInfo.slot, ctx->klass);
+					btx->store_static_slot(variableInfo.slot,
+					                       ctx->compilingClass);
 				else
 					btx->store_object_slot(variableInfo.slot);
 				break;
@@ -903,7 +908,7 @@ void CodeGenerator::visit(VariableExpression *vis) {
 		if(onLHS)
 			lastMemberReferenced = SymbolTable2::insert(name);
 		else
-			btx->load_field(SymbolTable2::insert(name));
+			btx->load_field_(SymbolTable2::insert(name));
 	}
 }
 
@@ -1068,19 +1073,25 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// then, evalute the RHS
 			it->right->accept(this);
 			// initialize the iterator by calling iterate() on RHS
-			btx->call_method(SymbolTable2::insert("iterate()"), 0);
-			// check if this is a valid iterator
-			btx->iterator_verify();
+			btx->call_method_(SymbolTable2::insert("iterate()"), 0);
+			// check if this is a valid iterator and
+			// cache the resulting class in the locals array
+			int local = btx->code->add_constant(ValueNil, false);
+			int entry = btx->iterator_verify(local, 0);
 			// create a temp slot to store the iterator
 			int slot = createTempSlot();
-			btx->store_slot_pop(slot);
+			btx->store_slot_pop_n(slot);
 			// load the iterator in the beginning of the loop
 			int start = btx->load_slot_n(slot);
-			// iterate_next will check has_next on TOS
+			// iterate_next* will check has_next on TOS
 			// if has_next is false, it will jump to the given offset
 			// else, it will call next() on TOS
-			// this will also pop the iterator when has_next is false
-			int exit_ = btx->iterate_next(0);
+			// this will also pop the iterator when has_next is false.
+			// this will be patched by iterator_verify at runtime
+			// for the appropriate iterator type.
+			int exit_ = btx->iterate_next_object_method(0);
+			// tell the offset to iterator_verify
+			btx->iterator_verify(entry, local, exit_ - entry);
 			// store the next value in the given variable
 			storeVariable(var);
 			btx->pop_();
@@ -1089,7 +1100,7 @@ void CodeGenerator::visit(ForStatement *ifs) {
 			// jump back to iterate
 			btx->jump(start - btx->getip());
 			// patch the exit
-			btx->iterate_next(exit_, btx->getip() - exit_);
+			btx->iterate_next_object_method(exit_, btx->getip() - exit_);
 			// pop the scope
 			popScope();
 			// patch pending breaks
@@ -1217,7 +1228,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			if(inConstructor) {
 				lnerr_(ifs->name,
 				       "Ambiguous constructor declaration for class '",
-				       ctx->klass->name, "'!");
+				       ctx->compilingClass->name, "'!");
 
 			} else {
 				lnerr_(ifs->name,
@@ -1229,7 +1240,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 			mtx->functions.find(signature)->second->token.highlight();
 		*/
 		} else if(inConstructor) {
-			String *cdec = String::append(ctx->klass->name, signature);
+			String *cdec = String::append(ctx->compilingClass->name, signature);
 			if(mtx->has_fn(cdec)) {
 				lnerr_(ifs->name,
 				       "Constructor declaration collides with a previously "
@@ -1390,7 +1401,7 @@ void CodeGenerator::visit(ClassStatement *ifs) {
 				loadVariable(k);
 				loadVariable(d);
 				btx->insert_token(ifs->token);
-				btx->call_method(SymbolTable2::const_sig_derive, 1);
+				btx->call_method_(SymbolTable2::const_sig_derive, 1);
 			}
 		}
 		inClass = true;
@@ -1420,7 +1431,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 			btx->push(i);
 		}
 		// make a call to ' import(_)'
-		btx->call(SymbolTable2::insert(" import(_)"), ifs->import_->size);
+		btx->call_(SymbolTable2::insert(" import(_)"), ifs->import_->size);
 		String *last = ifs->import_->values[ifs->import_->size - 1].toString();
 		// The name of the imported module for the
 		// importee module would be the last part
@@ -1557,7 +1568,7 @@ void CodeGenerator::visit(CatchStatement *ifs) {
 		}
 		e->add_catch(v.slot, st, btx->getip());
 		// store the thrown object
-		btx->store_slot_pop(receiver);
+		btx->store_slot_pop_n(receiver);
 	}
 	ifs->block->accept(this);
 }
@@ -1576,7 +1587,7 @@ void CodeGenerator::mark() {
 	// everything else will be recursively
 	// marked by the module that this
 	// compiler is compiling
-	GcObject::mark(mtx);
+	Gc::mark(mtx);
 	// mark the statements
-	GcObject::mark(currentlyCompiling);
+	Gc::mark(currentlyCompiling);
 }

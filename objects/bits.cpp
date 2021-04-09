@@ -709,14 +709,14 @@ Value next_bits_unequal(const Value *args, int numargs) {
 }
 
 Bits *Bits::create(int64_t number_of_bits) {
-	Bits *b       = GcObject::allocBits();
+	Bits *b       = Gc::alloc<Bits>();
 	b->size       = number_of_bits;
 	b->chunkcount = (number_of_bits >> Bits::ChunkCountShift) +
 	                ((number_of_bits & Bits::ChunkRemainderAnd) != 0);
 	b->chunkcapacity = b->chunkcount * Bits::ChunkSize;
 	if(b->chunkcapacity == 0)
 		b->chunkcapacity = Bits::ChunkSize;
-	b->bytes = (Bits::ChunkType *)GcObject_malloc(
+	b->bytes = (Bits::ChunkType *)Gc_malloc(
 	    (b->chunkcapacity >> Bits::ChunkCountShift) * Bits::ChunkSizeByte);
 	return b;
 }
@@ -729,7 +729,7 @@ void Bits::resize(int64_t ns) {
 	size = ns;
 	// extend the capacity only if we are smaller
 	if(ns > chunkcapacity) {
-		bytes = (ChunkType *)GcObject_realloc(
+		bytes = (ChunkType *)Gc_realloc(
 		    bytes, oldchunkcount * ChunkSizeByte, chunkcount * ChunkSizeByte);
 		chunkcapacity = ns;
 	}
@@ -744,9 +744,7 @@ void Bits::resize(int64_t ns) {
 	}
 }
 
-void Bits::init() {
-	Class *BitsClass = GcObject::BitsClass;
-	BitsClass->init("bits", Class::ClassType::BUILTIN);
+void Bits::init(Class *BitsClass) {
 
 	BitsClass->add_builtin_fn("()", 0, next_bits_construct_empty);
 	BitsClass->add_builtin_fn("(_)", 1,

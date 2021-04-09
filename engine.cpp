@@ -12,48 +12,39 @@
 #include "objects/symtab.h"
 #include "printer.h"
 
-HashMap<String *, GcObject *> ExecutionEngine::loadedModules =
-    decltype(ExecutionEngine::loadedModules){};
-Array * ExecutionEngine::pendingExceptions     = nullptr;
-Array * ExecutionEngine::pendingFibers         = nullptr;
-Fiber * ExecutionEngine::currentFiber          = nullptr;
-Object *ExecutionEngine::CoreObject            = nullptr;
-size_t  ExecutionEngine::maxRecursionLimit     = 1024;
-size_t  ExecutionEngine::currentRecursionDepth = 0;
-bool    ExecutionEngine::isRunningRepl         = false;
+ExecutionEngine::ModuleMap *ExecutionEngine::loadedModules         = nullptr;
+Array *                     ExecutionEngine::pendingExceptions     = nullptr;
+Array *                     ExecutionEngine::pendingFibers         = nullptr;
+Fiber *                     ExecutionEngine::currentFiber          = nullptr;
+Object *                    ExecutionEngine::CoreObject            = nullptr;
+size_t                      ExecutionEngine::maxRecursionLimit     = 1024;
+size_t                      ExecutionEngine::currentRecursionDepth = 0;
+bool                        ExecutionEngine::isRunningRepl         = false;
 
 void ExecutionEngine::init() {
+	loadedModules = (ModuleMap *)Gc_malloc(sizeof(ModuleMap));
+	::new(loadedModules) ModuleMap();
 	pendingExceptions = Array::create(1);
 	pendingFibers     = Array::create(1);
 	// create a new fiber
 	currentFiber = Fiber::create();
 	// make slot for core
 	currentFiber->stackTop++;
-	// register the module
-	Value v;
-	if(!registerModule(
-	       String::const_core,
-	       GcObject::CoreModule->get_fn(SymbolTable2::const_sig_constructor_0)
-	           .toFunction(),
-	       &v)) {
-		panic("Initialization of core module failed");
-	} else {
-		CoreObject = v.toObject();
-	}
 }
 
 bool ExecutionEngine::isModuleRegistered(String *name) {
-	return loadedModules.contains(name) && loadedModules[name] != NULL;
+	return loadedModules && loadedModules->contains(name) &&
+	       loadedModules[0][name] != NULL;
 }
 
 GcObject *ExecutionEngine::getRegisteredModule(String *name) {
-	return loadedModules[name];
+	return loadedModules[0][name];
 }
 
 bool ExecutionEngine::registerModule(const String2 &name, Function *toplevel,
                                      Value *instance) {
 	if(execute(ValueNil, toplevel, instance, true)) {
-		loadedModules[name] = instance->toGcObject();
+		loadedModules[0][name] = instance->toGcObject();
 		return true;
 	}
 	return false;
@@ -66,7 +57,7 @@ void ExecutionEngine::setRunningRepl(bool s) {
 Fiber *ExecutionEngine::exitOrThrow() {
 	if(isRunningRepl) {
 		// pop all frames
-		while(currentFiber->callFramePointer > 0) currentFiber->popFrame();
+		while(currentFiber->callFrameCount() > 0) currentFiber->popFrame();
 		throw std::runtime_error("Unhandled exception thrown!");
 	} else {
 		exit(1);
@@ -76,8 +67,8 @@ Fiber *ExecutionEngine::exitOrThrow() {
 
 // using Bytecode::Opcodes
 void ExecutionEngine::printStackTrace(Fiber *fiber) {
-	int               i        = fiber->callFramePointer - 1;
-	Fiber::CallFrame *root     = &fiber->callFrames[i];
+	int               i        = fiber->callFrameCount() - 1;
+	Fiber::CallFrame *root     = &fiber->callFrameBase[i];
 	Fiber::CallFrame *f        = root;
 	String *          lastName = 0;
 	while(i >= 0) {
@@ -117,12 +108,12 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 			t = f->f->code->ctx->get_token(f->code - f->f->code->bytecodes);
 			t.highlight(true, "At ", Token::HighlightType::ERR);
 		}
-		f = &fiber->callFrames[--i];
+		f = &fiber->callFrameBase[--i];
 		if(i < 0 && fiber->parent != NULL) {
 			Printer::print("In a parent fiber \n");
 			fiber    = fiber->parent;
-			i        = fiber->callFramePointer - 1;
-			root     = &fiber->callFrames[i];
+			i        = fiber->callFrameCount() - 1;
+			root     = &fiber->callFrameBase[i];
 			f        = root;
 			lastName = 0;
 		}
@@ -138,20 +129,22 @@ void ExecutionEngine::mark() {
 	// mark everything that is live on the stack
 	// this will recursively mark all the referenced
 	// objects
-	GcObject::mark(currentFiber);
+	Gc::mark(currentFiber);
 	// mark the core object
-	GcObject::mark(CoreObject);
+	Gc::mark(CoreObject);
 	// mark the pending exceptions and fibers
-	GcObject::mark(pendingExceptions);
-	GcObject::mark(pendingFibers);
+	Gc::mark(pendingExceptions);
+	Gc::mark(pendingFibers);
 	// the modules which are not marked, remove them.
 	// we can't really remove the keys, i.e. paths,
 	// in the same time we traverse, so we keep those,
 	// and remove the modules themselves
-	for(auto &a : loadedModules) {
-		GcObject::mark(a.first);
-		if(a.second != NULL && !GcObject::isMarked(a.second))
-			loadedModules[a.first] = NULL;
+	if(loadedModules) {
+		for(auto &a : *loadedModules) {
+			Gc::mark(a.first);
+			if(a.second != NULL && !a.second->isMarked())
+				loadedModules[0][a.first] = NULL;
+		}
 	}
 }
 
@@ -199,10 +192,10 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	const Class *klass = thrown.getClass();
 	// Now find the frame by unwinding the stack
 	Fiber *           f                  = root;
-	int               num                = f->callFramePointer - 1;
+	int               num                = f->callFrameCount() - 1;
 	int               instructionPointer = 0;
 	Fiber::CallFrame *matched            = NULL;
-	Fiber::CallFrame *searching          = &f->callFrames[num];
+	Fiber::CallFrame *searching          = &f->callFrameBase[num];
 	Exception         block              = {0, NULL, 0, 0};
 	while(num >= 0 && matched == NULL) {
 		for(size_t i = 0; i < searching->f->numExceptions; i++) {
@@ -216,11 +209,11 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 			}
 		}
 		if(--num > 0) {
-			searching = &f->callFrames[num];
+			searching = &f->callFrameBase[num];
 		} else if(f->parent != NULL) {
 			f         = f->parent;
-			num       = f->callFramePointer - 1;
-			searching = &f->callFrames[num];
+			num       = f->callFrameCount() - 1;
+			searching = &f->callFrameBase[num];
 		} else
 			break;
 	}
@@ -244,7 +237,8 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 					// module is at 0 -> 0
 					v = matched->stack_[0]
 					        .toGcObject()
-					        ->klass->module->instance->slots(c.slot);
+					        ->getClass()
+					        ->module->instance->slots(c.slot);
 					break;
 				case CatchBlock::SlotType::CORE:
 					v = CoreObject->slots(c.slot);
@@ -252,8 +246,8 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 				case CatchBlock::SlotType::MODULE_SUPER:
 					v = matched->stack_[0]
 					        .toGcObject()
-					        ->klass->superclass->module->instance->slots(
-					            c.slot);
+					        ->getClass()
+					        ->superclass->module->instance->slots(c.slot);
 					break;
 				default: break;
 			}
@@ -376,7 +370,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	fiber->setState(Fiber::RUNNING);
 
 	// check if the fiber actually has something to exec
-	if(fiber->callFramePointer == 0) {
+	if(fiber->callFrameCount() == 0) {
 		if((fiber = fiber->switch_()) == NULL) {
 			*returnValue = ValueNil;
 			return true;
@@ -395,6 +389,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
 	Value *           Stack              = presentFrame->stack_;
+	Value *           Locals             = presentFrame->locals;
+	Bytecode::Opcode *CallPatch          = nullptr;
 
 #define GOTOERROR() \
 	{ goto error; }
@@ -463,12 +459,13 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 #define RESTORE_FRAMEINFO()                        \
 	presentFrame       = fiber->getCurrentFrame(); \
 	InstructionPointer = presentFrame->code;       \
-	Stack              = presentFrame->stack_;
+	Stack              = presentFrame->stack_;     \
+	Locals             = presentFrame->locals;
 
 #define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
 
 #define next_int() (*(++InstructionPointer))
-#define next_value() (presentFrame->locals[next_int()])
+#define next_value() (Locals[next_int()])
 	// std::std::wcout << "x : " << TOP << " y : " << v << " op : " << #op <<
 	// "";
 
@@ -563,7 +560,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		// otherwise, we continue normal execution
 		if(ret) {
 			RETURN(res);
-		} else if(fiber->callFramePointer == 0) {
+		} else if(fiber->callFrameCount() == 0) {
 			if((fiber = fiber->switch_()) == NULL) {
 				RETURN(res);
 			} else {
@@ -640,12 +637,16 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// to call method on non primitive types
 				if(TOP.isGcObject() &&
 				   TOP.getClass()->has_fn(SymbolTable2::const_sig_neq)) {
+					CallPatch         = nullptr;
 					methodToCall      = SymbolTable2::const_sig_neq;
 					numberOfArguments = 1;
 					PUSH(rightOperand);
 					goto methodcall;
 				}
-				TOP = TOP != rightOperand;
+				*CallPatch = Bytecode::Opcode::CODE_bcall_fast_neq;
+				Locals[*(CallPatch + 1)] = Value(TOP.getClass());
+				CallPatch                = nullptr;
+				TOP                      = TOP != rightOperand;
 				DISPATCH();
 			}
 
@@ -653,12 +654,48 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				rightOperand = POP();
 				if(TOP.isGcObject() &&
 				   TOP.getClass()->has_fn(SymbolTable2::const_sig_eq)) {
+					CallPatch         = nullptr;
 					methodToCall      = SymbolTable2::const_sig_eq;
 					numberOfArguments = 1;
 					PUSH(rightOperand);
 					goto methodcall;
 				}
-				TOP = TOP == rightOperand;
+				*CallPatch               = Bytecode::Opcode::CODE_bcall_fast_eq;
+				Locals[*(CallPatch + 1)] = Value(TOP.getClass());
+				CallPatch                = nullptr;
+				TOP                      = TOP == rightOperand;
+				DISPATCH();
+			}
+
+			CASE(bcall_fast_prepare) : {
+				CallPatch = InstructionPointer;
+				(void)next_int();
+				DISPATCH();
+			}
+
+			CASE(bcall_fast_eq) : {
+				CallPatch  = InstructionPointer;
+				int    idx = next_int();
+				Class *c   = Locals[idx].toClass();
+				if(fiber->stackTop[-2].getClass() == c) {
+					rightOperand = POP();
+					TOP          = TOP == rightOperand;
+					CallPatch    = nullptr;
+					InstructionPointer++; // skip next eq
+				}
+				DISPATCH();
+			}
+
+			CASE(bcall_fast_neq) : {
+				CallPatch  = InstructionPointer;
+				int    idx = next_int();
+				Class *c   = Locals[idx].toClass();
+				if(fiber->stackTop[-2].getClass() == c) {
+					rightOperand = POP();
+					TOP          = TOP != rightOperand;
+					CallPatch    = nullptr;
+					InstructionPointer++; // skip next neq
+				}
 				DISPATCH();
 			}
 
@@ -737,14 +774,42 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			}
 
 			CASE(iterator_verify) : {
-				Value &it = TOP;
+				Bytecode::Opcode *present              = InstructionPointer;
+				int               idx                  = next_int();
+				int               iterator_next_offset = next_int();
+				// if it is the same iterator, we have nothing to do
+				if(TOP.getClass() == Locals[idx].toClass()) {
+					DISPATCH();
+				}
+				Value &it   = TOP;
+				Locals[idx] = Value(it.getClass()); // cache the class
 				if(Iterator::is_iterator(it)) {
+					Iterator::Type t = Iterator::getType(it);
+					// mark the iterate next as specialized builtin call
+					switch(t) {
+#define ITERATOR(x, y)                               \
+	case Iterator::Type::x##Iterator:                \
+		*(present + iterator_next_offset) =          \
+		    Bytecode::CODE_iterate_next_builtin_##x; \
+		break;
+#include "objects/iterator_types.h"
+					}
 					DISPATCH();
 				}
 				int          field = SymbolTable2::const_field_has_next;
 				const Class *c     = it.getClass();
 				ASSERT_FIELD();
 				ASSERT_METHOD(SymbolTable2::const_sig_next, c);
+				Function *f =
+				    c->get_fn(SymbolTable2::const_sig_next).toFunction();
+				// patch the next() call
+				if(f->getType() == Function::Type::BUILTIN) {
+					*(present + iterator_next_offset) =
+					    Bytecode::CODE_iterate_next_object_builtin;
+				} else {
+					*(present + iterator_next_offset) =
+					    Bytecode::CODE_iterate_next_object_method;
+				}
 				DISPATCH();
 			}
 
@@ -753,31 +818,43 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				JUMPTO_OFFSET(offset); // offset the relative jump address
 			}
 
-			CASE(iterate_next) : {
-				int    offset = next_int();
-				Value &it     = TOP;
-				if(Iterator::is_iterator(it)) {
-					if(!Iterator::has_next(it)) {
-						POP();
-						JUMPTO_OFFSET(offset);
-					} else {
-						TOP = Iterator::next(it);
-						DISPATCH();
-					}
-				}
-				const Class *c        = it.getClass();
-				int          field    = SymbolTable2::const_field_has_next;
-				Value        has_next = c->accessFn(c, it, field);
-				if(is_falsey(has_next)) {
-					POP();
-					JUMPTO_OFFSET(offset);
-				} else {
-					functionToCall =
-					    c->get_fn(SymbolTable2::const_sig_next).toFunction();
-					numberOfArguments = 0;
-					goto performcall;
-				}
+#define ITERATOR(x, y)                               \
+	CASE(iterate_next_builtin_##x) : {               \
+		int          offset = next_int();            \
+		x##Iterator *it     = TOP.to##x##Iterator(); \
+		if(!it->hasNext.toBoolean()) {               \
+			POP();                                   \
+			JUMPTO_OFFSET(offset);                   \
+		} else {                                     \
+			TOP = it->Next();                        \
+			DISPATCH();                              \
+		}                                            \
+	}
+#include "objects/iterator_types.h"
+
+#define ITERATE_NEXT_OBJECT(type)                                     \
+	{                                                                 \
+		int          offset   = next_int();                           \
+		Value &      it       = TOP;                                  \
+		const Class *c        = it.getClass();                        \
+		int          field    = SymbolTable2::const_field_has_next;   \
+		Value        has_next = c->accessFn(c, it, field);            \
+		if(is_falsey(has_next)) {                                     \
+			POP();                                                    \
+			JUMPTO_OFFSET(offset);                                    \
+		} else {                                                      \
+			functionToCall =                                          \
+			    c->get_fn(SymbolTable2::const_sig_next).toFunction(); \
+			numberOfArguments = 0;                                    \
+			goto perform##type;                                       \
+		}                                                             \
+	}
+
+			CASE(iterate_next_object_builtin) : {
+				ITERATE_NEXT_OBJECT(builtin);
 			}
+
+			CASE(iterate_next_object_method) : { ITERATE_NEXT_OBJECT(method); }
 
 			CASE(jumpiftrue) : {
 				Value v   = POP();
@@ -799,28 +876,42 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+			CASE(call_fast_prepare) : {
+				CallPatch = InstructionPointer;
+				int a     = next_int();
+				(void)a;
+				int b = next_int();
+				(void)b;
+				DISPATCH();
+			}
+
 			CASE(call_soft) : {
 				int sym           = next_int();
 				numberOfArguments = next_int();
 				// the callable is placed before the arguments
 				Value v = fiber->stackTop[-numberOfArguments - 1];
 				ASSERT(v.isGcObject(), "Not a callable object!");
-				switch(v.toGcObject()->objType) {
+				switch(v.toGcObject()->getType()) {
 					case GcObject::OBJ_Class: {
-						// check if the class has a constructor with the given
-						// signature
+						// check if the class has a constructor with the
+						// given signature
 						Class *c = v.toClass();
 						ASSERT(c->has_fn(sym),
 						       "Constructor '{}' not found in class '{}'!",
 						       SymbolTable2::getString(sym), c->name);
+						// [performcall will take care of this]
 						// set the receiver to nil so that construct
 						// knows to create a new receiver
-						fiber->stackTop[-numberOfArguments - 1] = ValueNil;
-						// call the constructor
+						// fiber->stackTop[-numberOfArguments - 1] =
+						// ValueNil; call the constructor
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
 					}
 					case GcObject::OBJ_BoundMethod: {
+						// we cannot really perform any optimizations for
+						// boundmethods, because they require verifications
+						// and stack adjustments.
+						CallPatch      = nullptr;
 						BoundMethod *b = v.toBoundMethod();
 						// verify the arguments
 						if(b->verify(&fiber->stackTop[-numberOfArguments],
@@ -841,8 +932,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 								for(int i = -numberOfArguments - 1; i < 0; i++)
 									fiber->stackTop[i] = fiber->stackTop[i + 1];
 								fiber->stackTop--;
-								// we also decrement numberOfArguments to denote
-								// actual argument count minus the instance
+								// we also decrement numberOfArguments to
+								// denote actual argument count minus the
+								// instance
 								numberOfArguments--;
 								break;
 							}
@@ -859,34 +951,141 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				}
 			}
 
-			CASE(call_method_super) : CASE(call_method) : {
-				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				// goto methodcall;
-				// fallthrough
-			}
-
-		methodcall : {
-			Value &      v = fiber->stackTop[-numberOfArguments - 1];
-			const Class *c = v.getClass();
-			ASSERT_METHOD(methodToCall, c);
-			functionToCall = c->get_fn(methodToCall).toFunction();
-			goto performcall;
-		}
-
 			CASE(call_intra) : CASE(call) : {
 				int frame         = next_int();
 				numberOfArguments = next_int();
 				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
 				const Class *c    = v.getClass();
 				functionToCall    = c->get_fn(frame).toFunction();
-				// goto performcall;
-				// fallthrough
+				goto performcall;
 			}
 
+			CASE(call_method_super) : CASE(call_method) : {
+				methodToCall      = next_int();
+				numberOfArguments = next_int();
+				goto methodcall;
+			}
+
+#define SKIPCALL()        \
+	InstructionPointer++; \
+	next_int();           \
+	next_int();           \
+	CallPatch = nullptr;
+
+#define FASTCALL_SOFT(type)                                               \
+	{                                                                     \
+		CallPatch         = InstructionPointer;                           \
+		int idxstart      = next_int();                                   \
+		numberOfArguments = next_int();                                   \
+		if(Locals[idxstart] == fiber->stackTop[-numberOfArguments - 1]) { \
+			functionToCall = Locals[idxstart + 1].toFunction();           \
+			/* set the receiver to nil so that construct                  \
+			knows to create a new receiver */                             \
+			fiber->stackTop[-numberOfArguments - 1] = ValueNil;           \
+			/* ignore the next opcode */                                  \
+			SKIPCALL();                                                   \
+			/* directly jump to the appropriate call */                   \
+			goto perform##type;                                           \
+		}                                                                 \
+		/* check failed, run the original opcode */                       \
+		DISPATCH();                                                       \
+	}
+
+			CASE(call_fast_builtin_soft) : { FASTCALL_SOFT(builtin); }
+
+			CASE(call_fast_method_soft) : { FASTCALL_SOFT(method); }
+
+#undef FASTCALL_SOFT
+
+#define FASTCALL(type)                                                \
+	{                                                                 \
+		CallPatch         = InstructionPointer;                       \
+		int idxstart      = next_int();                               \
+		numberOfArguments = next_int();                               \
+		/* get the cached class and function */                       \
+		const Class *c = Locals[idxstart].toClass();                  \
+		Function *   f = Locals[idxstart + 1].toFunction();           \
+		if(c == fiber->stackTop[-numberOfArguments - 1].getClass()) { \
+			functionToCall = f;                                       \
+			/* ignore the next opcode */                              \
+			SKIPCALL();                                               \
+			/* directly jump to the appropriate call */               \
+			goto perform##type;                                       \
+		}                                                             \
+		/* check failed, run the original opcode */                   \
+		DISPATCH();                                                   \
+	}
+
+			CASE(call_fast_builtin) : { FASTCALL(builtin); }
+
+			CASE(call_fast_method) : { FASTCALL(method); }
+
+#undef FASTCALL
+#undef SKIPCALL
+
+		methodcall : {
+			Value &      v = fiber->stackTop[-numberOfArguments - 1];
+			const Class *c = v.getClass();
+			ASSERT_METHOD(methodToCall, c);
+			functionToCall = c->get_fn(methodToCall).toFunction();
+			// goto performcall;
+			// fallthrough
+		}
+
 		performcall : {
+			// performs the call patch.
+			// call_soft has separate opcodes to maintain its stack,
+			// and all of the rest of the calls are handled by
+			// call_fast_builtin/call_fast_method, based on the
+			// type of the function going to be called.
+			//
+			// also stores the class and the function in the locals
+			// array.
+			if(CallPatch) {
+				Bytecode::Opcode *bak = InstructionPointer;
+				InstructionPointer    = CallPatch;
+				// get the index
+				int idx = next_int();
+				// ignore numberOfArguments for now
+				next_int();
+				// get the next opcode
+				Bytecode::Opcode op = *++InstructionPointer;
+				// if we are performing a softcall, patch
+				// accordingly.
+				if(op == Bytecode::Opcode::CODE_call_soft) {
+					*CallPatch =
+					    functionToCall->getType() == Function::Type::BUILTIN
+					        ? Bytecode::Opcode::CODE_call_fast_builtin_soft
+					        : Bytecode::Opcode::CODE_call_fast_method_soft;
+				} else {
+					// we are performing a normal method call
+					*CallPatch =
+					    functionToCall->getType() == Function::Type::BUILTIN
+					        ? Bytecode::Opcode::CODE_call_fast_builtin
+					        : Bytecode::Opcode::CODE_call_fast_method;
+				}
+				// store the receiver's class in the locals array
+				if(op == Bytecode::Opcode::CODE_call_soft) {
+					Locals[idx] = fiber->stackTop[-numberOfArguments - 1];
+					// if we are performing a softcall, it must only
+					// be a constructor call, so clear the 0th slot
+					// so that a new object is constructed by opcode
+					// 'construct'
+					fiber->stackTop[-numberOfArguments - 1] = ValueNil;
+				} else {
+					Locals[idx] = Value(
+					    fiber->stackTop[-numberOfArguments - 1].getClass());
+				}
+				// store the function
+				Locals[idx + 1] = Value(functionToCall);
+				// reset the patch pointer
+				CallPatch = nullptr;
+				// restore the ip
+				InstructionPointer = bak;
+			}
 			switch(functionToCall->getType()) {
 				case Function::Type::BUILTIN: {
+				performbuiltin:
 					Value res;
 					// backup present frame
 					BACKUP_FRAMEINFO();
@@ -908,6 +1107,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 					goto error;
 				}
 				case Function::Type::METHOD:
+				performmethod:
 					BACKUP_FRAMEINFO();
 					fiber->appendMethodNoBuiltin(functionToCall,
 					                             numberOfArguments, false);
@@ -933,7 +1133,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// if we have somewhere to return to,
 				// return there first. this would
 				// be true maximum number of times
-				if(fiber->callFramePointer > 0) {
+				if(fiber->callFrameCount() > 0) {
 					RESTORE_FRAMEINFO();
 					PUSH(v);
 					DISPATCH();
@@ -996,11 +1196,40 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+#define STORE_SLOT(n)        \
+	CASE(store_slot_##n) : { \
+		Stack[n] = TOP;      \
+		DISPATCH();          \
+	}
+
+			STORE_SLOT(0)
+			STORE_SLOT(1)
+			STORE_SLOT(2)
+			STORE_SLOT(3)
+			STORE_SLOT(4)
+			STORE_SLOT(5)
+			STORE_SLOT(6)
+			STORE_SLOT(7)
+
 			CASE(store_slot) : {
 				rightOperand = TOP;
 				goto do_store_slot;
 			}
 
+#define STORE_SLOT_POP(n)        \
+	CASE(store_slot_pop_##n) : { \
+		Stack[n] = POP();        \
+		DISPATCH();              \
+	}
+
+			STORE_SLOT_POP(0)
+			STORE_SLOT_POP(1)
+			STORE_SLOT_POP(2)
+			STORE_SLOT_POP(3)
+			STORE_SLOT_POP(4)
+			STORE_SLOT_POP(5)
+			STORE_SLOT_POP(6)
+			STORE_SLOT_POP(7)
 			CASE(store_slot_pop) : { rightOperand = POP(); }
 
 		do_store_slot : {
@@ -1028,12 +1257,116 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				DISPATCH();
 			}
 
+			CASE(load_field_fast) : {
+				// dummy opcode, to be replaced by load_field
+				CallPatch = InstructionPointer;
+				next_int();
+				next_int();
+				DISPATCH();
+			}
+
+			CASE(load_field_slot) : {
+				// directly loads the value from the slot
+				// if the class is matched
+				CallPatch = InstructionPointer;
+				int idx   = next_int();
+				int slot  = next_int();
+				if(Locals[idx].toClass() == TOP.getClass()) {
+					CallPatch = nullptr;
+					TOP       = TOP.toObject()->slots(slot);
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
+				DISPATCH();
+			}
+
+			CASE(load_field_static) : {
+				// directly loads the value from the static
+				// member if the class is matched
+				CallPatch    = InstructionPointer;
+				int    idx   = next_int();
+				int    field = next_int();
+				Class *c     = Locals[idx].toClass();
+				if(c == TOP.getClass()) {
+					CallPatch = nullptr;
+					TOP       = *c->get_fn(field).toPointer();
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
+				DISPATCH();
+			}
+
 			CASE(load_field) : {
 				int          field = next_int();
 				Value        v     = POP();
 				const Class *c     = v.getClass();
 				ASSERT_FIELD();
 				PUSH(c->accessFn(c, v, field));
+				if(c->type != Class::ClassType::BUILTIN) {
+					// this is not a builtin class, so we can optimize
+					// the access
+					Value v = c->get_fn(field);
+					if(v.isNumber()) {
+						// this is a slot, so store the slot index
+						*CallPatch       = Bytecode::CODE_load_field_slot;
+						*(CallPatch + 2) = (Bytecode::Opcode)v.toInteger();
+					} else {
+						// this is a static member, so store the field
+						*CallPatch       = Bytecode::CODE_load_field_static;
+						*(CallPatch + 2) = (Bytecode::Opcode)field;
+					}
+					int idx = *(CallPatch + 1);
+					// store the class
+					Locals[idx] = Value(c);
+				}
+				CallPatch = nullptr;
+				DISPATCH();
+			}
+
+			CASE(store_field_fast) : {
+				// dummy opcode, to be patched by store_field
+				CallPatch = InstructionPointer;
+				next_int();
+				next_int();
+				DISPATCH();
+			}
+
+			CASE(store_field_slot) : {
+				// directly store to the slot if the class is matched
+				CallPatch = InstructionPointer;
+				int idx   = next_int();
+				int slot  = next_int();
+				if(Locals[idx].toClass() == TOP.getClass()) {
+					Value v                   = POP();
+					CallPatch                 = nullptr;
+					v.toObject()->slots(slot) = TOP;
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
+				DISPATCH();
+			}
+
+			CASE(store_field_static) : {
+				// directly store to the static member if the class is matched
+				CallPatch    = InstructionPointer;
+				int    idx   = next_int();
+				int    field = next_int();
+				Class *c     = Locals[idx].toClass();
+				if(c == TOP.getClass()) {
+					CallPatch = nullptr;
+					POP();
+					*c->get_fn(field).toPointer() = TOP;
+					// skip next opcode
+					InstructionPointer++;
+					next_int();
+					DISPATCH();
+				}
 				DISPATCH();
 			}
 
@@ -1043,6 +1376,23 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				const Class *c     = v.getClass();
 				ASSERT_FIELD();
 				c->accessFn(c, v, field) = TOP;
+				if(c->type != Class::ClassType::BUILTIN) {
+					// this is not a builtin class, so
+					// we can optimize the access
+					Value v = c->get_fn(field);
+					if(v.isNumber()) {
+						// this is a slot store, so store the slot index
+						*CallPatch       = Bytecode::CODE_store_field_slot;
+						*(CallPatch + 2) = (Bytecode::Opcode)v.toInteger();
+					} else {
+						// this is a static field store, so store the field
+						*CallPatch       = Bytecode::CODE_store_field_static;
+						*(CallPatch + 2) = (Bytecode::Opcode)field;
+					}
+					// store the class
+					Locals[*(CallPatch + 1)] = Value(c);
+				}
+				CallPatch = nullptr;
 				DISPATCH();
 			}
 
@@ -1150,7 +1500,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				// allocated for us in the invoking
 				// constructor.
 				if(Stack[0].isNil()) {
-					Object *o = GcObject::allocObject(c);
+					Object *o = Gc::allocObject(c);
 					// assign the object to slot 0
 					Stack[0] = Value(o);
 					// if this is a module, store the instance to the class
