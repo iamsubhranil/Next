@@ -1,4 +1,4 @@
-name: Linux Build (GcStress) 
+name: Linux (GcStress) 
 
 on: push
 
@@ -9,11 +9,13 @@ jobs:
     strategy:
       matrix:
         compiler: [g++, clang++]
+        cxxstd: [c++11, c++14, c++17, c++20]
       fail-fast: false
 
     steps:
     - uses: actions/checkout@v2
-    - name: Running GC Stress Benchmarks
+    - name: ${{ matrix.compiler }} ${{ matrix.cxxstd }}
       env:
         CXX: ${{ matrix.compiler }}
-      run: eval "${CXX}" -v && make clean && make gc_stress -j && ./next tests/benchmark_orchestrator_gc.n
+        CXXSTD: ${{ matrix.cxxstd }}
+      run: eval "${CXX}" -v && echo "${CXXSTD}" && make clean && make gc_stress CXXSTD="${CXXSTD}" -j && ./next tests/benchmark_orchestrator_gc.n

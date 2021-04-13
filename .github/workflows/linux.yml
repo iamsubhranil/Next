@@ -10,12 +10,14 @@ jobs:
       matrix:
         compiler: [g++, clang++]
         target: [debug, all, cgoto]
+        cxxstd: [c++11, c++14, c++17, c++20]
       fail-fast: false
 
     steps:
     - uses: actions/checkout@v2
-    - name: ${{ matrix.target }} 
+    - name: ${{ matrix.target }} ${{ matrix.compiler }} ${{ matrix.cxxstd }}
       env:
         CXX: ${{ matrix.compiler }}
         TARGET: ${{ matrix.target }}
-      run: eval "${CXX}" -v && make clean && make "${TARGET}" -j && make tests && make benchmark
+        CXXSTD: ${{ matrix.cxxstd }}
+      run: eval "${CXX}" -v && echo "${CXXSTD}" && make clean && make "${TARGET}" CXXSTD="${CXXSTD}" -j && make tests && make benchmark
