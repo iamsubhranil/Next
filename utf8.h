@@ -390,12 +390,12 @@ struct Utf8Source {
 		return *this;
 	}
 
-	bool operator==(const Utf8Source &o) { return source == o.source; }
-	bool operator!=(const Utf8Source &o) { return source != o.source; }
-	bool operator<(const Utf8Source &o) { return source < o.source; }
-	bool operator<=(const Utf8Source &o) { return source <= o.source; }
-	bool operator>(const Utf8Source &o) { return source > o.source; }
-	bool operator>=(const Utf8Source &o) { return source >= o.source; }
+	bool operator==(const Utf8Source &o) const { return source == o.source; }
+	bool operator!=(const Utf8Source &o) const { return source != o.source; }
+	bool operator<(const Utf8Source &o) const { return source < o.source; }
+	bool operator<=(const Utf8Source &o) const { return source <= o.source; }
+	bool operator>(const Utf8Source &o) const { return source > o.source; }
+	bool operator>=(const Utf8Source &o) const { return source >= o.source; }
 
 	size_t len() const { return utf8len(source); }
 };
