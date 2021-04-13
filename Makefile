@@ -1,4 +1,8 @@
-override CXXFLAGS += -Wall -Wextra
+ifeq ($(CXXSTD),)
+	CXXSTD := c++17
+endif
+
+override CXXFLAGS += -Wall -Wextra -std=$(CXXSTD)
 override LDFLAGS +=
 
 RM=rm -f
