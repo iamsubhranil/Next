@@ -77,6 +77,39 @@ int Class::add_static_slot() {
 	return static_slot_count++;
 }
 
+void Class::add_member(int s, bool isStatic, Value staticValue) {
+	// add the slot to the method buffer which will
+	// be directly accessed by load_field and store_field.
+	// adding directly the name of the variable as a method
+	// should not cause any problems, as all user defined
+	// methods have signatures with at least one '()'.
+	//
+	// static members are also added to the same symbol table,
+	// except that their Value contains a pointer to the index
+	// in the static array in the class, where the content is
+	// stored.
+	if(!isStatic) {
+		add_sym(s, Value(add_slot()));
+	} else {
+		int slot            = add_static_slot();
+		static_values[slot] = staticValue;
+		add_sym(s, Value(&static_values[slot]));
+		if(metaclass) {
+			// add it as a public variable of the metaclass,
+			// pointing to the static slot of this class
+			metaclass->add_sym(s, Value(&static_values[slot]));
+		}
+	}
+}
+
+void Class::add_member(String *sym, bool isStatic, Value staticValue) {
+	return add_member(SymbolTable2::insert(sym), isStatic, staticValue);
+}
+
+void Class::add_member(const char *sym, bool isStatic, Value staticValue) {
+	return add_member(SymbolTable2::insert(sym), isStatic, staticValue);
+}
+
 void Class::add_fn(String *s, Function *f) {
 	add_sym(SymbolTable2::insert(s), Value(f));
 }

@@ -71,32 +71,12 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic,
                                             bool declare) {
 	if(has_mem(name))
 		return get_mem_slot(name);
-	// add the slot to the method buffer which will
-	// be directly accessed by load_field and store_field.
-	// adding directly the name of the variable as a method
-	// should not cause any problems, as all user defined
-	// methods have signatures with at least one '()'.
-	//
-	// static members are also added to the same symbol table,
-	// except that their Value contains a pointer to the index
-	// in the static array in the class, where the content is
-	// stored.
-	int sym = SymbolTable2::insert(name);
 	if(!isStatic) {
 		members[0][name] = MemberInfo{slotCount++, false, declare};
-		compilingClass->add_sym(sym, Value(compilingClass->add_slot()));
 	} else {
 		members[0][name] = MemberInfo{staticSlotCount++, true, declare};
-		int slot         = compilingClass->add_static_slot();
-		compilingClass->add_sym(sym,
-		                        Value(&compilingClass->static_values[slot]));
-		if(metaclass) {
-			// add it as a public variable of the metaclass,
-			// pointing to the static slot of this class
-			metaclass->add_sym(sym,
-			                   Value(&compilingClass->static_values[slot]));
-		}
 	}
+	compilingClass->add_member(name, isStatic, ValueNil);
 	return true;
 }
 

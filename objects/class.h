@@ -53,6 +53,12 @@ struct Class {
 	// the slot number.
 	// also, get_fns are unchecked. must call has_fn eariler
 	void add_sym(int sym, Value v);
+	void add_member(int sym, bool isStatic = false,
+	                Value staticValue = ValueNil);
+	void add_member(const char *sym, bool isStatic = false,
+	                Value staticValue = ValueNil);
+	void add_member(String *sym, bool isStatic = false,
+	                Value staticValue = ValueNil);
 	// increments the numSlots by 1, so that instances
 	// get a new slot
 	int add_slot();
