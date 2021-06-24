@@ -101,9 +101,7 @@ struct Printer {
 	{                                                                    \
 		Printer::Err("[Internal Error] [", __FILE__, ":", __LINE__, ":", \
 		             __PRETTY_FUNCTION__, "] ", str, ##__VA_ARGS__);     \
-		int *p = NULL;                                                   \
-		int  d = *p;                                                     \
-		exit(d);                                                         \
+		abort();                                                         \
 	}
 
 #define dinfo(str, ...)                                                       \
