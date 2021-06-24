@@ -39,9 +39,6 @@ struct Expr;
 struct Statement;
 template <typename T, size_t n> struct CustomArray;
 
-#define OBJTYPE(n, c) struct n;
-#include "objecttype.h"
-
 #ifdef GC_STRESS
 #undef GC_STRESS
 #define GC_STRESS 1
@@ -188,8 +185,7 @@ struct Gc {
 	static void free_print(const char *file, int line, void *mem, size_t bytes);
 #define Gc_malloc(x) Gc::malloc_print(__FILE__, __LINE__, (x))
 #define Gc_calloc(x, y) Gc::calloc_print(__FILE__, __LINE__, (x), (y))
-#define Gc_realloc(x, y, z) \
-	Gc::realloc_print(__FILE__, __LINE__, (x), (y), (z))
+#define Gc_realloc(x, y, z) Gc::realloc_print(__FILE__, __LINE__, (x), (y), (z))
 #define Gc_free(x, y) \
 	{ Gc::free_print(__FILE__, __LINE__, (x), (y)); }
 	// macros to warn against direct malloc/free calls
