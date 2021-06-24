@@ -235,3 +235,27 @@ void Bytecode::disassemble(WritableStream &os, const Opcode *data, size_t *p) {
 }
 
 #endif
+
+void Bytecode::init(Class *b) {
+	Map2    opcodeToStr = Map::create();
+	Map2    strToOpcode = Map::create();
+	String2 s;
+#define OPCODE0(w, x)                                                      \
+	b->add_member(#w, true, Value(Bytecode::Opcode::CODE_##w));            \
+	s                                                  = String::from(#w); \
+	opcodeToStr->vv[Value(Bytecode::Opcode::CODE_##w)] = Value(s);         \
+	strToOpcode->vv[Value(s)] = Value(Bytecode::Opcode::CODE_##w);
+#define OPCODE1(w, x, y)                                                   \
+	b->add_member(#w, true, Value(Bytecode::Opcode::CODE_##w));            \
+	s                                                  = String::from(#w); \
+	opcodeToStr->vv[Value(Bytecode::Opcode::CODE_##w)] = Value(s);         \
+	strToOpcode->vv[Value(s)] = Value(Bytecode::Opcode::CODE_##w);
+#define OPCODE2(w, x, y, z)                                                \
+	b->add_member(#w, true, Value(Bytecode::Opcode::CODE_##w));            \
+	s                                                  = String::from(#w); \
+	opcodeToStr->vv[Value(Bytecode::Opcode::CODE_##w)] = Value(s);         \
+	strToOpcode->vv[Value(s)] = Value(Bytecode::Opcode::CODE_##w);
+#include "../opcodes.h"
+	b->add_member("OPCODE_TO_STR", true, Value(opcodeToStr));
+	b->add_member("STR_TO_OPCODE", true, Value(strToOpcode));
+}

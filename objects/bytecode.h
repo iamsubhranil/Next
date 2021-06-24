@@ -145,6 +145,8 @@ struct Bytecode {
 		Gc_free(values, sizeof(Value) * num_values);
 	}
 
+	static void init(Class *c);
+
 #ifdef DEBUG
 	void disassemble(WritableStream &o);
 
