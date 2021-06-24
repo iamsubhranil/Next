@@ -44,6 +44,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -426,9 +427,8 @@ namespace robin_hood {
 						case 0:
 							// it is automatically allocated. so use
 							// the calculated size + 1 (for the flag).
-							Gc_free(
-							    m, (numAllocatedElements * ALIGNED_SIZE) +
-							           ALIGNMENT + 1);
+							Gc_free(m, (numAllocatedElements * ALIGNED_SIZE) +
+							               ALIGNMENT + 1);
 							break;
 						case 1:
 							// it is manually allocated. so retrieve the
@@ -589,8 +589,9 @@ namespace robin_hood {
 
 			// enforce byte alignment of the T's
 #if ROBIN_HOOD(CXX) >= ROBIN_HOOD(CXX14)
-			static constexpr size_t ALIGNMENT = (std::max)(
-			    std::alignment_of<T>::value, std::alignment_of<T *>::value);
+			static constexpr size_t ALIGNMENT =
+			    (std::max)(std::alignment_of<T>::value,
+			               std::alignment_of<T *>::value);
 #else
 			static const size_t ALIGNMENT =
 			    (ROBIN_HOOD_STD::alignment_of<T>::value >
@@ -1722,9 +1723,9 @@ namespace robin_hood {
 					// we need to realloc.
 					if(0 != mMask) {
 						// only deallocate if we actually have data!
-						Gc_free(mKeyVals, calcNumBytesTotal(
-						                            calcNumElementsWithBuffer(
-						                                mMask + 1)));
+						Gc_free(mKeyVals,
+						        calcNumBytesTotal(
+						            calcNumElementsWithBuffer(mMask + 1)));
 					}
 
 					auto const numElementsWithBuffer =
@@ -2424,8 +2425,8 @@ namespace robin_hood {
 					//          << calcNumBytesTotal(
 					//                 calcNumElementsWithBuffer(mMask + 1));
 					Gc_free(mKeyVals,
-					              calcNumBytesTotal(
-					                  calcNumElementsWithBuffer(mMask + 1)));
+					        calcNumBytesTotal(
+					            calcNumElementsWithBuffer(mMask + 1)));
 				}
 			}
 
