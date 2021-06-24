@@ -99,7 +99,7 @@ std::size_t StdInputStream::read(Utf8Source &source) {
 	char * buf      = NULL;
 	size_t totallen = 0;
 	while(true) {
-		utf8_int32_t val;
+		utf8_int32_t val = 0;
 		ReadableStream::read(val);
 		if(val == 0 || val == (utf8_int32_t)EOF) {
 			eof = true;
@@ -108,7 +108,7 @@ std::size_t StdInputStream::read(Utf8Source &source) {
 			break;
 		}
 		size_t cpsize = utf8codepointsize(val);
-		buf = (char *)Gc_realloc(buf, totallen, totallen + cpsize);
+		buf           = (char *)Gc_realloc(buf, totallen, totallen + cpsize);
 		utf8catcodepoint(&buf[totallen], val, cpsize);
 		totallen += cpsize;
 	}
