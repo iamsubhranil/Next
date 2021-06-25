@@ -4,9 +4,10 @@
 #include <cstdint>
 
 #include "hashmap.h"
+#include "value.h"
 
 class ExecutionEngine {
-	using ModuleMap = HashMap<String *, GcObject *>;
+	using ModuleMap = HashMap<Value, GcObject *>;
 	static ModuleMap *loadedModules;
 
 	// stack of unhandled exceptions
@@ -36,8 +37,8 @@ class ExecutionEngine {
   public:
 	static void      mark();
 	static void      init();
-	static bool      isModuleRegistered(String *filename);
-	static GcObject *getRegisteredModule(String *filename);
+	static bool      isModuleRegistered(Value filename);
+	static GcObject *getRegisteredModule(Value filename);
 	static void      setPendingException(Value v);
 	// throwException will either return
 	// the matching Fiber if found,
@@ -56,8 +57,8 @@ class ExecutionEngine {
 	// number of exceptions generated after.
 
 	// registers and executes a module
-	static bool registerModule(const String2 &fileName,
-	                           Function *defConstructor, Value *ret);
+	static bool registerModule(Value name, Function *defConstructor,
+	                           Value *ret);
 
 	// executes a bound method on v in current fiber
 	static bool execute(Value v, Function *f, Value *args, int numargs,

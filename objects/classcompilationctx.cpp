@@ -67,7 +67,7 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 	return ctx;
 }
 
-int ClassCompilationContext::add_public_mem(String *name, bool isStatic,
+int ClassCompilationContext::add_public_mem(Value name, bool isStatic,
                                             bool declare) {
 	if(has_mem(name))
 		return get_mem_slot(name);
@@ -76,11 +76,11 @@ int ClassCompilationContext::add_public_mem(String *name, bool isStatic,
 	} else {
 		members[0][name] = MemberInfo{staticSlotCount++, true, declare};
 	}
-	compilingClass->add_member(name, isStatic, ValueNil);
+	compilingClass->add_member(name.toString(), isStatic, ValueNil);
 	return true;
 }
 
-int ClassCompilationContext::add_private_mem(String *name, bool isStatic,
+int ClassCompilationContext::add_private_mem(Value name, bool isStatic,
                                              bool declare) {
 	if(has_mem(name))
 		return get_mem_slot(name);
@@ -96,20 +96,20 @@ int ClassCompilationContext::add_private_mem(String *name, bool isStatic,
 	return true;
 }
 
-bool ClassCompilationContext::has_mem(String *name) {
+bool ClassCompilationContext::has_mem(Value name) {
 	return members->contains(name) && members[0][name].isDeclared;
 }
 
-int ClassCompilationContext::get_mem_slot(String *name) {
+int ClassCompilationContext::get_mem_slot(Value name) {
 	return members[0][name].slot;
 }
 
 ClassCompilationContext::MemberInfo
-ClassCompilationContext::get_mem_info(String *name) {
+ClassCompilationContext::get_mem_info(Value name) {
 	return members[0][name];
 }
 
-bool ClassCompilationContext::is_static_slot(String *name) {
+bool ClassCompilationContext::is_static_slot(Value name) {
 	return get_mem_info(name).isStatic;
 }
 
@@ -136,7 +136,7 @@ void ClassCompilationContext::add_public_signature(
 
 bool ClassCompilationContext::add_public_fn(const String2 &sig, Function *f,
                                             FunctionCompilationContext *fctx) {
-	if(has_fn(sig))
+	if(has_fn((String *)sig))
 		return false;
 	add_public_signature(sig, f, fctx);
 	if(f->isVarArg()) {
@@ -175,7 +175,7 @@ void ClassCompilationContext::add_private_signature(
 
 bool ClassCompilationContext::add_private_fn(const String2 &sig, Function *f,
                                              FunctionCompilationContext *fctx) {
-	if(has_fn(sig))
+	if(has_fn((String *)sig))
 		return false;
 	add_private_signature(sig, f, fctx);
 	if(f->isVarArg()) {
@@ -199,10 +199,10 @@ bool ClassCompilationContext::add_private_fn(const String2 &sig, Function *f,
 	return true;
 }
 
-bool ClassCompilationContext::has_fn(String *sig) {
-	if(public_signatures->vv.contains(Value(sig)))
+bool ClassCompilationContext::has_fn(Value sig) {
+	if(public_signatures->vv.contains(sig))
 		return true;
-	if(private_signatures->vv.contains(Value(sig)))
+	if(private_signatures->vv.contains(sig))
 		return true;
 	return false;
 }
@@ -215,8 +215,8 @@ int ClassCompilationContext::get_fn_sym(const String2 &sig) {
 	return SymbolTable2::insert(finalSig);
 }
 
-FunctionCompilationContext *ClassCompilationContext::get_func_ctx(String *sig) {
-	return fctxMap->vv[Value(sig)].toFunctionCompilationContext();
+FunctionCompilationContext *ClassCompilationContext::get_func_ctx(Value sig) {
+	return fctxMap->vv[sig].toFunctionCompilationContext();
 }
 
 void ClassCompilationContext::add_public_class(Class *                  c,
@@ -283,7 +283,7 @@ void ClassCompilationContext::disassemble(WritableStream &os) {
 	}
 	os.write("Members: ");
 	for(auto &a : *members) {
-		os.write(a.first->str(), "(slot=", a.second.slot,
+		os.write(a.first.toString()->str(), "(slot=", a.second.slot,
 		         ",static=", a.second.isStatic, "), ");
 	}
 	os.write("\n");

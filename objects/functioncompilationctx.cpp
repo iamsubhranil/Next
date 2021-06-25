@@ -6,12 +6,11 @@ FunctionCompilationContext *FunctionCompilationContext::create(String2 name,
                                                                int     arity,
                                                                bool    isStatic,
                                                                bool    isva) {
-	FunctionCompilationContext2 fcc =
-	    Gc::alloc<FunctionCompilationContext>();
-	fcc->slotCount = 0;
-	fcc->bcc       = NULL;
-	fcc->f         = NULL;
-	fcc->slotmap   = NULL;
+	FunctionCompilationContext2 fcc = Gc::alloc<FunctionCompilationContext>();
+	fcc->slotCount                  = 0;
+	fcc->bcc                        = NULL;
+	fcc->f                          = NULL;
+	fcc->slotmap                    = NULL;
 	// initialize the members
 	fcc->slotmap = (SlotMap *)Gc_malloc(sizeof(SlotMap));
 	::new(fcc->slotmap) SlotMap();
@@ -29,7 +28,7 @@ Function *FunctionCompilationContext::get_fn() {
 	return f;
 }
 
-int FunctionCompilationContext::create_slot(String *s, int scopeID) {
+int FunctionCompilationContext::create_slot(Value s, int scopeID) {
 	if(slotmap->contains(s)) {
 		// reassign the variable to the new scope
 		slotmap[0][s].scopeID = scopeID;
@@ -40,11 +39,11 @@ int FunctionCompilationContext::create_slot(String *s, int scopeID) {
 	return slotCount - 1;
 }
 
-bool FunctionCompilationContext::has_slot(String *s, int scopeID) {
+bool FunctionCompilationContext::has_slot(Value s, int scopeID) {
 	return slotmap->contains(s) && slotmap[0][s].scopeID <= scopeID;
 }
 
-int FunctionCompilationContext::get_slot(String *s) {
+int FunctionCompilationContext::get_slot(Value s) {
 	return slotmap[0][s].slot;
 }
 
@@ -53,7 +52,7 @@ int FunctionCompilationContext::get_slot(String *s) {
 void FunctionCompilationContext::disassemble(WritableStream &os) {
 	os.write("Slots: ");
 	for(auto &a : slotmap[0]) {
-		os.write(a.first->str(), "(", a.second.slot, "), ");
+		os.write(a.first.toString()->str(), "(", a.second.slot, "), ");
 	}
 	os.write("\n");
 	f->disassemble(os);

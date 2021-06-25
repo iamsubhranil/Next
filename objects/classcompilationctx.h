@@ -17,7 +17,7 @@ struct ClassCompilationContext {
 		bool isStatic;
 		bool isDeclared;
 	};
-	typedef HashMap<String *, ClassCompilationContext::MemberInfo> MemberMap;
+	typedef HashMap<Value, ClassCompilationContext::MemberInfo> MemberMap;
 
 	GcObject obj;
 
@@ -43,15 +43,13 @@ struct ClassCompilationContext {
 
 	void add_public_class(Class *c, ClassCompilationContext *ctx = NULL);
 	void add_private_class(Class *c, ClassCompilationContext *ctx = NULL);
-	int  add_public_mem(String *name, bool isStatic = false,
-	                    bool declare = true);
-	int  add_private_mem(String *name, bool isStatic = false,
-	                     bool declare = true);
-	bool has_mem(String *name);
+	int  add_public_mem(Value name, bool isStatic = false, bool declare = true);
+	int add_private_mem(Value name, bool isStatic = false, bool declare = true);
+	bool has_mem(Value name);
 	// unchecked. use has_mem before
-	int        get_mem_slot(String *name);
-	MemberInfo get_mem_info(String *name);
-	bool       is_static_slot(String *name);
+	int        get_mem_slot(Value name);
+	MemberInfo get_mem_info(Value name);
+	bool       is_static_slot(Value name);
 
 	bool add_public_fn(const String2 &sig, Function *f,
 	                   FunctionCompilationContext *fctx = NULL);
@@ -61,9 +59,9 @@ struct ClassCompilationContext {
 	                    FunctionCompilationContext *fctx = NULL);
 	void add_private_signature(const String2 &sig, Function *f,
 	                           FunctionCompilationContext *fctx);
-	bool has_fn(String *sig);
+	bool has_fn(Value sig);
 	// retrieve the ctx for a function
-	FunctionCompilationContext *get_func_ctx(String *sig);
+	FunctionCompilationContext *get_func_ctx(Value sig);
 	// unchecked. use has_fn before
 	int get_fn_sym(const String2 &sig);
 

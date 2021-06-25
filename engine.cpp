@@ -32,16 +32,16 @@ void ExecutionEngine::init() {
 	currentFiber->stackTop++;
 }
 
-bool ExecutionEngine::isModuleRegistered(String *name) {
+bool ExecutionEngine::isModuleRegistered(Value name) {
 	return loadedModules && loadedModules->contains(name) &&
 	       loadedModules[0][name] != NULL;
 }
 
-GcObject *ExecutionEngine::getRegisteredModule(String *name) {
+GcObject *ExecutionEngine::getRegisteredModule(Value name) {
 	return loadedModules[0][name];
 }
 
-bool ExecutionEngine::registerModule(const String2 &name, Function *toplevel,
+bool ExecutionEngine::registerModule(Value name, Function *toplevel,
                                      Value *instance) {
 	if(execute(ValueNil, toplevel, instance, true)) {
 		loadedModules[0][name] = instance->toGcObject();

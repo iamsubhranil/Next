@@ -75,8 +75,8 @@ struct Value {
 		          << " (Magic : " << QNAN_GcObject << ")\n"               \
 		          << std::dec; */                                         \
 	}                                                                     \
-	Value(GcTempObject<r> &s) {                                           \
-		r *temp = s;                                                      \
+	Value(const GcTempObject<r> &s) {                                     \
+		r *temp = (r *)s;                                                 \
 		encodeGcObject((GcObject *)temp);                                 \
 	}
 #else
@@ -84,8 +84,8 @@ struct Value {
 	Value(const r s) { encode##n(s); }
 #define OBJTYPE(r, c)                                    \
 	Value(const r *s) { encodeGcObject((GcObject *)s); } \
-	Value(GcTempObject<r> &s) {                          \
-		r *temp = s;                                     \
+	Value(const GcTempObject<r> &s) {                    \
+		r *temp = (r *)s;                                \
 		encodeGcObject((GcObject *)temp);                \
 	}
 #endif

@@ -15,7 +15,7 @@ struct BuiltinModule {
 	typedef void (*ModuleDestroy)(GcObject *instance);
 
 	static size_t        ModuleCount;
-	static String *      ModuleNames[];
+	static Value         ModuleNames[];
 	static ModuleInit    ModuleInits[];
 	static ModulePreInit ModulePreInits[];
 	static ModuleDestroy ModuleDestroys[];
@@ -44,7 +44,7 @@ struct BuiltinModule {
 
 	// will return -1 if the module is unavailable, otherwise,
 	// will return module index to use in initBuiltinModule
-	static int hasBuiltinModule(String *module_name);
+	static int hasBuiltinModule(Value module_name);
 	// use this to register builtin modules
 	// for the first call, it also fires up
 	// the engine, and itself, before calling the preInit

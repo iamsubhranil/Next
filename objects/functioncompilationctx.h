@@ -13,15 +13,15 @@ struct FunctionCompilationContext {
 		int scopeID;
 	};
 
-	typedef HashMap<String *, VarState> SlotMap;
-	SlotMap *                           slotmap;
-	Function *                          f;
-	BytecodeCompilationContext *        bcc;
-	int                                 slotCount;
+	typedef HashMap<Value, VarState> SlotMap;
+	SlotMap *                        slotmap;
+	Function *                       f;
+	BytecodeCompilationContext *     bcc;
+	int                              slotCount;
 
-	int                         create_slot(String *s, int scopeID);
-	bool                        has_slot(String *s, int scopeID);
-	int                         get_slot(String *s);
+	int                         create_slot(Value s, int scopeID);
+	bool                        has_slot(Value s, int scopeID);
+	int                         get_slot(Value s);
 	BytecodeCompilationContext *get_codectx();
 	Function *                  get_fn();
 

@@ -9,8 +9,8 @@
 // first initBuiltinModule call.
 static bool bootstrap = true;
 
-String *BuiltinModule::ModuleNames[] = {
-#define MODULE(x, y) nullptr,
+Value BuiltinModule::ModuleNames[] = {
+#define MODULE(x, y) ValueNil,
 #include "../modules.h"
 };
 
@@ -48,7 +48,7 @@ void BuiltinModule::add_builtin_variable(const char *name, Value v) {
 	ctx->defaultConstructor->bcc->store_object_slot(s);
 }
 
-int BuiltinModule::hasBuiltinModule(String *module_name) {
+int BuiltinModule::hasBuiltinModule(Value module_name) {
 	for(size_t i = 0; i < ModuleCount; i++) {
 		if(ModuleNames[i] == module_name)
 			return i;
@@ -57,7 +57,7 @@ int BuiltinModule::hasBuiltinModule(String *module_name) {
 }
 
 Value BuiltinModule::initBuiltinModule(int idx) {
-	String *name = nullptr;
+	Value name;
 	// if we are bootstrapping, don't bother
 	if(!bootstrap) {
 		name = ModuleNames[idx];
@@ -76,7 +76,7 @@ Value BuiltinModule::initBuiltinModule(int idx) {
 		bootstrap = false;
 	}
 	BuiltinModule2 b = create();
-	b->ctx           = ClassCompilationContext::create(NULL, name);
+	b->ctx           = ClassCompilationContext::create(NULL, name.toString());
 	ModuleInits[idx](b);
 	b->ctx->finalize();
 	Value instance;
@@ -88,7 +88,7 @@ Value BuiltinModule::initBuiltinModule(int idx) {
 }
 
 void BuiltinModule::initModuleNames() {
-#define MODULE(x, y) ModuleNames[ModuleCount++] = String::from(#x);
+#define MODULE(x, y) ModuleNames[ModuleCount++] = Value(String::from(#x));
 #include "../modules.h"
 }
 
