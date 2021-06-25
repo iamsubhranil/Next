@@ -69,11 +69,13 @@ static size_t counterCounter = 0;
 #define FREE(x, y) FREE_CALL(x, y)
 #endif
 
+const uint64_t PointerUsedBits = 0x000FFFFFFFFFFFF;
+
 void *Gc::malloc(size_t bytes) {
 	void *m = MALLOC(bytes);
 	totalAllocated += bytes;
 	STORE_SIZE(m, bytes);
-	return m;
+	return (void *)((uintptr_t)m & PointerUsedBits);
 }
 
 void *Gc::calloc(size_t num, size_t bytes) {
@@ -85,7 +87,7 @@ void *Gc::calloc(size_t num, size_t bytes) {
 	STORE_SIZE(m, bytes);
 #endif
 	totalAllocated += (num * bytes);
-	return m;
+	return (void *)((uintptr_t)m & PointerUsedBits);
 }
 
 void *Gc::realloc(void *mem, size_t oldb, size_t newb) {
@@ -93,7 +95,7 @@ void *Gc::realloc(void *mem, size_t oldb, size_t newb) {
 	totalAllocated += newb;
 	totalAllocated -= oldb;
 	STORE_SIZE(n, newb);
-	return n;
+	return (void *)((uintptr_t)n & PointerUsedBits);
 }
 
 void Gc::free(void *mem, size_t bytes) {
@@ -295,8 +297,7 @@ Object *Gc::allocObject(const Class *klass) {
 String *Gc::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
-	String *s =
-	    (String *)Gc_malloc(sizeof(String) + (sizeof(char) * numchar));
+	String *s = (String *)Gc_malloc(sizeof(String) + (sizeof(char) * numchar));
 	s->obj.setType(GcObject::OBJ_String, Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
