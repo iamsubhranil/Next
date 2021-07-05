@@ -31,16 +31,16 @@ struct Value {
 
 		constexpr explicit ValueUnion() : value(0) {}
 		constexpr explicit ValueUnion(uint64_t v) : value(v) {}
-		constexpr explicit ValueUnion(double d) : dvalue(d) { value |= 0x1; }
+		explicit ValueUnion(double d) : dvalue(d) { value |= 0x1; }
 
 	} val;
 	enum class Type : int { Number = 0, Nil = 1, Boolean = 2, Object = 3 };
 	constexpr Value() : val((uint64_t)2) {}
 	constexpr Value(ValueUnion u) : val(u) {}
-	constexpr Value(double d) : val(d) {}
-	constexpr Value(int64_t l) : val((double)l) {}
-	constexpr Value(size_t s) : Value((int64_t)s) {}
-	constexpr Value(int i) : val((double)i) {}
+	Value(double d) : val(d) {}
+	Value(int64_t l) : val((double)l) {}
+	Value(size_t s) : Value((int64_t)s) {}
+	Value(int i) : val((double)i) {}
 
 #ifdef DEBUG
 #define TYPE(r, n)                                                        \
