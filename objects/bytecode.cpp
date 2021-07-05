@@ -160,9 +160,6 @@ void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 		case Value::VAL_NIL: os.write("nil"); break;
 		case Value::VAL_Boolean: os.write(v.toBoolean()); break;
 		case Value::VAL_Number: os.fmt("{:.16}", v.toNumber()); break;
-		case Value::VAL_Pointer:
-			os.write("<pointer at ", v.toPointer(), ">");
-			break;
 		case Value::VAL_GcObject: {
 			GcObject *o = v.toGcObject();
 			switch(o->getType()) {
@@ -191,7 +188,7 @@ void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
 void Bytecode::disassemble(WritableStream &os) {
 	os.write("StackSize: ", stackMaxSize, "\n");
 	int cache = 0;
-	for(int i = 0; i < num_values; i++) {
+	for(size_t i = 0; i < num_values; i++) {
 		if(values[i] == ValueNil)
 			cache++;
 	}

@@ -39,8 +39,7 @@ Function *Function::create_derived(int offset) {
 		return df;
 	}
 	df->numExceptions = numExceptions;
-	df->exceptions =
-	    (Exception *)Gc_malloc(sizeof(Exception) * numExceptions);
+	df->exceptions = (Exception *)Gc_malloc(sizeof(Exception) * numExceptions);
 	for(size_t i = 0; i < numExceptions; i++) {
 		df->exceptions[i]         = exceptions[i];
 		df->exceptions[i].catches = (CatchBlock *)Gc_malloc(
@@ -61,9 +60,9 @@ Exception *Function::create_exception_block(int from, int to) {
 		if(exceptions[i].from == from && exceptions[i].to == to)
 			return &exceptions[i];
 	}
-	exceptions = (Exception *)Gc_realloc(
-	    exceptions, sizeof(Exception) * numExceptions,
-	    sizeof(Exception) * (numExceptions + 1));
+	exceptions =
+	    (Exception *)Gc_realloc(exceptions, sizeof(Exception) * numExceptions,
+	                            sizeof(Exception) * (numExceptions + 1));
 	exceptions[numExceptions].from       = from;
 	exceptions[numExceptions].to         = to;
 	exceptions[numExceptions].numCatches = 0;
@@ -76,8 +75,7 @@ bool Exception::add_catch(int slot, CatchBlock::SlotType type, int jump) {
 		if(catches[i].slot == slot && catches[i].type == type)
 			return false;
 	}
-	catches =
-	    (CatchBlock *)Gc_realloc(catches, sizeof(CatchBlock) * numCatches,
+	catches = (CatchBlock *)Gc_realloc(catches, sizeof(CatchBlock) * numCatches,
 	                                   sizeof(CatchBlock) * (numCatches + 1));
 	catches[numCatches].jump   = jump;
 	catches[numCatches].slot   = slot;

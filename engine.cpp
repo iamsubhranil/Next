@@ -1290,8 +1290,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				int    field = next_int();
 				Class *c     = Locals[idx].toClass();
 				if(c == TOP.getClass()) {
-					CallPatch = nullptr;
-					TOP       = *c->get_fn(field).toPointer();
+					CallPatch           = nullptr;
+					Class::StaticRef sr = c->staticRefs[field];
+					TOP                 = sr.owner->static_values[sr.slot];
 					// skip next opcode
 					InstructionPointer++;
 					next_int();
@@ -1309,15 +1310,16 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				if(c->type != Class::ClassType::BUILTIN) {
 					// this is not a builtin class, so we can optimize
 					// the access
-					Value v = c->get_fn(field);
-					if(v.isNumber()) {
+					int v = c->get_fn(field).toInteger();
+					if(!Class::is_static_slot(v)) {
 						// this is a slot, so store the slot index
 						*CallPatch       = Bytecode::CODE_load_field_slot;
-						*(CallPatch + 2) = (Bytecode::Opcode)v.toInteger();
+						*(CallPatch + 2) = (Bytecode::Opcode)v;
 					} else {
-						// this is a static member, so store the field
-						*CallPatch       = Bytecode::CODE_load_field_static;
-						*(CallPatch + 2) = (Bytecode::Opcode)field;
+						// this is a static member, so store the decodes index
+						*CallPatch = Bytecode::CODE_load_field_static;
+						*(CallPatch + 2) =
+						    (Bytecode::Opcode)Class::get_static_slot(v);
 					}
 					int idx = *(CallPatch + 1);
 					// store the class
@@ -1361,7 +1363,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				if(c == TOP.getClass()) {
 					CallPatch = nullptr;
 					POP();
-					*c->get_fn(field).toPointer() = TOP;
+					Class::StaticRef sr              = c->staticRefs[field];
+					sr.owner->static_values[sr.slot] = TOP;
 					// skip next opcode
 					InstructionPointer++;
 					next_int();
@@ -1379,15 +1382,16 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				if(c->type != Class::ClassType::BUILTIN) {
 					// this is not a builtin class, so
 					// we can optimize the access
-					Value v = c->get_fn(field);
-					if(v.isNumber()) {
+					int v = c->get_fn(field).toInteger();
+					if(!Class::is_static_slot(v)) {
 						// this is a slot store, so store the slot index
 						*CallPatch       = Bytecode::CODE_store_field_slot;
-						*(CallPatch + 2) = (Bytecode::Opcode)v.toInteger();
+						*(CallPatch + 2) = (Bytecode::Opcode)v;
 					} else {
 						// this is a static field store, so store the field
-						*CallPatch       = Bytecode::CODE_store_field_static;
-						*(CallPatch + 2) = (Bytecode::Opcode)field;
+						*CallPatch = Bytecode::CODE_store_field_static;
+						*(CallPatch + 2) =
+						    (Bytecode::Opcode)Class::get_static_slot(v);
 					}
 					// store the class
 					Locals[*(CallPatch + 1)] = Value(c);

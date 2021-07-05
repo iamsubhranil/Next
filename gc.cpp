@@ -295,8 +295,7 @@ Object *Gc::allocObject(const Class *klass) {
 String *Gc::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
-	String *s =
-	    (String *)Gc_malloc(sizeof(String) + (sizeof(char) * numchar));
+	String *s = (String *)Gc_malloc(sizeof(String) + (sizeof(char) * numchar));
 	s->obj.setType(GcObject::OBJ_String, Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
@@ -398,15 +397,11 @@ void Gc::release(GcObject *obj) {
 void Gc::release(Value v) {
 	if(v.isGcObject())
 		release(v.toGcObject());
-	else if(v.isPointer())
-		release(*v.toPointer());
 }
 
 void Gc::mark(Value v) {
 	if(v.isGcObject())
 		mark(v.toGcObject());
-	else if(v.isPointer() && (*v.toPointer()).isGcObject())
-		mark(v.toPointer()->toGcObject());
 }
 
 void Gc::mark(Value *v, size_t num) {

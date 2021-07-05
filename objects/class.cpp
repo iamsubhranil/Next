@@ -12,11 +12,12 @@ Value &FieldAccessFunction(const Class *c, Value v, int field) {
 	// check if it's an instance slot
 	// we ignore the costly isInteger
 	// check here
-	if(slot.isNumber()) {
-		return v.toObject()->slots(slot.toInteger());
+	int idx = slot.toInteger();
+	if(Class::is_static_slot(idx)) {
+		Class::StaticRef sr = c->staticRefs[Class::get_static_slot(idx)];
+		return sr.owner->static_values[sr.slot];
 	} else {
-		// it is a static slot
-		return *slot.toPointer();
+		return v.toObject()->slots(idx);
 	}
 }
 
@@ -35,6 +36,8 @@ void Class::init_class(String2 s, ClassType typ, Class *mc) {
 	metaclass         = mc;
 	isMetaClass       = false;
 	superclass        = NULL;
+	staticRefs        = NULL;
+	staticRefCount    = 0;
 	accessFn          = FieldAccessFunction;
 	functions         = Array::create(1);
 	if(typ == BUILTIN && mc == nullptr) {
@@ -74,7 +77,25 @@ int Class::add_static_slot() {
 	    (Value *)Gc_realloc(static_values, sizeof(Value) * static_slot_count,
 	                        sizeof(Value) * (static_slot_count + 1));
 	static_values[static_slot_count] = ValueNil;
+	if(metaclass)
+		// static_values may be realloced to a different address,
+		// so reassign
+		metaclass->static_values = static_values;
 	return static_slot_count++;
+}
+
+int Class::add_static_ref(Class *owner, int slot) {
+	staticRefs =
+	    (StaticRef *)Gc_realloc(staticRefs, sizeof(StaticRef) * staticRefCount,
+	                            sizeof(StaticRef) * (staticRefCount + 1));
+	staticRefs[staticRefCount] = {owner, slot};
+	if(metaclass)
+		metaclass->staticRefs = staticRefs;
+	return staticRefCount++;
+}
+
+int Class::add_static_ref() {
+	return add_static_ref(this, add_static_slot());
 }
 
 void Class::add_member(int s, bool isStatic, Value staticValue) {
@@ -85,19 +106,20 @@ void Class::add_member(int s, bool isStatic, Value staticValue) {
 	// methods have signatures with at least one '()'.
 	//
 	// static members are also added to the same symbol table,
-	// except that their Value contains a pointer to the index
+	// except that their Value contains a bit shifted index
 	// in the static array in the class, where the content is
 	// stored.
 	if(!isStatic) {
 		add_sym(s, Value(add_slot()));
 	} else {
-		int slot            = add_static_slot();
-		static_values[slot] = staticValue;
-		add_sym(s, Value(&static_values[slot]));
+		int slot                             = add_static_ref();
+		static_values[staticRefs[slot].slot] = staticValue;
+		add_sym(s, Value(make_static_slot(slot)));
 		if(metaclass) {
-			// add it as a public variable of the metaclass,
-			// pointing to the static slot of this class
-			metaclass->add_sym(s, Value(&static_values[slot]));
+			// add it as a public variable of the metaclass.
+			// static_values of metaclass points to the
+			// same array
+			metaclass->add_sym(s, Value(make_static_slot(slot)));
 		}
 	}
 }
@@ -218,6 +240,8 @@ Class *Class::create() {
 	kls->static_slot_count = 0;
 	kls->superclass        = NULL;
 	kls->accessFn          = FieldAccessFunction;
+	kls->staticRefs        = NULL;
+	kls->staticRefCount    = 0;
 #ifdef DEBUG_GC
 	kls->nameCopy = NULL;
 #endif
@@ -253,16 +277,31 @@ void Class::derive(Class *superclass) {
 			v           = Value(f);
 			add_sym(ns, v);
 		} else {
-			// if it is a slot, offset it with numslots
-			if(v.isInteger()) {
+			int slot = v.toInteger();
+			// if it is an instance slot, offset it with numslots
+			if(!Class::is_static_slot(slot)) {
 				v.setNumber(v.toInteger() + numSlots);
+				// insert the symbol to present class
+				add_sym(ns, v);
+			} else {
+				// get the static ref from the superclass
+				StaticRef sr =
+				    superclass->staticRefs[Class::get_static_slot(slot)];
+				// add a ref to the present class
+				int num = add_static_ref(sr.owner, sr.slot);
+				// modify the index to point here
+				v.setNumber(Class::make_static_slot(num));
+				add_sym(ns, v);
+				// add it to the metaclass
+				if(metaclass) {
+					metaclass->add_sym(ns, v);
+					if(!metaclass->has_fn(i))
+						metaclass->add_sym(i, v);
+				}
 			}
-			// insert the symbol to present class
-			add_sym(ns, v);
 		}
-		// pointers to static slots will point to the original class
 		// now check if present class already had a symbol
-		// named 's' in its table or not
+		// with the original name in its table or not
 		if(!has_fn(i) && !isConstructor) {
 			// it did not, so register it as the original symbol too
 			add_sym(i, v);

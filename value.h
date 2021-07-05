@@ -32,9 +32,6 @@ struct Value {
 	inline void encodeGcObject(const GcObject *g) {
 		val.value = QNAN_GcObject | ((uintptr_t)g & VAL_MASK);
 	}
-	inline void encodePointer(const Value *g) {
-		val.value = QNAN_Pointer | ((uintptr_t)g & VAL_MASK);
-	}
 
 	union ValueUnion {
 		uint64_t value;
@@ -166,7 +163,6 @@ struct Value {
 			case Value::VAL_Number: return NumberClass;
 			case Value::VAL_Boolean: return BooleanClass;
 			case Value::VAL_GcObject: return toGcObject()->getClass();
-			case Value::VAL_Pointer: return toPointer()->getClass();
 			case Value::VAL_NIL: return NilClass;
 		}
 		return nullptr;
