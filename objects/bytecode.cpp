@@ -157,10 +157,10 @@ void Bytecode::disassemble_int(WritableStream &os, const int &o) {
 void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 	os.write(" ");
 	switch(v.getType()) {
-		case Value::VAL_NIL: os.write("nil"); break;
-		case Value::VAL_Boolean: os.write(v.toBoolean()); break;
-		case Value::VAL_Number: os.fmt("{:.16}", v.toNumber()); break;
-		case Value::VAL_GcObject: {
+		case Value::Type::Nil: os.write("nil"); break;
+		case Value::Type::Boolean: os.write(v.toBoolean()); break;
+		case Value::Type::Number: os.fmt("{:.16}", v.toNumber()); break;
+		case Value::Type::Object: {
 			GcObject *o = v.toGcObject();
 			switch(o->getType()) {
 #define OBJTYPE(n, c)                            \

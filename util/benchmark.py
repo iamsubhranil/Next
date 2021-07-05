@@ -57,13 +57,16 @@ BENCHMARKS = []
 BASELINES = {}
 CURRENT_BRANCH_NAME = "<default>"
 
+
 def baseline_has_branch(n):
     return BASELINES["branch list"].count(n) == 1
+
 
 def baseline_branch_count():
     if BASELINES["branch list"] == None:
         BASELINES["branch list"] = []
     return len(BASELINES["branch list"])
+
 
 def baseline_get_branch_idx(n):
     global BASELINES
@@ -74,12 +77,14 @@ def baseline_get_branch_idx(n):
         return len(BASELINES["branch list"]) - 1
     return BASELINES["branch list"].index(n)
 
+
 def baseline_get_max_branch_length():
     if "branch list" not in BASELINES:
         BASELINES["branch list"] = []
     if len(BASELINES["branch list"]) == 0:
         return 0
     return len(max(BASELINES["branch list"], key=lambda x: len(x)))
+
 
 def BENCHMARK(name, pattern):
     regex = re.compile(pattern + "\n" + r"elapsed: (\d+\.\d+)", re.MULTILINE)
@@ -88,6 +93,7 @@ def BENCHMARK(name, pattern):
 # BENCHMARK("api_call", "true")
 
 # BENCHMARK("api_foreign_method", "100000000")
+
 
 BENCHMARK("arrays", r"""500000500000""")
 
@@ -100,13 +106,13 @@ BENCHMARK("binary_trees", r"""stretch tree of depth 13 check: -1
 long lived tree of depth 12 check: -1""")
 
 
-#BENCHMARK("binary_trees_gc", """stretch tree of depth 13 check: -1
-#8192 trees of depth 4 check: -8192
-#2048 trees of depth 6 check: -2048
-#512 trees of depth 8 check: -512
-#128 trees of depth 10 check: -128
-#32 trees of depth 12 check: -32
-#long lived tree of depth 12 check: -1""")
+# BENCHMARK("binary_trees_gc", """stretch tree of depth 13 check: -1
+# 8192 trees of depth 4 check: -8192
+# 2048 trees of depth 6 check: -2048
+# 512 trees of depth 8 check: -512
+# 128 trees of depth 10 check: -128
+# 32 trees of depth 12 check: -32
+# long lived tree of depth 12 check: -1""")
 
 BENCHMARK("delta_blue", "14065400")
 
@@ -121,7 +127,8 @@ BENCHMARK("fib", r"""317811
 
 BENCHMARK("fibers", r"""4999950000""")
 
-BENCHMARK("garbage_test", r"""Final object : <object of 'MyClass'> {2000000, 2000002, 2000002, 2000000}""")
+BENCHMARK("garbage_test",
+          r"""Final object : <object of 'MyClass'> {2000000, 2000002, 2000002, 2000000}""")
 
 BENCHMARK("mandelbrot", r"""3165191""")
 
@@ -133,7 +140,8 @@ BENCHMARK("method_call", r"""true
 false""")
 
 BENCHMARK("nbody", r"""-0.16907516382852
--0.16907807065935""")
+-0.16907807066611""")  # 5935 was the original last 4 digits,
+# some precision is lost due to value encoding
 
 BENCHMARK("spectral_norm", r"""1.623647098""")
 
@@ -163,11 +171,14 @@ else:
     RED = '\033[31m'
     YELLOW = '\033[33m'
 
+
 def green(text):
     return GREEN + text + NORMAL
 
+
 def red(text):
     return RED + text + NORMAL
+
 
 def yellow(text):
     return YELLOW + text + NORMAL
@@ -203,7 +214,7 @@ def run_trial(benchmark, language):
     # Hackish. If the benchmark name starts with "api_", it's testing the Next
     # C API, so run the test_api executable which has those test methods instead
     # of the normal Next build.
-    #if benchmark[0].startswith("api_"):
+    # if benchmark[0].startswith("api_"):
     #  executable_args = [
     #    os.path.join(NEXT_DIR, "build", "release", "test", "api_next")
     #  ]
@@ -214,7 +225,7 @@ def run_trial(benchmark, language):
 
     try:
         out = subprocess.check_output(args, universal_newlines=True)
-    #`print("{" + out + "}\n")
+    # `print("{" + out + "}\n")
     except OSError:
         print('Interpreter was not found')
         return None
@@ -243,7 +254,7 @@ def run_benchmark_language(benchmark, language, benchmark_result):
     if not os.path.exists(os.path.join(
             BENCHMARK_DIR, benchmark[0] + language[2])):
         #print("No implementation for this language")
-        #print()
+        # print()
         return
 
     name = "{0} - {1}".format(benchmark[0], language[0])
@@ -267,7 +278,7 @@ def run_benchmark_language(benchmark, language, benchmark_result):
     score = get_score(best)
 
     comparison = ""
-    #print(max_width)
+    # print(max_width)
     if language[0] == "next":
         all_scores = benchmark[2]
         comparison = ""
@@ -276,7 +287,7 @@ def run_benchmark_language(benchmark, language, benchmark_result):
             max_width = max(8, len(BASELINES["branch list"][i]))
             if ascore != None:
                 ratio = 100 * score / ascore
-                ratio_str =  "{:^6.2f}%".format(ratio)
+                ratio_str = "{:^6.2f}%".format(ratio)
                 ratio_str = "{:^{}}".format(ratio_str, max_width)
                 if ratio > 105:
                     ratio_str = green(ratio_str)
@@ -291,7 +302,7 @@ def run_benchmark_language(benchmark, language, benchmark_result):
         # Hack: assumes next gets run first.
         next_score = benchmark_result["next"]["score"]
         ratio = 100.0 * next_score / score
-        comparison =  "{:^6.2f}%".format(ratio)
+        comparison = "{:^6.2f}%".format(ratio)
         if ratio > 105:
             comparison = green(comparison)
         if ratio < 95:
@@ -341,7 +352,8 @@ def graph_results(benchmark_result):
     highest = 0
     for language, result in benchmark_result.items():
         score = get_score(min(result["times"]))
-    if score > highest: highest = score
+    if score > highest:
+        highest = score
 
     print("{0:30s}0 {1:66.0f}".format("", highest))
     for language, result in benchmark_result.items():
@@ -366,19 +378,23 @@ def read_baseline():
         else:
             benchmark[2] = []
 
+
 def get_branch_name(b):
     if b != None:
         return b
     out = "<default>"
     try:
-        out = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], universal_newlines=True)[:-1]
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], universal_newlines=True)[:-1]
     except:
         pass
     return out
 
+
 def resize(l, newsize, filling=None):
     if newsize > len(l):
         l.extend([filling for x in range(len(l), newsize)])
+
 
 def print_header():
     # print the header
@@ -398,11 +414,13 @@ def print_header():
         print("{:-^{}s}".format("", max([8, len(i)])), end='  ')
     print()
 
+
 def write_baseline():
     # Write them to a file.
     baseline_file = os.path.join(BENCHMARK_DIR, "baseline.json")
     with open(baseline_file, 'w') as out:
         json.dump(BASELINES, out)
+
 
 def generate_baseline():
     global BASELINES
@@ -417,6 +435,7 @@ def generate_baseline():
         BASELINES[benchmark[0]][idx] = best
     write_baseline()
 
+
 def print_html():
     '''Print the results as an HTML chart.'''
 
@@ -428,7 +447,8 @@ def print_html():
     highest = 0
     for language, result in results[benchmark].items():
         time = min(result["times"])
-        if time > highest: highest = time
+        if time > highest:
+            highest = time
 
     languages = sorted(results[benchmark].keys(),
                        key=lambda lang: results[benchmark][lang]["score"], reverse=True)
@@ -450,6 +470,7 @@ def print_html():
     print_benchmark("delta_blue", "DeltaBlue")
     print_benchmark("binary_trees", "Binary Trees")
     print_benchmark("fib", "Recursive Fibonacci")
+
 
 def main():
     global NUM_TRIALS

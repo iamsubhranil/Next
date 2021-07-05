@@ -66,6 +66,18 @@ struct GcObject {
 	// does that for you, per scope.
 	//
 	// MSB contains the marker bit
+	//
+	// Since a class will always be allocated from
+	// an arena (if USE_STD_ALLOC is undefined, which
+	// it should be on release mode), all class pointers
+	// can be modified in any way we want, because
+	// at the time of releasing it back, the arena will
+	// release the original pointers it recevied from
+	// malloc.
+	// If such a day comes when Linux and Windows use
+	// the remaining 16bits for some purpose, we will
+	// have to think of something else, including possibly
+	// falling back to the old tagged pointer method.
 	uint64_t obj_priv;
 	enum Type : std::uint8_t {
 		OBJ_NONE,

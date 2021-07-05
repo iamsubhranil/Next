@@ -1,37 +1,29 @@
 #pragma once
 
 #include "gc.h"
-#include "qnan.h"
 #include <cmath>
 #include <cstdint>
 #include <functional>
 
 struct Value {
-	/*
-	constexpr uint64_t generateMask(size_t s) {
-	    uint64_t mask = 0, shift = 1;
-	    for(size_t i = 0; i < (s * 8); i++) {
-	        mask |= shift;
-	        shift <<= 1;
-	    }
-	    return mask;
-	}
-	#define TYPE(r, n)                                           \
-	    inline void encode##n(const r v) {                       \
-	        if(sizeof(r) < 8)                                    \
-	            value = ((uint64_t)v) & generateMask(sizeof(r)); \
-	        else                                                 \
-	            value = (uintptr_t)v & VAL_MASK;                 \
-	        value = QNAN_##n | value;                            \
-	    }
-	    //#include "valuetypes.h"
-	    */
+	// value format
+	// ------------
+	// 1. if the last bit is set, it denotes a double (excluding the final bit).
+	//      XXXXXXXXXXXXXXX---1 (X denotes a hex value, - denotes a bit)
+	// 2. if the last bit is unset:
+	//      XXXXXXXXXXXXXXX---0
+	//      A. --00 denotes a pointer, this forces that all GcObjects must be
+	//      4byte aligned, which they should be, since they have size >= 8bytes
+	//      B. --10 denotes either boolean or nil
+	//          i) -010 denotes nil
+	//          ii) -110 denotes boolean
+	//              a. 1110 denotes true
+	//              b. 0110 denotes false
+	//
 	inline void encodeBoolean(const bool b) {
-		val.value = QNAN_Boolean | (uint64_t)b;
+		val.value = (uint64_t)b << 3 | 0x6;
 	}
-	inline void encodeGcObject(const GcObject *g) {
-		val.value = QNAN_GcObject | ((uintptr_t)g & VAL_MASK);
-	}
+	inline void encodeGcObject(const GcObject *g) { val.value = (uintptr_t)g; }
 
 	union ValueUnion {
 		uint64_t value;
@@ -39,16 +31,11 @@ struct Value {
 
 		constexpr explicit ValueUnion() : value(0) {}
 		constexpr explicit ValueUnion(uint64_t v) : value(v) {}
-		constexpr explicit ValueUnion(double d) : dvalue(d) {}
+		constexpr explicit ValueUnion(double d) : dvalue(d) { value |= 0x1; }
 
 	} val;
-	enum Type : int {
-		VAL_Number = 0,
-		VAL_NIL    = 1,
-#define TYPE(r, n) VAL_##n,
-#include "valuetypes.h"
-	};
-	constexpr Value() : val(QNAN_NIL) {}
+	enum class Type : int { Number = 0, Nil = 1, Boolean = 2, Object = 3 };
+	constexpr Value() : val((uint64_t)2) {}
 	constexpr Value(ValueUnion u) : val(u) {}
 	constexpr Value(double d) : val(d) {}
 	constexpr Value(int64_t l) : val((double)l) {}
@@ -90,40 +77,48 @@ struct Value {
 #include "valuetypes.h"
 
 	Type getType() const {
-		return isNumber() ? VAL_Number : (Type)VAL_TYPE(val.value);
+		uint8_t lastChunk = val.value & 0xF;
+		if(lastChunk & 1)
+			return Type::Number;
+		if((lastChunk & 3) == 0)
+			return Type::Object;
+		if(lastChunk == 2)
+			return Type::Nil;
+		return Type::Boolean;
 	}
-	String *getTypeString() const { return ValueTypeStrings[getType()]; }
+	String *getTypeString() const { return ValueTypeStrings[(int)getType()]; }
 
-	inline bool is(Type ty) const {
-		return isNumber() ? ty == VAL_Number
-		                  : (Type)VAL_TYPE(val.value) == (Type)ty;
-	}
-#define TYPE(r, n) \
-	inline bool is##n() const { return VAL_TAG(val.value) == QNAN_##n; }
-#include "valuetypes.h"
+	inline bool is(Type ty) const { return getType() == ty; }
+	inline bool isBoolean() const { return (val.value & 0xF) >= 0x6; }
+	inline bool isGcObject() const { return (val.value & 0x3) == 0; }
 #define OBJTYPE(n, c) \
 	inline bool is##n() const { return isGcObject() && toGcObject()->is##n(); }
 #include "objecttype.h"
-	inline bool isNil() const { return val.value == QNAN_NIL; }
-	inline bool isNumber() const { return (val.value & VAL_QNAN) != VAL_QNAN; }
+	inline bool isNil() const { return val.value == 0x2; }
+	inline bool isNumber() const { return val.value & 0x1; }
 	inline bool isInteger() const {
 		return isNumber() && floor(toNumber()) == toNumber();
 	}
 	inline bool isBit() const {
 		return isInteger() && ((toInteger() == 0) || (toInteger() == 1));
 	}
-#define TYPE(r, n) \
-	inline r to##n() const { return (r)(VAL_MASK & val.value); }
-#include "valuetypes.h"
+	inline GcObject *toGcObject() const {
+		return (GcObject *)(uintptr_t)val.value;
+	}
+	inline bool toBoolean() const { return val.value >> 3; }
 #define OBJTYPE(r, c) \
 	inline r *to##r() const { return (r *)toGcObject(); }
 #include "objecttype.h"
-	inline double  toNumber() const { return val.dvalue; }
+	inline double toNumber() const {
+		ValueUnion num = val;
+		num.value &= ~(0x1);
+		return num.dvalue;
+	}
 	inline int64_t toInteger() const { return (int64_t)toNumber(); }
 #define TYPE(r, n) \
 	inline void set##n(r v) { encode##n(v); }
 #include "valuetypes.h"
-	inline void setNumber(double v) { val.dvalue = v; }
+	inline void setNumber(double v) { operator=(v); }
 
 #define TYPE(r, n)                        \
 	inline Value &operator=(const r &d) { \
@@ -139,6 +134,7 @@ struct Value {
 #include "valuetypes.h"
 	inline Value &operator=(const double &v) {
 		val.dvalue = v;
+		val.value |= 1;
 		return *this;
 	}
 
@@ -160,10 +156,10 @@ struct Value {
 	// returns class for the value
 	inline const Class *getClass() const {
 		switch(getType()) {
-			case Value::VAL_Number: return NumberClass;
-			case Value::VAL_Boolean: return BooleanClass;
-			case Value::VAL_GcObject: return toGcObject()->getClass();
-			case Value::VAL_NIL: return NilClass;
+			case Value::Type::Number: return NumberClass;
+			case Value::Type::Boolean: return BooleanClass;
+			case Value::Type::Object: return toGcObject()->getClass();
+			case Value::Type::Nil: return NilClass;
 		}
 		return nullptr;
 	}
@@ -182,10 +178,11 @@ struct Value {
 	static String *ValueTypeStrings[];
 };
 
-constexpr Value ValueNil{Value::ValueUnion(QNAN_NIL)};
-constexpr Value ValueTrue{Value::ValueUnion(QNAN_Boolean | 1)};
-constexpr Value ValueFalse{Value::ValueUnion(QNAN_Boolean)};
-constexpr Value ValueZero{Value::ValueUnion(0.0)};
+constexpr Value ValueNil{Value::ValueUnion((uint64_t)0x2)};
+constexpr Value ValueTrue{Value::ValueUnion((uint64_t)0xE)};
+constexpr Value ValueFalse{Value::ValueUnion((uint64_t)0x6)};
+// ieee754 0.0 is all zeros, we add a bit to the end to denote number
+constexpr Value ValueZero{Value::ValueUnion(uint64_t(1))};
 
 namespace std {
 	template <> struct hash<Value> {
