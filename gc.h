@@ -79,9 +79,9 @@ struct GcObject {
 	// have to think of something else, including possibly
 	// falling back to the old tagged pointer method.
 	uint64_t obj_priv;
-	enum Type : std::uint8_t {
-		OBJ_NONE,
-#define OBJTYPE(n, c) OBJ_##n,
+	enum class Type : std::uint8_t {
+		None,
+#define OBJTYPE(n, c) n,
 #include "objecttype.h"
 	};
 
@@ -135,7 +135,7 @@ struct GcObject {
 	bool                      isMarked() { return obj_priv & Marker; }
 	void                      unmarkOwn() { obj_priv &= ~Marker; }
 
-	template <typename T> static Type getType() { return Type::OBJ_NONE; };
+	template <typename T> static Type getType() { return Type::None; };
 
 #ifdef DEBUG_GC
 	// A pointer to the index of the generation that
@@ -151,7 +151,7 @@ struct GcObject {
 
 	// basic type check
 #define OBJTYPE(n, c) \
-	bool is##n() { return getType() == OBJ_##n; }
+	bool is##n() { return getType() == Type::n; }
 #include "objecttype.h"
 };
 

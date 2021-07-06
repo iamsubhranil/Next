@@ -23,7 +23,7 @@ struct Iterator {
 			return false;
 		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                  \
-	case GcObject::OBJ_##x##Iterator: { \
+	case GcObject::Type::x##Iterator: { \
 		return true;                    \
 	}
 #include "iterator_types.h"
@@ -34,7 +34,7 @@ struct Iterator {
 	static bool has_next(Value v) {
 		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                                   \
-	case GcObject::OBJ_##x##Iterator: {                  \
+	case GcObject::Type::x##Iterator: {                  \
 		return v.to##x##Iterator()->hasNext.toBoolean(); \
 	}
 #include "iterator_types.h"
@@ -47,7 +47,7 @@ struct Iterator {
 	static Value next(Value v) {
 		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                      \
-	case GcObject::OBJ_##x##Iterator: {     \
+	case GcObject::Type::x##Iterator: {     \
 		return v.to##x##Iterator()->Next(); \
 	}
 #include "iterator_types.h"
@@ -60,7 +60,7 @@ struct Iterator {
 	static Type getType(Value v) {
 		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                  \
-	case GcObject::OBJ_##x##Iterator: { \
+	case GcObject::Type::x##Iterator: { \
 		return Type::x##Iterator;       \
 	}
 #include "iterator_types.h"
@@ -75,7 +75,7 @@ struct Iterator {
 		(void)field;
 		switch(v.toGcObject()->getType()) {
 #define ITERATOR(x, c)                       \
-	case GcObject::OBJ_##x##Iterator: {      \
+	case GcObject::Type::x##Iterator: {      \
 		return v.to##x##Iterator()->hasNext; \
 	}
 #include "iterator_types.h"

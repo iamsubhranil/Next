@@ -892,7 +892,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				Value v = fiber->stackTop[-numberOfArguments - 1];
 				ASSERT(v.isGcObject(), "Not a callable object!");
 				switch(v.toGcObject()->getType()) {
-					case GcObject::OBJ_Class: {
+					case GcObject::Type::Class: {
 						// check if the class has a constructor with the
 						// given signature
 						Class *c = v.toClass();
@@ -907,7 +907,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 						functionToCall = c->get_fn(sym).toFunction();
 						goto performcall;
 					}
-					case GcObject::OBJ_BoundMethod: {
+					case GcObject::Type::BoundMethod: {
 						// we cannot really perform any optimizations for
 						// boundmethods, because they require verifications
 						// and stack adjustments.

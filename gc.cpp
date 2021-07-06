@@ -101,7 +101,7 @@ void Gc::free(void *mem, size_t bytes) {
 	totalAllocated -= bytes;
 }
 #define OBJTYPE(n, c) \
-	template <> GcObject::Type GcObject::getType<n>() { return Type::OBJ_##n; }
+	template <> GcObject::Type GcObject::getType<n>() { return Type::n; }
 #include "objecttype.h"
 
 void Gc::gc(bool force) {
@@ -267,7 +267,7 @@ void *Gc::alloc(size_t s, GcObject::Type type, const Class *klass) {
 	             (uintptr_t)obj);
 	switch(type) {
 #define OBJTYPE(x, c)                                              \
-	case GcObject::OBJ_##x:                                        \
+	case GcObject::Type::x:                                        \
 		Printer::print(#x);                                        \
 		if(klass && klass->name)                                   \
 			Printer::print(" -> ", ANSI_COLOR_YELLOW, klass->name, \
@@ -287,7 +287,7 @@ Object *Gc::allocObject(const Class *klass) {
 	// at once
 	Object *o =
 	    (Object *)alloc(sizeof(Object) + sizeof(Value) * klass->numSlots,
-	                    GcObject::OBJ_Object, klass);
+	                    GcObject::Type::Object, klass);
 	Utils::fillNil(o->slots(), klass->numSlots);
 	return o;
 }
@@ -296,7 +296,7 @@ String *Gc::allocString2(int numchar) {
 	// strings are not initially tracked, since
 	// duplicate strings are freed immediately
 	String *s = (String *)Gc_malloc(sizeof(String) + (sizeof(char) * numchar));
-	s->obj.setType(GcObject::OBJ_String, Classes::get<String>());
+	s->obj.setType(GcObject::Type::String, Classes::get<String>());
 #ifdef DEBUG_GC
 	GcCounters[StringCounter]++;
 #endif
@@ -312,18 +312,18 @@ void Gc::releaseString2(String *s) {
 
 Tuple *Gc::allocTuple2(int numobj) {
 	Tuple *t = (Tuple *)alloc(sizeof(Tuple) + (sizeof(Value) * numobj),
-	                          GcObject::OBJ_Tuple, Classes::get<Tuple>());
+	                          GcObject::Type::Tuple, Classes::get<Tuple>());
 	return t;
 }
 
 Expression *Gc::allocExpression2(size_t size) {
-	Expression *e = (Expression *)alloc(size, GcObject::OBJ_Expression,
+	Expression *e = (Expression *)alloc(size, GcObject::Type::Expression,
 	                                    Classes::get<Expression>());
 	return e;
 }
 
 Statement *Gc::allocStatement2(size_t size) {
-	Statement *s = (Statement *)alloc(size, GcObject::OBJ_Statement,
+	Statement *s = (Statement *)alloc(size, GcObject::Type::Statement,
 	                                  Classes::get<Statement>());
 	return s;
 }
@@ -364,28 +364,28 @@ void Gc::release(GcObject *obj) {
 	// the memory manager, otherwise it will add the
 	// block to a different pool than the original
 	switch(obj->getType()) {
-		case GcObject::OBJ_String:
+		case GcObject::Type::String:
 			release_(String, sizeof(String) +
 			                     (sizeof(char) * ((String *)obj)->size + 1));
-		case GcObject::OBJ_Tuple:
+		case GcObject::Type::Tuple:
 			release_(Tuple,
 			         sizeof(Tuple) + (sizeof(Value) * ((Tuple *)obj)->size));
-		case GcObject::OBJ_Object:
+		case GcObject::Type::Object:
 			release_(Object, sizeof(Object) +
 			                     (sizeof(Value) * obj->getClass()->numSlots));
-		case GcObject::OBJ_Expression:
+		case GcObject::Type::Expression:
 			release_(Expression, ((Expression *)obj)->getSize());
-		case GcObject::OBJ_Statement:
+		case GcObject::Type::Statement:
 			release_(Statement, ((Statement *)obj)->getSize());
 		default: break;
 	}
 	switch(obj->getType()) {
-		case GcObject::OBJ_NONE:
+		case GcObject::Type::None:
 			panic("Object type NONE should not be present in "
 			      "the list!");
 			break;
 #define OBJTYPE(n, c)                                  \
-	case GcObject::OBJ_##n: {                          \
+	case GcObject::Type::n: {                          \
 		release_(n, Classes::n##ClassInfo.ObjectSize); \
 		break;                                         \
 	}
@@ -428,12 +428,12 @@ void Gc::mark(GcObject *p) {
 	mark((GcObject *)k);
 	// finally, let it mark its members
 	switch(p->getType()) {
-		case GcObject::OBJ_NONE:
+		case GcObject::Type::None:
 			Printer::Err("Object type NONE should not be "
 			             "present in the list!");
 			break;
 #define OBJTYPE(name, classname)                      \
-	case GcObject::OBJ_##name:                        \
+	case GcObject::Type::name:                        \
 		if(Classes::name##ClassInfo.MarkFn) {         \
 			auto a = Classes::name##ClassInfo.MarkFn; \
 			(((name *)p)->*a)();                      \
@@ -538,7 +538,7 @@ void GcObject::depend_() {
 	// let the class declare its dependency
 	switch(getType()) {
 #define OBJTYPE(x, c)                                         \
-	case GcObject::OBJ_##x:                                   \
+	case GcObject::Type::x:                                   \
 		if(Classes::x##ClassInfo.DependFn)                    \
 			(((x *)this)->*Classes::x##ClassInfo.DependFn)(); \
 		break;

@@ -164,11 +164,11 @@ void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 			GcObject *o = v.toGcObject();
 			switch(o->getType()) {
 #define OBJTYPE(n, c)                            \
-	case GcObject::OBJ_##n:                      \
+	case GcObject::Type::n:                      \
 		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \
 		break;
 #include "../objecttype.h"
-				case GcObject::OBJ_NONE:
+				case GcObject::Type::None:
 					os.write("NONE (THIS IS AN ERROR)");
 					break;
 			}
