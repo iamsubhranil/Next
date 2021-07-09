@@ -635,7 +635,7 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 	// use explicit opcode for nil, since call optimizations
 	// pushes ValueNil in the preallocated local slots in
 	// the bytecode.
-	if(lit->value.getType() == Value::VAL_NIL)
+	if(lit->value.isNil())
 		btx->pushn();
 	else
 		btx->push(lit->value);

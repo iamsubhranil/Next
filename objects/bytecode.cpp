@@ -157,21 +157,18 @@ void Bytecode::disassemble_int(WritableStream &os, const int &o) {
 void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 	os.write(" ");
 	switch(v.getType()) {
-		case Value::VAL_NIL: os.write("nil"); break;
-		case Value::VAL_Boolean: os.write(v.toBoolean()); break;
-		case Value::VAL_Number: os.fmt("{:.16}", v.toNumber()); break;
-		case Value::VAL_Pointer:
-			os.write("<pointer at ", v.toPointer(), ">");
-			break;
-		case Value::VAL_GcObject: {
+		case Value::Type::Nil: os.write("nil"); break;
+		case Value::Type::Boolean: os.write(v.toBoolean()); break;
+		case Value::Type::Number: os.fmt("{:.16}", v.toNumber()); break;
+		case Value::Type::Object: {
 			GcObject *o = v.toGcObject();
 			switch(o->getType()) {
 #define OBJTYPE(n, c)                            \
-	case GcObject::OBJ_##n:                      \
+	case GcObject::Type::n:                      \
 		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \
 		break;
 #include "../objecttype.h"
-				case GcObject::OBJ_NONE:
+				case GcObject::Type::None:
 					os.write("NONE (THIS IS AN ERROR)");
 					break;
 			}
@@ -191,7 +188,7 @@ void Bytecode::disassemble_Value(WritableStream &os, const Opcode *o) {
 void Bytecode::disassemble(WritableStream &os) {
 	os.write("StackSize: ", stackMaxSize, "\n");
 	int cache = 0;
-	for(int i = 0; i < num_values; i++) {
+	for(size_t i = 0; i < num_values; i++) {
 		if(values[i] == ValueNil)
 			cache++;
 	}

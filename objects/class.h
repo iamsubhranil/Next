@@ -31,6 +31,10 @@ struct Class {
 
 	// in case of a module, it will store the module instance
 	// in case of a class, it will store the static members
+	//
+	// Static slots are stored in the method buffer with a
+	// left shift of 16 bits. So, any slot in the method buffer
+	// having non zero top 16bits correspond to a static slot.
 	union {
 		Object *instance;
 		struct {
@@ -40,6 +44,20 @@ struct Class {
 			int static_slot_count;
 		};
 	};
+
+	// static values, especially inherited ones, point to the 'static_values'
+	// array of a completely separate class, which cannot be copied down
+	// to the child class since all inherited classes share the same
+	// instance of the variable. To remedy this problem, the slot number
+	// stored in the method buffer for static values now points to an index
+	// of the following array, which, in turn, contains the class pointer
+	// which owns the value, and the index to its 'static_values' array.
+	struct StaticRef {
+		Class *owner;
+		int    slot;
+	};
+	StaticRef *staticRefs;
+	int        staticRefCount;
 
 	int numSlots;
 	enum ClassType : uint8_t { NORMAL, BUILTIN } type;
@@ -86,11 +104,21 @@ struct Class {
 	bool has_fn(const char *sig) const;
 	bool has_fn(String *sig) const;
 	bool has_static_field(int sym) const {
-		return has_fn(sym) && get_fn(sym).isPointer();
+		return has_fn(sym) && get_fn(sym).isNumber() &&
+		       is_static_slot(get_fn(sym).toInteger());
 	}
 	inline Value get_fn(int sym) const { return functions->values[sym]; }
 	Value        get_fn(const char *sig) const;
 	Value        get_fn(String *sig) const;
+
+	// encodes/decodes an index in the static slots array to be saved
+	// in the method buffer.
+	static int  make_static_slot(int slot) { return (slot + 1) << 16; }
+	static int  get_static_slot(int slot) { return (slot >> 16) - 1; }
+	static bool is_static_slot(int value) { return value & ~(0xFFFF); }
+
+	int add_static_ref(Class *owner, int static_slot_idx);
+	int add_static_ref(); // owner is calling class, idx is add_static_slot()
 	// creates a copy of the class
 	// used for generating metaclasses
 	Class *copy();
@@ -122,6 +150,9 @@ struct Class {
 	void release() {
 		if(module != NULL && static_slot_count > 0) {
 			Gc_free(static_values, sizeof(Value) * static_slot_count);
+		}
+		if(staticRefCount > 0) {
+			Gc_free(staticRefs, sizeof(StaticRef) * staticRefCount);
 		}
 #ifdef DEBUG_GC
 		Gc::releaseString2(nameCopy);
