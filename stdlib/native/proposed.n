@@ -1,0 +1,56 @@
+import native
+
+lib = native.load("somelib")
+
+// The library will be considered a pure Next library if it contains the following:
+// 1. __NEXT_NATIVE     <- denoting this module is compiled natively for Next
+// 2. __NEXT_VERSION    <- the version of Next this module was compiled for
+// In that case, the library must have a __next_module_init(BuiltinModule*) function
+// which it can use to initialize itself. It can also have __next_module_destroy()
+// to release all resources when GC'ed or unloaded.
+// Such libraries will be treated as native Next modules, and so usual syntaxes
+// would work.
+
+// Next will also support libraries not written for Next, but rather following the
+// C ABI. In that case, all functions must be provided signatures using the
+// native types. Next will verify the types in each call, and send the unpacked
+// elements to the function. Next, however, cannot verify if that is the expected
+// signature for the called function, since C only exports the symbol.
+
+// FUTURE WORK
+// If the source is available, you can put the header as the
+// second argument to native.load, which will parse the header, and load the
+// function signatures, and bind them to the symbols in the library. The bind
+// will happen lazily, i.e., on the first call.
+lib = native.load("somelib", "someheader.h")
+lib.sym(1, 2, "Hello!")
+
+// Otherwise, you can specify the types in the signature.
+// native types
+// ------------
+// native.u8    native.i8   native.short    native.float    native.intptr_t
+// native.u16   native.i16  native.int      native.double   native.uintptr_t
+// native.u32   native.i32  native.long     native.cstr     native.intmax_t
+// native.u64   native.i64  native.longlong native.size_t   native.uintmax_t
+//
+// Each of these types can be ORed with native.ptr to denote that it is a
+// pointer of that type. In which case, the value present in the argument list
+// can be modified by the called function directly. native.ptr itself
+// represents a void* which can also be used as a signature.
+
+// non pure Next library
+sym = lib.get("whatever", native.int, native.float, native.ptr | native.double, native.cstr, native.size_t)
+sym(a, b, c)
+
+// pure Next library
+lib.whatever(a, b, c)
+
+print(sym)
+
+lib.has("another")
+
+native.unload(lib)
+
+// native structs
+s = native.struct({"a": native.int, "b": native.float, "c": native.int})
+n = native.struct({"a": s | native.ptr, "b": native.double})

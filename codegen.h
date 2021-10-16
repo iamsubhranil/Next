@@ -7,7 +7,7 @@
 #include "objects/customarray.h"
 #include "objects/string.h"
 
-class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
+class CodeGenerator : public StatementVisitor, public ExpressionVisitor<void> {
   private:
 	int errorsOccurred; // number of errors occurred while compilation
 

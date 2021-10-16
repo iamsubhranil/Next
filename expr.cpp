@@ -3,20 +3,6 @@
 #include "objects/class.h"
 #include "printer.h"
 
-void Expression::accept(ExpressionVisitor *visitor) {
-	switch(type) {
-#define EXPRTYPE(x)                            \
-	case EXPR_##x:                             \
-		visitor->visit((x##Expression *)this); \
-		break;
-#include "exprtypes.h"
-		case EXPR_This: visitor->visit((VariableExpression *)this); break;
-		default:
-			panic("[Internal Error] Invalid expression type ", (int)type, "!");
-			break;
-	}
-}
-
 void Expression::mark() {
 	switch(type) {
 #define EXPRTYPE(x)                      \

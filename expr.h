@@ -1,33 +1,34 @@
 #pragma once
 
 #include "gc.h"
+#include "printer.h"
 #include "scanner.h"
 #include "value.h"
 
 #define EXPRTYPE(x) struct x##Expression;
 #include "exprtypes.h"
 
-#define NewExpression(x, ...)                                 \
+#define NewExpression(x, ...)                           \
 	(::new(Gc::allocExpression2(sizeof(x##Expression))) \
 	     x##Expression(__VA_ARGS__))
 
-class ExpressionVisitor {
+template <typename T> class ExpressionVisitor {
   public:
-	virtual void visit(ArrayLiteralExpression *al)    = 0;
-	virtual void visit(AssignExpression *as)          = 0;
-	virtual void visit(BinaryExpression *bin)         = 0;
-	virtual void visit(CallExpression *cal)           = 0;
-	virtual void visit(GetExpression *get)            = 0;
-	virtual void visit(GetThisOrSuperExpression *get) = 0;
-	virtual void visit(GroupingExpression *group)     = 0;
-	virtual void visit(HashmapLiteralExpression *al)  = 0;
-	virtual void visit(LiteralExpression *lit)        = 0;
-	virtual void visit(MethodReferenceExpression *me) = 0;
-	virtual void visit(PrefixExpression *pe)          = 0;
-	virtual void visit(PostfixExpression *pe)         = 0;
-	virtual void visit(SetExpression *sete)           = 0;
-	virtual void visit(SubscriptExpression *sube)     = 0;
-	virtual void visit(VariableExpression *vis)       = 0;
+	virtual T visit(ArrayLiteralExpression *al)    = 0;
+	virtual T visit(AssignExpression *as)          = 0;
+	virtual T visit(BinaryExpression *bin)         = 0;
+	virtual T visit(CallExpression *cal)           = 0;
+	virtual T visit(GetExpression *get)            = 0;
+	virtual T visit(GetThisOrSuperExpression *get) = 0;
+	virtual T visit(GroupingExpression *group)     = 0;
+	virtual T visit(HashmapLiteralExpression *al)  = 0;
+	virtual T visit(LiteralExpression *lit)        = 0;
+	virtual T visit(MethodReferenceExpression *me) = 0;
+	virtual T visit(PrefixExpression *pe)          = 0;
+	virtual T visit(PostfixExpression *pe)         = 0;
+	virtual T visit(SetExpression *sete)           = 0;
+	virtual T visit(SubscriptExpression *sube)     = 0;
+	virtual T visit(VariableExpression *vis)       = 0;
 };
 
 struct Expression {
@@ -42,7 +43,20 @@ struct Expression {
 	Token token;
 	Type  type;
 	Expression(Token tok, Type t) : token(tok), type(t){};
-	void accept(ExpressionVisitor *visitor);
+	template <typename T> void accept(ExpressionVisitor<T> *visitor) {
+		switch(type) {
+#define EXPRTYPE(x)                            \
+	case EXPR_##x:                             \
+		visitor->visit((x##Expression *)this); \
+		break;
+#include "exprtypes.h"
+			case EXPR_This: visitor->visit((VariableExpression *)this); break;
+			default:
+				panic("[Internal Error] Invalid expression type ", (int)type,
+				      "!");
+				break;
+		}
+	}
 	Type getType() { return type; }
 	bool isAssignable() {
 		return (type == EXPR_Variable) || (type == EXPR_Assign) ||
@@ -62,7 +76,7 @@ struct Expression {
 #ifdef DEBUG_GC
 	// const char *gc_repr();
 #endif
-	friend class ExpressionVisitor;
+	// template <typename T> friend class ExpressionVisitor<T>;
 };
 
 struct ArrayLiteralExpression : public Expression {
@@ -229,7 +243,7 @@ struct MethodReferenceExpression : public Expression {
 
 #ifdef DEBUG
 struct WritableStream;
-struct ExpressionPrinter : public ExpressionVisitor {
+struct ExpressionPrinter : public ExpressionVisitor<void> {
   private:
 	WritableStream &os;
 
