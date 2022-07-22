@@ -18,45 +18,49 @@ struct BytecodeCompilationContext {
 		Token  token;
 		size_t range_;
 	};
-	TokenRange *     ranges_;
+	TokenRange      *ranges_;
 	size_t           size;
 	size_t           capacity;
 	size_t           present_range;
 	Bytecode::Opcode lastOpcode;
 
+	template <typename... T> size_t emit_opcode(Bytecode::Opcode x, T... args) {
+		lastOpcode = x;
+		return code->insert_opcode(x, args...);
+	}
+
+	template <typename... T>
+	size_t emit_opcode_at(size_t pos, Bytecode::Opcode x, T... args) {
+		return code->insert_opcode_at(pos, x, args...);
+	}
+
+	template <typename... T>
+	size_t emit_opcode_token(Bytecode::Opcode x, Token t, T... args) {
+		lastOpcode = x;
+		insert_token(t);
+		return code->insert_opcode(x, args...);
+	}
+
 	// all methods defined in Bytecode will be
 	// redefined here with an overload that
 	// takes an extra Token as argument.
-#define OPCODE0(x, y)                             \
-	size_t x() {                                  \
-		lastOpcode = Bytecode::CODE_##x;          \
-		return code->x();                         \
-	}                                             \
-	size_t x(size_t pos) { return code->x(pos); } \
-	size_t x(Token t) {                           \
-		insert_token(t);                          \
-		return code->x();                         \
+#define OPCODE(x)                                                        \
+	template <typename... T> size_t x(T... args) {                       \
+		return emit_opcode(Bytecode::Opcode::CODE_##x, args...);         \
+	}                                                                    \
+	template <typename... T> size_t x(size_t pos, T... args) {           \
+		return emit_opcode_at(pos, Bytecode::Opcode::CODE_##x, args...); \
+	}                                                                    \
+	template <typename... T> size_t x(T... args, Token t) {              \
+		return emit_opcode(Bytecode::Opcode::CODE_##x, t, args...);      \
 	}
-#define OPCODE1(x, y, z)                                      \
-	size_t x(z arg) {                                         \
-		lastOpcode = Bytecode::CODE_##x;                      \
-		return code->x(arg);                                  \
-	}                                                         \
-	size_t x(size_t pos, z arg) { return code->x(pos, arg); } \
-	size_t x(z arg, Token t) {                                \
-		insert_token(t);                                      \
-		return code->x(arg);                                  \
-	}
-#define OPCODE2(x, y, z, w)                                                   \
-	size_t x(z arg1, w arg2) {                                                \
-		lastOpcode = Bytecode::CODE_##x;                                      \
-		return code->x(arg1, arg2);                                           \
-	}                                                                         \
-	size_t x(size_t pos, z arg1, w arg2) { return code->x(pos, arg1, arg2); } \
-	size_t x(z arg1, w arg2, Token t) {                                       \
-		insert_token(t);                                                      \
-		return code->x(arg1, arg2);                                           \
-	}
+#define OPCODE0(x) OPCODE(x)
+#define OPCODE1(x) OPCODE(x)
+#define OPCODE2(x) OPCODE(x)
+#define OPCODE3(x) OPCODE(x)
+#define OPCODE4(x) OPCODE(x)
+#define OPCODE5(x) OPCODE(x)
+#define OPCODE6(x) OPCODE(x)
 #include "../opcodes.h"
 
 	size_t getip() { return code->getip(); }
@@ -75,68 +79,52 @@ struct BytecodeCompilationContext {
 #endif
 	void stackEffect(int effect) { code->stackEffect(effect); }
 
-	int load_slot_n(int n) {
+	int load_slot_n(int n, int reg) {
 		if(n < 8) {
 			switch(n) {
-				case 0: return load_slot_0();
-				case 1: return load_slot_1();
-				case 2: return load_slot_2();
-				case 3: return load_slot_3();
-				case 4: return load_slot_4();
-				case 5: return load_slot_5();
-				case 6: return load_slot_6();
-				case 7: return load_slot_7();
+				case 0: return load_slot_0(reg);
+				case 1: return load_slot_1(reg);
+				case 2: return load_slot_2(reg);
+				case 3: return load_slot_3(reg);
+				case 4: return load_slot_4(reg);
+				case 5: return load_slot_5(reg);
+				case 6: return load_slot_6(reg);
+				case 7: return load_slot_7(reg);
 			};
 		}
-		return load_slot(n);
+		return load_slot(n, reg);
 	}
 
-	int load_slot_n(int pos, int n) {
+	int load_slot_n(int pos, int n, int reg) {
 		if(n < 8) {
 			switch(n) {
-				case 0: return load_slot_0(pos);
-				case 1: return load_slot_1(pos);
-				case 2: return load_slot_2(pos);
-				case 3: return load_slot_3(pos);
-				case 4: return load_slot_4(pos);
-				case 5: return load_slot_5(pos);
-				case 6: return load_slot_6(pos);
-				case 7: return load_slot_7(pos);
+				case 0: return load_slot_0(pos, reg);
+				case 1: return load_slot_1(pos, reg);
+				case 2: return load_slot_2(pos, reg);
+				case 3: return load_slot_3(pos, reg);
+				case 4: return load_slot_4(pos, reg);
+				case 5: return load_slot_5(pos, reg);
+				case 6: return load_slot_6(pos, reg);
+				case 7: return load_slot_7(pos, reg);
 			};
 		}
-		return load_slot(pos, n);
+		return load_slot(pos, n, reg);
 	}
 
-	int store_slot_n(int n) {
+	int store_slot_n(int n, int reg) {
 		if(n < 8) {
 			switch(n) {
-				case 0: return store_slot_0();
-				case 1: return store_slot_1();
-				case 2: return store_slot_2();
-				case 3: return store_slot_3();
-				case 4: return store_slot_4();
-				case 5: return store_slot_5();
-				case 6: return store_slot_6();
-				case 7: return store_slot_7();
+				case 0: return store_slot_0(reg);
+				case 1: return store_slot_1(reg);
+				case 2: return store_slot_2(reg);
+				case 3: return store_slot_3(reg);
+				case 4: return store_slot_4(reg);
+				case 5: return store_slot_5(reg);
+				case 6: return store_slot_6(reg);
+				case 7: return store_slot_7(reg);
 			};
 		}
-		return store_slot(n);
-	}
-
-	int store_slot_pop_n(int n) {
-		if(n < 8) {
-			switch(n) {
-				case 0: return store_slot_pop_0();
-				case 1: return store_slot_pop_1();
-				case 2: return store_slot_pop_2();
-				case 3: return store_slot_pop_3();
-				case 4: return store_slot_pop_4();
-				case 5: return store_slot_pop_5();
-				case 6: return store_slot_pop_6();
-				case 7: return store_slot_pop_7();
-			};
-		}
-		return store_slot_pop(n);
+		return store_slot(n, reg);
 	}
 
 	int load_field_(int field) {
@@ -153,15 +141,15 @@ struct BytecodeCompilationContext {
 		if(lastOpcode >= Bytecode::CODE_store_slot_0 &&
 		   lastOpcode <= Bytecode::CODE_store_slot_7) {
 			lastOpcode = code->bytecodes[code->getip() - 1] =
-			    (Bytecode::Opcode)(Bytecode::CODE_store_slot_pop_0 +
+			    (Bytecode::Opcode)(Bytecode::CODE_store_slot_0 +
 			                       (lastOpcode - Bytecode::CODE_store_slot_0));
 			code->stackEffect(-1);
 		} else if(lastOpcode == Bytecode::CODE_store_slot) {
 			code->bytecodes[code->getip() -
 			                sizeof(int) / sizeof(Bytecode::Opcode) - 1] =
-			    Bytecode::CODE_store_slot_pop;
+			    Bytecode::CODE_store_slot;
 			code->stackEffect(-1);
-			lastOpcode = Bytecode::CODE_store_slot_pop;
+			lastOpcode = Bytecode::CODE_store_slot;
 		} else {
 			code->pop();
 			lastOpcode = Bytecode::CODE_pop;

@@ -81,7 +81,8 @@ Function2 ErrorObjectClassConstructor(Class *c) {
 	// new(x) { message = x }
 	f->code->insertSlot(); // this
 	f->code->insertSlot(); // x
-	f->code->construct(c);
+	int slot = f->code->add_constant(c);
+	f->code->construct(slot);
 	f->code->load_slot_1();
 	f->code->store_object_slot(0);
 	f->code->pop();

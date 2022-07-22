@@ -9,9 +9,13 @@
 #endif
 
 const char *Bytecode::OpcodeNames[] = {
-#define OPCODE0(x, y) #x,
-#define OPCODE1(x, y, z) #x,
-#define OPCODE2(w, x, y, z) #w,
+#define OPCODE0(x) #x,
+#define OPCODE1(x) #x,
+#define OPCODE2(x) #x,
+#define OPCODE3(x) #x,
+#define OPCODE4(x) #x,
+#define OPCODE5(x) #x,
+#define OPCODE6(x) #x,
 #include "../opcodes.h"
 };
 
@@ -64,7 +68,13 @@ Bytecode *Bytecode::create() {
 	return code;
 }
 
-#define next_int() (*ip++)
+static int next_int_impl(Bytecode::Opcode **ip) {
+	int last = (int)**ip;
+	(void)*ip++;
+	return last;
+}
+
+#define next_int() (next_int_impl(&ip))
 #define next_Value() (values[next_int()])
 Bytecode *Bytecode::create_derived(int offset) {
 	Bytecode2 b     = Bytecode::create();
@@ -124,19 +134,34 @@ Bytecode *Bytecode::create_derived(int offset) {
 			}
 			continue;
 		}
-#define OPCODE0(w, x) \
-	case CODE_##w:    \
-		b->w();       \
+#define OPCODE0(w) \
+	case CODE_##w: \
+		b->w();    \
 		break;
-#define OPCODE1(w, x, y)  \
+#define OPCODE1(w)        \
 	case CODE_##w:        \
-		b->w(next_##y()); \
+		b->w(next_int()); \
 		break;
-#define OPCODE2(w, x, y, z) \
-	case CODE_##w: {        \
-		y Y = next_##y();   \
-		z Z = next_##z();   \
-		b->w(Y, Z);         \
+#define OPCODE2(w)                    \
+	case CODE_##w: {                  \
+		b->w(next_int(), next_int()); \
+	} break;
+#define OPCODE3(w)                                \
+	case CODE_##w: {                              \
+		b->w(next_int(), next_int(), next_int()); \
+	} break;
+#define OPCODE4(w)                                            \
+	case CODE_##w: {                                          \
+		b->w(next_int(), next_int(), next_int(), next_int()); \
+	} break;
+#define OPCODE5(w)                                                        \
+	case CODE_##w: {                                                      \
+		b->w(next_int(), next_int(), next_int(), next_int(), next_int()); \
+	} break;
+#define OPCODE6(w)                                                       \
+	case CODE_##w: {                                                     \
+		b->w(next_int(), next_int(), next_int(), next_int(), next_int(), \
+		     next_int());                                                \
 	} break;
 		switch(o) {
 #include "../opcodes.h"
@@ -237,21 +262,18 @@ void Bytecode::init(Class *b) {
 	Map2    opcodeToStr = Map::create();
 	Map2    strToOpcode = Map::create();
 	String2 s;
-#define OPCODE0(w, x)                                                      \
+#define OPCODE(w)                                                          \
 	b->add_member(#w, true, Value(Bytecode::Opcode::CODE_##w));            \
 	s                                                  = String::from(#w); \
 	opcodeToStr->vv[Value(Bytecode::Opcode::CODE_##w)] = Value(s);         \
 	strToOpcode->vv[Value(s)] = Value(Bytecode::Opcode::CODE_##w);
-#define OPCODE1(w, x, y)                                                   \
-	b->add_member(#w, true, Value(Bytecode::Opcode::CODE_##w));            \
-	s                                                  = String::from(#w); \
-	opcodeToStr->vv[Value(Bytecode::Opcode::CODE_##w)] = Value(s);         \
-	strToOpcode->vv[Value(s)] = Value(Bytecode::Opcode::CODE_##w);
-#define OPCODE2(w, x, y, z)                                                \
-	b->add_member(#w, true, Value(Bytecode::Opcode::CODE_##w));            \
-	s                                                  = String::from(#w); \
-	opcodeToStr->vv[Value(Bytecode::Opcode::CODE_##w)] = Value(s);         \
-	strToOpcode->vv[Value(s)] = Value(Bytecode::Opcode::CODE_##w);
+#define OPCODE0(x) OPCODE(x)
+#define OPCODE1(x) OPCODE(x)
+#define OPCODE2(x) OPCODE(x)
+#define OPCODE3(x) OPCODE(x)
+#define OPCODE4(x) OPCODE(x)
+#define OPCODE5(x) OPCODE(x)
+#define OPCODE6(x) OPCODE(x)
 #include "../opcodes.h"
 	b->add_member("OPCODE_TO_STR", true, Value(opcodeToStr));
 	b->add_member("STR_TO_OPCODE", true, Value(strToOpcode));

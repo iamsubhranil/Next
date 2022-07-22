@@ -41,8 +41,9 @@ ClassCompilationContext::create(ClassCompilationContext *s, String *n) {
 		// add slot for the module
 		ctx->defaultConstructor->create_slot(String::from("mod "), 0);
 		// initialize the module
-		ctx->defaultConstructor->get_codectx()->construct(
+		int slot = ctx->defaultConstructor->get_codectx()->code->add_constant(
 		    Value(ctx->get_class()));
+		ctx->defaultConstructor->get_codectx()->construct(slot);
 		// construct will automatically store it to slot 0
 		// add the class map
 		ctx->cctxMap = Map::create();
@@ -219,12 +220,13 @@ FunctionCompilationContext *ClassCompilationContext::get_func_ctx(Value sig) {
 	return fctxMap->vv[sig].toFunctionCompilationContext();
 }
 
-void ClassCompilationContext::add_public_class(Class *                  c,
+void ClassCompilationContext::add_public_class(Class                   *c,
                                                ClassCompilationContext *ctx) {
 	// mark it as not declared if the class is not builtin
 	add_public_mem(c->name, false, c->type == Class::ClassType::BUILTIN);
 	int modSlot = get_mem_slot(c->name);
-	defaultConstructor->bcc->push(Value(c));
+	int slot    = defaultConstructor->bcc->code->add_constant(Value(c));
+	defaultConstructor->bcc->push(slot);
 	defaultConstructor->bcc->store_object_slot(modSlot);
 	// if the ctx is null, it is a builtin class,
 	// and it won't query for its ctx anytime.
@@ -234,12 +236,13 @@ void ClassCompilationContext::add_public_class(Class *                  c,
 	c->module = compilingClass;
 }
 
-void ClassCompilationContext::add_private_class(Class *                  c,
+void ClassCompilationContext::add_private_class(Class                   *c,
                                                 ClassCompilationContext *ctx) {
 	// mark it as not declared if the class is not builtin
 	add_private_mem(c->name, false, c->type == Class::ClassType::BUILTIN);
 	int modSlot = get_mem_slot(c->name);
-	defaultConstructor->bcc->push(Value(c));
+	int slot    = defaultConstructor->bcc->code->add_constant(Value(c));
+	defaultConstructor->bcc->push(slot);
 	defaultConstructor->bcc->store_object_slot(modSlot);
 	if(ctx != NULL)
 		cctxMap->vv[Value(c->name)] = Value(ctx);

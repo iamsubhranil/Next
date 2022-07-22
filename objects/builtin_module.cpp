@@ -44,7 +44,8 @@ void BuiltinModule::add_builtin_variable(const char *name, Value v) {
 	String2 n = String::from(name);
 	ctx->add_public_mem(n);
 	int s = ctx->get_mem_slot(n);
-	ctx->defaultConstructor->bcc->push(v);
+	ctx->defaultConstructor->bcc->push(
+	    ctx->defaultConstructor->bcc->code->add_constant(v));
 	ctx->defaultConstructor->bcc->store_object_slot(s);
 }
 

@@ -100,7 +100,7 @@ Array *Parser::parseAllDeclarations() {
 
 Statement *Parser::parseBlock(bool isStatic) {
 	Token  t = consume(Token::Type::TOKEN_LEFT_BRACE,
-                      "Expected '{' on the starting of a block!");
+	                   "Expected '{' on the starting of a block!");
 	Array2 s = Array::create(1);
 	while(!match(Token::Type::TOKEN_RIGHT_BRACE)) {
 		s->insert(parseStatement());
@@ -202,7 +202,7 @@ Statement *ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	Array2 imports = Array::create(1);
 	do {
 		Token   t = p->consume(Token::Type::TOKEN_IDENTIFIER,
-                             "Expected package/member name!");
+		                       "Expected package/member name!");
 		String2 s = String::from(t.start, t.length);
 		imports->insert(s);
 	} while(p->match(Token::Type::TOKEN_DOT));
@@ -305,7 +305,7 @@ void ClassDeclaration::registerParselet(Token::Type t, StatementParselet *p) {
 
 Statement *ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	Token name    = p->consume(Token::Type::TOKEN_IDENTIFIER,
-                            "Expected name of the class!");
+	                           "Expected name of the class!");
 	Token derived = Token::PlaceholderToken;
 	bool  isd     = false;
 	if(p->match(Token::Type::TOKEN_is)) {
@@ -509,8 +509,8 @@ Expression *NameParselet::parse(Parser *parser, Token t) {
 	// method reference
 	if(parser->match(Token::Type::TOKEN_AT)) {
 		Token       num   = parser->consume(Token::Type::TOKEN_NUMBER,
-                                    "Expected argument count after '@'!");
-		char *      end   = NULL;
+		                                    "Expected argument count after '@'!");
+		char       *end   = NULL;
 		const char *start = (const char *)num.start.source;
 		int         count = strtol(start, &end, 10);
 		if(end == NULL || end - start < num.length) {
@@ -525,7 +525,7 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	// if there is a dot, okay
 	if(parser->match(Token::Type::TOKEN_DOT)) {
 		Token       name = parser->consume(Token::Type::TOKEN_IDENTIFIER,
-                                     "Expected identifier after '.'!");
+		                                   "Expected identifier after '.'!");
 		Expression2 refer =
 		    parser->parseExpression(Precedence::REFERENCE, name);
 		return NewExpression(GetThisOrSuper, t, refer);
@@ -596,7 +596,7 @@ Expression *LiteralParselet::parse(Parser *parser, Token t) {
 			return NewExpression(Literal, s, t);
 		}
 		case Token::Type::TOKEN_NUMBER: {
-			char *      end   = NULL;
+			char       *end   = NULL;
 			const char *start = (const char *)t.start.source;
 			double      val   = strtod(start, &end);
 			if(end == NULL || end - start < t.length) {
@@ -675,13 +675,13 @@ Expression *GroupParselet::parse(Parser *parser, Token t) {
 	return NewExpression(Grouping, t, exprs, ist);
 }
 
-Expression *BinaryOperatorParselet::parse(Parser *           parser,
+Expression *BinaryOperatorParselet::parse(Parser            *parser,
                                           const Expression2 &left, Token t) {
 	Expression2 right = parser->parseExpression(getPrecedence() - isRight);
 	return NewExpression(Binary, left, t, right);
 }
 
-Expression *PostfixOperatorParselet::parse(Parser *           parser,
+Expression *PostfixOperatorParselet::parse(Parser            *parser,
                                            const Expression2 &left, Token t) {
 	(void)parser;
 	return NewExpression(Postfix, left, t);
@@ -717,7 +717,7 @@ Expression *CallParselet::parse(Parser *parser, const Expression2 &left,
 Expression *ReferenceParselet::parse(Parser *parser, const Expression2 &obj,
                                      Token t) {
 	Token       name   = parser->consume(Token::Type::TOKEN_IDENTIFIER,
-                                 "Expected identifier after '.'!");
+	                                     "Expected identifier after '.'!");
 	Expression2 member = parser->parseExpression(Precedence::REFERENCE, name);
 	return NewExpression(Get, obj, t, member);
 }

@@ -6,9 +6,14 @@
 #include "objects/common.h"
 #include "objects/customarray.h"
 #include "objects/string.h"
+#include "regalloc.h"
 
-class CodeGenerator : public StatementVisitor, public ExpressionVisitor<void> {
+class CodeGenerator : public StatementVisitor,
+                      public ExpressionVisitor<RegisterAllocator::State *> {
   private:
+	typedef RegisterAllocator::State       State;
+	typedef RegisterAllocator::ScopedState ScopedState;
+
 	int errorsOccurred; // number of errors occurred while compilation
 
 	// Because first we compile all declarations, then we compile
@@ -39,12 +44,13 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor<void> {
 		bool             soft, isStatic;
 	};
 
-	const Class *               corectx;
-	ClassCompilationContext *   mtx;
-	ClassCompilationContext *   ctx;
+	const Class	            *corectx;
+	ClassCompilationContext    *mtx;
+	ClassCompilationContext    *ctx;
 	FunctionCompilationContext *ftx;
 	BytecodeCompilationContext *btx;
 	CompilationState            state;
+	RegisterAllocator          *registerAllocator;
 	// Denotes logical scope ordering. Popping a scope with scopeID x
 	// marks all variables declared in scopeID(s) >= x invalid, so that
 	// they can't be referenced from a scope with ID < x, i.e. an
@@ -94,21 +100,22 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor<void> {
 	bool expressionNoPop;
 
 	// Expression generator
-	void visit(ArrayLiteralExpression *as);
-	void visit(AssignExpression *as);
-	void visit(BinaryExpression *bin);
-	void visit(CallExpression *cal);
-	void visit(GetExpression *get);
-	void visit(GetThisOrSuperExpression *get);
-	void visit(GroupingExpression *group);
-	void visit(HashmapLiteralExpression *as);
-	void visit(LiteralExpression *lit);
-	void visit(MethodReferenceExpression *me);
-	void visit(PrefixExpression *pe);
-	void visit(PostfixExpression *pe);
-	void visit(SetExpression *sete);
-	void visit(SubscriptExpression *sube);
-	void visit(VariableExpression *vis);
+	State *visit_error();
+	State *visit(ArrayLiteralExpression *as);
+	State *visit(AssignExpression *as);
+	State *visit(BinaryExpression *bin);
+	State *visit(CallExpression *cal);
+	State *visit(GetExpression *get);
+	State *visit(GetThisOrSuperExpression *get);
+	State *visit(GroupingExpression *group);
+	State *visit(HashmapLiteralExpression *as);
+	State *visit(LiteralExpression *lit);
+	State *visit(MethodReferenceExpression *me);
+	State *visit(PrefixExpression *pe);
+	State *visit(PostfixExpression *pe);
+	State *visit(SetExpression *sete);
+	State *visit(SubscriptExpression *sube);
+	State *visit(VariableExpression *vis);
 	// Statement generator
 	void visit(IfStatement *ifs);
 	void visit(WhileStatement *ifs);
@@ -141,9 +148,9 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor<void> {
 	// an appropriate place to refer this/super
 	void validateThisOrSuper(Token tos);
 
-	String *         generateSignature(const Token &name, int arity);
-	String *         generateSignature(const String2 &name, int arity);
-	String *         generateSignature(int arity);
+	String          *generateSignature(const Token &name, int arity);
+	String          *generateSignature(const String2 &name, int arity);
+	String          *generateSignature(int arity);
 	VarInfo          lookForVariable(Token t, bool declare = false,
 	                                 bool       showError = true,
 	                                 Visibility vis       = VIS_DEFAULT);

@@ -29,6 +29,7 @@ template <typename T> class ExpressionVisitor {
 	virtual T visit(SetExpression *sete)           = 0;
 	virtual T visit(SubscriptExpression *sube)     = 0;
 	virtual T visit(VariableExpression *vis)       = 0;
+	virtual T visit_error()                        = 0;
 };
 
 struct Expression {
@@ -43,20 +44,23 @@ struct Expression {
 	Token token;
 	Type  type;
 	Expression(Token tok, Type t) : token(tok), type(t){};
-	template <typename T> void accept(ExpressionVisitor<T> *visitor) {
+
+	template <typename T> T accept(ExpressionVisitor<T> *visitor) {
 		switch(type) {
 #define EXPRTYPE(x)                            \
 	case EXPR_##x:                             \
 		visitor->visit((x##Expression *)this); \
 		break;
 #include "exprtypes.h"
-			case EXPR_This: visitor->visit((VariableExpression *)this); break;
+			case EXPR_This: return visitor->visit((VariableExpression *)this);
 			default:
 				panic("[Internal Error] Invalid expression type ", (int)type,
 				      "!");
 				break;
 		}
+		return visitor->visit_error();
 	}
+
 	Type getType() { return type; }
 	bool isAssignable() {
 		return (type == EXPR_Variable) || (type == EXPR_Assign) ||
@@ -114,7 +118,7 @@ struct BinaryExpression : public Expression {
 struct CallExpression : public Expression {
   public:
 	Expression *callee;
-	Array *     arguments;
+	Array      *arguments;
 	CallExpression(const Expression2 &cle, Token paren, Array *args)
 	    : Expression(paren, EXPR_Call), callee(cle), arguments(args) {}
 

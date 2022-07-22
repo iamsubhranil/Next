@@ -19,13 +19,17 @@ struct Bytecode {
 	// existing vm, that didn't yield
 	// expected speedups.
 	enum Opcode : int {
-#define OPCODE0(x, y) CODE_##x,
-#define OPCODE1(x, y, z) CODE_##x,
-#define OPCODE2(w, x, y, z) CODE_##w,
+#define OPCODE0(x) CODE_##x,
+#define OPCODE1(x) CODE_##x,
+#define OPCODE2(x) CODE_##x,
+#define OPCODE3(x) CODE_##x,
+#define OPCODE4(x) CODE_##x,
+#define OPCODE5(x) CODE_##x,
+#define OPCODE6(x) CODE_##x,
 #include "../opcodes.h"
 	};
 
-	Opcode *                    bytecodes;
+	Opcode                     *bytecodes;
 	BytecodeCompilationContext *ctx; // debug info
 	size_t                      size;
 	size_t                      capacity;
@@ -44,49 +48,50 @@ struct Bytecode {
 	Value *values;
 	size_t num_values;
 
-#define OPCODE0(x, y)              \
-	size_t x() {                   \
-		stackEffect(y);            \
-		push_back(CODE_##x);       \
-		return size - 1;           \
-	};                             \
-	size_t x(size_t pos) {         \
-		bytecodes[pos] = CODE_##x; \
-		return pos;                \
-	};
+	void                          insert_ints() {}
+	template <typename... T> void insert_ints(int a, T... rest) {
+		insert_int(a);
+		insert_ints(rest...);
+	}
 
-#define OPCODE1(x, y, z)           \
-	size_t x(z arg) {              \
-		stackEffect(y);            \
-		size_t bak = size;         \
-		push_back(CODE_##x);       \
-		insert_##z(arg);           \
-		return bak;                \
-	};                             \
-	size_t x(size_t pos, z arg) {  \
-		bytecodes[pos] = CODE_##x; \
-		insert_##z(pos + 1, arg);  \
-		return pos;                \
-	};
+	size_t insert_opcode(Opcode code) {
+		push_back(code);
+		return size - 1;
+	}
+	template <typename... T> size_t insert_opcode(Opcode code, T... args) {
+		size_t bak = size;
+		push_back(code);
+		insert_ints(args...);
+		return bak;
+	}
 
-#define OPCODE2(x, y, z, w)                                       \
-	size_t x(z arg1, w arg2) {                                    \
-		stackEffect(y);                                           \
-		size_t bak = size;                                        \
-		push_back(CODE_##x);                                      \
-		insert_##z(arg1);                                         \
-		insert_##w(arg2);                                         \
-		return bak;                                               \
-	};                                                            \
-	size_t x(size_t pos, z arg1, w arg2) {                        \
-		bytecodes[pos] = CODE_##x;                                \
-		insert_##z(pos + 1, arg1);                                \
-		insert_##w(pos + 1 + (sizeof(z) / sizeof(Opcode)), arg2); \
-		return pos;                                               \
-	};
+	template <typename... T>
+	size_t insert_opcode_at(size_t pos, Opcode code, T... args) {
+		size_t bak = size;
+		size       = pos;
+		insert_opcode(code, args...);
+		size = bak;
+		return pos;
+	}
+
+#define OPCODE(x)                                              \
+	template <typename... T> size_t x(T... args) {             \
+		return insert_opcode(CODE_##x, args...);               \
+	}                                                          \
+	template <typename... T> size_t x(size_t pos, T... args) { \
+		return insert_opcode_at(pos, CODE_##x, args...);       \
+	}
+
+#define OPCODE0(x) OPCODE(x)
+#define OPCODE1(x) OPCODE(x)
+#define OPCODE2(x) OPCODE(x)
+#define OPCODE3(x) OPCODE(x)
+#define OPCODE4(x) OPCODE(x)
+#define OPCODE5(x) OPCODE(x)
+#define OPCODE6(x) OPCODE(x)
 #include "../opcodes.h"
 
-	// we assume that bytecode type is int
+// we assume that bytecode type is int
 #define insert_type(type)                 \
 	int insert_##type(type x) {           \
 		int pb = add_constant(x);         \

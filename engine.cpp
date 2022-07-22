@@ -416,9 +416,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DEFAULT() EXEC_CODE_unknown
 	static const void *dispatchTable[] = {
-#define OPCODE0(x, y) &&EXEC_CODE_##x,
-#define OPCODE1(x, y, z) OPCODE0(x, y)
-#define OPCODE2(w, x, y, z) OPCODE0(w, x)
+#define OPCODE0(x) &&EXEC_CODE_##x,
+#define OPCODE1(x) OPCODE0(x)
+#define OPCODE2(x) OPCODE0(x)
 #include "opcodes.h"
 	    &&DEFAULT()};
 

@@ -42,6 +42,9 @@ CodeGenerator::CodeGenerator() {
 	currentlyCompiling = nullptr;
 
 	expressionNoPop = false;
+	registerAllocator =
+	    (RegisterAllocator *)Gc_malloc(sizeof(RegisterAllocator));
+	new(registerAllocator) RegisterAllocator(NULL, 0);
 }
 
 Class *CodeGenerator::compile(String *name, Array *stmts) {
@@ -69,7 +72,7 @@ void CodeGenerator::compile(ClassCompilationContext *compileIn, Array *stmts) {
 		    true; // tells the expression statement to not pop the result
 		compileAll(stmts);
 		CallInfo info     = resolveCall(String::from(" printRepl"),
-                                    String::from(" printRepl(_)"));
+		                                String::from(" printRepl(_)"));
 		int      numexprs = stmts->values[0]
 		                   .toStatement()
 		                   ->toExpressionStatement()
@@ -137,8 +140,9 @@ void CodeGenerator::compileAll(Array *stmts) {
 }
 
 void CodeGenerator::initFtx(FunctionCompilationContext *f, Token t) {
-	ftx = f;
-	btx = f->get_codectx();
+	ftx                    = f;
+	btx                    = f->get_codectx();
+	registerAllocator->btx = btx;
 	btx->insert_token(t);
 }
 
@@ -168,9 +172,10 @@ void CodeGenerator::loadPresentModule() {
 	if(ctx != mtx) {
 		btx->load_module();
 	} else {
+		State *reg = registerAllocator->alloc();
 		// if we're not inside of any class, then
 		// the 0th slot is the present module
-		btx->load_slot_n(0);
+		btx->load_slot_n(0, reg->idx);
 	}
 }
 
@@ -185,19 +190,23 @@ void CodeGenerator::patchBreaks() {
 	}
 }
 
-void CodeGenerator::visit(BinaryExpression *bin) {
+RegisterAllocator::State *CodeGenerator::visit(BinaryExpression *bin) {
 #ifdef DEBUG_CODEGEN
 	dinfo("");
 	bin->token.highlight();
 #endif
-	bin->left->accept(this);
-	int jumpto = -1;
+	ScopedState left   = bin->left->accept(this);
+	int         jumpto = -1;
 	switch(bin->token.type) {
 		case Token::Type::TOKEN_and: jumpto = btx->land(0); break;
 		case Token::Type::TOKEN_or: jumpto = btx->lor(0); break;
 		default: break;
 	}
-	bin->right->accept(this);
+	ScopedState right = bin->right->accept(this);
+	registerAllocator->move(left, RegisterAllocator::Accumulator, true);
+	registerAllocator->move(right, 1, true);
+	State *res =
+	    registerAllocator->alloc(RegisterAllocator::Accumulator, -1, true);
 	btx->insert_token(bin->token);
 	switch(bin->token.type) {
 		case Token::Type::TOKEN_PLUS: btx->add(); break;
@@ -227,13 +236,15 @@ void CodeGenerator::visit(BinaryExpression *bin) {
 			panic("Invalid binary operator '",
 			      Token::FormalNames[bin->token.type], "'!");
 	}
+	return res;
 }
 
-void CodeGenerator::visit(GroupingExpression *g) {
+RegisterAllocator::State *CodeGenerator::visit(GroupingExpression *g) {
 #ifdef DEBUG_CODEGEN
 	dinfo("");
 	g->token.highlight();
 #endif
+	// THIS NEEDS FIXING
 	for(int j = 0; j < g->exprs->size; j++) {
 		g->exprs->values[j].toExpression()->accept(this);
 	}
@@ -474,7 +485,7 @@ void CodeGenerator::visit(CallExpression *call) {
 	emitCall(call);
 }
 
-CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String *   name,
+CodeGenerator::VarInfo CodeGenerator::lookForVariable2(String    *name,
                                                        bool       declare,
                                                        Visibility vis,
                                                        bool       force) {
@@ -638,7 +649,7 @@ void CodeGenerator::visit(LiteralExpression *lit) {
 	if(lit->value.isNil())
 		btx->pushn();
 	else
-		btx->push(lit->value);
+		btx->push(btx->code->add_constant(lit->value));
 }
 
 void CodeGenerator::visit(SetExpression *sete) {
@@ -740,8 +751,9 @@ void CodeGenerator::loadVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->load_static_slot(variableInfo.slot,
-					                      ctx->compilingClass);
+					btx->load_static_slot(
+					    variableInfo.slot,
+					    btx->code->add_constant(Value(ctx->compilingClass)));
 				else
 					btx->load_object_slot(variableInfo.slot);
 				break;
@@ -767,8 +779,9 @@ void CodeGenerator::storeVariable(VarInfo variableInfo, bool isref) {
 				break;
 			case CLASS:
 				if(variableInfo.isStatic)
-					btx->store_static_slot(variableInfo.slot,
-					                       ctx->compilingClass);
+					btx->store_static_slot(
+					    variableInfo.slot,
+					    btx->code->add_constant(ctx->compilingClass));
 				else
 					btx->store_object_slot(variableInfo.slot);
 				break;
@@ -1287,7 +1300,7 @@ void CodeGenerator::visit(FnStatement *ifs) {
 		*/
 		btx->insert_token(ifs->name);
 		if(inConstructor) {
-			btx->construct(Value(ctx->get_class()));
+			btx->construct(btx->add_constant(Value(ctx->get_class())));
 		}
 		ifs->body->accept(this);
 
@@ -1428,7 +1441,7 @@ void CodeGenerator::visit(ImportStatement *ifs) {
 		// make each part a string and push to the stack
 		for(int j = 0; j < ifs->import_->size; j++) {
 			Value i = ifs->import_->values[j];
-			btx->push(i);
+			btx->push(btx->code->add_constant(i));
 		}
 		// make a call to ' import(_)'
 		btx->call_(SymbolTable2::insert(" import(_)"), ifs->import_->size);

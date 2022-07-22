@@ -102,7 +102,7 @@ class PostfixOperatorParselet : public InfixParselet {
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
 	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 	bool        isAssignment() {
-        return true; // only ++/--
+		       return true; // only ++/--
 	}
 };
 
@@ -162,7 +162,7 @@ class ClassDeclaration : public DeclarationParselet {
   public:
 	static void registerParselet(Token::Type t, StatementParselet *parselet);
 	Visibility  memberVisibility;
-	Statement * parse(Parser *p, Token t, Visibility vis);
+	Statement  *parse(Parser *p, Token t, Visibility vis);
 };
 
 class FnDeclaration : public DeclarationParselet {
@@ -249,7 +249,7 @@ class OpMethodDeclaration : public StatementParselet {
 
 class MemberDeclaration : public StatementParselet {
   public:
-	Statement *       parse(Parser *p, Token t);
+	Statement        *parse(Parser *p, Token t);
 	static Statement *parse(Parser *p, Token t, bool isStatic);
 };
 
@@ -261,7 +261,7 @@ class Parser {
 	HashMap<Token::Type, InfixParselet *>       infixParselets;
 	HashMap<Token::Type, DeclarationParselet *> declarationParselets;
 	HashMap<Token::Type, StatementParselet *>   statementParselets;
-	Scanner &                                   scanner;
+	Scanner                                    &scanner;
 	CustomDeque<Token>                          tokenCache;
 
 	int getPrecedence();
@@ -285,11 +285,11 @@ class Parser {
 	Expression *parseExpression(int precedence, Token token,
 	                            bool silent = false);
 	Expression *parseExpression(int precedence, bool silent = false);
-	Statement * parseDeclaration();
-	Array *     parseAllDeclarations();
-	Statement * parseStatement();
-	Statement * parseBlock(bool isStatic = false);
-	String *    buildNextString(Token &t);
+	Statement  *parseDeclaration();
+	Array      *parseAllDeclarations();
+	Statement  *parseStatement();
+	Statement  *parseBlock(bool isStatic = false);
+	String     *buildNextString(Token &t);
 	InfixParselet *
 	getInfixParselet(Token::Type type); // return an infixparselet for the token
 	// release the parselets
