@@ -863,8 +863,8 @@ void ExecutionEngine::exec_call_method_super(State &s) {
 	exec_call_method(s);
 }
 
-template <bool isSoft, auto func>
-void performFastCall(ExecutionEngine::State &s) {
+template <bool isSoft, typename T>
+void performFastCall(ExecutionEngine::State &s, T func) {
 	s.CallPatch             = s.InstructionPointer;
 	int   idxstart          = s.nextInt();
 	int   numberOfArguments = s.nextInt();
@@ -881,8 +881,8 @@ void performFastCall(ExecutionEngine::State &s) {
 	}
 	if(cacheHit) {
 		Function *functionToCall = s.Locals[idxstart + 1].toFunction();
-		/* if this is a softcall, set the receiver to nil so that construct
-		knows to create a new receiver */
+		/* if this is a softcall, set the receiver to nil so that
+		construct knows to create a new receiver */
 		if(isSoft)
 			s.top(-numberOfArguments - 1) = ValueNil;
 		/* ignore the next call opcode */
@@ -894,19 +894,19 @@ void performFastCall(ExecutionEngine::State &s) {
 }
 
 void ExecutionEngine::exec_call_fast_method_soft(State &s) {
-	performFastCall<true, ExecutionEngine::execMethodCall_method>(s);
+	performFastCall<true>(s, ExecutionEngine::execMethodCall_method);
 }
 
 void ExecutionEngine::exec_call_fast_builtin_soft(State &s) {
-	performFastCall<true, ExecutionEngine::execMethodCall_builtin>(s);
+	performFastCall<true>(s, ExecutionEngine::execMethodCall_builtin);
 }
 
 void ExecutionEngine::exec_call_fast_method(State &s) {
-	performFastCall<false, ExecutionEngine::execMethodCall_method>(s);
+	performFastCall<false>(s, ExecutionEngine::execMethodCall_method);
 }
 
 void ExecutionEngine::exec_call_fast_builtin(State &s) {
-	performFastCall<false, ExecutionEngine::execMethodCall_builtin>(s);
+	performFastCall<false>(s, ExecutionEngine::execMethodCall_builtin);
 }
 
 void ExecutionEngine::execMethodCall(State &s, int methodToCall,
@@ -937,7 +937,6 @@ void ExecutionEngine::execMethodCall(State &s, Function *methodToCall,
 
 void ExecutionEngine::patchFastCall(State &s, Function *methodToCall,
                                     int numberOfArguments) {
-
 	Bytecode::Opcode *bak = s.InstructionPointer;
 	// set ip to the fast opcode
 	s.InstructionPointer = s.CallPatch;
@@ -1003,7 +1002,6 @@ void ExecutionEngine::execMethodCall_builtin(State &s, Function *methodToCall,
 
 void ExecutionEngine::execMethodCall_method(State &s, Function *methodToCall,
                                             int numberOfArguments) {
-
 	s.frameBackup();
 	s.fiber->appendMethodNoBuiltin(methodToCall, numberOfArguments, false);
 	s.frameRestore();
@@ -1014,7 +1012,6 @@ void ExecutionEngine::execMethodCall_method(State &s, Function *methodToCall,
 }
 
 void ExecutionEngine::exec_ret(State &s) {
-
 	// Pop the return value
 	Value v = s.pop();
 	// backup the current frame
@@ -1066,7 +1063,7 @@ LOAD_SLOT(6)
 LOAD_SLOT(7)
 #undef LOAD_SLOT
 
-void ExecutionEngine::exec_load_module(State &s) {
+    void ExecutionEngine::exec_load_module(State &s) {
 	Value klass = s.base();
 	// the 0th slot may also contain an object
 	if(!klass.isClass())
@@ -1109,7 +1106,7 @@ STORE_SLOT(6)
 STORE_SLOT(7)
 #undef STORE_SLOT
 
-void ExecutionEngine::exec_store_slot_pop(State &s) {
+    void ExecutionEngine::exec_store_slot_pop(State &s) {
 	s.base(s.nextInt()) = s.pop();
 }
 
@@ -1128,7 +1125,7 @@ STORE_SLOT_POP(6)
 STORE_SLOT_POP(7)
 #undef STORE_SLOT_POP
 
-void ExecutionEngine::exec_store_tos_slot(State &s) {
+    void ExecutionEngine::exec_store_tos_slot(State &s) {
 	Value v                          = s.pop();
 	v.toObject()->slots(s.nextInt()) = s.top();
 }
@@ -1340,7 +1337,6 @@ void ExecutionEngine::exec_load_method(State &s) {
 }
 
 void ExecutionEngine::exec_bind_method(State &s) {
-
 	// pop the function
 	Function *f = s.pop().toFunction();
 	// peek the binder
@@ -1465,15 +1461,25 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 		state.push(res);
 	}
 
-	typedef decltype(ExecutionEngine::exec_eq) FunctionType;
-	static FunctionType                       *executorFunctions[] = {
+#ifdef NEXT_USE_COMPUTED_GOTO
+	static const void *dispatchTable[] = {
+#define OPCODE0(x, y) &&EXEC_LABEL_##x,
+#define OPCODE1(x, y, z) OPCODE0(x, 0)
+#define OPCODE2(x, y, z, w) OPCODE0(x, 0)
+#include "opcodes.h"
+	};
+	goto *dispatchTable[*state.InstructionPointer];
+	{
+#else
+	typedef decltype(ExecutionEngine::exec_dummy) FunctionType;
+	static FunctionType                          *executorFunctions[] = {
 #define OPCODE0(x, y) &ExecutionEngine::exec_##x,
 #define OPCODE1(x, y, z) OPCODE0(x, 0)
 #define OPCODE2(w, x, y, z) OPCODE0(w, 0)
 #include "opcodes.h"
-	};
-
+    };
 	while(!state.shouldReturn) {
+#endif
 #ifdef DEBUG_INS
 		{
 			Fiber::CallFrame *presentFrame = state.presentFrame;
@@ -1511,8 +1517,30 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #endif
 		}
 #endif
+
+#ifdef NEXT_USE_COMPUTED_GOTO
+#define DISPATCH()                                          \
+	{                                                       \
+		if(state.shouldReturn) {                            \
+			RETURN(state.returnValue);                      \
+		}                                                   \
+		goto *dispatchTable[*(++state.InstructionPointer)]; \
+	}
+#define EXECUTE(x)                        \
+	EXEC_LABEL_##x : {                    \
+		ExecutionEngine::exec_##x(state); \
+		DISPATCH();                       \
+	}
+#define OPCODE0(x, y) EXECUTE(x)
+#define OPCODE1(x, y, z) EXECUTE(x)
+#define OPCODE2(x, y, z, w) EXECUTE(x)
+#include "opcodes.h"
+#else
 		executorFunctions[*state.InstructionPointer](state);
 		state.InstructionPointer++;
+#endif
 	}
+#ifndef NEXT_USE_COMPUTED_GOTO
 	RETURN(state.returnValue);
+#endif
 }

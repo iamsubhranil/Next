@@ -96,6 +96,10 @@ class ExecutionEngine {
 #define OPCODE1(x, y, z) static void exec_##x(State &s);
 #define OPCODE2(x, y, z, w) static void exec_##x(State &s);
 #include "opcodes.h"
+	// for decltype
+	static void exec_dummy(State &s) {
+		(void)s;
+	}
 
 	static void execMethodCall(State &s, int methodToCall,
 	                           int numberOfArguments);
