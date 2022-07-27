@@ -60,10 +60,17 @@ struct ExecutionEngine::State {
 	inline Value &pop() { return *--StackTop; }
 	inline Value &base(int offset = 0) { return *(Stack + offset); }
 	inline void   push(Value v) { *StackTop++ = v; }
-	inline void   drop(int count = 1) { StackTop -= count; }
-	inline void   jumpTo(int where) { InstructionPointer += where; }
-	inline void   jumpToOffset(int offset) {
-		  jumpTo(offset - sizeof(int) / sizeof(Bytecode::Opcode));
+	inline void   drop(int count = 1) {
+		  StackTop -= count;
+		  fiber->stackTop = StackTop;
+	}
+	inline void jumpTo(int where) {
+		InstructionPointer += where - 1; // we subtract 1 because we assume that
+		                                 // the pointer will be incremented in
+		                                 // the loop BAD ASSUMPTION, SHOULD FIX
+	}
+	inline void jumpToOffset(int offset) {
+		jumpTo(offset - sizeof(int) / sizeof(Bytecode::Opcode));
 	}
 	inline void frameBackup() {
 		presentFrame->code = InstructionPointer;
@@ -84,18 +91,22 @@ struct ExecutionEngine::State {
 	}
 
 	template <typename... K>
-	void assert(bool cond, const char *msg, K... args) {
+	bool assert(bool cond, const char *msg, K... args) {
 		if(!cond) {
 			createException(msg, args...);
 			execError();
+			return false;
 		}
+		return true;
 	}
 	// check for fields and methods
-	void assertField(const Class *c, int field) {
+	bool assertField(const Class *c, int field) {
 		if(!c->has_fn(field)) {
 			createMemberAccessException(c, field, 0);
 			execError();
+			return false;
 		}
+		return true;
 	}
 
 	Function *assertMethod(const Class *c, int method) {
@@ -476,7 +487,10 @@ template <typename T, typename U, typename V>
 static void inline execBinary(ExecutionEngine::State &s, T validator, U exec,
                               V setter, int methodToCall) {
 	if(validator(s.top(), s.top(-2))) {
-		setter(s.top(), exec(s.pop(), s.top()));
+		Value b = s.pop();
+		Value a = s.top();
+		s.top() = Value(exec(a, b));
+		(void)setter;
 	} else {
 		ExecutionEngine::execMethodCall(s, methodToCall, 1);
 	}
@@ -490,10 +504,10 @@ VALIDATOR(Number);
 // VALIDATOR(Boolean);
 VALIDATOR(Integer);
 
-#define SETTER(x) \
-	static auto Setter_##x = [](Value &a, double v) { a.set##x(v); };
-SETTER(Number);
-SETTER(Boolean);
+#define SETTER(x, y) \
+	static auto Setter_##x = [](Value &a, y v) { a.set##x(v); };
+SETTER(Number, double);
+SETTER(Boolean, bool);
 
 #define BINARY_FUNCTION(name, argtype, restype, op)            \
 	void ExecutionEngine::exec_##name(State &s) {              \
@@ -522,16 +536,20 @@ BINARY_FUNCTION(brshift, Integer, Number, >>)
 void ExecutionEngine::exec_lor(State &s) {
 	int skipTo = s.nextInt();
 	// this was s.top() in original code!
-	if(!s.pop().isFalsey()) {
-		s.jumpTo(skipTo);
+	if(!s.top().isFalsey()) {
+		s.jumpToOffset(skipTo);
+	} else {
+		s.drop();
 	}
 }
 
 void ExecutionEngine::exec_land(State &s) {
 	int skipTo = s.nextInt();
 	// this was s.top() in original code!
-	if(s.pop().isFalsey()) {
-		s.jumpTo(skipTo);
+	if(s.top().isFalsey()) {
+		s.jumpToOffset(skipTo);
+	} else {
+		s.drop();
 	}
 }
 
@@ -540,7 +558,8 @@ void ExecutionEngine::exec_neq(State &s) {
 	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_neq)) {
 		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_neq, 1);
 	} else {
-		s.top().setBoolean(s.top() != s.top(-2));
+		Value a = s.pop();
+		s.top().setBoolean(a != s.top());
 	}
 }
 
@@ -549,12 +568,13 @@ void ExecutionEngine::exec_eq(State &s) {
 	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_eq)) {
 		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_eq, 1);
 	} else {
-		s.top().setBoolean(s.top() == s.top(-2));
+		Value a = s.pop();
+		s.top().setBoolean(a == s.top());
 	}
 }
 
 void ExecutionEngine::exec_bcall_fast_prepare(State &s) {
-	s.CallPatch = s.InstructionPointer;
+	// s.CallPatch = s.InstructionPointer;
 	s.nextInt();
 }
 
@@ -668,8 +688,11 @@ void ExecutionEngine::exec_iterator_verify(State &s) {
 
 	int          field = SymbolTable2::const_field_has_next;
 	const Class *c     = it.getClass();
-	s.assertField(c, field);
+	if(!s.assertField(c, field))
+		return;
 	Function *f = s.assertMethod(c, SymbolTable2::const_sig_next);
+	if(f == NULL)
+		return;
 	// patch the next() call
 	if(f->getType() == Function::Type::BUILTIN) {
 		*(present + iterator_next_offset) =
@@ -751,15 +774,17 @@ void ExecutionEngine::exec_call_soft(State &s) {
 	int numberOfArguments = s.nextInt();
 	// the callable is placed before the arguments
 	Value v = s.top(-numberOfArguments - 1);
-	s.assert(v.isGcObject(), "Not a callable object!");
+	if(!s.assert(v.isGcObject(), "Not a callable object!"))
+		return;
 	switch(v.toGcObject()->getType()) {
 		case GcObject::Type::Class: {
 			// check if the class has a constructor with the
 			// given signature
 			Class *c = v.toClass();
-			s.assert(c->has_fn(sym),
-			         "Constructor '{}' not found in class '{}'!",
-			         SymbolTable2::getString(sym), c->name);
+			if(!s.assert(c->has_fn(sym),
+			             "Constructor '{}' not found in class '{}'!",
+			             SymbolTable2::getString(sym), c->name))
+				return;
 			// [performcall will take care of this]
 			// set the receiver to nil so that construct
 			// knows to create a new receiver
@@ -782,7 +807,7 @@ void ExecutionEngine::exec_call_soft(State &s) {
 				// pop the arguments
 				s.drop(numberOfArguments);
 				s.execError();
-				break;
+				return;
 			}
 			// we have already allocated one slot for the
 			// receiver before the arguments started.
@@ -886,10 +911,11 @@ void ExecutionEngine::exec_call_fast_builtin(State &s) {
 
 void ExecutionEngine::execMethodCall(State &s, int methodToCall,
                                      int numberOfArguments) {
-	Value       &v = s.top(-numberOfArguments - 1);
-	const Class *c = v.getClass();
-	s.assertMethod(c, methodToCall);
-	Function *functionToCall = c->get_fn(methodToCall).toFunction();
+	Value       &v              = s.top(-numberOfArguments - 1);
+	const Class *c              = v.getClass();
+	Function    *functionToCall = s.assertMethod(c, methodToCall);
+	if(functionToCall == NULL)
+		return;
 	execMethodCall(s, functionToCall, numberOfArguments);
 }
 
@@ -957,7 +983,7 @@ void ExecutionEngine::execMethodCall_builtin(State &s, Function *methodToCall,
 	s.frameBackup();
 	// call the function
 	Value res =
-	    methodToCall->func(&s.top(numberOfArguments - 1),
+	    methodToCall->func(&s.top(-numberOfArguments - 1),
 	                       numberOfArguments + 1); // include the receiver
 	// after call, drop the arguments
 	s.drop(numberOfArguments + 1);
@@ -1160,7 +1186,8 @@ void ExecutionEngine::exec_load_field(State &s) {
 	int          field = s.nextInt();
 	Value        v     = s.pop();
 	const Class *c     = v.getClass();
-	s.assertField(c, field);
+	if(!s.assertField(c, field))
+		return;
 	s.push(c->accessFn(c, v, field));
 	if(c->type != Class::ClassType::BUILTIN) {
 		// this is not a builtin class, so we can optimize
@@ -1225,7 +1252,8 @@ void ExecutionEngine::exec_store_field(State &s) {
 	int          field = s.nextInt();
 	Value        v     = s.pop();
 	const Class *c     = v.getClass();
-	s.assertField(c, field);
+	if(!s.assertField(c, field))
+		return;
 	c->accessFn(c, v, field) = s.top();
 	if(c->type != Class::ClassType::BUILTIN) {
 		// this is not a builtin class, so
@@ -1271,8 +1299,10 @@ void ExecutionEngine::exec_array_build(State &s) {
 }
 
 void ExecutionEngine::exec_map_build(State &s) {
-	int  numArg = s.nextInt();
-	Map *v      = Map::from(&s.top(-(numArg * 2)), numArg);
+	int numArg = s.nextInt();
+	s.frameBackup();
+	Map *v = Map::from(&s.top(-(numArg * 2)), numArg);
+	s.frameRestore();
 	s.drop(numArg * 2);
 	s.push(Value(v));
 }
@@ -1295,7 +1325,8 @@ void ExecutionEngine::exec_search_method(State &s) {
 	else {
 		// otherwise, search in its class
 		const Class *c = s.top().getClass();
-		s.assertMethod(c, sym);
+		if(!s.assertMethod(c, sym))
+			return;
 		classToSearch = c;
 	}
 	// push the fn, and we're done
@@ -1449,7 +1480,7 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 			Printer::println();
 			int instructionPointer =
 			    state.InstructionPointer - presentFrame->f->code->bytecodes;
-			int   stackPointer = state.fiber->stackTop - presentFrame->stack_;
+			int   stackPointer = state.StackTop - state.Stack;
 			Token t            = Token::PlaceholderToken;
 			if(presentFrame->f->code->ctx)
 				t = presentFrame->f->code->ctx->get_token(instructionPointer);
@@ -1462,8 +1493,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 			             instructionPointer, stackPointer);
 			for(int i = 0; i < stackPointer; i++) {
 				Printer::print(" | ");
-				presentFrame->f->code->disassemble_Value(
-				    Printer::StdOutStream, presentFrame->stack_[i]);
+				presentFrame->f->code->disassemble_Value(Printer::StdOutStream,
+				                                         state.Stack[i]);
 			}
 			Printer::println(" | ");
 			presentFrame->f->code->disassemble(
