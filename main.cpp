@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "en_US.UTF-8");
 #ifdef DEBUG
 	Printer::println("[Debug] Running in debug mode..");
+	Printer::println("[Build] ", __DATE__, " ", __TIME__);
 #endif
 	// initialize the Gc, which in turn
 	// inits any custom memory allocators in

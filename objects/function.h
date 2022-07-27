@@ -25,7 +25,7 @@ struct Function {
 
 	String *name;
 	union {
-		Bytecode *      code;
+		Bytecode       *code;
 		next_builtin_fn func;
 	};
 	// Exception Handlers
@@ -93,7 +93,11 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	void          depend() { Gc::depend(name); }
-	const String *gc_repr() { return name; }
+	void depend() {
+		Gc::depend(name);
+	}
+	const String *gc_repr() {
+		return name;
+	}
 #endif
 };

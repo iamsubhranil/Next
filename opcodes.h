@@ -214,10 +214,10 @@ OPCODE2(call_method_super, 0, int, int) // <symbol> <args>
 // and they are only optimized for soft constructor
 // calls, not for boundmethods. boundmethods
 // need additional stack manipulation and verification.
-OPCODE2(call_fast_builtin_soft, 0, int, int) // <index_start> <arity>
 OPCODE2(call_fast_method_soft, 0, int, int)  // <index_start> <arity>
-OPCODE2(call_fast_builtin, 0, int, int)      // <index_start> <arity>
+OPCODE2(call_fast_builtin_soft, 0, int, int) // <index_start> <arity>
 OPCODE2(call_fast_method, 0, int, int)       // <index_start> <arity>
+OPCODE2(call_fast_builtin, 0, int, int)      // <index_start> <arity>
 
 // return
 OPCODE0(ret, -1)

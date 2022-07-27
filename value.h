@@ -64,13 +64,17 @@ struct Value {
 		encodeGcObject((GcObject *)temp);                                 \
 	}
 #else
-#define TYPE(r, n) \
-	Value(const r s) { encode##n(s); }
-#define OBJTYPE(r, c)                                    \
-	Value(const r *s) { encodeGcObject((GcObject *)s); } \
-	Value(const GcTempObject<r> &s) {                    \
-		r *temp = (r *)s;                                \
-		encodeGcObject((GcObject *)temp);                \
+#define TYPE(r, n)     \
+	Value(const r s) { \
+		encode##n(s);  \
+	}
+#define OBJTYPE(r, c)                     \
+	Value(const r *s) {                   \
+		encodeGcObject((GcObject *)s);    \
+	}                                     \
+	Value(const GcTempObject<r> &s) {     \
+		r *temp = (r *)s;                 \
+		encodeGcObject((GcObject *)temp); \
 	}
 #endif
 #include "objecttype.h"
@@ -86,16 +90,30 @@ struct Value {
 			return Type::Nil;
 		return Type::Boolean;
 	}
-	String *getTypeString() const { return ValueTypeStrings[(int)getType()]; }
+	String *getTypeString() const {
+		return ValueTypeStrings[(int)getType()];
+	}
 
-	inline bool is(Type ty) const { return getType() == ty; }
-	inline bool isBoolean() const { return (val.value & 0xF) >= 0x6; }
-	inline bool isGcObject() const { return (val.value & 0x3) == 0; }
-#define OBJTYPE(n, c) \
-	inline bool is##n() const { return isGcObject() && toGcObject()->is##n(); }
+	inline bool is(Type ty) const {
+		return getType() == ty;
+	}
+	inline bool isBoolean() const {
+		return (val.value & 0xF) >= 0x6;
+	}
+	inline bool isGcObject() const {
+		return (val.value & 0x3) == 0;
+	}
+#define OBJTYPE(n, c)                                 \
+	inline bool is##n() const {                       \
+		return isGcObject() && toGcObject()->is##n(); \
+	}
 #include "objecttype.h"
-	inline bool isNil() const { return val.value == 0x2; }
-	inline bool isNumber() const { return val.value & 0x1; }
+	inline bool isNil() const {
+		return val.value == 0x2;
+	}
+	inline bool isNumber() const {
+		return val.value & 0x1;
+	}
 	inline bool isInteger() const {
 		return isNumber() && floor(toNumber()) == toNumber();
 	}
@@ -105,20 +123,30 @@ struct Value {
 	inline GcObject *toGcObject() const {
 		return (GcObject *)(uintptr_t)val.value;
 	}
-	inline bool toBoolean() const { return val.value >> 3; }
-#define OBJTYPE(r, c) \
-	inline r *to##r() const { return (r *)toGcObject(); }
+	inline bool toBoolean() const {
+		return val.value >> 3;
+	}
+#define OBJTYPE(r, c)             \
+	inline r *to##r() const {     \
+		return (r *)toGcObject(); \
+	}
 #include "objecttype.h"
 	inline double toNumber() const {
 		ValueUnion num = val;
 		num.value &= ~(0x1);
 		return num.dvalue;
 	}
-	inline int64_t toInteger() const { return (int64_t)toNumber(); }
-#define TYPE(r, n) \
-	inline void set##n(r v) { encode##n(v); }
+	inline int64_t toInteger() const {
+		return (int64_t)toNumber();
+	}
+#define TYPE(r, n)            \
+	inline void set##n(r v) { \
+		encode##n(v);         \
+	}
 #include "valuetypes.h"
-	inline void setNumber(double v) { operator=(v); }
+	inline void setNumber(double v) {
+		operator=(v);
+	}
 
 #define TYPE(r, n)                        \
 	inline Value &operator=(const r &d) { \
@@ -144,6 +172,10 @@ struct Value {
 
 	constexpr inline bool operator!=(const Value &v) const {
 		return v.val.value != val.value;
+	}
+
+	constexpr inline bool isFalsey() const {
+		return val.value == 1 || val.value == 2 || val.value == 6;
 	}
 
 	// since numbers, booleans and nils are stored unboxed,

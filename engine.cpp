@@ -12,11 +12,143 @@
 #include "objects/symtab.h"
 #include "printer.h"
 
+template <typename... K> void createException(const void *message, K... args) {
+	StringStream s;
+	auto         res = Formatter::fmt<Value>(s, message, args...);
+	if(res == FormatHandler<Value>::Success()) {
+		RuntimeError::sete(s.toString().toString());
+	} else {
+		// FormatError is already set
+		RuntimeError::sete(
+		    String::from("Unable to format the given exception!"));
+	}
+}
+
+void createMemberAccessException(const Class *c, int field, int type) {
+	static const char *types[] = {"member", "method"};
+	String            *name    = SymbolTable2::getString(field);
+	if(name->len() > 2 && *name->str() == 's' && (name->str() + 1) == ' ') {
+		createException(
+		    "No public {} '{}' found in superclass '{}' of class '{}'!",
+		    types[type], Utf8Source((const char *)name->str().source + 2),
+		    c->superclass->name, c->name);
+	} else {
+		createException("No public {} '{}' found in class '{}'!", types[type],
+		                SymbolTable2::getString(field), c->name);
+	}
+}
+
+struct ExecutionEngine::State {
+	Fiber            *fiber;
+	Fiber::CallFrame *presentFrame;
+	Bytecode::Opcode *InstructionPointer;
+	Bytecode::Opcode *CallPatch;
+	Value            *Stack;
+	Value            *StackTop;
+	Value            *Locals;
+	Value             returnValue;
+	bool              shouldReturn;
+
+	State(Fiber *fib) {
+		fiber        = fib;
+		shouldReturn = false;
+		returnValue  = ValueNil;
+		frameRestore();
+	}
+
+	inline Value &top(int offset = -1) { return *(StackTop + offset); }
+	inline Value &pop() { return *--StackTop; }
+	inline Value &base(int offset = 0) { return *(Stack + offset); }
+	inline void   push(Value v) { *StackTop++ = v; }
+	inline void   drop(int count = 1) { StackTop -= count; }
+	inline void   jumpTo(int where) { InstructionPointer += where; }
+	inline void   jumpToOffset(int offset) {
+		  jumpTo(offset - sizeof(int) / sizeof(Bytecode::Opcode));
+	}
+	inline void frameBackup() {
+		presentFrame->code = InstructionPointer;
+		fiber->stackTop    = StackTop;
+	}
+	inline void frameRestore() {
+		presentFrame       = fiber->getCurrentFrame();
+		InstructionPointer = presentFrame->code;
+		Stack              = presentFrame->stack_;
+		Locals             = presentFrame->locals;
+		StackTop           = fiber->stackTop;
+	}
+	inline void skipCall() {
+		nextInstruction();
+		nextInt();
+		nextInt();
+		CallPatch = nullptr;
+	}
+
+	template <typename... K>
+	void assert(bool cond, const char *msg, K... args) {
+		if(!cond) {
+			createException(msg, args...);
+			execError();
+		}
+	}
+	// check for fields and methods
+	void assertField(const Class *c, int field) {
+		if(!c->has_fn(field)) {
+			createMemberAccessException(c, field, 0);
+			execError();
+		}
+	}
+
+	Function *assertMethod(const Class *c, int method) {
+		if(!c->has_fn(method)) {
+			createMemberAccessException(c, method, 0);
+			execError();
+			return NULL;
+		}
+		return c->get_fn(method).toFunction();
+	}
+
+	inline int              nextInt() { return *++InstructionPointer; }
+	inline Value           &nextValue() { return Locals[nextInt()]; }
+	inline Bytecode::Opcode nextInstruction() { return *++InstructionPointer; }
+	inline void             prevInstruction() { --InstructionPointer; }
+	// makes the engine return from current instance of execute
+	void returnFromExecute(Value v) {
+		returnValue  = v;
+		shouldReturn = true;
+	}
+
+	template <typename... K> void runtimeError(const void *message, K... args) {
+		createException(message, args...);
+		execError();
+	}
+	// after an error has occurred, this function
+	// should make the engine invoke the error
+	// handler immediately
+	void execError() {
+		// Only way we can get here is by a 'execError()'
+		// statement, which was triggered either by a
+		// runtime error, or an user generated exception,
+		// or by a pending exception of a builtin or a
+		// primitive. In all of the cases, the exception
+		// is already set in the pendingExceptions array.
+		frameBackup();
+		// pop the last exception
+		Value pendingException =
+		    pendingExceptions->values[--pendingExceptions->size];
+		// pop the last location
+		Value thrownFiber = pendingFibers->values[--pendingFibers->size];
+		ExecutionEngine::currentFiber = fiber =
+		    throwException(pendingException, thrownFiber.toFiber());
+		frameRestore();
+		prevInstruction();
+	}
+};
+
 ExecutionEngine::ModuleMap *ExecutionEngine::loadedModules         = nullptr;
-Array *                     ExecutionEngine::pendingExceptions     = nullptr;
-Array *                     ExecutionEngine::pendingFibers         = nullptr;
-Fiber *                     ExecutionEngine::currentFiber          = nullptr;
-Object *                    ExecutionEngine::CoreObject            = nullptr;
+Array                      *ExecutionEngine::pendingExceptions     = nullptr;
+Array                      *ExecutionEngine::pendingFibers         = nullptr;
+Fiber                      *ExecutionEngine::currentFiber          = nullptr;
+Object                     *ExecutionEngine::CoreObject            = nullptr;
 size_t                      ExecutionEngine::maxRecursionLimit     = 1024;
 size_t                      ExecutionEngine::currentRecursionDepth = 0;
 bool                        ExecutionEngine::isRunningRepl         = false;
@@ -70,7 +202,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 	int               i        = fiber->callFrameCount() - 1;
 	Fiber::CallFrame *root     = &fiber->callFrameBase[i];
 	Fiber::CallFrame *f        = root;
-	String *          lastName = 0;
+	String           *lastName = 0;
 	while(i >= 0) {
 		Token        t;
 		bool         moduleAlreadyPrinted = false;
@@ -191,7 +323,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	// Get the type
 	const Class *klass = thrown.getClass();
 	// Now find the frame by unwinding the stack
-	Fiber *           f                  = root;
+	Fiber            *f                  = root;
 	int               num                = f->callFrameCount() - 1;
 	int               instructionPointer = 0;
 	Fiber::CallFrame *matched            = NULL;
@@ -340,70 +472,917 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 	return v;
 }
 
-template <typename... K> void createException(const void *message, K... args) {
-	StringStream s;
-	auto         res = Formatter::fmt<Value>(s, message, args...);
-	if(res == FormatHandler<Value>::Success()) {
-		RuntimeError::sete(s.toString().toString());
+template <typename T, typename U, typename V>
+static void inline execBinary(ExecutionEngine::State &s, T validator, U exec,
+                              V setter, int methodToCall) {
+	if(validator(s.top(), s.top(-2))) {
+		setter(s.top(), exec(s.pop(), s.top()));
 	} else {
-		// FormatError is already set
-		RuntimeError::sete(
-		    String::from("Unable to format the given exception!"));
+		ExecutionEngine::execMethodCall(s, methodToCall, 1);
 	}
 }
 
-void createMemberAccessException(const Class *c, int field, int type) {
-	static const char *types[] = {"member", "method"};
-	String *           name    = SymbolTable2::getString(field);
-	if(name->len() > 2 && *name->str() == 's' && (name->str() + 1) == ' ') {
-		createException(
-		    "No public {} '{}' found in superclass '{}' of class '{}'!",
-		    types[type], Utf8Source((const char *)name->str().source + 2),
-		    c->superclass->name, c->name);
-	} else {
-		createException("No public {} '{}' found in class '{}'!", types[type],
-		                SymbolTable2::getString(field), c->name);
+#define VALIDATOR(x)                                                 \
+	static auto Validator_##x = [](const Value &a, const Value &b) { \
+		return a.is##x() && b.is##x();                               \
+	};
+VALIDATOR(Number);
+// VALIDATOR(Boolean);
+VALIDATOR(Integer);
+
+#define SETTER(x) \
+	static auto Setter_##x = [](Value &a, double v) { a.set##x(v); };
+SETTER(Number);
+SETTER(Boolean);
+
+#define BINARY_FUNCTION(name, argtype, restype, op)            \
+	void ExecutionEngine::exec_##name(State &s) {              \
+		execBinary(                                            \
+		    s, Validator_##argtype,                            \
+		    [](const Value &a, const Value &b) {               \
+			    return a.to##argtype() op b.to##argtype();     \
+		    },                                                 \
+		    Setter_##restype, SymbolTable2::const_sig_##name); \
+	}
+
+BINARY_FUNCTION(add, Number, Number, +)
+BINARY_FUNCTION(sub, Number, Number, -)
+BINARY_FUNCTION(mul, Number, Number, *)
+BINARY_FUNCTION(div, Number, Number, /)
+BINARY_FUNCTION(greater, Number, Boolean, >)
+BINARY_FUNCTION(greatereq, Number, Boolean, >=)
+BINARY_FUNCTION(less, Number, Number, <)
+BINARY_FUNCTION(lesseq, Number, Number, <=)
+BINARY_FUNCTION(band, Integer, Number, &)
+BINARY_FUNCTION(bor, Integer, Number, |)
+BINARY_FUNCTION(bxor, Integer, Number, ^)
+BINARY_FUNCTION(blshift, Integer, Number, <<)
+BINARY_FUNCTION(brshift, Integer, Number, >>)
+
+void ExecutionEngine::exec_lor(State &s) {
+	int skipTo = s.nextInt();
+	// this was s.top() in original code!
+	if(!s.pop().isFalsey()) {
+		s.jumpTo(skipTo);
 	}
 }
 
-bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
-	fiber->setState(Fiber::RUNNING);
+void ExecutionEngine::exec_land(State &s) {
+	int skipTo = s.nextInt();
+	// this was s.top() in original code!
+	if(s.pop().isFalsey()) {
+		s.jumpTo(skipTo);
+	}
+}
+
+void ExecutionEngine::exec_neq(State &s) {
+	if(s.top(-2).isGcObject() &&
+	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_neq)) {
+		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_neq, 1);
+	} else {
+		s.top().setBoolean(s.top() != s.top(-2));
+	}
+}
+
+void ExecutionEngine::exec_eq(State &s) {
+	if(s.top(-2).isGcObject() &&
+	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_eq)) {
+		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_eq, 1);
+	} else {
+		s.top().setBoolean(s.top() == s.top(-2));
+	}
+}
+
+void ExecutionEngine::exec_bcall_fast_prepare(State &s) {
+	s.CallPatch = s.InstructionPointer;
+	s.nextInt();
+}
+
+void ExecutionEngine::exec_bcall_fast_eq(State &s) {
+	s.CallPatch = s.InstructionPointer;
+	int    idx  = s.nextInt();
+	Class *c    = s.Locals[idx].toClass();
+	if(s.top(-2).getClass() == c) {
+		Value rightOperand = s.pop();
+		s.top().setBoolean(s.top() == rightOperand);
+		s.CallPatch = nullptr;
+		s.nextInstruction();
+	}
+}
+
+void ExecutionEngine::exec_bcall_fast_neq(State &s) {
+	s.CallPatch = s.InstructionPointer;
+	int    idx  = s.nextInt();
+	Class *c    = s.Locals[idx].toClass();
+	if(s.top(-2).getClass() == c) {
+		Value rightOperand = s.pop();
+		s.top().setBoolean(s.top() != rightOperand);
+		s.CallPatch = nullptr;
+		s.nextInstruction();
+	}
+}
+
+void ExecutionEngine::exec_lnot(State &s) {
+	s.top().setBoolean(s.top().isFalsey());
+}
+
+void ExecutionEngine::exec_bnot(State &s) {
+	if(s.top().isInteger()) {
+		s.top().setNumber(~s.top().toInteger());
+	} else {
+		s.runtimeError("'~' can only be applied over an integer!");
+	}
+}
+
+void ExecutionEngine::exec_neg(State &s) {
+	if(s.top().isNumber()) {
+		s.top().setNumber(-s.top().toNumber());
+	} else {
+		s.runtimeError("'-' can only be applied over a number!");
+	}
+}
+
+void ExecutionEngine::exec_copy(State &s) {
+	int sym = s.nextInt();
+	if(s.top().isNumber()) {
+		s.push(s.top());
+	} else {
+		s.push(ValueFalse);
+		ExecutionEngine::execMethodCall(s, sym, 1);
+	}
+}
+
+void ExecutionEngine::exec_incr(State &s) {
+	if(s.top().isNumber()) {
+		s.top().setNumber(s.top().toNumber() + 1);
+	} else {
+		s.push(ValueTrue);
+		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_incr, 1);
+	}
+}
+
+void ExecutionEngine::exec_decr(State &s) {
+	if(s.top().isNumber()) {
+		s.top().setNumber(s.top().toNumber() - 1);
+	} else {
+		s.push(ValueTrue);
+		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_decr, 1);
+	}
+}
+
+void ExecutionEngine::exec_push(State &s) {
+	s.push(s.nextValue());
+}
+
+void ExecutionEngine::exec_pushn(State &s) {
+	s.push(ValueNil);
+}
+
+void ExecutionEngine::exec_pop(State &s) {
+	s.drop();
+}
+
+void ExecutionEngine::exec_iterator_verify(State &s) {
+	Bytecode::Opcode *present              = s.InstructionPointer;
+	int               idx                  = s.nextInt();
+	int               iterator_next_offset = s.nextInt();
+	if(s.top().getClass() == s.Locals[idx].toClass()) {
+		return;
+	}
+	Value &it     = s.top();
+	s.Locals[idx] = Value(it.getClass());
+	if(Iterator::is_iterator(it)) {
+		Iterator::Type t = Iterator::getType(it);
+
+		// mark the iterate next as specialized builtin call
+		switch(t) {
+#define ITERATOR(x, y)                               \
+	case Iterator::Type::x##Iterator:                \
+		*(present + iterator_next_offset) =          \
+		    Bytecode::CODE_iterate_next_builtin_##x; \
+		break;
+#include "objects/iterator_types.h"
+		}
+		return;
+	}
+
+	int          field = SymbolTable2::const_field_has_next;
+	const Class *c     = it.getClass();
+	s.assertField(c, field);
+	Function *f = s.assertMethod(c, SymbolTable2::const_sig_next);
+	// patch the next() call
+	if(f->getType() == Function::Type::BUILTIN) {
+		*(present + iterator_next_offset) =
+		    Bytecode::CODE_iterate_next_object_builtin;
+	} else {
+		*(present + iterator_next_offset) =
+		    Bytecode::CODE_iterate_next_object_method;
+	}
+}
+
+void ExecutionEngine::exec_jump(State &s) {
+	s.jumpToOffset(s.nextInt());
+}
+
+void ExecutionEngine::exec_jumpiftrue(State &s) {
+	Value v   = s.pop();
+	int   dis = s.nextInt();
+	bool  fl  = v.isFalsey();
+	if(!fl) {
+		s.jumpToOffset(dis); // offset the relative jump address
+	}
+}
+
+void ExecutionEngine::exec_jumpiffalse(State &s) {
+	Value v   = s.pop();
+	int   dis = s.nextInt();
+	bool  fl  = v.isFalsey();
+	if(fl) {
+		s.jumpToOffset(dis); // offset the relative jump address
+	}
+}
+
+template <typename T>
+void exec_iterate_next_builtin(ExecutionEngine::State &s) {
+	int offset = s.nextInt();
+	T  *it     = (T *)s.top().toObject();
+	if(!it->hasNext.toBoolean()) {
+		s.drop();
+		s.jumpToOffset(offset);
+	} else {
+		s.top() = it->Next();
+	}
+}
+
+#define ITERATOR(x, y)                                              \
+	void ExecutionEngine::exec_iterate_next_builtin_##x(State &s) { \
+		exec_iterate_next_builtin<x##Iterator>(s);                  \
+	}
+
+#include "objects/iterator_types.h"
+
+#define ITERATE_NEXT_OBJECT_(type)                                        \
+	void ExecutionEngine::exec_iterate_next_object_##type(State &s) {     \
+		int          offset   = s.nextInt();                              \
+		Value       &it       = s.top();                                  \
+		const Class *c        = it.getClass();                            \
+		int          field    = SymbolTable2::const_field_has_next;       \
+		Value        has_next = c->accessFn(c, it, field);                \
+		if(has_next.isFalsey()) {                                         \
+			s.drop();                                                     \
+			s.jumpToOffset(offset);                                       \
+		} else {                                                          \
+			Function *functionToCall =                                    \
+			    c->get_fn(SymbolTable2::const_sig_next).toFunction();     \
+			ExecutionEngine::execMethodCall_##type(s, functionToCall, 0); \
+		}                                                                 \
+	}
+ITERATE_NEXT_OBJECT_(method)
+ITERATE_NEXT_OBJECT_(builtin)
+
+void ExecutionEngine::exec_call_fast_prepare(State &s) {
+	s.CallPatch = s.InstructionPointer;
+	s.nextInt();
+	s.nextInt();
+}
+
+void ExecutionEngine::exec_call_soft(State &s) {
+	int sym               = s.nextInt();
+	int numberOfArguments = s.nextInt();
+	// the callable is placed before the arguments
+	Value v = s.top(-numberOfArguments - 1);
+	s.assert(v.isGcObject(), "Not a callable object!");
+	switch(v.toGcObject()->getType()) {
+		case GcObject::Type::Class: {
+			// check if the class has a constructor with the
+			// given signature
+			Class *c = v.toClass();
+			s.assert(c->has_fn(sym),
+			         "Constructor '{}' not found in class '{}'!",
+			         SymbolTable2::getString(sym), c->name);
+			// [performcall will take care of this]
+			// set the receiver to nil so that construct
+			// knows to create a new receiver
+			// fiber->stackTop[-numberOfArguments - 1] =
+			// ValueNil; call the constructor
+			Function *functionToCall = c->get_fn(sym).toFunction();
+			ExecutionEngine::execMethodCall(s, functionToCall,
+			                                numberOfArguments);
+			return;
+		}
+		case GcObject::Type::BoundMethod: {
+			// we cannot really perform any optimizations for
+			// boundmethods, because they require verifications
+			// and stack adjustments.
+			s.CallPatch    = nullptr;
+			BoundMethod *b = v.toBoundMethod();
+			// verify the arguments
+			if(b->verify(&s.top(-numberOfArguments), numberOfArguments) !=
+			   BoundMethod::Status::OK) {
+				// pop the arguments
+				s.drop(numberOfArguments);
+				s.execError();
+				break;
+			}
+			// we have already allocated one slot for the
+			// receiver before the arguments started.
+			// but if this is class bound call, we don't
+			// need that anymore, as the object has already
+			// been passed as the first argument. so move
+			// them back
+			switch(b->type) {
+				case BoundMethod::CLASS_BOUND: {
+					for(int i = -numberOfArguments - 1; i < 0; i++)
+						s.top(i) = s.top(i + 1);
+					s.drop();
+					// we also decrement numberOfArguments to
+					// denote actual argument count minus the
+					// instance
+					numberOfArguments--;
+					break;
+				}
+				default:
+					// otherwise, we store the object at slot 0
+					s.top(-numberOfArguments - 1) = b->binder;
+					break;
+			}
+			Function *functionToCall = b->func;
+			ExecutionEngine::execMethodCall(s, functionToCall,
+			                                numberOfArguments);
+			break;
+		}
+		default: s.runtimeError("Not a callable object!"); break;
+	}
+}
+
+void ExecutionEngine::exec_call(State &s) {
+	int          frame             = s.nextInt();
+	int          numberOfArguments = s.nextInt();
+	Value       &v                 = s.top(-numberOfArguments - 1);
+	const Class *c                 = v.getClass();
+	Function    *functionToCall    = c->get_fn(frame).toFunction();
+	ExecutionEngine::execMethodCall(s, functionToCall, numberOfArguments);
+}
+
+void ExecutionEngine::exec_call_intra(State &s) {
+	exec_call(s);
+}
+
+void ExecutionEngine::exec_call_method(State &s) {
+	int method            = s.nextInt();
+	int numberOfArguments = s.nextInt();
+	ExecutionEngine::execMethodCall(s, method, numberOfArguments);
+}
+
+void ExecutionEngine::exec_call_method_super(State &s) {
+	exec_call_method(s);
+}
+
+template <bool isSoft, auto func>
+void performFastCall(ExecutionEngine::State &s) {
+	s.CallPatch             = s.InstructionPointer;
+	int   idxstart          = s.nextInt();
+	int   numberOfArguments = s.nextInt();
+	Value expected          = s.Locals[idxstart];
+	Value received          = s.top(-numberOfArguments - 1);
+	// by default, we compare the cached class to the class
+	// of the callee object
+	bool cacheHit = expected.toClass() == received.getClass();
+	if(isSoft) {
+		// if it is a softcall, we directly cache the object
+		// or class as required, so instead, we also compare them
+		// directly
+		cacheHit = expected == received;
+	}
+	if(cacheHit) {
+		Function *functionToCall = s.Locals[idxstart + 1].toFunction();
+		/* if this is a softcall, set the receiver to nil so that construct
+		knows to create a new receiver */
+		if(isSoft)
+			s.top(-numberOfArguments - 1) = ValueNil;
+		/* ignore the next call opcode */
+		s.skipCall();
+		/* directly jump to the appropriate call */
+		func(s, functionToCall, numberOfArguments);
+	}
+	/* check failed, run the original opcode */
+}
+
+void ExecutionEngine::exec_call_fast_method_soft(State &s) {
+	performFastCall<true, ExecutionEngine::execMethodCall_method>(s);
+}
+
+void ExecutionEngine::exec_call_fast_builtin_soft(State &s) {
+	performFastCall<true, ExecutionEngine::execMethodCall_builtin>(s);
+}
+
+void ExecutionEngine::exec_call_fast_method(State &s) {
+	performFastCall<false, ExecutionEngine::execMethodCall_method>(s);
+}
+
+void ExecutionEngine::exec_call_fast_builtin(State &s) {
+	performFastCall<false, ExecutionEngine::execMethodCall_builtin>(s);
+}
+
+void ExecutionEngine::execMethodCall(State &s, int methodToCall,
+                                     int numberOfArguments) {
+	Value       &v = s.top(-numberOfArguments - 1);
+	const Class *c = v.getClass();
+	s.assertMethod(c, methodToCall);
+	Function *functionToCall = c->get_fn(methodToCall).toFunction();
+	execMethodCall(s, functionToCall, numberOfArguments);
+}
+
+void ExecutionEngine::execMethodCall(State &s, Function *methodToCall,
+                                     int numberOfArguments) {
+	if(s.CallPatch)
+		patchFastCall(s, methodToCall, numberOfArguments);
+	switch(methodToCall->getType()) {
+		case Function::Type::BUILTIN:
+			ExecutionEngine::execMethodCall_builtin(s, methodToCall,
+			                                        numberOfArguments);
+			break;
+		case Function::Type::METHOD:
+			ExecutionEngine::execMethodCall_method(s, methodToCall,
+			                                       numberOfArguments);
+			break;
+	}
+}
+
+void ExecutionEngine::patchFastCall(State &s, Function *methodToCall,
+                                    int numberOfArguments) {
+
+	Bytecode::Opcode *bak = s.InstructionPointer;
+	// set ip to the fast opcode
+	s.InstructionPointer = s.CallPatch;
+	// get the Locals index where our class and function
+	// will be cached
+	int idx = s.nextInt();
+	// Codegen already added numberOfArguments for us in the
+	// fast opcode, ignore that for now
+	s.nextInt();
+	// get the opcode next to _fast to decide on what to actually patch
+	Bytecode::Opcode op = s.nextInstruction();
+	// we are assuming most of the times it will be a
+	// method call, so by default we set these variables
+	// to their appropriate values for a method call.
+	// if this is a softcall, we conditonally check
+	// that next.
+	Bytecode::Opcode base = Bytecode::Opcode::CODE_call_fast_method;
+	s.Locals[idx]         = Value(s.top(-numberOfArguments - 1).getClass());
+	// if we are performing a softcall, patch
+	// accordingly.
+	if(op == Bytecode::Opcode::CODE_call_soft) {
+		base          = Bytecode::Opcode::CODE_call_fast_method_soft;
+		s.Locals[idx] = s.top(-numberOfArguments - 1);
+		// if we are performing a softcall, it must only
+		// be a constructor call, so clear the 0th slot
+		// so that a new object is constructed by opcode
+		// 'construct'
+		s.top(-numberOfArguments - 1) = ValueNil;
+	}
+	// patch the fast opcode with its appropriate version
+	*s.CallPatch = (Bytecode::Opcode)(base + methodToCall->getType());
+	// store the function
+	s.Locals[idx + 1] = Value(methodToCall);
+	// reset the patch pointer
+	s.CallPatch = nullptr;
+	// restore the ip
+	s.InstructionPointer = bak;
+}
+
+void ExecutionEngine::execMethodCall_builtin(State &s, Function *methodToCall,
+                                             int numberOfArguments) {
+	// backup present frame
+	s.frameBackup();
+	// call the function
+	Value res =
+	    methodToCall->func(&s.top(numberOfArguments - 1),
+	                       numberOfArguments + 1); // include the receiver
+	// after call, drop the arguments
+	s.drop(numberOfArguments + 1);
+	// it may have caused a fiber switch
+	if(s.fiber != ExecutionEngine::currentFiber) {
+		s.fiber = currentFiber;
+	}
+	// present frame may be reallocated elsewhere
+	s.frameRestore();
+	// check if the function raise any exceptions
+	if(pendingExceptions->size == 0) {
+		s.push(res);
+	} else {
+		s.execError();
+	}
+}
+
+void ExecutionEngine::execMethodCall_method(State &s, Function *methodToCall,
+                                            int numberOfArguments) {
+
+	s.frameBackup();
+	s.fiber->appendMethodNoBuiltin(methodToCall, numberOfArguments, false);
+	s.frameRestore();
+	// reduce the instruction pointer by 1, so that when it
+	// automatically gets incremented next, it'll point to
+	// the first instruction of the method
+	s.prevInstruction();
+}
+
+void ExecutionEngine::exec_ret(State &s) {
+
+	// Pop the return value
+	Value v = s.pop();
+	// backup the current frame
+	Fiber::CallFrame *cur = s.fiber->getCurrentFrame();
+	// pop the current frame
+	s.fiber->popFrame();
+	// if the current frame is invoked by
+	// a native method, return to that
+	if(cur->returnToCaller) {
+		s.returnFromExecute(v);
+	}
+	// if we have somewhere to return to,
+	// return there first. this would
+	// be true maximum number of times
+	else if(s.fiber->callFrameCount() > 0) {
+		s.frameRestore();
+		s.push(v);
+	} else if(s.fiber->parent != NULL) {
+		// if there is no callframe in present
+		// fiber, but there is a parent, return
+		// to the parent fiber
+		currentFiber = s.fiber = s.fiber->switch_();
+		s.frameRestore();
+		s.push(v);
+	} else {
+		// neither parent fiber nor parent callframe
+		// exists. Return the value back to
+		// the caller.
+		s.returnFromExecute(v);
+	}
+}
+
+void ExecutionEngine::exec_load_slot(State &s) {
+	s.push(s.base(s.nextInt()));
+}
+
+#define LOAD_SLOT(x)                                     \
+	void ExecutionEngine::exec_load_slot_##x(State &s) { \
+		s.push(s.base(x));                               \
+	}
+
+LOAD_SLOT(0)
+LOAD_SLOT(1)
+LOAD_SLOT(2)
+LOAD_SLOT(3)
+LOAD_SLOT(4)
+LOAD_SLOT(5)
+LOAD_SLOT(6)
+LOAD_SLOT(7)
+#undef LOAD_SLOT
+
+void ExecutionEngine::exec_load_module(State &s) {
+	Value klass = s.base();
+	// the 0th slot may also contain an object
+	if(!klass.isClass())
+		klass = klass.getClass();
+	s.push(klass.toClass()->module->instance);
+}
+
+void ExecutionEngine::exec_load_module_super(State &s) {
+	Value klass = s.base();
+	// the 0th slot may also contain an object
+	if(!klass.isClass())
+		klass = klass.getClass();
+	s.push(klass.toClass()->superclass->module->instance);
+}
+
+void ExecutionEngine::exec_load_module_core(State &s) {
+	s.push(CoreObject);
+}
+
+void ExecutionEngine::exec_load_tos_slot(State &s) {
+	s.top() = s.top().toObject()->slots(s.nextInt());
+}
+
+void ExecutionEngine::exec_store_slot(State &s) {
+	s.base(s.nextInt()) = s.top();
+}
+
+#define STORE_SLOT(x)                                     \
+	void ExecutionEngine::exec_store_slot_##x(State &s) { \
+		s.base(x) = s.top();                              \
+	}
+
+STORE_SLOT(0)
+STORE_SLOT(1)
+STORE_SLOT(2)
+STORE_SLOT(3)
+STORE_SLOT(4)
+STORE_SLOT(5)
+STORE_SLOT(6)
+STORE_SLOT(7)
+#undef STORE_SLOT
+
+void ExecutionEngine::exec_store_slot_pop(State &s) {
+	s.base(s.nextInt()) = s.pop();
+}
+
+#define STORE_SLOT_POP(x)                                     \
+	void ExecutionEngine::exec_store_slot_pop_##x(State &s) { \
+		s.base(x) = s.pop();                                  \
+	}
+
+STORE_SLOT_POP(0)
+STORE_SLOT_POP(1)
+STORE_SLOT_POP(2)
+STORE_SLOT_POP(3)
+STORE_SLOT_POP(4)
+STORE_SLOT_POP(5)
+STORE_SLOT_POP(6)
+STORE_SLOT_POP(7)
+#undef STORE_SLOT_POP
+
+void ExecutionEngine::exec_store_tos_slot(State &s) {
+	Value v                          = s.pop();
+	v.toObject()->slots(s.nextInt()) = s.top();
+}
+
+void ExecutionEngine::exec_load_object_slot(State &s) {
+	int slot = s.nextInt();
+	s.push(s.base().toObject()->slots(slot));
+}
+
+void ExecutionEngine::exec_store_object_slot(State &s) {
+	int slot                         = s.nextInt();
+	s.base().toObject()->slots(slot) = s.top();
+}
+
+void ExecutionEngine::exec_load_field_fast(State &s) {
+	s.CallPatch = s.InstructionPointer;
+	s.nextInt();
+	s.nextInt();
+}
+
+void ExecutionEngine::exec_load_field_slot(State &s) {
+	// directly loads the value from the slot
+	// if the class is matched
+	s.CallPatch = s.InstructionPointer;
+	int    idx  = s.nextInt();
+	int    slot = s.nextInt();
+	Class *c    = s.Locals[idx].toClass();
+	if(c == s.top().getClass()) {
+		s.CallPatch = nullptr;
+		s.top()     = s.top().toObject()->slots(slot);
+		// skip next opcode
+		s.nextInstruction();
+		s.nextInt();
+	}
+}
+
+void ExecutionEngine::exec_load_field_static(State &s) {
+	// directly loads the value from the static
+	// member if the class is matched
+	s.CallPatch  = s.InstructionPointer;
+	int    idx   = s.nextInt();
+	int    field = s.nextInt();
+	Class *c     = s.Locals[idx].toClass();
+	if(c == s.top().getClass()) {
+		s.CallPatch         = nullptr;
+		Class::StaticRef sr = c->staticRefs[field];
+		s.top()             = sr.owner->static_values[sr.slot];
+		// skip next opcode
+		s.nextInstruction();
+		s.nextInt();
+	}
+}
+
+void ExecutionEngine::exec_load_field(State &s) {
+	int          field = s.nextInt();
+	Value        v     = s.pop();
+	const Class *c     = v.getClass();
+	s.assertField(c, field);
+	s.push(c->accessFn(c, v, field));
+	if(c->type != Class::ClassType::BUILTIN) {
+		// this is not a builtin class, so we can optimize
+		// the access
+		int v = c->get_fn(field).toInteger();
+		if(!Class::is_static_slot(v)) {
+			// this is a slot, so store the slot index
+			*s.CallPatch       = Bytecode::CODE_load_field_slot;
+			*(s.CallPatch + 2) = (Bytecode::Opcode)v;
+		} else {
+			// this is a static member, so store the decodes index
+			*s.CallPatch       = Bytecode::CODE_load_field_static;
+			*(s.CallPatch + 2) = (Bytecode::Opcode)Class::get_static_slot(v);
+		}
+		int idx = *(s.CallPatch + 1);
+		// store the class
+		s.Locals[idx] = Value(c);
+	}
+	s.CallPatch = nullptr;
+}
+
+void ExecutionEngine::exec_store_field_fast(State &s) {
+	// dummy opcode, to be patched by store_field
+	s.CallPatch = s.InstructionPointer;
+	s.nextInt();
+	s.nextInt();
+}
+
+void ExecutionEngine::exec_store_field_slot(State &s) {
+	// directly store to the slot if the class is matched
+	s.CallPatch = s.InstructionPointer;
+	int idx     = s.nextInt();
+	int slot    = s.nextInt();
+	if(s.Locals[idx].toClass() == s.top().getClass()) {
+		Value v                   = s.pop();
+		s.CallPatch               = nullptr;
+		v.toObject()->slots(slot) = s.top();
+		// skip next opcode
+		s.nextInstruction();
+		s.nextInt();
+	}
+}
+
+void ExecutionEngine::exec_store_field_static(State &s) {
+	// directly store to the static member if the class is matched
+	s.CallPatch  = s.InstructionPointer;
+	int    idx   = s.nextInt();
+	int    field = s.nextInt();
+	Class *c     = s.Locals[idx].toClass();
+	if(c == s.top().getClass()) {
+		s.CallPatch = nullptr;
+		s.drop();
+		Class::StaticRef sr              = c->staticRefs[field];
+		sr.owner->static_values[sr.slot] = s.top();
+		// skip next opcode
+		s.nextInstruction();
+		s.nextInt();
+	}
+}
+
+void ExecutionEngine::exec_store_field(State &s) {
+	int          field = s.nextInt();
+	Value        v     = s.pop();
+	const Class *c     = v.getClass();
+	s.assertField(c, field);
+	c->accessFn(c, v, field) = s.top();
+	if(c->type != Class::ClassType::BUILTIN) {
+		// this is not a builtin class, so
+		// we can optimize the access
+		int v = c->get_fn(field).toInteger();
+		if(!Class::is_static_slot(v)) {
+			// this is a slot store, so store the slot index
+			*s.CallPatch       = Bytecode::CODE_store_field_slot;
+			*(s.CallPatch + 2) = (Bytecode::Opcode)v;
+		} else {
+			// this is a static field store, so store the field
+			*s.CallPatch       = Bytecode::CODE_store_field_static;
+			*(s.CallPatch + 2) = (Bytecode::Opcode)Class::get_static_slot(v);
+		}
+		// store the class
+		s.Locals[*(s.CallPatch + 1)] = Value(c);
+	}
+	s.CallPatch = nullptr;
+}
+
+void ExecutionEngine::exec_load_static_slot(State &s) {
+	int          slot = s.nextInt();
+	const Class *c    = (s.nextValue()).toClass();
+	s.push(c->static_values[slot]);
+}
+
+void ExecutionEngine::exec_store_static_slot(State &s) {
+	int          slot      = s.nextInt();
+	const Class *c         = (s.nextValue()).toClass();
+	c->static_values[slot] = s.top();
+}
+
+void ExecutionEngine::exec_array_build(State &s) {
+	// get the number of arguments to add
+	int    numArg = s.nextInt();
+	Array *a      = Array::create(numArg);
+	// manually adjust the size
+	a->size = numArg;
+	// insert all the elements
+	memcpy(a->values, &s.top(-numArg), sizeof(Value) * numArg);
+	s.drop(numArg);
+	s.push(Value(a));
+}
+
+void ExecutionEngine::exec_map_build(State &s) {
+	int  numArg = s.nextInt();
+	Map *v      = Map::from(&s.top(-(numArg * 2)), numArg);
+	s.drop(numArg * 2);
+	s.push(Value(v));
+}
+
+void ExecutionEngine::exec_tuple_build(State &s) {
+	int    numArg = s.nextInt();
+	Tuple *t      = Tuple::create(numArg);
+	memcpy(t->values(), &s.top(-numArg), sizeof(Value) * numArg);
+	s.drop(numArg);
+	s.push(Value(t));
+}
+
+void ExecutionEngine::exec_search_method(State &s) {
+	int          sym = s.nextInt();
+	const Class *classToSearch;
+	// if it's a class, and it does have
+	// the sym, we're done
+	if(s.top().isClass() && s.top().toClass()->has_fn(sym))
+		classToSearch = s.top().toClass();
+	else {
+		// otherwise, search in its class
+		const Class *c = s.top().getClass();
+		s.assertMethod(c, sym);
+		classToSearch = c;
+	}
+	// push the fn, and we're done
+	s.push(Value(classToSearch->get_fn(sym).toFunction()));
+}
+
+void ExecutionEngine::exec_load_method(State &s) {
+	int   sym = s.nextInt();
+	Value v   = s.top();
+	s.push(v.getClass()->get_fn(sym));
+}
+
+void ExecutionEngine::exec_bind_method(State &s) {
+
+	// pop the function
+	Function *f = s.pop().toFunction();
+	// peek the binder
+	Value             v = s.top();
+	BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
+	// if f is a static method, it is essentially an
+	// object bound method, bound to the class object
+	if(f->isStatic()) {
+		if(!v.isClass())
+			v = v.getClass();
+	} else {
+		// it is a non static method
+		// if the top is a class, it is going to be class bound
+		if(v.isClass())
+			t = BoundMethod::CLASS_BOUND;
+	}
+	BoundMethod *b = BoundMethod::from(f, v, t);
+	s.top()        = Value(b);
+}
+
+void ExecutionEngine::exec_construct(State &s) {
+	Class *c = s.nextValue().toClass();
+	// if the 0th slot does not have a
+	// receiver yet, create it.
+	// otherwise, it might be the result
+	// of a nested constructor or
+	// super constructor call, in both
+	// cases, we already have an object
+	// allocated for us in the invoking
+	// constructor.
+	if(s.base().isNil()) {
+		Object *o = Gc::allocObject(c);
+		// assign the object to slot 0
+		s.base() = Value(o);
+		// if this is a module, store the instance to the class
+		if(c->module == NULL)
+			c->instance = o;
+	}
+}
+
+void ExecutionEngine::exec_end(State &s) {
+	s.runtimeError("Invalid opcode 'end'!");
+}
+
+void ExecutionEngine::exec_throw_(State &s) {
+	// POP the thrown object
+	Value v = s.pop();
+	pendingExceptions->insert(v);
+	pendingFibers->insert(currentFiber);
+	s.execError();
+}
+
+bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
+	fiber2->setState(Fiber::RUNNING);
 
 	// check if the fiber actually has something to exec
-	if(fiber->callFrameCount() == 0) {
-		if((fiber = fiber->switch_()) == NULL) {
+	if(fiber2->callFrameCount() == 0) {
+		if((fiber2 = fiber2->switch_()) == NULL) {
 			*returnValue = ValueNil;
 			return true;
 		}
 	}
 
-	currentFiber = fiber;
+	currentFiber = fiber2;
+
+	State state(fiber2);
 
 	int numberOfExceptions = pendingExceptions->size;
 
-	int       numberOfArguments;
-	Value     rightOperand;
-	int       methodToCall;
-	Function *functionToCall;
-
-	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
-	Bytecode::Opcode *InstructionPointer = presentFrame->code;
-	Value *           Stack              = presentFrame->stack_;
-	Value *           Locals             = presentFrame->locals;
-	Bytecode::Opcode *CallPatch          = nullptr;
-
-#define GOTOERROR() \
-	{ goto error; }
-
-#define RERRF(x, ...)                      \
-	{                                      \
-		createException(x, ##__VA_ARGS__); \
-		GOTOERROR();                       \
-	}
 	if(currentRecursionDepth == maxRecursionLimit) {
 		// reduce the depth so that we can print the message
 		currentRecursionDepth -= 1;
-		RERRF("Maximum recursion depth reached!");
+		state.runtimeError("Maximum recursion depth reached!");
 	}
 
 #define RETURN(x)                                             \
@@ -413,122 +1392,6 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		return numberOfExceptions == pendingExceptions->size; \
 	}
 	currentRecursionDepth++;
-#ifdef NEXT_USE_COMPUTED_GOTO
-#define DEFAULT() EXEC_CODE_unknown
-	static const void *dispatchTable[] = {
-#define OPCODE0(x, y) &&EXEC_CODE_##x,
-#define OPCODE1(x, y, z) OPCODE0(x, y)
-#define OPCODE2(w, x, y, z) OPCODE0(w, x)
-#include "opcodes.h"
-	    &&DEFAULT()};
-
-#define LOOP() while(1)
-#define SWITCH() \
-	{ goto *dispatchTable[*InstructionPointer]; }
-#define CASE(x) EXEC_CODE_##x
-#define DISPATCH() \
-	{ goto *dispatchTable[*(++InstructionPointer)]; }
-#define DISPATCH_WINC() \
-	{ goto *dispatchTable[*InstructionPointer]; }
-#else
-#define LOOP() while(1)
-#define SWITCH() switch(*InstructionPointer)
-#define CASE(x) case Bytecode::CODE_##x
-#define DISPATCH()            \
-	{                         \
-		InstructionPointer++; \
-		continue;             \
-	}
-#define DISPATCH_WINC() \
-	{ continue; }
-#define DEFAULT() default
-#endif
-#define TOP (*(fiber->stackTop - 1))
-#define POP() (*(--fiber->stackTop))
-#define DROP() (fiber->stackTop--) // does not touch the value
-
-#define JUMPTO(x)                                      \
-	{                                                  \
-		InstructionPointer = InstructionPointer + (x); \
-		DISPATCH_WINC();                               \
-	}
-
-#define JUMPTO_OFFSET(x) \
-	{ JUMPTO((x) - (sizeof(int) / sizeof(Bytecode::Opcode))); }
-
-#define RESTORE_FRAMEINFO()                        \
-	presentFrame       = fiber->getCurrentFrame(); \
-	InstructionPointer = presentFrame->code;       \
-	Stack              = presentFrame->stack_;     \
-	Locals             = presentFrame->locals;
-
-#define BACKUP_FRAMEINFO() presentFrame->code = InstructionPointer;
-
-#define next_int() (*(++InstructionPointer))
-#define next_value() (Locals[next_int()])
-	// std::std::wcout << "x : " << TOP << " y : " << v << " op : " << #op <<
-	// "";
-
-#define binary_multiway(op, opname, argtype, restype, opcode, doSomething) \
-	{                                                                      \
-		rightOperand = POP();                                              \
-		if(rightOperand.is##argtype() && TOP.is##argtype()) {              \
-			TOP.set##restype(doSomething(op, TOP.to##argtype(),            \
-			                             rightOperand.to##argtype()));     \
-			DISPATCH();                                                    \
-		} else {                                                           \
-			PUSH(rightOperand);                                            \
-			methodToCall      = SymbolTable2::const_sig_##opcode;          \
-			numberOfArguments = 1;                                         \
-			goto methodcall;                                               \
-		}                                                                  \
-	}
-
-#define binary_perform_direct(op, a, b) ((a)op(b))
-#define binary(op, opname, argtype, restype, opcode) \
-	binary_multiway(op, opname, argtype, restype, opcode, binary_perform_direct)
-
-#define is_falsey(v) (v == ValueNil || v == ValueFalse || v == ValueZero)
-
-#define binary_shortcircuit(...)                  \
-	{                                             \
-		int skipTo   = next_int();                \
-		rightOperand = TOP;                       \
-		if(__VA_ARGS__ is_falsey(rightOperand)) { \
-			JUMPTO_OFFSET(skipTo);                \
-		} else {                                  \
-			DROP();                               \
-			DISPATCH();                           \
-		}                                         \
-	}
-
-#define LOAD_SLOT(x)        \
-	CASE(load_slot_##x) : { \
-		PUSH(Stack[x]);     \
-		DISPATCH();         \
-	}
-
-#define ASSERT(x, str, ...)       \
-	if(!(x)) {                    \
-		RERRF(str, ##__VA_ARGS__) \
-	}
-
-#define ASSERT_ACCESS(field, c, type)                    \
-	{                                                    \
-		if(!c->has_fn(field)) {                          \
-			createMemberAccessException(c, field, type); \
-			goto error;                                  \
-		}                                                \
-	}
-
-#define ASSERT_FIELD() ASSERT_ACCESS(field, c, 0)
-#define ASSERT_METHOD(field, c) ASSERT_ACCESS(field, c, 1)
-
-#define UNREACHABLE()                                     \
-	{                                                     \
-		panic("This path should have never been taken!"); \
-		return false;                                     \
-	}
 
 	// Next fibers has no way of saving state of builtin
 	// functions. They are handled by the native stack.
@@ -536,21 +1399,21 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 	// Next callframe so that they can be immediately
 	// executed, before proceeding with further execution.
 	// So we check that here
-	if(presentFrame->f->getType() == Function::BUILTIN) {
-		bool  ret = presentFrame->returnToCaller;
-		Value res =
-		    presentFrame->func(presentFrame->stack_, presentFrame->f->arity);
+	if(state.presentFrame->f->getType() == Function::BUILTIN) {
+		bool  ret = state.presentFrame->returnToCaller;
+		Value res = state.presentFrame->func(state.presentFrame->stack_,
+		                                     state.presentFrame->f->arity);
 		// we purposefully ignore any exception here,
 		// because that would trigger an unlimited
 		// recursion in case this function was executed
 		// as a result of an exception itself.
-		fiber->popFrame();
+		state.fiber->popFrame();
 		// it may have caused a fiber switch
-		if(fiber != currentFiber) {
-			BACKUP_FRAMEINFO();
-			fiber = currentFiber;
+		if(state.fiber != currentFiber) {
+			state.frameBackup();
+			state.fiber = currentFiber;
 		}
-		RESTORE_FRAMEINFO();
+		state.frameRestore();
 		if(pendingExceptions->size > numberOfExceptions) {
 			// we unwind this stack to let the caller handle
 			// the exception
@@ -560,24 +1423,33 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		// otherwise, we continue normal execution
 		if(ret) {
 			RETURN(res);
-		} else if(fiber->callFrameCount() == 0) {
-			if((fiber = fiber->switch_()) == NULL) {
+		} else if(state.fiber->callFrameCount() == 0) {
+			if((state.fiber = state.fiber->switch_()) == NULL) {
 				RETURN(res);
 			} else {
-				currentFiber = fiber;
-				RESTORE_FRAMEINFO();
+				currentFiber = state.fiber;
+				state.frameRestore();
 			}
 		}
-		PUSH(res);
+		state.push(res);
 	}
 
-	LOOP() {
+	typedef decltype(ExecutionEngine::exec_eq) FunctionType;
+	static FunctionType                       *executorFunctions[] = {
+#define OPCODE0(x, y) &ExecutionEngine::exec_##x,
+#define OPCODE1(x, y, z) OPCODE0(x, 0)
+#define OPCODE2(w, x, y, z) OPCODE0(w, 0)
+#include "opcodes.h"
+	};
+
+	while(!state.shouldReturn) {
 #ifdef DEBUG_INS
 		{
+			Fiber::CallFrame *presentFrame = state.presentFrame;
 			Printer::println();
 			int instructionPointer =
-			    InstructionPointer - presentFrame->f->code->bytecodes;
-			int   stackPointer = fiber->stackTop - presentFrame->stack_;
+			    state.InstructionPointer - presentFrame->f->code->bytecodes;
+			int   stackPointer = state.fiber->stackTop - presentFrame->stack_;
 			Token t            = Token::PlaceholderToken;
 			if(presentFrame->f->code->ctx)
 				t = presentFrame->f->code->ctx->get_token(instructionPointer);
@@ -599,7 +1471,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			    &presentFrame->f->code->bytecodes[instructionPointer]);
 			// +1 to adjust for fiber switch
 			if(stackPointer > presentFrame->f->code->stackMaxSize + 1) {
-				RERRF("Invalid stack access!");
+				state.runtimeError("Invalid stack access!");
 			}
 			Printer::println();
 #ifdef DEBUG_INS
@@ -608,946 +1480,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 #endif
 		}
 #endif
-		SWITCH() {
-			CASE(add) : binary(+, addition, Number, Number, add);
-			CASE(sub) : binary(-, subtraction, Number, Number, sub);
-			CASE(mul) : binary(*, multiplication, Number, Number, mul);
-			CASE(div) : binary(/, division, Number, Number, div);
-			CASE(lor) : binary_shortcircuit(!);
-			CASE(land) : binary_shortcircuit();
-			CASE(greater) : binary(>, greater than, Number, Boolean, greater);
-			CASE(greatereq)
-			    : binary(>=, greater than or equals to, Number, Boolean,
-			             greatereq);
-			CASE(less) : binary(<, lesser than, Number, Boolean, less);
-			CASE(lesseq)
-			    : binary(<=, lesser than or equals to, Number, Boolean, lesseq);
-
-			CASE(band) : binary(&, binary AND, Integer, Number, band);
-			CASE(bor) : binary(|, binary OR, Integer, Number, bor);
-			CASE(bxor) : binary(^, binary XOR, Integer, Number, bxor);
-			CASE(blshift)
-			    : binary(<<, binary left shift, Integer, Number, blshift);
-			CASE(brshift)
-			    : binary(>>, binary right shift, Integer, Number, brshift);
-
-			CASE(neq) : {
-				rightOperand = POP();
-				// we don't call getClass here because we only want
-				// to call method on non primitive types
-				if(TOP.isGcObject() &&
-				   TOP.getClass()->has_fn(SymbolTable2::const_sig_neq)) {
-					CallPatch         = nullptr;
-					methodToCall      = SymbolTable2::const_sig_neq;
-					numberOfArguments = 1;
-					PUSH(rightOperand);
-					goto methodcall;
-				}
-				*CallPatch = Bytecode::Opcode::CODE_bcall_fast_neq;
-				Locals[*(CallPatch + 1)] = Value(TOP.getClass());
-				CallPatch                = nullptr;
-				TOP                      = TOP != rightOperand;
-				DISPATCH();
-			}
-
-			CASE(eq) : {
-				rightOperand = POP();
-				if(TOP.isGcObject() &&
-				   TOP.getClass()->has_fn(SymbolTable2::const_sig_eq)) {
-					CallPatch         = nullptr;
-					methodToCall      = SymbolTable2::const_sig_eq;
-					numberOfArguments = 1;
-					PUSH(rightOperand);
-					goto methodcall;
-				}
-				*CallPatch               = Bytecode::Opcode::CODE_bcall_fast_eq;
-				Locals[*(CallPatch + 1)] = Value(TOP.getClass());
-				CallPatch                = nullptr;
-				TOP                      = TOP == rightOperand;
-				DISPATCH();
-			}
-
-			CASE(bcall_fast_prepare) : {
-				CallPatch = InstructionPointer;
-				(void)next_int();
-				DISPATCH();
-			}
-
-			CASE(bcall_fast_eq) : {
-				CallPatch  = InstructionPointer;
-				int    idx = next_int();
-				Class *c   = Locals[idx].toClass();
-				if(fiber->stackTop[-2].getClass() == c) {
-					rightOperand = POP();
-					TOP          = TOP == rightOperand;
-					CallPatch    = nullptr;
-					InstructionPointer++; // skip next eq
-				}
-				DISPATCH();
-			}
-
-			CASE(bcall_fast_neq) : {
-				CallPatch  = InstructionPointer;
-				int    idx = next_int();
-				Class *c   = Locals[idx].toClass();
-				if(fiber->stackTop[-2].getClass() == c) {
-					rightOperand = POP();
-					TOP          = TOP != rightOperand;
-					CallPatch    = nullptr;
-					InstructionPointer++; // skip next neq
-				}
-				DISPATCH();
-			}
-
-			CASE(lnot) : {
-				TOP.setBoolean(is_falsey(TOP));
-				DISPATCH();
-			}
-
-			CASE(neg) : {
-				if(TOP.isNumber()) {
-					TOP.setNumber(-TOP.toNumber());
-					DISPATCH();
-				}
-				RERRF("'-' must only be applied over a number!");
-			}
-
-			CASE(bnot) : {
-				if(TOP.isInteger()) {
-					TOP.setNumber(~TOP.toInteger());
-					DISPATCH();
-				}
-				RERRF("'~' must only be applied over an integer!");
-			}
-
-			CASE(copy) : {
-				Value v   = TOP;
-				int   sym = next_int();
-				if(TOP.isNumber()) {
-					PUSH(v);
-					DISPATCH();
-				}
-				// push false to denote postfix
-				PUSH(ValueFalse);
-				methodToCall      = sym;
-				numberOfArguments = 1;
-				goto methodcall;
-			}
-
-			CASE(incr) : {
-				if(TOP.isNumber()) {
-					TOP.setNumber(TOP.toNumber() + 1);
-					DISPATCH();
-				}
-				// push true to denote prefix
-				PUSH(ValueTrue);
-				methodToCall      = SymbolTable2::const_sig_incr;
-				numberOfArguments = 1;
-				goto methodcall;
-			}
-
-			CASE(decr) : {
-				if(TOP.isNumber()) {
-					TOP.setNumber(TOP.toNumber() - 1);
-					DISPATCH();
-				}
-				// push true to denote prefix
-				PUSH(ValueTrue);
-				methodToCall      = SymbolTable2::const_sig_decr;
-				numberOfArguments = 1;
-				goto methodcall;
-			}
-
-			CASE(push) : {
-				PUSH(next_value());
-				DISPATCH();
-			}
-
-			CASE(pushn) : {
-				PUSH(ValueNil);
-				DISPATCH();
-			}
-
-			CASE(pop) : {
-				DROP();
-				DISPATCH();
-			}
-
-			CASE(iterator_verify) : {
-				Bytecode::Opcode *present              = InstructionPointer;
-				int               idx                  = next_int();
-				int               iterator_next_offset = next_int();
-				// if it is the same iterator, we have nothing to do
-				if(TOP.getClass() == Locals[idx].toClass()) {
-					DISPATCH();
-				}
-				Value &it   = TOP;
-				Locals[idx] = Value(it.getClass()); // cache the class
-				if(Iterator::is_iterator(it)) {
-					Iterator::Type t = Iterator::getType(it);
-					// mark the iterate next as specialized builtin call
-					switch(t) {
-#define ITERATOR(x, y)                               \
-	case Iterator::Type::x##Iterator:                \
-		*(present + iterator_next_offset) =          \
-		    Bytecode::CODE_iterate_next_builtin_##x; \
-		break;
-#include "objects/iterator_types.h"
-					}
-					DISPATCH();
-				}
-				int          field = SymbolTable2::const_field_has_next;
-				const Class *c     = it.getClass();
-				ASSERT_FIELD();
-				ASSERT_METHOD(SymbolTable2::const_sig_next, c);
-				Function *f =
-				    c->get_fn(SymbolTable2::const_sig_next).toFunction();
-				// patch the next() call
-				if(f->getType() == Function::Type::BUILTIN) {
-					*(present + iterator_next_offset) =
-					    Bytecode::CODE_iterate_next_object_builtin;
-				} else {
-					*(present + iterator_next_offset) =
-					    Bytecode::CODE_iterate_next_object_method;
-				}
-				DISPATCH();
-			}
-
-			CASE(jump) : {
-				int offset = next_int();
-				JUMPTO_OFFSET(offset); // offset the relative jump address
-			}
-
-#define ITERATOR(x, y)                               \
-	CASE(iterate_next_builtin_##x) : {               \
-		int          offset = next_int();            \
-		x##Iterator *it     = TOP.to##x##Iterator(); \
-		if(!it->hasNext.toBoolean()) {               \
-			POP();                                   \
-			JUMPTO_OFFSET(offset);                   \
-		} else {                                     \
-			TOP = it->Next();                        \
-			DISPATCH();                              \
-		}                                            \
+		executorFunctions[*state.InstructionPointer](state);
+		state.InstructionPointer++;
 	}
-#include "objects/iterator_types.h"
-
-#define ITERATE_NEXT_OBJECT(type)                                     \
-	{                                                                 \
-		int          offset   = next_int();                           \
-		Value &      it       = TOP;                                  \
-		const Class *c        = it.getClass();                        \
-		int          field    = SymbolTable2::const_field_has_next;   \
-		Value        has_next = c->accessFn(c, it, field);            \
-		if(is_falsey(has_next)) {                                     \
-			POP();                                                    \
-			JUMPTO_OFFSET(offset);                                    \
-		} else {                                                      \
-			functionToCall =                                          \
-			    c->get_fn(SymbolTable2::const_sig_next).toFunction(); \
-			numberOfArguments = 0;                                    \
-			goto perform##type;                                       \
-		}                                                             \
-	}
-
-			CASE(iterate_next_object_builtin) : {
-				ITERATE_NEXT_OBJECT(builtin);
-			}
-
-			CASE(iterate_next_object_method) : { ITERATE_NEXT_OBJECT(method); }
-
-			CASE(jumpiftrue) : {
-				Value v   = POP();
-				int   dis = next_int();
-				bool  fl  = is_falsey(v);
-				if(!fl) {
-					JUMPTO_OFFSET(dis); // offset the relative jump address
-				}
-				DISPATCH();
-			}
-
-			CASE(jumpiffalse) : {
-				Value v   = POP();
-				int   dis = next_int();
-				bool  fl  = is_falsey(v);
-				if(fl) {
-					JUMPTO_OFFSET(dis); // offset the relative jump address
-				}
-				DISPATCH();
-			}
-
-			CASE(call_fast_prepare) : {
-				CallPatch = InstructionPointer;
-				int a     = next_int();
-				(void)a;
-				int b = next_int();
-				(void)b;
-				DISPATCH();
-			}
-
-			CASE(call_soft) : {
-				int sym           = next_int();
-				numberOfArguments = next_int();
-				// the callable is placed before the arguments
-				Value v = fiber->stackTop[-numberOfArguments - 1];
-				ASSERT(v.isGcObject(), "Not a callable object!");
-				switch(v.toGcObject()->getType()) {
-					case GcObject::Type::Class: {
-						// check if the class has a constructor with the
-						// given signature
-						Class *c = v.toClass();
-						ASSERT(c->has_fn(sym),
-						       "Constructor '{}' not found in class '{}'!",
-						       SymbolTable2::getString(sym), c->name);
-						// [performcall will take care of this]
-						// set the receiver to nil so that construct
-						// knows to create a new receiver
-						// fiber->stackTop[-numberOfArguments - 1] =
-						// ValueNil; call the constructor
-						functionToCall = c->get_fn(sym).toFunction();
-						goto performcall;
-					}
-					case GcObject::Type::BoundMethod: {
-						// we cannot really perform any optimizations for
-						// boundmethods, because they require verifications
-						// and stack adjustments.
-						CallPatch      = nullptr;
-						BoundMethod *b = v.toBoundMethod();
-						// verify the arguments
-						if(b->verify(&fiber->stackTop[-numberOfArguments],
-						             numberOfArguments) !=
-						   BoundMethod::Status::OK) {
-							// pop the arguments
-							fiber->stackTop -= numberOfArguments;
-							goto error;
-						}
-						// we have already allocated one slot for the
-						// receiver before the arguments started.
-						// but if this is class bound call, we don't
-						// need that anymore, as the object has already
-						// been passed as the first argument. so move
-						// them back
-						switch(b->type) {
-							case BoundMethod::CLASS_BOUND: {
-								for(int i = -numberOfArguments - 1; i < 0; i++)
-									fiber->stackTop[i] = fiber->stackTop[i + 1];
-								fiber->stackTop--;
-								// we also decrement numberOfArguments to
-								// denote actual argument count minus the
-								// instance
-								numberOfArguments--;
-								break;
-							}
-							default:
-								// otherwise, we store the object at slot 0
-								fiber->stackTop[-numberOfArguments - 1] =
-								    b->binder;
-								break;
-						}
-						functionToCall = b->func;
-						goto performcall;
-					}
-					default: RERRF("Not a callable object!"); break;
-				}
-			}
-
-			CASE(call_intra) : CASE(call) : {
-				int frame         = next_int();
-				numberOfArguments = next_int();
-				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
-				const Class *c    = v.getClass();
-				functionToCall    = c->get_fn(frame).toFunction();
-				goto performcall;
-			}
-
-			CASE(call_method_super) : CASE(call_method) : {
-				methodToCall      = next_int();
-				numberOfArguments = next_int();
-				goto methodcall;
-			}
-
-#define SKIPCALL()        \
-	InstructionPointer++; \
-	next_int();           \
-	next_int();           \
-	CallPatch = nullptr;
-
-#define FASTCALL_SOFT(type)                                               \
-	{                                                                     \
-		CallPatch         = InstructionPointer;                           \
-		int idxstart      = next_int();                                   \
-		numberOfArguments = next_int();                                   \
-		if(Locals[idxstart] == fiber->stackTop[-numberOfArguments - 1]) { \
-			functionToCall = Locals[idxstart + 1].toFunction();           \
-			/* set the receiver to nil so that construct                  \
-			knows to create a new receiver */                             \
-			fiber->stackTop[-numberOfArguments - 1] = ValueNil;           \
-			/* ignore the next opcode */                                  \
-			SKIPCALL();                                                   \
-			/* directly jump to the appropriate call */                   \
-			goto perform##type;                                           \
-		}                                                                 \
-		/* check failed, run the original opcode */                       \
-		DISPATCH();                                                       \
-	}
-
-			CASE(call_fast_builtin_soft) : { FASTCALL_SOFT(builtin); }
-
-			CASE(call_fast_method_soft) : { FASTCALL_SOFT(method); }
-
-#undef FASTCALL_SOFT
-
-#define FASTCALL(type)                                                \
-	{                                                                 \
-		CallPatch         = InstructionPointer;                       \
-		int idxstart      = next_int();                               \
-		numberOfArguments = next_int();                               \
-		/* get the cached class and function */                       \
-		const Class *c = Locals[idxstart].toClass();                  \
-		Function *   f = Locals[idxstart + 1].toFunction();           \
-		if(c == fiber->stackTop[-numberOfArguments - 1].getClass()) { \
-			functionToCall = f;                                       \
-			/* ignore the next opcode */                              \
-			SKIPCALL();                                               \
-			/* directly jump to the appropriate call */               \
-			goto perform##type;                                       \
-		}                                                             \
-		/* check failed, run the original opcode */                   \
-		DISPATCH();                                                   \
-	}
-
-			CASE(call_fast_builtin) : { FASTCALL(builtin); }
-
-			CASE(call_fast_method) : { FASTCALL(method); }
-
-#undef FASTCALL
-#undef SKIPCALL
-
-		methodcall : {
-			Value &      v = fiber->stackTop[-numberOfArguments - 1];
-			const Class *c = v.getClass();
-			ASSERT_METHOD(methodToCall, c);
-			functionToCall = c->get_fn(methodToCall).toFunction();
-			// goto performcall;
-			// fallthrough
-		}
-
-		performcall : {
-			// performs the call patch.
-			// call_soft has separate opcodes to maintain its stack,
-			// and all of the rest of the calls are handled by
-			// call_fast_builtin/call_fast_method, based on the
-			// type of the function going to be called.
-			//
-			// also stores the class and the function in the locals
-			// array.
-			if(CallPatch) {
-				Bytecode::Opcode *bak = InstructionPointer;
-				InstructionPointer    = CallPatch;
-				// get the index
-				int idx = next_int();
-				// ignore numberOfArguments for now
-				next_int();
-				// get the next opcode
-				Bytecode::Opcode op = *++InstructionPointer;
-				// if we are performing a softcall, patch
-				// accordingly.
-				if(op == Bytecode::Opcode::CODE_call_soft) {
-					*CallPatch =
-					    functionToCall->getType() == Function::Type::BUILTIN
-					        ? Bytecode::Opcode::CODE_call_fast_builtin_soft
-					        : Bytecode::Opcode::CODE_call_fast_method_soft;
-				} else {
-					// we are performing a normal method call
-					*CallPatch =
-					    functionToCall->getType() == Function::Type::BUILTIN
-					        ? Bytecode::Opcode::CODE_call_fast_builtin
-					        : Bytecode::Opcode::CODE_call_fast_method;
-				}
-				// store the receiver's class in the locals array
-				if(op == Bytecode::Opcode::CODE_call_soft) {
-					Locals[idx] = fiber->stackTop[-numberOfArguments - 1];
-					// if we are performing a softcall, it must only
-					// be a constructor call, so clear the 0th slot
-					// so that a new object is constructed by opcode
-					// 'construct'
-					fiber->stackTop[-numberOfArguments - 1] = ValueNil;
-				} else {
-					Locals[idx] = Value(
-					    fiber->stackTop[-numberOfArguments - 1].getClass());
-				}
-				// store the function
-				Locals[idx + 1] = Value(functionToCall);
-				// reset the patch pointer
-				CallPatch = nullptr;
-				// restore the ip
-				InstructionPointer = bak;
-			}
-			switch(functionToCall->getType()) {
-				case Function::Type::BUILTIN: {
-				performbuiltin:
-					Value res;
-					// backup present frame
-					BACKUP_FRAMEINFO();
-					res = functionToCall->func(
-					    fiber->stackTop - numberOfArguments - 1,
-					    numberOfArguments + 1); // include the receiver
-					fiber->stackTop -= (numberOfArguments + 1);
-					// it may have caused a fiber switch
-					if(fiber != currentFiber) {
-						fiber = currentFiber;
-					}
-					// present frame may be reallocated elsewhere
-					RESTORE_FRAMEINFO();
-
-					if(pendingExceptions->size == 0) {
-						PUSH(res);
-						DISPATCH();
-					}
-					goto error;
-				}
-				case Function::Type::METHOD:
-				performmethod:
-					BACKUP_FRAMEINFO();
-					fiber->appendMethodNoBuiltin(functionToCall,
-					                             numberOfArguments, false);
-					RESTORE_FRAMEINFO();
-					DISPATCH_WINC();
-					break;
-			}
-			UNREACHABLE();
-		}
-
-			CASE(ret) : {
-				// Pop the return value
-				Value v = POP();
-				// backup the current frame
-				Fiber::CallFrame *cur = fiber->getCurrentFrame();
-				// pop the current frame
-				fiber->popFrame();
-				// if the current frame is invoked by
-				// a native method, return to that
-				if(cur->returnToCaller) {
-					RETURN(v);
-				}
-				// if we have somewhere to return to,
-				// return there first. this would
-				// be true maximum number of times
-				if(fiber->callFrameCount() > 0) {
-					RESTORE_FRAMEINFO();
-					PUSH(v);
-					DISPATCH();
-				} else if(fiber->parent != NULL) {
-					// if there is no callframe in present
-					// fiber, but there is a parent, return
-					// to the parent fiber
-					currentFiber = fiber = fiber->switch_();
-					RESTORE_FRAMEINFO();
-					PUSH(v);
-					DISPATCH();
-				} else {
-					// neither parent fiber nor parent callframe
-					// exists. Return the value back to
-					// the caller.
-					RETURN(v);
-				}
-				UNREACHABLE();
-			}
-
-			CASE(load_slot) : {
-				PUSH(Stack[next_int()]);
-				DISPATCH();
-			}
-
-			LOAD_SLOT(0)
-			LOAD_SLOT(1)
-			LOAD_SLOT(2)
-			LOAD_SLOT(3)
-			LOAD_SLOT(4)
-			LOAD_SLOT(5)
-			LOAD_SLOT(6)
-			LOAD_SLOT(7)
-
-			CASE(load_module) : {
-				Value klass = Stack[0];
-				// the 0th slot may also contain an object
-				if(!klass.isClass())
-					klass = klass.getClass();
-				PUSH(klass.toClass()->module->instance);
-				DISPATCH();
-			}
-
-			CASE(load_module_super) : {
-				Value klass = Stack[0];
-				// the 0th slot may also contain an object
-				if(!klass.isClass())
-					klass = klass.getClass();
-				PUSH(klass.toClass()->superclass->module->instance);
-				DISPATCH();
-			}
-
-			CASE(load_module_core) : {
-				PUSH(CoreObject);
-				DISPATCH();
-			}
-
-			CASE(load_tos_slot) : {
-				TOP = TOP.toObject()->slots(next_int());
-				DISPATCH();
-			}
-
-#define STORE_SLOT(n)        \
-	CASE(store_slot_##n) : { \
-		Stack[n] = TOP;      \
-		DISPATCH();          \
-	}
-
-			STORE_SLOT(0)
-			STORE_SLOT(1)
-			STORE_SLOT(2)
-			STORE_SLOT(3)
-			STORE_SLOT(4)
-			STORE_SLOT(5)
-			STORE_SLOT(6)
-			STORE_SLOT(7)
-
-			CASE(store_slot) : {
-				rightOperand = TOP;
-				goto do_store_slot;
-			}
-
-#define STORE_SLOT_POP(n)        \
-	CASE(store_slot_pop_##n) : { \
-		Stack[n] = POP();        \
-		DISPATCH();              \
-	}
-
-			STORE_SLOT_POP(0)
-			STORE_SLOT_POP(1)
-			STORE_SLOT_POP(2)
-			STORE_SLOT_POP(3)
-			STORE_SLOT_POP(4)
-			STORE_SLOT_POP(5)
-			STORE_SLOT_POP(6)
-			STORE_SLOT_POP(7)
-			CASE(store_slot_pop) : { rightOperand = POP(); }
-
-		do_store_slot : {
-			int slot = next_int();
-			// std::wcout << "slot: " << slot << "\n";
-			Stack[slot] = rightOperand;
-			DISPATCH();
-		}
-
-			CASE(store_tos_slot) : {
-				Value v                         = POP();
-				v.toObject()->slots(next_int()) = TOP;
-				DISPATCH();
-			}
-
-			CASE(load_object_slot) : {
-				int slot = next_int();
-				PUSH(Stack[0].toObject()->slots(slot));
-				DISPATCH();
-			}
-
-			CASE(store_object_slot) : {
-				int slot                         = next_int();
-				Stack[0].toObject()->slots(slot) = TOP;
-				DISPATCH();
-			}
-
-			CASE(load_field_fast) : {
-				// dummy opcode, to be replaced by load_field
-				CallPatch = InstructionPointer;
-				next_int();
-				next_int();
-				DISPATCH();
-			}
-
-			CASE(load_field_slot) : {
-				// directly loads the value from the slot
-				// if the class is matched
-				CallPatch = InstructionPointer;
-				int idx   = next_int();
-				int slot  = next_int();
-				if(Locals[idx].toClass() == TOP.getClass()) {
-					CallPatch = nullptr;
-					TOP       = TOP.toObject()->slots(slot);
-					// skip next opcode
-					InstructionPointer++;
-					next_int();
-					DISPATCH();
-				}
-				DISPATCH();
-			}
-
-			CASE(load_field_static) : {
-				// directly loads the value from the static
-				// member if the class is matched
-				CallPatch    = InstructionPointer;
-				int    idx   = next_int();
-				int    field = next_int();
-				Class *c     = Locals[idx].toClass();
-				if(c == TOP.getClass()) {
-					CallPatch           = nullptr;
-					Class::StaticRef sr = c->staticRefs[field];
-					TOP                 = sr.owner->static_values[sr.slot];
-					// skip next opcode
-					InstructionPointer++;
-					next_int();
-					DISPATCH();
-				}
-				DISPATCH();
-			}
-
-			CASE(load_field) : {
-				int          field = next_int();
-				Value        v     = POP();
-				const Class *c     = v.getClass();
-				ASSERT_FIELD();
-				PUSH(c->accessFn(c, v, field));
-				if(c->type != Class::ClassType::BUILTIN) {
-					// this is not a builtin class, so we can optimize
-					// the access
-					int v = c->get_fn(field).toInteger();
-					if(!Class::is_static_slot(v)) {
-						// this is a slot, so store the slot index
-						*CallPatch       = Bytecode::CODE_load_field_slot;
-						*(CallPatch + 2) = (Bytecode::Opcode)v;
-					} else {
-						// this is a static member, so store the decodes index
-						*CallPatch = Bytecode::CODE_load_field_static;
-						*(CallPatch + 2) =
-						    (Bytecode::Opcode)Class::get_static_slot(v);
-					}
-					int idx = *(CallPatch + 1);
-					// store the class
-					Locals[idx] = Value(c);
-				}
-				CallPatch = nullptr;
-				DISPATCH();
-			}
-
-			CASE(store_field_fast) : {
-				// dummy opcode, to be patched by store_field
-				CallPatch = InstructionPointer;
-				next_int();
-				next_int();
-				DISPATCH();
-			}
-
-			CASE(store_field_slot) : {
-				// directly store to the slot if the class is matched
-				CallPatch = InstructionPointer;
-				int idx   = next_int();
-				int slot  = next_int();
-				if(Locals[idx].toClass() == TOP.getClass()) {
-					Value v                   = POP();
-					CallPatch                 = nullptr;
-					v.toObject()->slots(slot) = TOP;
-					// skip next opcode
-					InstructionPointer++;
-					next_int();
-					DISPATCH();
-				}
-				DISPATCH();
-			}
-
-			CASE(store_field_static) : {
-				// directly store to the static member if the class is matched
-				CallPatch    = InstructionPointer;
-				int    idx   = next_int();
-				int    field = next_int();
-				Class *c     = Locals[idx].toClass();
-				if(c == TOP.getClass()) {
-					CallPatch = nullptr;
-					POP();
-					Class::StaticRef sr              = c->staticRefs[field];
-					sr.owner->static_values[sr.slot] = TOP;
-					// skip next opcode
-					InstructionPointer++;
-					next_int();
-					DISPATCH();
-				}
-				DISPATCH();
-			}
-
-			CASE(store_field) : {
-				int          field = next_int();
-				Value        v     = POP();
-				const Class *c     = v.getClass();
-				ASSERT_FIELD();
-				c->accessFn(c, v, field) = TOP;
-				if(c->type != Class::ClassType::BUILTIN) {
-					// this is not a builtin class, so
-					// we can optimize the access
-					int v = c->get_fn(field).toInteger();
-					if(!Class::is_static_slot(v)) {
-						// this is a slot store, so store the slot index
-						*CallPatch       = Bytecode::CODE_store_field_slot;
-						*(CallPatch + 2) = (Bytecode::Opcode)v;
-					} else {
-						// this is a static field store, so store the field
-						*CallPatch = Bytecode::CODE_store_field_static;
-						*(CallPatch + 2) =
-						    (Bytecode::Opcode)Class::get_static_slot(v);
-					}
-					// store the class
-					Locals[*(CallPatch + 1)] = Value(c);
-				}
-				CallPatch = nullptr;
-				DISPATCH();
-			}
-
-			CASE(load_static_slot) : {
-				int          slot = next_int();
-				const Class *c    = (next_value()).toClass();
-				PUSH(c->static_values[slot]);
-				DISPATCH();
-			}
-
-			CASE(store_static_slot) : {
-				int          slot      = next_int();
-				const Class *c         = (next_value()).toClass();
-				c->static_values[slot] = TOP;
-				DISPATCH();
-			}
-
-			CASE(array_build) : {
-				// get the number of arguments to add
-				int    numArg = next_int();
-				Array *a      = Array::create(numArg);
-				// manually adjust the size
-				a->size = numArg;
-				// insert all the elements
-				memcpy(a->values, &fiber->stackTop[-numArg],
-				       sizeof(Value) * numArg);
-				fiber->stackTop -= numArg;
-				PUSH(Value(a));
-				DISPATCH();
-			}
-
-			CASE(map_build) : {
-				int  numArg = next_int();
-				Map *v = Map::from(&fiber->stackTop[-(numArg * 2)], numArg);
-				fiber->stackTop -= (numArg * 2);
-				PUSH(Value(v));
-				DISPATCH();
-			}
-
-			CASE(tuple_build) : {
-				int    numArg = next_int();
-				Tuple *t      = Tuple::create(numArg);
-				memcpy(t->values(), &fiber->stackTop[-numArg],
-				       sizeof(Value) * numArg);
-				fiber->stackTop -= numArg;
-				PUSH(Value(t));
-				DISPATCH();
-			}
-
-			CASE(search_method) : {
-				int          sym = next_int();
-				const Class *classToSearch;
-				// if it's a class, and it does have
-				// the sym, we're done
-				if(TOP.isClass() && TOP.toClass()->has_fn(sym))
-					classToSearch = TOP.toClass();
-				else {
-					// otherwise, search in its class
-					const Class *c = TOP.getClass();
-					ASSERT_METHOD(sym, c);
-					classToSearch = c;
-				}
-				// push the fn, and we're done
-				PUSH(Value(classToSearch->get_fn(sym).toFunction()));
-				DISPATCH();
-			}
-
-			CASE(load_method) : {
-				int   sym = next_int();
-				Value v   = TOP;
-				PUSH(v.getClass()->get_fn(sym));
-				DISPATCH();
-			}
-
-			CASE(bind_method) : {
-				// pop the function
-				Function *f = POP().toFunction();
-				// peek the binder
-				Value             v = TOP;
-				BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
-				// if f is a static method, it is essentially an
-				// object bound method, bound to the class object
-				if(f->isStatic()) {
-					if(!v.isClass())
-						v = v.getClass();
-				} else {
-					// it is a non static method
-					// if the top is a class, it is going to be class bound
-					if(v.isClass())
-						t = BoundMethod::CLASS_BOUND;
-				}
-				BoundMethod *b = BoundMethod::from(f, v, t);
-				TOP            = Value(b);
-				DISPATCH();
-			}
-
-			CASE(construct) : {
-				Class *c = next_value().toClass();
-				// if the 0th slot does not have a
-				// receiver yet, create it.
-				// otherwise, it might be the result
-				// of a nested constructor or
-				// super constructor call, in both
-				// cases, we already have an object
-				// allocated for us in the invoking
-				// constructor.
-				if(Stack[0].isNil()) {
-					Object *o = Gc::allocObject(c);
-					// assign the object to slot 0
-					Stack[0] = Value(o);
-					// if this is a module, store the instance to the class
-					if(c->module == NULL)
-						c->instance = o;
-				}
-				DISPATCH();
-			}
-
-			CASE(throw_) : {
-				// POP the thrown object
-				Value v = POP();
-				pendingExceptions->insert(v);
-				pendingFibers->insert(currentFiber);
-				goto error;
-			}
-
-			CASE(end) : DEFAULT() : {
-				uint8_t code = *InstructionPointer;
-				if(code >= Bytecode::CODE_end) {
-					panic("Invalid bytecode ", (int)code, "!");
-				} else {
-					panic("Bytecode not implemented : '",
-					      Bytecode::OpcodeNames[code], "'!");
-				}
-			}
-		}
-	error:
-		// Only way we can get here is by a 'goto error'
-		// statement, which was triggered either by a
-		// runtime error, or an user generated exception,
-		// or by a pending exception of a builtin or a
-		// primitive. In all of the cases, the exception
-		// is already set in the pendingExceptions array.
-		BACKUP_FRAMEINFO();
-		// pop the last exception
-		Value pendingException =
-		    pendingExceptions->values[--pendingExceptions->size];
-		// pop the last location
-		Value thrownFiber = pendingFibers->values[--pendingFibers->size];
-		currentFiber      = fiber =
-		    throwException(pendingException, thrownFiber.toFiber());
-		RESTORE_FRAMEINFO();
-		DISPATCH_WINC();
-	}
+	RETURN(state.returnValue);
 }
