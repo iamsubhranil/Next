@@ -122,10 +122,13 @@ struct ExecutionEngine::State {
 	inline Value           &nextValue() { return Locals[nextInt()]; }
 	inline Bytecode::Opcode nextInstruction() { return *++InstructionPointer; }
 	inline void             prevInstruction() { --InstructionPointer; }
+
+	struct ReturnFromExecute {};
 	// makes the engine return from current instance of execute
 	void returnFromExecute(Value v) {
 		returnValue  = v;
 		shouldReturn = true;
+		throw ReturnFromExecute{};
 	}
 
 	template <typename... K> void runtimeError(const void *message, K... args) {
@@ -1475,8 +1478,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #define OPCODE2(x, y, z, w) OPCODE0(x, 0)
 #include "opcodes.h"
 	};
-	goto *dispatchTable[*state.InstructionPointer];
-	{
+	try {
+		goto *dispatchTable[*state.InstructionPointer];
 #else
 	typedef decltype(ExecutionEngine::exec_dummy) FunctionType;
 	static FunctionType                          *executorFunctions[] = {
@@ -1526,13 +1529,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #endif
 
 #ifdef NEXT_USE_COMPUTED_GOTO
-#define DISPATCH()                                          \
-	{                                                       \
-		if(state.shouldReturn) {                            \
-			RETURN(state.returnValue);                      \
-		}                                                   \
-		goto *dispatchTable[*(++state.InstructionPointer)]; \
-	}
+#define DISPATCH() \
+	{ goto *dispatchTable[*(++state.InstructionPointer)]; }
 #define EXECUTE(x)                        \
 	EXEC_LABEL_##x : {                    \
 		ExecutionEngine::exec_##x(state); \
@@ -1542,12 +1540,12 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #define OPCODE1(x, y, z) EXECUTE(x)
 #define OPCODE2(x, y, z, w) EXECUTE(x)
 #include "opcodes.h"
+	} catch(State::ReturnFromExecute x) {
+	}
 #else
 		executorFunctions[*state.InstructionPointer](state);
 		state.InstructionPointer++;
-#endif
 	}
-#ifndef NEXT_USE_COMPUTED_GOTO
-	RETURN(state.returnValue);
 #endif
+	RETURN(state.returnValue);
 }
