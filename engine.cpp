@@ -1063,7 +1063,7 @@ LOAD_SLOT(6)
 LOAD_SLOT(7)
 #undef LOAD_SLOT
 
-    void ExecutionEngine::exec_load_module(State &s) {
+void ExecutionEngine::exec_load_module(State &s) {
 	Value klass = s.base();
 	// the 0th slot may also contain an object
 	if(!klass.isClass())
@@ -1106,7 +1106,7 @@ STORE_SLOT(6)
 STORE_SLOT(7)
 #undef STORE_SLOT
 
-    void ExecutionEngine::exec_store_slot_pop(State &s) {
+void ExecutionEngine::exec_store_slot_pop(State &s) {
 	s.base(s.nextInt()) = s.pop();
 }
 
@@ -1125,7 +1125,7 @@ STORE_SLOT_POP(6)
 STORE_SLOT_POP(7)
 #undef STORE_SLOT_POP
 
-    void ExecutionEngine::exec_store_tos_slot(State &s) {
+void ExecutionEngine::exec_store_tos_slot(State &s) {
 	Value v                          = s.pop();
 	v.toObject()->slots(s.nextInt()) = s.top();
 }
@@ -1285,8 +1285,9 @@ void ExecutionEngine::exec_store_static_slot(State &s) {
 
 void ExecutionEngine::exec_array_build(State &s) {
 	// get the number of arguments to add
-	int    numArg = s.nextInt();
-	Array *a      = Array::create(numArg);
+	int numArg = s.nextInt();
+	s.frameBackup();
+	Array *a = Array::create(numArg);
 	// manually adjust the size
 	a->size = numArg;
 	// insert all the elements
@@ -1297,6 +1298,9 @@ void ExecutionEngine::exec_array_build(State &s) {
 
 void ExecutionEngine::exec_map_build(State &s) {
 	int numArg = s.nextInt();
+	// Map::from may call 'execute', which can mess
+	// with the stack. So we backup and restore
+	// the frame just to be careful.
 	s.frameBackup();
 	Map *v = Map::from(&s.top(-(numArg * 2)), numArg);
 	s.frameRestore();
@@ -1305,8 +1309,9 @@ void ExecutionEngine::exec_map_build(State &s) {
 }
 
 void ExecutionEngine::exec_tuple_build(State &s) {
-	int    numArg = s.nextInt();
-	Tuple *t      = Tuple::create(numArg);
+	int numArg = s.nextInt();
+	s.frameBackup();
+	Tuple *t = Tuple::create(numArg);
 	memcpy(t->values(), &s.top(-numArg), sizeof(Value) * numArg);
 	s.drop(numArg);
 	s.push(Value(t));
@@ -1353,6 +1358,7 @@ void ExecutionEngine::exec_bind_method(State &s) {
 		if(v.isClass())
 			t = BoundMethod::CLASS_BOUND;
 	}
+	s.frameBackup();
 	BoundMethod *b = BoundMethod::from(f, v, t);
 	s.top()        = Value(b);
 }
@@ -1368,6 +1374,7 @@ void ExecutionEngine::exec_construct(State &s) {
 	// allocated for us in the invoking
 	// constructor.
 	if(s.base().isNil()) {
+		s.frameBackup();
 		Object *o = Gc::allocObject(c);
 		// assign the object to slot 0
 		s.base() = Value(o);
