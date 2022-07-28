@@ -486,6 +486,11 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 	return v;
 }
 
+#define EXECUTE_NAME(x) Execute_##x
+#define EXECUTE(x) \
+	static inline void EXECUTE_NAME(x)(ExecutionEngine::State & s)
+#define EXECUTE_INVOKE(x) EXECUTE_NAME(x)
+
 template <typename T, typename U, typename V>
 static void inline execBinary(ExecutionEngine::State &s, T validator, U exec,
                               V setter, int methodToCall) {
@@ -513,7 +518,7 @@ SETTER(Number, double);
 SETTER(Boolean, bool);
 
 #define BINARY_FUNCTION(name, argtype, restype, op)            \
-	void ExecutionEngine::exec_##name(State &s) {              \
+	EXECUTE(name) {                                            \
 		execBinary(                                            \
 		    s, Validator_##argtype,                            \
 		    [](const Value &a, const Value &b) {               \
@@ -536,7 +541,7 @@ BINARY_FUNCTION(bxor, Integer, Number, ^)
 BINARY_FUNCTION(blshift, Integer, Number, <<)
 BINARY_FUNCTION(brshift, Integer, Number, >>)
 
-void ExecutionEngine::exec_lor(State &s) {
+EXECUTE(lor) {
 	int skipTo = s.nextInt();
 	// this was s.top() in original code!
 	if(!s.top().isFalsey()) {
@@ -546,7 +551,7 @@ void ExecutionEngine::exec_lor(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_land(State &s) {
+EXECUTE(land) {
 	int skipTo = s.nextInt();
 	// this was s.top() in original code!
 	if(s.top().isFalsey()) {
@@ -556,7 +561,7 @@ void ExecutionEngine::exec_land(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_neq(State &s) {
+EXECUTE(neq) {
 	if(s.top(-2).isGcObject() &&
 	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_neq)) {
 		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_neq, 1);
@@ -566,7 +571,7 @@ void ExecutionEngine::exec_neq(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_eq(State &s) {
+EXECUTE(eq) {
 	if(s.top(-2).isGcObject() &&
 	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_eq)) {
 		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_eq, 1);
@@ -576,12 +581,12 @@ void ExecutionEngine::exec_eq(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_bcall_fast_prepare(State &s) {
+EXECUTE(bcall_fast_prepare) {
 	// s.CallPatch = s.InstructionPointer;
 	s.nextInt();
 }
 
-void ExecutionEngine::exec_bcall_fast_eq(State &s) {
+EXECUTE(bcall_fast_eq) {
 	s.CallPatch = s.InstructionPointer;
 	int    idx  = s.nextInt();
 	Class *c    = s.Locals[idx].toClass();
@@ -593,7 +598,7 @@ void ExecutionEngine::exec_bcall_fast_eq(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_bcall_fast_neq(State &s) {
+EXECUTE(bcall_fast_neq) {
 	s.CallPatch = s.InstructionPointer;
 	int    idx  = s.nextInt();
 	Class *c    = s.Locals[idx].toClass();
@@ -605,11 +610,11 @@ void ExecutionEngine::exec_bcall_fast_neq(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_lnot(State &s) {
+EXECUTE(lnot) {
 	s.top().setBoolean(s.top().isFalsey());
 }
 
-void ExecutionEngine::exec_bnot(State &s) {
+EXECUTE(bnot) {
 	if(s.top().isInteger()) {
 		s.top().setNumber(~s.top().toInteger());
 	} else {
@@ -617,7 +622,7 @@ void ExecutionEngine::exec_bnot(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_neg(State &s) {
+EXECUTE(neg) {
 	if(s.top().isNumber()) {
 		s.top().setNumber(-s.top().toNumber());
 	} else {
@@ -625,7 +630,7 @@ void ExecutionEngine::exec_neg(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_copy(State &s) {
+EXECUTE(copy) {
 	int sym = s.nextInt();
 	if(s.top().isNumber()) {
 		s.push(s.top());
@@ -635,7 +640,7 @@ void ExecutionEngine::exec_copy(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_incr(State &s) {
+EXECUTE(incr) {
 	if(s.top().isNumber()) {
 		s.top().setNumber(s.top().toNumber() + 1);
 	} else {
@@ -644,7 +649,7 @@ void ExecutionEngine::exec_incr(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_decr(State &s) {
+EXECUTE(decr) {
 	if(s.top().isNumber()) {
 		s.top().setNumber(s.top().toNumber() - 1);
 	} else {
@@ -653,19 +658,19 @@ void ExecutionEngine::exec_decr(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_push(State &s) {
+EXECUTE(push) {
 	s.push(s.nextValue());
 }
 
-void ExecutionEngine::exec_pushn(State &s) {
+EXECUTE(pushn) {
 	s.push(ValueNil);
 }
 
-void ExecutionEngine::exec_pop(State &s) {
+EXECUTE(pop) {
 	s.drop();
 }
 
-void ExecutionEngine::exec_iterator_verify(State &s) {
+EXECUTE(iterator_verify) {
 	Bytecode::Opcode *present              = s.InstructionPointer;
 	int               idx                  = s.nextInt();
 	int               iterator_next_offset = s.nextInt();
@@ -706,11 +711,11 @@ void ExecutionEngine::exec_iterator_verify(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_jump(State &s) {
+EXECUTE(jump) {
 	s.jumpToOffset(s.nextInt());
 }
 
-void ExecutionEngine::exec_jumpiftrue(State &s) {
+EXECUTE(jumpiftrue) {
 	Value v   = s.pop();
 	int   dis = s.nextInt();
 	bool  fl  = v.isFalsey();
@@ -719,7 +724,7 @@ void ExecutionEngine::exec_jumpiftrue(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_jumpiffalse(State &s) {
+EXECUTE(jumpiffalse) {
 	Value v   = s.pop();
 	int   dis = s.nextInt();
 	bool  fl  = v.isFalsey();
@@ -740,15 +745,15 @@ void exec_iterate_next_builtin(ExecutionEngine::State &s) {
 	}
 }
 
-#define ITERATOR(x, y)                                              \
-	void ExecutionEngine::exec_iterate_next_builtin_##x(State &s) { \
-		exec_iterate_next_builtin<x##Iterator>(s);                  \
+#define ITERATOR(x, y)                             \
+	EXECUTE(iterate_next_builtin_##x) {            \
+		exec_iterate_next_builtin<x##Iterator>(s); \
 	}
 
 #include "objects/iterator_types.h"
 
 #define ITERATE_NEXT_OBJECT_(type)                                        \
-	void ExecutionEngine::exec_iterate_next_object_##type(State &s) {     \
+	EXECUTE(iterate_next_object_##type) {                                 \
 		int          offset   = s.nextInt();                              \
 		Value       &it       = s.top();                                  \
 		const Class *c        = it.getClass();                            \
@@ -766,13 +771,13 @@ void exec_iterate_next_builtin(ExecutionEngine::State &s) {
 ITERATE_NEXT_OBJECT_(method)
 ITERATE_NEXT_OBJECT_(builtin)
 
-void ExecutionEngine::exec_call_fast_prepare(State &s) {
+EXECUTE(call_fast_prepare) {
 	s.CallPatch = s.InstructionPointer;
 	s.nextInt();
 	s.nextInt();
 }
 
-void ExecutionEngine::exec_call_soft(State &s) {
+EXECUTE(call_soft) {
 	int sym               = s.nextInt();
 	int numberOfArguments = s.nextInt();
 	// the callable is placed before the arguments
@@ -843,7 +848,7 @@ void ExecutionEngine::exec_call_soft(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_call(State &s) {
+EXECUTE(call) {
 	int          frame             = s.nextInt();
 	int          numberOfArguments = s.nextInt();
 	Value       &v                 = s.top(-numberOfArguments - 1);
@@ -852,18 +857,18 @@ void ExecutionEngine::exec_call(State &s) {
 	ExecutionEngine::execMethodCall(s, functionToCall, numberOfArguments);
 }
 
-void ExecutionEngine::exec_call_intra(State &s) {
-	exec_call(s);
+EXECUTE(call_intra) {
+	EXECUTE_INVOKE(call)(s);
 }
 
-void ExecutionEngine::exec_call_method(State &s) {
+EXECUTE(call_method) {
 	int method            = s.nextInt();
 	int numberOfArguments = s.nextInt();
 	ExecutionEngine::execMethodCall(s, method, numberOfArguments);
 }
 
-void ExecutionEngine::exec_call_method_super(State &s) {
-	exec_call_method(s);
+EXECUTE(call_method_super) {
+	EXECUTE_INVOKE(call_method)(s);
 }
 
 template <bool isSoft, typename T>
@@ -896,19 +901,19 @@ void performFastCall(ExecutionEngine::State &s, T func) {
 	/* check failed, run the original opcode */
 }
 
-void ExecutionEngine::exec_call_fast_method_soft(State &s) {
+EXECUTE(call_fast_method_soft) {
 	performFastCall<true>(s, ExecutionEngine::execMethodCall_method);
 }
 
-void ExecutionEngine::exec_call_fast_builtin_soft(State &s) {
+EXECUTE(call_fast_builtin_soft) {
 	performFastCall<true>(s, ExecutionEngine::execMethodCall_builtin);
 }
 
-void ExecutionEngine::exec_call_fast_method(State &s) {
+EXECUTE(call_fast_method) {
 	performFastCall<false>(s, ExecutionEngine::execMethodCall_method);
 }
 
-void ExecutionEngine::exec_call_fast_builtin(State &s) {
+EXECUTE(call_fast_builtin) {
 	performFastCall<false>(s, ExecutionEngine::execMethodCall_builtin);
 }
 
@@ -1014,7 +1019,7 @@ void ExecutionEngine::execMethodCall_method(State &s, Function *methodToCall,
 	s.prevInstruction();
 }
 
-void ExecutionEngine::exec_ret(State &s) {
+EXECUTE(ret) {
 	// Pop the return value
 	Value v = s.pop();
 	// backup the current frame
@@ -1036,7 +1041,8 @@ void ExecutionEngine::exec_ret(State &s) {
 		// if there is no callframe in present
 		// fiber, but there is a parent, return
 		// to the parent fiber
-		currentFiber = s.fiber = s.fiber->switch_();
+		s.fiber = s.fiber->switch_();
+		ExecutionEngine::setCurrentFiber(s.fiber);
 		s.frameRestore();
 		s.push(v);
 	} else {
@@ -1047,13 +1053,13 @@ void ExecutionEngine::exec_ret(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_load_slot(State &s) {
+EXECUTE(load_slot) {
 	s.push(s.base(s.nextInt()));
 }
 
-#define LOAD_SLOT(x)                                     \
-	void ExecutionEngine::exec_load_slot_##x(State &s) { \
-		s.push(s.base(x));                               \
+#define LOAD_SLOT(x)         \
+	EXECUTE(load_slot_##x) { \
+		s.push(s.base(x));   \
 	}
 
 LOAD_SLOT(0)
@@ -1066,7 +1072,7 @@ LOAD_SLOT(6)
 LOAD_SLOT(7)
 #undef LOAD_SLOT
 
-void ExecutionEngine::exec_load_module(State &s) {
+EXECUTE(load_module) {
 	Value klass = s.base();
 	// the 0th slot may also contain an object
 	if(!klass.isClass())
@@ -1074,7 +1080,7 @@ void ExecutionEngine::exec_load_module(State &s) {
 	s.push(klass.toClass()->module->instance);
 }
 
-void ExecutionEngine::exec_load_module_super(State &s) {
+EXECUTE(load_module_super) {
 	Value klass = s.base();
 	// the 0th slot may also contain an object
 	if(!klass.isClass())
@@ -1082,21 +1088,21 @@ void ExecutionEngine::exec_load_module_super(State &s) {
 	s.push(klass.toClass()->superclass->module->instance);
 }
 
-void ExecutionEngine::exec_load_module_core(State &s) {
-	s.push(CoreObject);
+EXECUTE(load_module_core) {
+	s.push(ExecutionEngine::CoreObject);
 }
 
-void ExecutionEngine::exec_load_tos_slot(State &s) {
+EXECUTE(load_tos_slot) {
 	s.top() = s.top().toObject()->slots(s.nextInt());
 }
 
-void ExecutionEngine::exec_store_slot(State &s) {
+EXECUTE(store_slot) {
 	s.base(s.nextInt()) = s.top();
 }
 
-#define STORE_SLOT(x)                                     \
-	void ExecutionEngine::exec_store_slot_##x(State &s) { \
-		s.base(x) = s.top();                              \
+#define STORE_SLOT(x)         \
+	EXECUTE(store_slot_##x) { \
+		s.base(x) = s.top();  \
 	}
 
 STORE_SLOT(0)
@@ -1109,13 +1115,13 @@ STORE_SLOT(6)
 STORE_SLOT(7)
 #undef STORE_SLOT
 
-void ExecutionEngine::exec_store_slot_pop(State &s) {
+EXECUTE(store_slot_pop) {
 	s.base(s.nextInt()) = s.pop();
 }
 
-#define STORE_SLOT_POP(x)                                     \
-	void ExecutionEngine::exec_store_slot_pop_##x(State &s) { \
-		s.base(x) = s.pop();                                  \
+#define STORE_SLOT_POP(x)         \
+	EXECUTE(store_slot_pop_##x) { \
+		s.base(x) = s.pop();      \
 	}
 
 STORE_SLOT_POP(0)
@@ -1128,28 +1134,28 @@ STORE_SLOT_POP(6)
 STORE_SLOT_POP(7)
 #undef STORE_SLOT_POP
 
-void ExecutionEngine::exec_store_tos_slot(State &s) {
+EXECUTE(store_tos_slot) {
 	Value v                          = s.pop();
 	v.toObject()->slots(s.nextInt()) = s.top();
 }
 
-void ExecutionEngine::exec_load_object_slot(State &s) {
+EXECUTE(load_object_slot) {
 	int slot = s.nextInt();
 	s.push(s.base().toObject()->slots(slot));
 }
 
-void ExecutionEngine::exec_store_object_slot(State &s) {
+EXECUTE(store_object_slot) {
 	int slot                         = s.nextInt();
 	s.base().toObject()->slots(slot) = s.top();
 }
 
-void ExecutionEngine::exec_load_field_fast(State &s) {
+EXECUTE(load_field_fast) {
 	s.CallPatch = s.InstructionPointer;
 	s.nextInt();
 	s.nextInt();
 }
 
-void ExecutionEngine::exec_load_field_slot(State &s) {
+EXECUTE(load_field_slot) {
 	// directly loads the value from the slot
 	// if the class is matched
 	s.CallPatch = s.InstructionPointer;
@@ -1165,7 +1171,7 @@ void ExecutionEngine::exec_load_field_slot(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_load_field_static(State &s) {
+EXECUTE(load_field_static) {
 	// directly loads the value from the static
 	// member if the class is matched
 	s.CallPatch  = s.InstructionPointer;
@@ -1182,7 +1188,7 @@ void ExecutionEngine::exec_load_field_static(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_load_field(State &s) {
+EXECUTE(load_field) {
 	int          field = s.nextInt();
 	Value        v     = s.pop();
 	const Class *c     = v.getClass();
@@ -1209,14 +1215,14 @@ void ExecutionEngine::exec_load_field(State &s) {
 	s.CallPatch = nullptr;
 }
 
-void ExecutionEngine::exec_store_field_fast(State &s) {
+EXECUTE(store_field_fast) {
 	// dummy opcode, to be patched by store_field
 	s.CallPatch = s.InstructionPointer;
 	s.nextInt();
 	s.nextInt();
 }
 
-void ExecutionEngine::exec_store_field_slot(State &s) {
+EXECUTE(store_field_slot) {
 	// directly store to the slot if the class is matched
 	s.CallPatch = s.InstructionPointer;
 	int idx     = s.nextInt();
@@ -1231,7 +1237,7 @@ void ExecutionEngine::exec_store_field_slot(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_store_field_static(State &s) {
+EXECUTE(store_field_static) {
 	// directly store to the static member if the class is matched
 	s.CallPatch  = s.InstructionPointer;
 	int    idx   = s.nextInt();
@@ -1248,7 +1254,7 @@ void ExecutionEngine::exec_store_field_static(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_store_field(State &s) {
+EXECUTE(store_field) {
 	int          field = s.nextInt();
 	Value        v     = s.pop();
 	const Class *c     = v.getClass();
@@ -1274,19 +1280,19 @@ void ExecutionEngine::exec_store_field(State &s) {
 	s.CallPatch = nullptr;
 }
 
-void ExecutionEngine::exec_load_static_slot(State &s) {
+EXECUTE(load_static_slot) {
 	int          slot = s.nextInt();
 	const Class *c    = (s.nextValue()).toClass();
 	s.push(c->static_values[slot]);
 }
 
-void ExecutionEngine::exec_store_static_slot(State &s) {
+EXECUTE(store_static_slot) {
 	int          slot      = s.nextInt();
 	const Class *c         = (s.nextValue()).toClass();
 	c->static_values[slot] = s.top();
 }
 
-void ExecutionEngine::exec_array_build(State &s) {
+EXECUTE(array_build) {
 	// get the number of arguments to add
 	int numArg = s.nextInt();
 	s.frameBackup();
@@ -1299,7 +1305,7 @@ void ExecutionEngine::exec_array_build(State &s) {
 	s.push(Value(a));
 }
 
-void ExecutionEngine::exec_map_build(State &s) {
+EXECUTE(map_build) {
 	int numArg = s.nextInt();
 	// Map::from may call 'execute', which can mess
 	// with the stack. So we backup and restore
@@ -1311,7 +1317,7 @@ void ExecutionEngine::exec_map_build(State &s) {
 	s.push(Value(v));
 }
 
-void ExecutionEngine::exec_tuple_build(State &s) {
+EXECUTE(tuple_build) {
 	int numArg = s.nextInt();
 	s.frameBackup();
 	Tuple *t = Tuple::create(numArg);
@@ -1320,7 +1326,7 @@ void ExecutionEngine::exec_tuple_build(State &s) {
 	s.push(Value(t));
 }
 
-void ExecutionEngine::exec_search_method(State &s) {
+EXECUTE(search_method) {
 	int          sym = s.nextInt();
 	const Class *classToSearch;
 	// if it's a class, and it does have
@@ -1338,13 +1344,13 @@ void ExecutionEngine::exec_search_method(State &s) {
 	s.push(Value(classToSearch->get_fn(sym).toFunction()));
 }
 
-void ExecutionEngine::exec_load_method(State &s) {
+EXECUTE(load_method) {
 	int   sym = s.nextInt();
 	Value v   = s.top();
 	s.push(v.getClass()->get_fn(sym));
 }
 
-void ExecutionEngine::exec_bind_method(State &s) {
+EXECUTE(bind_method) {
 	// pop the function
 	Function *f = s.pop().toFunction();
 	// peek the binder
@@ -1366,7 +1372,7 @@ void ExecutionEngine::exec_bind_method(State &s) {
 	s.top()        = Value(b);
 }
 
-void ExecutionEngine::exec_construct(State &s) {
+EXECUTE(construct) {
 	Class *c = s.nextValue().toClass();
 	// if the 0th slot does not have a
 	// receiver yet, create it.
@@ -1387,15 +1393,14 @@ void ExecutionEngine::exec_construct(State &s) {
 	}
 }
 
-void ExecutionEngine::exec_end(State &s) {
+EXECUTE(end) {
 	s.runtimeError("Invalid opcode 'end'!");
 }
 
-void ExecutionEngine::exec_throw_(State &s) {
+EXECUTE(throw_) {
 	// POP the thrown object
 	Value v = s.pop();
-	pendingExceptions->insert(v);
-	pendingFibers->insert(currentFiber);
+	ExecutionEngine::setPendingException(v);
 	s.execError();
 }
 
@@ -1471,24 +1476,24 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 		state.push(res);
 	}
 
+	try {
 #ifdef NEXT_USE_COMPUTED_GOTO
-	static const void *dispatchTable[] = {
+		static const void *dispatchTable[] = {
 #define OPCODE0(x, y) &&EXEC_LABEL_##x,
 #define OPCODE1(x, y, z) OPCODE0(x, 0)
 #define OPCODE2(x, y, z, w) OPCODE0(x, 0)
 #include "opcodes.h"
-	};
-	try {
+		};
 		goto *dispatchTable[*state.InstructionPointer];
 #else
-	typedef decltype(ExecutionEngine::exec_dummy) FunctionType;
-	static FunctionType                          *executorFunctions[] = {
-#define OPCODE0(x, y) &ExecutionEngine::exec_##x,
+		typedef decltype(EXECUTE_NAME(add)) FunctionType;
+		static FunctionType                *executorFunctions[] = {
+#define OPCODE0(x, y) EXECUTE_NAME(x),
 #define OPCODE1(x, y, z) OPCODE0(x, 0)
 #define OPCODE2(w, x, y, z) OPCODE0(w, 0)
 #include "opcodes.h"
-    };
-	while(!state.shouldReturn) {
+        };
+		while(true) {
 #endif
 #ifdef DEBUG_INS
 		{
@@ -1531,21 +1536,21 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DISPATCH() \
 	{ goto *dispatchTable[*(++state.InstructionPointer)]; }
-#define EXECUTE(x)                        \
-	EXEC_LABEL_##x : {                    \
-		ExecutionEngine::exec_##x(state); \
-		DISPATCH();                       \
+#define EXECUTOR(x)             \
+	EXEC_LABEL_##x : {          \
+		EXECUTE_NAME(x)(state); \
+		DISPATCH();             \
 	}
-#define OPCODE0(x, y) EXECUTE(x)
-#define OPCODE1(x, y, z) EXECUTE(x)
-#define OPCODE2(x, y, z, w) EXECUTE(x)
+#define OPCODE0(x, y) EXECUTOR(x)
+#define OPCODE1(x, y, z) EXECUTOR(x)
+#define OPCODE2(x, y, z, w) EXECUTOR(x)
 #include "opcodes.h"
+#else
+			executorFunctions[*state.InstructionPointer](state);
+			state.InstructionPointer++;
+		}
+#endif
 	} catch(State::ReturnFromExecute x) {
 	}
-#else
-		executorFunctions[*state.InstructionPointer](state);
-		state.InstructionPointer++;
-	}
-#endif
 	RETURN(state.returnValue);
 }

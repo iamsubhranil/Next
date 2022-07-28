@@ -92,15 +92,6 @@ class ExecutionEngine {
 	static void setRunningRepl(bool status);
 
 	struct State;
-#define OPCODE0(x, y) static void exec_##x(State &s);
-#define OPCODE1(x, y, z) static void exec_##x(State &s);
-#define OPCODE2(x, y, z, w) static void exec_##x(State &s);
-#include "opcodes.h"
-	// for decltype
-	static void exec_dummy(State &s) {
-		(void)s;
-	}
-
 	static void execMethodCall(State &s, int methodToCall,
 	                           int numberOfArguments);
 	static void execMethodCall(State &s, Function *methodToCall,
