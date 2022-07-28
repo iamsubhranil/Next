@@ -135,6 +135,8 @@ struct ExecutionEngine::State {
 		createException(message, args...);
 		execError();
 	}
+
+	struct HandleError {};
 	// after an error has occurred, this function
 	// should make the engine invoke the error
 	// handler immediately
@@ -155,6 +157,7 @@ struct ExecutionEngine::State {
 		    throwException(pendingException, thrownFiber.toFiber());
 		frameRestore();
 		prevInstruction();
+		throw HandleError{};
 	}
 };
 
@@ -696,11 +699,8 @@ EXECUTE(iterator_verify) {
 
 	int          field = SymbolTable2::const_field_has_next;
 	const Class *c     = it.getClass();
-	if(!s.assertField(c, field))
-		return;
+	s.assertField(c, field);
 	Function *f = s.assertMethod(c, SymbolTable2::const_sig_next);
-	if(f == NULL)
-		return;
 	// patch the next() call
 	if(f->getType() == Function::Type::BUILTIN) {
 		*(present + iterator_next_offset) =
@@ -782,17 +782,15 @@ EXECUTE(call_soft) {
 	int numberOfArguments = s.nextInt();
 	// the callable is placed before the arguments
 	Value v = s.top(-numberOfArguments - 1);
-	if(!s.assert(v.isGcObject(), "Not a callable object!"))
-		return;
+	s.assert(v.isGcObject(), "Not a callable object!");
 	switch(v.toGcObject()->getType()) {
 		case GcObject::Type::Class: {
 			// check if the class has a constructor with the
 			// given signature
 			Class *c = v.toClass();
-			if(!s.assert(c->has_fn(sym),
-			             "Constructor '{}' not found in class '{}'!",
-			             SymbolTable2::getString(sym), c->name))
-				return;
+			s.assert(c->has_fn(sym),
+			         "Constructor '{}' not found in class '{}'!",
+			         SymbolTable2::getString(sym), c->name);
 			// [performcall will take care of this]
 			// set the receiver to nil so that construct
 			// knows to create a new receiver
@@ -922,8 +920,6 @@ void ExecutionEngine::execMethodCall(State &s, int methodToCall,
 	Value       &v              = s.top(-numberOfArguments - 1);
 	const Class *c              = v.getClass();
 	Function    *functionToCall = s.assertMethod(c, methodToCall);
-	if(functionToCall == NULL)
-		return;
 	execMethodCall(s, functionToCall, numberOfArguments);
 }
 
@@ -1192,8 +1188,7 @@ EXECUTE(load_field) {
 	int          field = s.nextInt();
 	Value        v     = s.pop();
 	const Class *c     = v.getClass();
-	if(!s.assertField(c, field))
-		return;
+	s.assertField(c, field);
 	s.push(c->accessFn(c, v, field));
 	if(c->type != Class::ClassType::BUILTIN) {
 		// this is not a builtin class, so we can optimize
@@ -1258,8 +1253,7 @@ EXECUTE(store_field) {
 	int          field = s.nextInt();
 	Value        v     = s.pop();
 	const Class *c     = v.getClass();
-	if(!s.assertField(c, field))
-		return;
+	s.assertField(c, field);
 	c->accessFn(c, v, field) = s.top();
 	if(c->type != Class::ClassType::BUILTIN) {
 		// this is not a builtin class, so
@@ -1336,8 +1330,7 @@ EXECUTE(search_method) {
 	else {
 		// otherwise, search in its class
 		const Class *c = s.top().getClass();
-		if(!s.assertMethod(c, sym))
-			return;
+		s.assertMethod(c, sym);
 		classToSearch = c;
 	}
 	// push the fn, and we're done
@@ -1403,6 +1396,42 @@ EXECUTE(throw_) {
 	ExecutionEngine::setPendingException(v);
 	s.execError();
 }
+
+#ifdef DEBUG_INS
+void printCurrentState(ExecutionEngine::State state) {
+	Fiber::CallFrame *presentFrame = state.presentFrame;
+	Printer::println();
+	int instructionPointer =
+	    state.InstructionPointer - presentFrame->f->code->bytecodes;
+	int   stackPointer = state.StackTop - state.Stack;
+	Token t            = Token::PlaceholderToken;
+	if(presentFrame->f->code->ctx)
+		t = presentFrame->f->code->ctx->get_token(instructionPointer);
+	if(t.type != Token::Type::TOKEN_ERROR)
+		t.highlight();
+	else
+		Printer::println("<source not found>");
+	Printer::fmt("StackMaxSize: {} IP: {:4} SP: {} ",
+	             presentFrame->f->code->stackMaxSize, instructionPointer,
+	             stackPointer);
+	for(int i = 0; i < stackPointer; i++) {
+		Printer::print(" | ");
+		presentFrame->f->code->disassemble_Value(Printer::StdOutStream,
+		                                         state.Stack[i]);
+	}
+	Printer::println(" | ");
+	presentFrame->f->code->disassemble(
+	    Printer::StdOutStream,
+	    &presentFrame->f->code->bytecodes[instructionPointer]);
+	// +1 to adjust for fiber switch
+	if(stackPointer > presentFrame->f->code->stackMaxSize + 1) {
+		state.runtimeError("Invalid stack access!");
+	}
+	Printer::println();
+
+	fflush(stdout);
+}
+#endif
 
 bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 	fiber2->setState(Fiber::RUNNING);
@@ -1475,62 +1504,30 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 		}
 		state.push(res);
 	}
-
 	try {
+		while(true) {
+			try {
+
+#ifdef DEBUG_INS
+				printCurrentState(state);
+#endif
+
 #ifdef NEXT_USE_COMPUTED_GOTO
-		static const void *dispatchTable[] = {
+				static const void *dispatchTable[] = {
 #define OPCODE0(x, y) &&EXEC_LABEL_##x,
 #define OPCODE1(x, y, z) OPCODE0(x, 0)
 #define OPCODE2(x, y, z, w) OPCODE0(x, 0)
 #include "opcodes.h"
-		};
-		goto *dispatchTable[*state.InstructionPointer];
+				};
+				goto *dispatchTable[*state.InstructionPointer];
 #else
-		typedef decltype(EXECUTE_NAME(add)) FunctionType;
-		static FunctionType                *executorFunctions[] = {
+				typedef decltype(EXECUTE_NAME(add)) FunctionType;
+				static FunctionType                *executorFunctions[] = {
 #define OPCODE0(x, y) EXECUTE_NAME(x),
 #define OPCODE1(x, y, z) OPCODE0(x, 0)
 #define OPCODE2(w, x, y, z) OPCODE0(w, 0)
 #include "opcodes.h"
-        };
-		while(true) {
-#endif
-#ifdef DEBUG_INS
-		{
-			Fiber::CallFrame *presentFrame = state.presentFrame;
-			Printer::println();
-			int instructionPointer =
-			    state.InstructionPointer - presentFrame->f->code->bytecodes;
-			int   stackPointer = state.StackTop - state.Stack;
-			Token t            = Token::PlaceholderToken;
-			if(presentFrame->f->code->ctx)
-				t = presentFrame->f->code->ctx->get_token(instructionPointer);
-			if(t.type != Token::Type::TOKEN_ERROR)
-				t.highlight();
-			else
-				Printer::println("<source not found>");
-			Printer::fmt("StackMaxSize: {} IP: {:4} SP: {} ",
-			             presentFrame->f->code->stackMaxSize,
-			             instructionPointer, stackPointer);
-			for(int i = 0; i < stackPointer; i++) {
-				Printer::print(" | ");
-				presentFrame->f->code->disassemble_Value(Printer::StdOutStream,
-				                                         state.Stack[i]);
-			}
-			Printer::println(" | ");
-			presentFrame->f->code->disassemble(
-			    Printer::StdOutStream,
-			    &presentFrame->f->code->bytecodes[instructionPointer]);
-			// +1 to adjust for fiber switch
-			if(stackPointer > presentFrame->f->code->stackMaxSize + 1) {
-				state.runtimeError("Invalid stack access!");
-			}
-			Printer::println();
-#ifdef DEBUG_INS
-			fflush(stdout);
-			// getchar();
-#endif
-		}
+                };
 #endif
 
 #ifdef NEXT_USE_COMPUTED_GOTO
@@ -1546,10 +1543,17 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #define OPCODE2(x, y, z, w) EXECUTOR(x)
 #include "opcodes.h"
 #else
-			executorFunctions[*state.InstructionPointer](state);
-			state.InstructionPointer++;
-		}
+				executorFunctions[*state.InstructionPointer](state);
+				state.InstructionPointer++;
 #endif
+			} catch(State::HandleError x) {
+				// the error will be raised before we would have
+				// a chance to increment our IP to point
+				// to the next instruction. so we do that
+				// here manually.
+				state.InstructionPointer++;
+			}
+		}
 	} catch(State::ReturnFromExecute x) {
 	}
 	RETURN(state.returnValue);
