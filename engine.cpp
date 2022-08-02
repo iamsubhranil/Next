@@ -489,11 +489,6 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 	return v;
 }
 
-#define EXECUTE_NAME(x) Execute_##x
-#define EXECUTE(x) \
-	static inline void EXECUTE_NAME(x)(ExecutionEngine::State & s)
-#define EXECUTE_INVOKE(x) EXECUTE_NAME(x)
-
 template <typename T, typename U, typename V>
 static void inline execBinary(ExecutionEngine::State &s, T validator, U exec,
                               V setter, int methodToCall) {
@@ -520,219 +515,6 @@ VALIDATOR(Integer);
 SETTER(Number, double);
 SETTER(Boolean, bool);
 
-#define BINARY_FUNCTION(name, argtype, restype, op)            \
-	EXECUTE(name) {                                            \
-		execBinary(                                            \
-		    s, Validator_##argtype,                            \
-		    [](const Value &a, const Value &b) {               \
-			    return a.to##argtype() op b.to##argtype();     \
-		    },                                                 \
-		    Setter_##restype, SymbolTable2::const_sig_##name); \
-	}
-
-BINARY_FUNCTION(add, Number, Number, +)
-BINARY_FUNCTION(sub, Number, Number, -)
-BINARY_FUNCTION(mul, Number, Number, *)
-BINARY_FUNCTION(div, Number, Number, /)
-BINARY_FUNCTION(greater, Number, Boolean, >)
-BINARY_FUNCTION(greatereq, Number, Boolean, >=)
-BINARY_FUNCTION(less, Number, Number, <)
-BINARY_FUNCTION(lesseq, Number, Number, <=)
-BINARY_FUNCTION(band, Integer, Number, &)
-BINARY_FUNCTION(bor, Integer, Number, |)
-BINARY_FUNCTION(bxor, Integer, Number, ^)
-BINARY_FUNCTION(blshift, Integer, Number, <<)
-BINARY_FUNCTION(brshift, Integer, Number, >>)
-
-EXECUTE(lor) {
-	int skipTo = s.nextInt();
-	// this was s.top() in original code!
-	if(!s.top().isFalsey()) {
-		s.jumpToOffset(skipTo);
-	} else {
-		s.drop();
-	}
-}
-
-EXECUTE(land) {
-	int skipTo = s.nextInt();
-	// this was s.top() in original code!
-	if(s.top().isFalsey()) {
-		s.jumpToOffset(skipTo);
-	} else {
-		s.drop();
-	}
-}
-
-EXECUTE(neq) {
-	if(s.top(-2).isGcObject() &&
-	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_neq)) {
-		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_neq, 1);
-	} else {
-		Value a = s.pop();
-		s.top().setBoolean(a != s.top());
-	}
-}
-
-EXECUTE(eq) {
-	if(s.top(-2).isGcObject() &&
-	   s.top(-2).getClass()->has_fn(SymbolTable2::const_sig_eq)) {
-		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_eq, 1);
-	} else {
-		Value a = s.pop();
-		s.top().setBoolean(a == s.top());
-	}
-}
-
-EXECUTE(bcall_fast_prepare) {
-	// s.CallPatch = s.InstructionPointer;
-	s.nextInt();
-}
-
-EXECUTE(bcall_fast_eq) {
-	s.CallPatch = s.InstructionPointer;
-	int    idx  = s.nextInt();
-	Class *c    = s.Locals[idx].toClass();
-	if(s.top(-2).getClass() == c) {
-		Value rightOperand = s.pop();
-		s.top().setBoolean(s.top() == rightOperand);
-		s.CallPatch = nullptr;
-		s.nextInstruction();
-	}
-}
-
-EXECUTE(bcall_fast_neq) {
-	s.CallPatch = s.InstructionPointer;
-	int    idx  = s.nextInt();
-	Class *c    = s.Locals[idx].toClass();
-	if(s.top(-2).getClass() == c) {
-		Value rightOperand = s.pop();
-		s.top().setBoolean(s.top() != rightOperand);
-		s.CallPatch = nullptr;
-		s.nextInstruction();
-	}
-}
-
-EXECUTE(lnot) {
-	s.top().setBoolean(s.top().isFalsey());
-}
-
-EXECUTE(bnot) {
-	if(s.top().isInteger()) {
-		s.top().setNumber(~s.top().toInteger());
-	} else {
-		s.runtimeError("'~' can only be applied over an integer!");
-	}
-}
-
-EXECUTE(neg) {
-	if(s.top().isNumber()) {
-		s.top().setNumber(-s.top().toNumber());
-	} else {
-		s.runtimeError("'-' can only be applied over a number!");
-	}
-}
-
-EXECUTE(copy) {
-	int sym = s.nextInt();
-	if(s.top().isNumber()) {
-		s.push(s.top());
-	} else {
-		s.push(ValueFalse);
-		ExecutionEngine::execMethodCall(s, sym, 1);
-	}
-}
-
-EXECUTE(incr) {
-	if(s.top().isNumber()) {
-		s.top().setNumber(s.top().toNumber() + 1);
-	} else {
-		s.push(ValueTrue);
-		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_incr, 1);
-	}
-}
-
-EXECUTE(decr) {
-	if(s.top().isNumber()) {
-		s.top().setNumber(s.top().toNumber() - 1);
-	} else {
-		s.push(ValueTrue);
-		ExecutionEngine::execMethodCall(s, SymbolTable2::const_sig_decr, 1);
-	}
-}
-
-EXECUTE(push) {
-	s.push(s.nextValue());
-}
-
-EXECUTE(pushn) {
-	s.push(ValueNil);
-}
-
-EXECUTE(pop) {
-	s.drop();
-}
-
-EXECUTE(iterator_verify) {
-	Bytecode::Opcode *present              = s.InstructionPointer;
-	int               idx                  = s.nextInt();
-	int               iterator_next_offset = s.nextInt();
-	if(s.top().getClass() == s.Locals[idx].toClass()) {
-		return;
-	}
-	Value &it     = s.top();
-	s.Locals[idx] = Value(it.getClass());
-	if(Iterator::is_iterator(it)) {
-		Iterator::Type t = Iterator::getType(it);
-
-		// mark the iterate next as specialized builtin call
-		switch(t) {
-#define ITERATOR(x, y)                               \
-	case Iterator::Type::x##Iterator:                \
-		*(present + iterator_next_offset) =          \
-		    Bytecode::CODE_iterate_next_builtin_##x; \
-		break;
-#include "objects/iterator_types.h"
-		}
-		return;
-	}
-
-	int          field = SymbolTable2::const_field_has_next;
-	const Class *c     = it.getClass();
-	s.assertField(c, field);
-	Function *f = s.assertMethod(c, SymbolTable2::const_sig_next);
-	// patch the next() call
-	if(f->getType() == Function::Type::BUILTIN) {
-		*(present + iterator_next_offset) =
-		    Bytecode::CODE_iterate_next_object_builtin;
-	} else {
-		*(present + iterator_next_offset) =
-		    Bytecode::CODE_iterate_next_object_method;
-	}
-}
-
-EXECUTE(jump) {
-	s.jumpToOffset(s.nextInt());
-}
-
-EXECUTE(jumpiftrue) {
-	Value v   = s.pop();
-	int   dis = s.nextInt();
-	bool  fl  = v.isFalsey();
-	if(!fl) {
-		s.jumpToOffset(dis); // offset the relative jump address
-	}
-}
-
-EXECUTE(jumpiffalse) {
-	Value v   = s.pop();
-	int   dis = s.nextInt();
-	bool  fl  = v.isFalsey();
-	if(fl) {
-		s.jumpToOffset(dis); // offset the relative jump address
-	}
-}
-
 template <typename T>
 void exec_iterate_next_builtin(ExecutionEngine::State &s) {
 	int offset = s.nextInt();
@@ -743,130 +525,6 @@ void exec_iterate_next_builtin(ExecutionEngine::State &s) {
 	} else {
 		s.top() = it->Next();
 	}
-}
-
-#define ITERATOR(x, y)                             \
-	EXECUTE(iterate_next_builtin_##x) {            \
-		exec_iterate_next_builtin<x##Iterator>(s); \
-	}
-
-#include "objects/iterator_types.h"
-
-#define ITERATE_NEXT_OBJECT_(type)                                        \
-	EXECUTE(iterate_next_object_##type) {                                 \
-		int          offset   = s.nextInt();                              \
-		Value       &it       = s.top();                                  \
-		const Class *c        = it.getClass();                            \
-		int          field    = SymbolTable2::const_field_has_next;       \
-		Value        has_next = c->accessFn(c, it, field);                \
-		if(has_next.isFalsey()) {                                         \
-			s.drop();                                                     \
-			s.jumpToOffset(offset);                                       \
-		} else {                                                          \
-			Function *functionToCall =                                    \
-			    c->get_fn(SymbolTable2::const_sig_next).toFunction();     \
-			ExecutionEngine::execMethodCall_##type(s, functionToCall, 0); \
-		}                                                                 \
-	}
-ITERATE_NEXT_OBJECT_(method)
-ITERATE_NEXT_OBJECT_(builtin)
-
-EXECUTE(call_fast_prepare) {
-	s.CallPatch = s.InstructionPointer;
-	s.nextInt();
-	s.nextInt();
-}
-
-EXECUTE(call_soft) {
-	int sym               = s.nextInt();
-	int numberOfArguments = s.nextInt();
-	// the callable is placed before the arguments
-	Value v = s.top(-numberOfArguments - 1);
-	s.assert(v.isGcObject(), "Not a callable object!");
-	switch(v.toGcObject()->getType()) {
-		case GcObject::Type::Class: {
-			// check if the class has a constructor with the
-			// given signature
-			Class *c = v.toClass();
-			s.assert(c->has_fn(sym),
-			         "Constructor '{}' not found in class '{}'!",
-			         SymbolTable2::getString(sym), c->name);
-			// [performcall will take care of this]
-			// set the receiver to nil so that construct
-			// knows to create a new receiver
-			// fiber->stackTop[-numberOfArguments - 1] =
-			// ValueNil; call the constructor
-			Function *functionToCall = c->get_fn(sym).toFunction();
-			ExecutionEngine::execMethodCall(s, functionToCall,
-			                                numberOfArguments);
-			return;
-		}
-		case GcObject::Type::BoundMethod: {
-			// we cannot really perform any optimizations for
-			// boundmethods, because they require verifications
-			// and stack adjustments.
-			s.CallPatch    = nullptr;
-			BoundMethod *b = v.toBoundMethod();
-			// verify the arguments
-			if(b->verify(&s.top(-numberOfArguments), numberOfArguments) !=
-			   BoundMethod::Status::OK) {
-				// pop the arguments
-				s.drop(numberOfArguments);
-				s.execError();
-				return;
-			}
-			// we have already allocated one slot for the
-			// receiver before the arguments started.
-			// but if this is class bound call, we don't
-			// need that anymore, as the object has already
-			// been passed as the first argument. so move
-			// them back
-			switch(b->type) {
-				case BoundMethod::CLASS_BOUND: {
-					for(int i = -numberOfArguments - 1; i < 0; i++)
-						s.top(i) = s.top(i + 1);
-					s.drop();
-					// we also decrement numberOfArguments to
-					// denote actual argument count minus the
-					// instance
-					numberOfArguments--;
-					break;
-				}
-				default:
-					// otherwise, we store the object at slot 0
-					s.top(-numberOfArguments - 1) = b->binder;
-					break;
-			}
-			Function *functionToCall = b->func;
-			ExecutionEngine::execMethodCall(s, functionToCall,
-			                                numberOfArguments);
-			break;
-		}
-		default: s.runtimeError("Not a callable object!"); break;
-	}
-}
-
-EXECUTE(call) {
-	int          frame             = s.nextInt();
-	int          numberOfArguments = s.nextInt();
-	Value       &v                 = s.top(-numberOfArguments - 1);
-	const Class *c                 = v.getClass();
-	Function    *functionToCall    = c->get_fn(frame).toFunction();
-	ExecutionEngine::execMethodCall(s, functionToCall, numberOfArguments);
-}
-
-EXECUTE(call_intra) {
-	EXECUTE_INVOKE(call)(s);
-}
-
-EXECUTE(call_method) {
-	int method            = s.nextInt();
-	int numberOfArguments = s.nextInt();
-	ExecutionEngine::execMethodCall(s, method, numberOfArguments);
-}
-
-EXECUTE(call_method_super) {
-	EXECUTE_INVOKE(call_method)(s);
 }
 
 template <bool isSoft, typename T>
@@ -899,22 +557,6 @@ void performFastCall(ExecutionEngine::State &s, T func) {
 	/* check failed, run the original opcode */
 }
 
-EXECUTE(call_fast_method_soft) {
-	performFastCall<true>(s, ExecutionEngine::execMethodCall_method);
-}
-
-EXECUTE(call_fast_builtin_soft) {
-	performFastCall<true>(s, ExecutionEngine::execMethodCall_builtin);
-}
-
-EXECUTE(call_fast_method) {
-	performFastCall<false>(s, ExecutionEngine::execMethodCall_method);
-}
-
-EXECUTE(call_fast_builtin) {
-	performFastCall<false>(s, ExecutionEngine::execMethodCall_builtin);
-}
-
 void ExecutionEngine::execMethodCall(State &s, int methodToCall,
                                      int numberOfArguments) {
 	Value       &v              = s.top(-numberOfArguments - 1);
@@ -936,6 +578,20 @@ void ExecutionEngine::execMethodCall(State &s, Function *methodToCall,
 			ExecutionEngine::execMethodCall_method(s, methodToCall,
 			                                       numberOfArguments);
 			break;
+	}
+}
+
+void patchIteratorCall(Bytecode::Opcode *present, int iterator_next_offset,
+                       Iterator::Type t) {
+
+	// mark the iterate next as specialized builtin call
+	switch(t) {
+#define ITERATOR(x, y)                               \
+	case Iterator::Type::x##Iterator:                \
+		*(present + iterator_next_offset) =          \
+		    Bytecode::CODE_iterate_next_builtin_##x; \
+		break;
+#include "objects/iterator_types.h"
 	}
 }
 
@@ -1013,388 +669,6 @@ void ExecutionEngine::execMethodCall_method(State &s, Function *methodToCall,
 	// automatically gets incremented next, it'll point to
 	// the first instruction of the method
 	s.prevInstruction();
-}
-
-EXECUTE(ret) {
-	// Pop the return value
-	Value v = s.pop();
-	// backup the current frame
-	Fiber::CallFrame *cur = s.fiber->getCurrentFrame();
-	// pop the current frame
-	s.fiber->popFrame();
-	// if the current frame is invoked by
-	// a native method, return to that
-	if(cur->returnToCaller) {
-		s.returnFromExecute(v);
-	}
-	// if we have somewhere to return to,
-	// return there first. this would
-	// be true maximum number of times
-	else if(s.fiber->callFrameCount() > 0) {
-		s.frameRestore();
-		s.push(v);
-	} else if(s.fiber->parent != NULL) {
-		// if there is no callframe in present
-		// fiber, but there is a parent, return
-		// to the parent fiber
-		s.fiber = s.fiber->switch_();
-		ExecutionEngine::setCurrentFiber(s.fiber);
-		s.frameRestore();
-		s.push(v);
-	} else {
-		// neither parent fiber nor parent callframe
-		// exists. Return the value back to
-		// the caller.
-		s.returnFromExecute(v);
-	}
-}
-
-EXECUTE(load_slot) {
-	s.push(s.base(s.nextInt()));
-}
-
-#define LOAD_SLOT(x)         \
-	EXECUTE(load_slot_##x) { \
-		s.push(s.base(x));   \
-	}
-
-LOAD_SLOT(0)
-LOAD_SLOT(1)
-LOAD_SLOT(2)
-LOAD_SLOT(3)
-LOAD_SLOT(4)
-LOAD_SLOT(5)
-LOAD_SLOT(6)
-LOAD_SLOT(7)
-#undef LOAD_SLOT
-
-EXECUTE(load_module) {
-	Value klass = s.base();
-	// the 0th slot may also contain an object
-	if(!klass.isClass())
-		klass = klass.getClass();
-	s.push(klass.toClass()->module->instance);
-}
-
-EXECUTE(load_module_super) {
-	Value klass = s.base();
-	// the 0th slot may also contain an object
-	if(!klass.isClass())
-		klass = klass.getClass();
-	s.push(klass.toClass()->superclass->module->instance);
-}
-
-EXECUTE(load_module_core) {
-	s.push(ExecutionEngine::CoreObject);
-}
-
-EXECUTE(load_tos_slot) {
-	s.top() = s.top().toObject()->slots(s.nextInt());
-}
-
-EXECUTE(store_slot) {
-	s.base(s.nextInt()) = s.top();
-}
-
-#define STORE_SLOT(x)         \
-	EXECUTE(store_slot_##x) { \
-		s.base(x) = s.top();  \
-	}
-
-STORE_SLOT(0)
-STORE_SLOT(1)
-STORE_SLOT(2)
-STORE_SLOT(3)
-STORE_SLOT(4)
-STORE_SLOT(5)
-STORE_SLOT(6)
-STORE_SLOT(7)
-#undef STORE_SLOT
-
-EXECUTE(store_slot_pop) {
-	s.base(s.nextInt()) = s.pop();
-}
-
-#define STORE_SLOT_POP(x)         \
-	EXECUTE(store_slot_pop_##x) { \
-		s.base(x) = s.pop();      \
-	}
-
-STORE_SLOT_POP(0)
-STORE_SLOT_POP(1)
-STORE_SLOT_POP(2)
-STORE_SLOT_POP(3)
-STORE_SLOT_POP(4)
-STORE_SLOT_POP(5)
-STORE_SLOT_POP(6)
-STORE_SLOT_POP(7)
-#undef STORE_SLOT_POP
-
-EXECUTE(store_tos_slot) {
-	Value v                          = s.pop();
-	v.toObject()->slots(s.nextInt()) = s.top();
-}
-
-EXECUTE(load_object_slot) {
-	int slot = s.nextInt();
-	s.push(s.base().toObject()->slots(slot));
-}
-
-EXECUTE(store_object_slot) {
-	int slot                         = s.nextInt();
-	s.base().toObject()->slots(slot) = s.top();
-}
-
-EXECUTE(load_field_fast) {
-	s.CallPatch = s.InstructionPointer;
-	s.nextInt();
-	s.nextInt();
-}
-
-EXECUTE(load_field_slot) {
-	// directly loads the value from the slot
-	// if the class is matched
-	s.CallPatch = s.InstructionPointer;
-	int    idx  = s.nextInt();
-	int    slot = s.nextInt();
-	Class *c    = s.Locals[idx].toClass();
-	if(c == s.top().getClass()) {
-		s.CallPatch = nullptr;
-		s.top()     = s.top().toObject()->slots(slot);
-		// skip next opcode
-		s.nextInstruction();
-		s.nextInt();
-	}
-}
-
-EXECUTE(load_field_static) {
-	// directly loads the value from the static
-	// member if the class is matched
-	s.CallPatch  = s.InstructionPointer;
-	int    idx   = s.nextInt();
-	int    field = s.nextInt();
-	Class *c     = s.Locals[idx].toClass();
-	if(c == s.top().getClass()) {
-		s.CallPatch         = nullptr;
-		Class::StaticRef sr = c->staticRefs[field];
-		s.top()             = sr.owner->static_values[sr.slot];
-		// skip next opcode
-		s.nextInstruction();
-		s.nextInt();
-	}
-}
-
-EXECUTE(load_field) {
-	int          field = s.nextInt();
-	Value        v     = s.pop();
-	const Class *c     = v.getClass();
-	s.assertField(c, field);
-	s.push(c->accessFn(c, v, field));
-	if(c->type != Class::ClassType::BUILTIN) {
-		// this is not a builtin class, so we can optimize
-		// the access
-		int v = c->get_fn(field).toInteger();
-		if(!Class::is_static_slot(v)) {
-			// this is a slot, so store the slot index
-			*s.CallPatch       = Bytecode::CODE_load_field_slot;
-			*(s.CallPatch + 2) = (Bytecode::Opcode)v;
-		} else {
-			// this is a static member, so store the decodes index
-			*s.CallPatch       = Bytecode::CODE_load_field_static;
-			*(s.CallPatch + 2) = (Bytecode::Opcode)Class::get_static_slot(v);
-		}
-		int idx = *(s.CallPatch + 1);
-		// store the class
-		s.Locals[idx] = Value(c);
-	}
-	s.CallPatch = nullptr;
-}
-
-EXECUTE(store_field_fast) {
-	// dummy opcode, to be patched by store_field
-	s.CallPatch = s.InstructionPointer;
-	s.nextInt();
-	s.nextInt();
-}
-
-EXECUTE(store_field_slot) {
-	// directly store to the slot if the class is matched
-	s.CallPatch = s.InstructionPointer;
-	int idx     = s.nextInt();
-	int slot    = s.nextInt();
-	if(s.Locals[idx].toClass() == s.top().getClass()) {
-		Value v                   = s.pop();
-		s.CallPatch               = nullptr;
-		v.toObject()->slots(slot) = s.top();
-		// skip next opcode
-		s.nextInstruction();
-		s.nextInt();
-	}
-}
-
-EXECUTE(store_field_static) {
-	// directly store to the static member if the class is matched
-	s.CallPatch  = s.InstructionPointer;
-	int    idx   = s.nextInt();
-	int    field = s.nextInt();
-	Class *c     = s.Locals[idx].toClass();
-	if(c == s.top().getClass()) {
-		s.CallPatch = nullptr;
-		s.drop();
-		Class::StaticRef sr              = c->staticRefs[field];
-		sr.owner->static_values[sr.slot] = s.top();
-		// skip next opcode
-		s.nextInstruction();
-		s.nextInt();
-	}
-}
-
-EXECUTE(store_field) {
-	int          field = s.nextInt();
-	Value        v     = s.pop();
-	const Class *c     = v.getClass();
-	s.assertField(c, field);
-	c->accessFn(c, v, field) = s.top();
-	if(c->type != Class::ClassType::BUILTIN) {
-		// this is not a builtin class, so
-		// we can optimize the access
-		int v = c->get_fn(field).toInteger();
-		if(!Class::is_static_slot(v)) {
-			// this is a slot store, so store the slot index
-			*s.CallPatch       = Bytecode::CODE_store_field_slot;
-			*(s.CallPatch + 2) = (Bytecode::Opcode)v;
-		} else {
-			// this is a static field store, so store the field
-			*s.CallPatch       = Bytecode::CODE_store_field_static;
-			*(s.CallPatch + 2) = (Bytecode::Opcode)Class::get_static_slot(v);
-		}
-		// store the class
-		s.Locals[*(s.CallPatch + 1)] = Value(c);
-	}
-	s.CallPatch = nullptr;
-}
-
-EXECUTE(load_static_slot) {
-	int          slot = s.nextInt();
-	const Class *c    = (s.nextValue()).toClass();
-	s.push(c->static_values[slot]);
-}
-
-EXECUTE(store_static_slot) {
-	int          slot      = s.nextInt();
-	const Class *c         = (s.nextValue()).toClass();
-	c->static_values[slot] = s.top();
-}
-
-EXECUTE(array_build) {
-	// get the number of arguments to add
-	int numArg = s.nextInt();
-	s.frameBackup();
-	Array *a = Array::create(numArg);
-	// manually adjust the size
-	a->size = numArg;
-	// insert all the elements
-	memcpy(a->values, &s.top(-numArg), sizeof(Value) * numArg);
-	s.drop(numArg);
-	s.push(Value(a));
-}
-
-EXECUTE(map_build) {
-	int numArg = s.nextInt();
-	// Map::from may call 'execute', which can mess
-	// with the stack. So we backup and restore
-	// the frame just to be careful.
-	s.frameBackup();
-	Map *v = Map::from(&s.top(-(numArg * 2)), numArg);
-	s.frameRestore();
-	s.drop(numArg * 2);
-	s.push(Value(v));
-}
-
-EXECUTE(tuple_build) {
-	int numArg = s.nextInt();
-	s.frameBackup();
-	Tuple *t = Tuple::create(numArg);
-	memcpy(t->values(), &s.top(-numArg), sizeof(Value) * numArg);
-	s.drop(numArg);
-	s.push(Value(t));
-}
-
-EXECUTE(search_method) {
-	int          sym = s.nextInt();
-	const Class *classToSearch;
-	// if it's a class, and it does have
-	// the sym, we're done
-	if(s.top().isClass() && s.top().toClass()->has_fn(sym))
-		classToSearch = s.top().toClass();
-	else {
-		// otherwise, search in its class
-		const Class *c = s.top().getClass();
-		s.assertMethod(c, sym);
-		classToSearch = c;
-	}
-	// push the fn, and we're done
-	s.push(Value(classToSearch->get_fn(sym).toFunction()));
-}
-
-EXECUTE(load_method) {
-	int   sym = s.nextInt();
-	Value v   = s.top();
-	s.push(v.getClass()->get_fn(sym));
-}
-
-EXECUTE(bind_method) {
-	// pop the function
-	Function *f = s.pop().toFunction();
-	// peek the binder
-	Value             v = s.top();
-	BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
-	// if f is a static method, it is essentially an
-	// object bound method, bound to the class object
-	if(f->isStatic()) {
-		if(!v.isClass())
-			v = v.getClass();
-	} else {
-		// it is a non static method
-		// if the top is a class, it is going to be class bound
-		if(v.isClass())
-			t = BoundMethod::CLASS_BOUND;
-	}
-	s.frameBackup();
-	BoundMethod *b = BoundMethod::from(f, v, t);
-	s.top()        = Value(b);
-}
-
-EXECUTE(construct) {
-	Class *c = s.nextValue().toClass();
-	// if the 0th slot does not have a
-	// receiver yet, create it.
-	// otherwise, it might be the result
-	// of a nested constructor or
-	// super constructor call, in both
-	// cases, we already have an object
-	// allocated for us in the invoking
-	// constructor.
-	if(s.base().isNil()) {
-		s.frameBackup();
-		Object *o = Gc::allocObject(c);
-		// assign the object to slot 0
-		s.base() = Value(o);
-		// if this is a module, store the instance to the class
-		if(c->module == NULL)
-			c->instance = o;
-	}
-}
-
-EXECUTE(end) {
-	s.runtimeError("Invalid opcode 'end'!");
-}
-
-EXECUTE(throw_) {
-	// POP the thrown object
-	Value v = s.pop();
-	ExecutionEngine::setPendingException(v);
-	s.execError();
 }
 
 #ifdef DEBUG_INS
@@ -1513,48 +787,782 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 #endif
 
 #ifdef NEXT_USE_COMPUTED_GOTO
+#define DISPATCH() \
+	{ goto *dispatchTable[*(++state.InstructionPointer)]; }
+#define DISPATCH_WINC() \
+	{ goto *dispatchTable[*(state.InstructionPointer)]; }
+
+#define EXECUTE_NAME(x) EXEC_##x
+#define EXECUTE_FALLTHROUGH(x) EXECUTE_NAME(x) :
+#define EXECUTE(x, code) \
+	EXECUTE_NAME(x) : {  \
+		code;            \
+		DISPATCH();      \
+	}
 				static const void *dispatchTable[] = {
-#define OPCODE0(x, y) &&EXEC_LABEL_##x,
+#define OPCODE0(x, y) &&EXECUTE_NAME(x),
 #define OPCODE1(x, y, z) OPCODE0(x, 0)
 #define OPCODE2(x, y, z, w) OPCODE0(x, 0)
 #include "opcodes.h"
 				};
-				goto *dispatchTable[*state.InstructionPointer];
+				DISPATCH_WINC();
 #else
-				typedef decltype(EXECUTE_NAME(add)) FunctionType;
-				static FunctionType                *executorFunctions[] = {
-#define OPCODE0(x, y) EXECUTE_NAME(x),
-#define OPCODE1(x, y, z) OPCODE0(x, 0)
-#define OPCODE2(w, x, y, z) OPCODE0(w, 0)
-#include "opcodes.h"
-                };
+
+#define DISPATCH()                  \
+	{                               \
+		state.InstructionPointer++; \
+		continue;                   \
+	}
+#define EXECUTE_NAME(x) Bytecode::Opcode::CODE_##x
+#define EXECUTE_FALLTHROUGH(x) case EXECUTE_NAME(x):
+#define EXECUTE(x, code)    \
+	case EXECUTE_NAME(x): { \
+		code;               \
+		DISPATCH();         \
+	}
+				switch(*state.InstructionPointer) {
 #endif
 
-#ifdef NEXT_USE_COMPUTED_GOTO
-#define DISPATCH() \
-	{ goto *dispatchTable[*(++state.InstructionPointer)]; }
-#define EXECUTOR(x)             \
-	EXEC_LABEL_##x : {          \
-		EXECUTE_NAME(x)(state); \
-		DISPATCH();             \
-	}
-#define OPCODE0(x, y) EXECUTOR(x)
-#define OPCODE1(x, y, z) EXECUTOR(x)
-#define OPCODE2(x, y, z, w) EXECUTOR(x)
-#include "opcodes.h"
-#else
-				executorFunctions[*state.InstructionPointer](state);
-				state.InstructionPointer++;
-#endif
-			} catch(State::HandleError x) {
-				// the error will be raised before we would have
-				// a chance to increment our IP to point
-				// to the next instruction. so we do that
-				// here manually.
-				state.InstructionPointer++;
+#define BINARY_FUNCTION(name, argtype, restype, op)            \
+	EXECUTE(name, {                                            \
+		execBinary(                                            \
+		    state, Validator_##argtype,                        \
+		    [](const Value &a, const Value &b) {               \
+			    return a.to##argtype() op b.to##argtype();     \
+		    },                                                 \
+		    Setter_##restype, SymbolTable2::const_sig_##name); \
+	})
+
+				BINARY_FUNCTION(add, Number, Number, +)
+				BINARY_FUNCTION(sub, Number, Number, -)
+				BINARY_FUNCTION(mul, Number, Number, *)
+				BINARY_FUNCTION(div, Number, Number, /)
+				BINARY_FUNCTION(greater, Number, Boolean, >)
+				BINARY_FUNCTION(greatereq, Number, Boolean, >=)
+				BINARY_FUNCTION(less, Number, Number, <)
+				BINARY_FUNCTION(lesseq, Number, Number, <=)
+				BINARY_FUNCTION(band, Integer, Number, &)
+				BINARY_FUNCTION(bor, Integer, Number, |)
+				BINARY_FUNCTION(bxor, Integer, Number, ^)
+				BINARY_FUNCTION(blshift, Integer, Number, <<)
+				BINARY_FUNCTION(brshift, Integer, Number, >>)
+
+				EXECUTE(lor, {
+					int skipTo = state.nextInt();
+					// this was state.top() in original code!
+					if(!state.top().isFalsey()) {
+						state.jumpToOffset(skipTo);
+					} else {
+						state.drop();
+					}
+				})
+
+				EXECUTE(land, {
+					int skipTo = state.nextInt();
+					// this was state.top() in original code!
+					if(state.top().isFalsey()) {
+						state.jumpToOffset(skipTo);
+					} else {
+						state.drop();
+					}
+				})
+
+				EXECUTE(neq, {
+					if(state.top(-2).isGcObject() &&
+					   state.top(-2).getClass()->has_fn(
+					       SymbolTable2::const_sig_neq)) {
+						ExecutionEngine::execMethodCall(
+						    state, SymbolTable2::const_sig_neq, 1);
+					} else {
+						Value a = state.pop();
+						state.top().setBoolean(a != state.top());
+					}
+				})
+
+				EXECUTE(eq, {
+					if(state.top(-2).isGcObject() &&
+					   state.top(-2).getClass()->has_fn(
+					       SymbolTable2::const_sig_eq)) {
+						ExecutionEngine::execMethodCall(
+						    state, SymbolTable2::const_sig_eq, 1);
+					} else {
+						Value a = state.pop();
+						state.top().setBoolean(a == state.top());
+					}
+				})
+
+				EXECUTE(bcall_fast_prepare, {
+					// state.CallPatch = state.InstructionPointer;
+					state.nextInt();
+				})
+
+				EXECUTE(bcall_fast_eq, {
+					state.CallPatch = state.InstructionPointer;
+					int    idx      = state.nextInt();
+					Class *c        = state.Locals[idx].toClass();
+					if(state.top(-2).getClass() == c) {
+						Value rightOperand = state.pop();
+						state.top().setBoolean(state.top() == rightOperand);
+						state.CallPatch = nullptr;
+						state.nextInstruction();
+					}
+				})
+
+				EXECUTE(bcall_fast_neq, {
+					state.CallPatch = state.InstructionPointer;
+					int    idx      = state.nextInt();
+					Class *c        = state.Locals[idx].toClass();
+					if(state.top(-2).getClass() == c) {
+						Value rightOperand = state.pop();
+						state.top().setBoolean(state.top() != rightOperand);
+						state.CallPatch = nullptr;
+						state.nextInstruction();
+					}
+				})
+
+				EXECUTE(lnot,
+				        { state.top().setBoolean(state.top().isFalsey()); })
+
+				EXECUTE(bnot, {
+					if(state.top().isInteger()) {
+						state.top().setNumber(~state.top().toInteger());
+					} else {
+						state.runtimeError(
+						    "'~' can only be applied over an integer!");
+					}
+				})
+
+				EXECUTE(neg, {
+					if(state.top().isNumber()) {
+						state.top().setNumber(-state.top().toNumber());
+					} else {
+						state.runtimeError(
+						    "'-' can only be applied over a number!");
+					}
+				})
+
+				EXECUTE(copy, {
+					int sym = state.nextInt();
+					if(state.top().isNumber()) {
+						state.push(state.top());
+					} else {
+						state.push(ValueFalse);
+						ExecutionEngine::execMethodCall(state, sym, 1);
+					}
+				})
+
+				EXECUTE(incr, {
+					if(state.top().isNumber()) {
+						state.top().setNumber(state.top().toNumber() + 1);
+					} else {
+						state.push(ValueTrue);
+						ExecutionEngine::execMethodCall(
+						    state, SymbolTable2::const_sig_incr, 1);
+					}
+				})
+
+				EXECUTE(decr, {
+					if(state.top().isNumber()) {
+						state.top().setNumber(state.top().toNumber() - 1);
+					} else {
+						state.push(ValueTrue);
+						ExecutionEngine::execMethodCall(
+						    state, SymbolTable2::const_sig_decr, 1);
+					}
+				})
+
+				EXECUTE(push, { state.push(state.nextValue()); })
+
+				EXECUTE(pushn, { state.push(ValueNil); })
+
+				EXECUTE(pop, { state.drop(); })
+
+				EXECUTE(iterator_verify, {
+					Bytecode::Opcode *present = state.InstructionPointer;
+					int               idx     = state.nextInt();
+					int               iterator_next_offset = state.nextInt();
+					if(state.top().getClass() == state.Locals[idx].toClass()) {
+						DISPATCH();
+					}
+					Value &it         = state.top();
+					state.Locals[idx] = Value(it.getClass());
+					if(Iterator::is_iterator(it)) {
+						Iterator::Type t = Iterator::getType(it);
+						patchIteratorCall(present, iterator_next_offset, t);
+						DISPATCH();
+					}
+
+					int          field = SymbolTable2::const_field_has_next;
+					const Class *c     = it.getClass();
+					state.assertField(c, field);
+					Function *f =
+					    state.assertMethod(c, SymbolTable2::const_sig_next);
+					// patch the next() call
+					if(f->getType() == Function::Type::BUILTIN) {
+						*(present + iterator_next_offset) =
+						    Bytecode::CODE_iterate_next_object_builtin;
+					} else {
+						*(present + iterator_next_offset) =
+						    Bytecode::CODE_iterate_next_object_method;
+					}
+				})
+
+				EXECUTE(jump, { state.jumpToOffset(state.nextInt()); })
+
+				EXECUTE(jumpiftrue, {
+					Value v   = state.pop();
+					int   dis = state.nextInt();
+					bool  fl  = v.isFalsey();
+					if(!fl) {
+						state.jumpToOffset(
+						    dis); // offset the relative jump address
+					}
+				})
+
+				EXECUTE(jumpiffalse, {
+					Value v   = state.pop();
+					int   dis = state.nextInt();
+					bool  fl  = v.isFalsey();
+					if(fl) {
+						state.jumpToOffset(
+						    dis); // offset the relative jump address
+					}
+				})
+
+#define ITERATOR(x, y)                \
+	EXECUTE(iterate_next_builtin_##x, \
+	        { exec_iterate_next_builtin<x##Iterator>(state); })
+
+#include "objects/iterator_types.h"
+
+#define ITERATE_NEXT_OBJECT_(type)                                            \
+	EXECUTE(iterate_next_object_##type, {                                     \
+		int          offset   = state.nextInt();                              \
+		Value       &it       = state.top();                                  \
+		const Class *c        = it.getClass();                                \
+		int          field    = SymbolTable2::const_field_has_next;           \
+		Value        has_next = c->accessFn(c, it, field);                    \
+		if(has_next.isFalsey()) {                                             \
+			state.drop();                                                     \
+			state.jumpToOffset(offset);                                       \
+		} else {                                                              \
+			Function *functionToCall =                                        \
+			    c->get_fn(SymbolTable2::const_sig_next).toFunction();         \
+			ExecutionEngine::execMethodCall_##type(state, functionToCall, 0); \
+		}                                                                     \
+	})
+				ITERATE_NEXT_OBJECT_(method)
+				ITERATE_NEXT_OBJECT_(builtin)
+
+				EXECUTE(call_fast_prepare, {
+					state.CallPatch = state.InstructionPointer;
+					state.nextInt();
+					state.nextInt();
+				})
+
+				EXECUTE(call_soft, {
+					int sym               = state.nextInt();
+					int numberOfArguments = state.nextInt();
+					// the callable is placed before the arguments
+					Value v = state.top(-numberOfArguments - 1);
+					state.assert(v.isGcObject(), "Not a callable object!");
+					switch(v.toGcObject()->getType()) {
+						case GcObject::Type::Class: {
+							// check if the class has a constructor with the
+							// given signature
+							Class *c = v.toClass();
+							state.assert(
+							    c->has_fn(sym),
+							    "Constructor '{}' not found in class '{}'!",
+							    SymbolTable2::getString(sym), c->name);
+							// [performcall will take care of this]
+							// set the receiver to nil so that construct
+							// knows to create a new receiver
+							// fiber->stackTop[-numberOfArguments - 1] =
+							// ValueNil; call the constructor
+							Function *functionToCall =
+							    c->get_fn(sym).toFunction();
+							ExecutionEngine::execMethodCall(
+							    state, functionToCall, numberOfArguments);
+							break;
+						}
+						case GcObject::Type::BoundMethod: {
+							// we cannot really perform any optimizations for
+							// boundmethods, because they require verifications
+							// and stack adjustments.
+							state.CallPatch = nullptr;
+							BoundMethod *b  = v.toBoundMethod();
+							// verify the arguments
+							if(b->verify(&state.top(-numberOfArguments),
+							             numberOfArguments) !=
+							   BoundMethod::Status::OK) {
+								// pop the arguments
+								state.drop(numberOfArguments);
+								state.execError();
+							}
+							// we have already allocated one slot for the
+							// receiver before the arguments started.
+							// but if this is class bound call, we don't
+							// need that anymore, as the object has already
+							// been passed as the first argument. so move
+							// them back
+							switch(b->type) {
+								case BoundMethod::CLASS_BOUND: {
+									for(int i = -numberOfArguments - 1; i < 0;
+									    i++)
+										state.top(i) = state.top(i + 1);
+									state.drop();
+									// we also decrement numberOfArguments to
+									// denote actual argument count minus the
+									// instance
+									numberOfArguments--;
+									break;
+								}
+								default:
+									// otherwise, we store the object at slot 0
+									state.top(-numberOfArguments - 1) =
+									    b->binder;
+									break;
+							}
+							Function *functionToCall = b->func;
+							ExecutionEngine::execMethodCall(
+							    state, functionToCall, numberOfArguments);
+							break;
+						}
+						default:
+							state.runtimeError("Not a callable object!");
+							break;
+					}
+				})
+
+				EXECUTE_FALLTHROUGH(call_intra)
+				EXECUTE(call, {
+					int          frame             = state.nextInt();
+					int          numberOfArguments = state.nextInt();
+					Value       &v = state.top(-numberOfArguments - 1);
+					const Class *c = v.getClass();
+					Function    *functionToCall = c->get_fn(frame).toFunction();
+					ExecutionEngine::execMethodCall(state, functionToCall,
+					                                numberOfArguments);
+				})
+
+				EXECUTE_FALLTHROUGH(call_method_super)
+				EXECUTE(call_method, {
+					int method            = state.nextInt();
+					int numberOfArguments = state.nextInt();
+					ExecutionEngine::execMethodCall(state, method,
+					                                numberOfArguments);
+				})
+
+				EXECUTE(call_fast_method_soft, {
+					performFastCall<true>(
+					    state, ExecutionEngine::execMethodCall_method);
+				})
+
+				EXECUTE(call_fast_builtin_soft, {
+					performFastCall<true>(
+					    state, ExecutionEngine::execMethodCall_builtin);
+				})
+
+				EXECUTE(call_fast_method, {
+					performFastCall<false>(
+					    state, ExecutionEngine::execMethodCall_method);
+				})
+
+				EXECUTE(call_fast_builtin, {
+					performFastCall<false>(
+					    state, ExecutionEngine::execMethodCall_builtin);
+				})
+
+				EXECUTE(ret, {
+					// Pop the return value
+					Value v = state.pop();
+					// backup the current frame
+					Fiber::CallFrame *cur = state.fiber->getCurrentFrame();
+					// pop the current frame
+					state.fiber->popFrame();
+					// if the current frame is invoked by
+					// a native method, return to that
+					if(cur->returnToCaller) {
+						state.returnFromExecute(v);
+					}
+					// if we have somewhere to return to,
+					// return there first. this would
+					// be true maximum number of times
+					else if(state.fiber->callFrameCount() > 0) {
+						state.frameRestore();
+						state.push(v);
+					} else if(state.fiber->parent != NULL) {
+						// if there is no callframe in present
+						// fiber, but there is a parent, return
+						// to the parent fiber
+						state.fiber = state.fiber->switch_();
+						ExecutionEngine::setCurrentFiber(state.fiber);
+						state.frameRestore();
+						state.push(v);
+					} else {
+						// neither parent fiber nor parent callframe
+						// exists. Return the value back to
+						// the caller.
+						state.returnFromExecute(v);
+					}
+				})
+
+				EXECUTE(load_slot, { state.push(state.base(state.nextInt())); })
+
+#define LOAD_SLOT(x) EXECUTE(load_slot_##x, { state.push(state.base(x)); })
+
+				LOAD_SLOT(0)
+				LOAD_SLOT(1)
+				LOAD_SLOT(2)
+				LOAD_SLOT(3)
+				LOAD_SLOT(4)
+				LOAD_SLOT(5)
+				LOAD_SLOT(6)
+				LOAD_SLOT(7)
+#undef LOAD_SLOT
+
+				EXECUTE(load_module, {
+					Value klass = state.base();
+					// the 0th slot may also contain an object
+					if(!klass.isClass())
+						klass = klass.getClass();
+					state.push(klass.toClass()->module->instance);
+				})
+
+				EXECUTE(load_module_super, {
+					Value klass = state.base();
+					// the 0th slot may also contain an object
+					if(!klass.isClass())
+						klass = klass.getClass();
+					state.push(klass.toClass()->superclass->module->instance);
+				})
+
+				EXECUTE(load_module_core,
+				        { state.push(ExecutionEngine::CoreObject); })
+
+				EXECUTE(load_tos_slot, {
+					state.top() =
+					    state.top().toObject()->slots(state.nextInt());
+				})
+
+				EXECUTE(store_slot,
+				        { state.base(state.nextInt()) = state.top(); })
+
+#define STORE_SLOT(x) EXECUTE(store_slot_##x, { state.base(x) = state.top(); })
+
+				STORE_SLOT(0)
+				STORE_SLOT(1)
+				STORE_SLOT(2)
+				STORE_SLOT(3)
+				STORE_SLOT(4)
+				STORE_SLOT(5)
+				STORE_SLOT(6)
+				STORE_SLOT(7)
+#undef STORE_SLOT
+
+				EXECUTE(store_slot_pop,
+				        { state.base(state.nextInt()) = state.pop(); })
+
+#define STORE_SLOT_POP(x) \
+	EXECUTE(store_slot_pop_##x, { state.base(x) = state.pop(); })
+
+				STORE_SLOT_POP(0)
+				STORE_SLOT_POP(1)
+				STORE_SLOT_POP(2)
+				STORE_SLOT_POP(3)
+				STORE_SLOT_POP(4)
+				STORE_SLOT_POP(5)
+				STORE_SLOT_POP(6)
+				STORE_SLOT_POP(7)
+#undef STORE_SLOT_POP
+
+				EXECUTE(store_tos_slot, {
+					Value v                              = state.pop();
+					v.toObject()->slots(state.nextInt()) = state.top();
+				})
+
+				EXECUTE(load_object_slot, {
+					int slot = state.nextInt();
+					state.push(state.base().toObject()->slots(slot));
+				})
+
+				EXECUTE(store_object_slot, {
+					int slot                             = state.nextInt();
+					state.base().toObject()->slots(slot) = state.top();
+				})
+
+				EXECUTE(load_field_fast, {
+					state.CallPatch = state.InstructionPointer;
+					state.nextInt();
+					state.nextInt();
+				})
+
+				EXECUTE(load_field_slot, {
+					// directly loads the value from the slot
+					// if the class is matched
+					state.CallPatch = state.InstructionPointer;
+					int    idx      = state.nextInt();
+					int    slot     = state.nextInt();
+					Class *c        = state.Locals[idx].toClass();
+					if(c == state.top().getClass()) {
+						state.CallPatch = nullptr;
+						state.top()     = state.top().toObject()->slots(slot);
+						// skip next opcode
+						state.nextInstruction();
+						state.nextInt();
+					}
+				})
+
+				EXECUTE(load_field_static, {
+					// directly loads the value from the static
+					// member if the class is matched
+					state.CallPatch = state.InstructionPointer;
+					int    idx      = state.nextInt();
+					int    field    = state.nextInt();
+					Class *c        = state.Locals[idx].toClass();
+					if(c == state.top().getClass()) {
+						state.CallPatch     = nullptr;
+						Class::StaticRef sr = c->staticRefs[field];
+						state.top()         = sr.owner->static_values[sr.slot];
+						// skip next opcode
+						state.nextInstruction();
+						state.nextInt();
+					}
+				})
+
+				EXECUTE(load_field, {
+					int          field = state.nextInt();
+					Value        v     = state.pop();
+					const Class *c     = v.getClass();
+					state.assertField(c, field);
+					state.push(c->accessFn(c, v, field));
+					if(c->type != Class::ClassType::BUILTIN) {
+						// this is not a builtin class, so we can optimize
+						// the access
+						int v = c->get_fn(field).toInteger();
+						if(!Class::is_static_slot(v)) {
+							// this is a slot, so store the slot index
+							*state.CallPatch = Bytecode::CODE_load_field_slot;
+							*(state.CallPatch + 2) = (Bytecode::Opcode)v;
+						} else {
+							// this is a static member, so store the decodes
+							// index
+							*state.CallPatch = Bytecode::CODE_load_field_static;
+							*(state.CallPatch + 2) =
+							    (Bytecode::Opcode)Class::get_static_slot(v);
+						}
+						int idx = *(state.CallPatch + 1);
+						// store the class
+						state.Locals[idx] = Value(c);
+					}
+					state.CallPatch = nullptr;
+				})
+
+				EXECUTE(store_field_fast, {
+					// dummy opcode, to be patched by store_field
+					state.CallPatch = state.InstructionPointer;
+					state.nextInt();
+					state.nextInt();
+				})
+
+				EXECUTE(store_field_slot, {
+					// directly store to the slot if the class is matched
+					state.CallPatch = state.InstructionPointer;
+					int idx         = state.nextInt();
+					int slot        = state.nextInt();
+					if(state.Locals[idx].toClass() == state.top().getClass()) {
+						Value v                   = state.pop();
+						state.CallPatch           = nullptr;
+						v.toObject()->slots(slot) = state.top();
+						// skip next opcode
+						state.nextInstruction();
+						state.nextInt();
+					}
+				})
+
+				EXECUTE(store_field_static, {
+					// directly store to the static member if the class is
+					// matched
+					state.CallPatch = state.InstructionPointer;
+					int    idx      = state.nextInt();
+					int    field    = state.nextInt();
+					Class *c        = state.Locals[idx].toClass();
+					if(c == state.top().getClass()) {
+						state.CallPatch = nullptr;
+						state.drop();
+						Class::StaticRef sr              = c->staticRefs[field];
+						sr.owner->static_values[sr.slot] = state.top();
+						// skip next opcode
+						state.nextInstruction();
+						state.nextInt();
+					}
+				})
+
+				EXECUTE(store_field, {
+					int          field = state.nextInt();
+					Value        v     = state.pop();
+					const Class *c     = v.getClass();
+					state.assertField(c, field);
+					c->accessFn(c, v, field) = state.top();
+					if(c->type != Class::ClassType::BUILTIN) {
+						// this is not a builtin class, so
+						// we can optimize the access
+						int v = c->get_fn(field).toInteger();
+						if(!Class::is_static_slot(v)) {
+							// this is a slot store, so store the slot index
+							*state.CallPatch = Bytecode::CODE_store_field_slot;
+							*(state.CallPatch + 2) = (Bytecode::Opcode)v;
+						} else {
+							// this is a static field store, so store the field
+							*state.CallPatch =
+							    Bytecode::CODE_store_field_static;
+							*(state.CallPatch + 2) =
+							    (Bytecode::Opcode)Class::get_static_slot(v);
+						}
+						// store the class
+						state.Locals[*(state.CallPatch + 1)] = Value(c);
+					}
+					state.CallPatch = nullptr;
+				})
+
+				EXECUTE(load_static_slot, {
+					int          slot = state.nextInt();
+					const Class *c    = (state.nextValue()).toClass();
+					state.push(c->static_values[slot]);
+				})
+
+				EXECUTE(store_static_slot, {
+					int          slot      = state.nextInt();
+					const Class *c         = (state.nextValue()).toClass();
+					c->static_values[slot] = state.top();
+				})
+
+				EXECUTE(array_build, {
+					// get the number of arguments to add
+					int numArg = state.nextInt();
+					state.frameBackup();
+					Array *a = Array::create(numArg);
+					// manually adjust the size
+					a->size = numArg;
+					// insert all the elements
+					memcpy(a->values, &state.top(-numArg),
+					       sizeof(Value) * numArg);
+					state.drop(numArg);
+					state.push(Value(a));
+				})
+
+				EXECUTE(map_build, {
+					int numArg = state.nextInt();
+					// Map::from may call 'execute', which can mess
+					// with the stack. So we backup and restore
+					// the frame just to be careful.
+					state.frameBackup();
+					Map *v = Map::from(&state.top(-(numArg * 2)), numArg);
+					state.frameRestore();
+					state.drop(numArg * 2);
+					state.push(Value(v));
+				})
+
+				EXECUTE(tuple_build, {
+					int numArg = state.nextInt();
+					state.frameBackup();
+					Tuple *t = Tuple::create(numArg);
+					memcpy(t->values(), &state.top(-numArg),
+					       sizeof(Value) * numArg);
+					state.drop(numArg);
+					state.push(Value(t));
+				})
+
+				EXECUTE(search_method, {
+					int          sym = state.nextInt();
+					const Class *classToSearch;
+					// if it's a class, and it does have
+					// the sym, we're done
+					if(state.top().isClass() &&
+					   state.top().toClass()->has_fn(sym))
+						classToSearch = state.top().toClass();
+					else {
+						// otherwise, search in its class
+						const Class *c = state.top().getClass();
+						state.assertMethod(c, sym);
+						classToSearch = c;
+					}
+					// push the fn, and we're done
+					state.push(Value(classToSearch->get_fn(sym).toFunction()));
+				})
+
+				EXECUTE(load_method, {
+					int   sym = state.nextInt();
+					Value v   = state.top();
+					state.push(v.getClass()->get_fn(sym));
+				})
+
+				EXECUTE(bind_method, {
+					// pop the function
+					Function *f = state.pop().toFunction();
+					// peek the binder
+					Value             v = state.top();
+					BoundMethod::Type t = BoundMethod::OBJECT_BOUND;
+					// if f is a static method, it is essentially an
+					// object bound method, bound to the class object
+					if(f->isStatic()) {
+						if(!v.isClass())
+							v = v.getClass();
+					} else {
+						// it is a non static method
+						// if the top is a class, it is going to be class bound
+						if(v.isClass())
+							t = BoundMethod::CLASS_BOUND;
+					}
+					state.frameBackup();
+					BoundMethod *b = BoundMethod::from(f, v, t);
+					state.top()    = Value(b);
+				})
+
+				EXECUTE(construct, {
+					Class *c = state.nextValue().toClass();
+					// if the 0th slot does not have a
+					// receiver yet, create it.
+					// otherwise, it might be the result
+					// of a nested constructor or
+					// super constructor call, in both
+					// cases, we already have an object
+					// allocated for us in the invoking
+					// constructor.
+					if(state.base().isNil()) {
+						state.frameBackup();
+						Object *o = Gc::allocObject(c);
+						// assign the object to slot 0
+						state.base() = Value(o);
+						// if this is a module, store the instance to the class
+						if(c->module == NULL)
+							c->instance = o;
+					}
+				})
+
+				EXECUTE(end, { state.runtimeError("Invalid opcode 'end'!"); })
+
+				EXECUTE(throw_, {
+					// POP the thrown object
+					Value v = state.pop();
+					ExecutionEngine::setPendingException(v);
+					state.execError();
+				})
+#ifndef NEXT_USE_COMPUTED_GOTO
 			}
+#endif
 		}
-	} catch(State::ReturnFromExecute x) {
+		catch(State::HandleError x) {
+			// the error will be raised before we would have
+			// a chance to increment our IP to point
+			// to the next instruction. so we do that
+			// here manually.
+			state.InstructionPointer++;
+		}
 	}
-	RETURN(state.returnValue);
+}
+catch(State::ReturnFromExecute x) {
+}
+RETURN(state.returnValue);
 }
