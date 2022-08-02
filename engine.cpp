@@ -49,10 +49,18 @@ struct ExecutionEngine::State {
 	Value             returnValue;
 	bool              shouldReturn;
 
+	struct CallState {
+		int       methodToCall;
+		Function *functionToCall;
+		int       numberOfArguments;
+		void     *blockShortcut;
+	} callState;
+
 	State(Fiber *fib) {
 		fiber        = fib;
 		shouldReturn = false;
 		returnValue  = ValueNil;
+		CallPatch    = nullptr;
 		frameRestore();
 	}
 
@@ -88,6 +96,16 @@ struct ExecutionEngine::State {
 		nextInt();
 		nextInt();
 		CallPatch = nullptr;
+	}
+	inline void setCallState(int methodToCall, int numberOfArguments) {
+		Value       &v              = top(-numberOfArguments - 1);
+		const Class *c              = v.getClass();
+		Function    *functionToCall = assertMethod(c, methodToCall);
+		setCallState(functionToCall, numberOfArguments);
+	}
+	inline void setCallState(Function *methodToCall, int numberOfArguments) {
+		callState.functionToCall    = methodToCall;
+		callState.numberOfArguments = numberOfArguments;
 	}
 
 	template <typename... K>
@@ -489,32 +507,6 @@ bool ExecutionEngine::execute(Fiber *f, BoundMethod *b, Value *ret,
 	return v;
 }
 
-template <typename T, typename U, typename V>
-static void inline execBinary(ExecutionEngine::State &s, T validator, U exec,
-                              V setter, int methodToCall) {
-	if(validator(s.top(), s.top(-2))) {
-		Value b = s.pop();
-		Value a = s.top();
-		s.top() = Value(exec(a, b));
-		(void)setter;
-	} else {
-		ExecutionEngine::execMethodCall(s, methodToCall, 1);
-	}
-}
-
-#define VALIDATOR(x)                                                 \
-	static auto Validator_##x = [](const Value &a, const Value &b) { \
-		return a.is##x() && b.is##x();                               \
-	};
-VALIDATOR(Number);
-// VALIDATOR(Boolean);
-VALIDATOR(Integer);
-
-#define SETTER(x, y) \
-	static auto Setter_##x = [](Value &a, y v) { a.set##x(v); };
-SETTER(Number, double);
-SETTER(Boolean, bool);
-
 template <typename T>
 void exec_iterate_next_builtin(ExecutionEngine::State &s) {
 	int offset = s.nextInt();
@@ -524,60 +516,6 @@ void exec_iterate_next_builtin(ExecutionEngine::State &s) {
 		s.jumpToOffset(offset);
 	} else {
 		s.top() = it->Next();
-	}
-}
-
-template <bool isSoft, typename T>
-void performFastCall(ExecutionEngine::State &s, T func) {
-	s.CallPatch             = s.InstructionPointer;
-	int   idxstart          = s.nextInt();
-	int   numberOfArguments = s.nextInt();
-	Value expected          = s.Locals[idxstart];
-	Value received          = s.top(-numberOfArguments - 1);
-	// by default, we compare the cached class to the class
-	// of the callee object
-	bool cacheHit = expected.toClass() == received.getClass();
-	if(isSoft) {
-		// if it is a softcall, we directly cache the object
-		// or class as required, so instead, we also compare them
-		// directly
-		cacheHit = expected == received;
-	}
-	if(cacheHit) {
-		Function *functionToCall = s.Locals[idxstart + 1].toFunction();
-		/* if this is a softcall, set the receiver to nil so that
-		construct knows to create a new receiver */
-		if(isSoft)
-			s.top(-numberOfArguments - 1) = ValueNil;
-		/* ignore the next call opcode */
-		s.skipCall();
-		/* directly jump to the appropriate call */
-		func(s, functionToCall, numberOfArguments);
-	}
-	/* check failed, run the original opcode */
-}
-
-void ExecutionEngine::execMethodCall(State &s, int methodToCall,
-                                     int numberOfArguments) {
-	Value       &v              = s.top(-numberOfArguments - 1);
-	const Class *c              = v.getClass();
-	Function    *functionToCall = s.assertMethod(c, methodToCall);
-	execMethodCall(s, functionToCall, numberOfArguments);
-}
-
-void ExecutionEngine::execMethodCall(State &s, Function *methodToCall,
-                                     int numberOfArguments) {
-	if(s.CallPatch)
-		patchFastCall(s, methodToCall, numberOfArguments);
-	switch(methodToCall->getType()) {
-		case Function::Type::BUILTIN:
-			ExecutionEngine::execMethodCall_builtin(s, methodToCall,
-			                                        numberOfArguments);
-			break;
-		case Function::Type::METHOD:
-			ExecutionEngine::execMethodCall_method(s, methodToCall,
-			                                       numberOfArguments);
-			break;
 	}
 }
 
@@ -595,9 +533,10 @@ void patchIteratorCall(Bytecode::Opcode *present, int iterator_next_offset,
 	}
 }
 
-void ExecutionEngine::patchFastCall(State &s, Function *methodToCall,
-                                    int numberOfArguments) {
-	Bytecode::Opcode *bak = s.InstructionPointer;
+void patchFastCall(ExecutionEngine::State &s) {
+	Function         *methodToCall      = s.callState.functionToCall;
+	int               numberOfArguments = s.callState.numberOfArguments;
+	Bytecode::Opcode *bak               = s.InstructionPointer;
 	// set ip to the fast opcode
 	s.InstructionPointer = s.CallPatch;
 	// get the Locals index where our class and function
@@ -634,41 +573,6 @@ void ExecutionEngine::patchFastCall(State &s, Function *methodToCall,
 	s.CallPatch = nullptr;
 	// restore the ip
 	s.InstructionPointer = bak;
-}
-
-void ExecutionEngine::execMethodCall_builtin(State &s, Function *methodToCall,
-                                             int numberOfArguments) {
-	// backup present frame
-	s.frameBackup();
-	// call the function
-	Value res =
-	    methodToCall->func(&s.top(-numberOfArguments - 1),
-	                       numberOfArguments + 1); // include the receiver
-	// after call, drop the arguments
-	s.drop(numberOfArguments + 1);
-	// it may have caused a fiber switch
-	if(s.fiber != ExecutionEngine::currentFiber) {
-		s.fiber = currentFiber;
-	}
-	// present frame may be reallocated elsewhere
-	s.frameRestore();
-	// check if the function raise any exceptions
-	if(pendingExceptions->size == 0) {
-		s.push(res);
-	} else {
-		s.execError();
-	}
-}
-
-void ExecutionEngine::execMethodCall_method(State &s, Function *methodToCall,
-                                            int numberOfArguments) {
-	s.frameBackup();
-	s.fiber->appendMethodNoBuiltin(methodToCall, numberOfArguments, false);
-	s.frameRestore();
-	// reduce the instruction pointer by 1, so that when it
-	// automatically gets incremented next, it'll point to
-	// the first instruction of the method
-	s.prevInstruction();
 }
 
 #ifdef DEBUG_INS
@@ -786,6 +690,11 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 				printCurrentState(state);
 #endif
 
+#define EXECUTABLE_BLOCK(name) \
+	name:
+#define EXECUTE_BLOCK(name) \
+	{ goto name; }
+
 #ifdef NEXT_USE_COMPUTED_GOTO
 #define DISPATCH() \
 	{ goto *dispatchTable[*(++state.InstructionPointer)]; }
@@ -813,6 +722,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 		state.InstructionPointer++; \
 		continue;                   \
 	}
+#define DISPATCH_WINC() \
+	{ continue; }
 #define EXECUTE_NAME(x) Bytecode::Opcode::CODE_##x
 #define EXECUTE_FALLTHROUGH(x) case EXECUTE_NAME(x):
 #define EXECUTE(x, code)    \
@@ -823,14 +734,16 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 				switch(*state.InstructionPointer) {
 #endif
 
-#define BINARY_FUNCTION(name, argtype, restype, op)            \
-	EXECUTE(name, {                                            \
-		execBinary(                                            \
-		    state, Validator_##argtype,                        \
-		    [](const Value &a, const Value &b) {               \
-			    return a.to##argtype() op b.to##argtype();     \
-		    },                                                 \
-		    Setter_##restype, SymbolTable2::const_sig_##name); \
+#define BINARY_FUNCTION(name, argtype, restype, op)                       \
+	EXECUTE(name, {                                                       \
+		if(state.top().is##argtype() && state.top(-2).is##argtype()) {    \
+			Value b = state.pop();                                        \
+			Value a = state.top();                                        \
+			state.top().set##restype(a.to##argtype() op b.to##argtype()); \
+		} else {                                                          \
+			state.setCallState(SymbolTable2::const_sig_##name, 1);        \
+			EXECUTE_BLOCK(method_call);                                   \
+		}                                                                 \
 	})
 
 				BINARY_FUNCTION(add, Number, Number, +)
@@ -871,8 +784,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 					if(state.top(-2).isGcObject() &&
 					   state.top(-2).getClass()->has_fn(
 					       SymbolTable2::const_sig_neq)) {
-						ExecutionEngine::execMethodCall(
-						    state, SymbolTable2::const_sig_neq, 1);
+						state.setCallState(SymbolTable2::const_sig_neq, 1);
+						EXECUTE_BLOCK(method_call);
 					} else {
 						Value a = state.pop();
 						state.top().setBoolean(a != state.top());
@@ -883,8 +796,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 					if(state.top(-2).isGcObject() &&
 					   state.top(-2).getClass()->has_fn(
 					       SymbolTable2::const_sig_eq)) {
-						ExecutionEngine::execMethodCall(
-						    state, SymbolTable2::const_sig_eq, 1);
+						state.setCallState(SymbolTable2::const_sig_eq, 1);
+						EXECUTE_BLOCK(method_call);
 					} else {
 						Value a = state.pop();
 						state.top().setBoolean(a == state.top());
@@ -947,7 +860,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 						state.push(state.top());
 					} else {
 						state.push(ValueFalse);
-						ExecutionEngine::execMethodCall(state, sym, 1);
+						state.setCallState(sym, 1);
+						EXECUTE_BLOCK(method_call_method);
 					}
 				})
 
@@ -956,8 +870,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 						state.top().setNumber(state.top().toNumber() + 1);
 					} else {
 						state.push(ValueTrue);
-						ExecutionEngine::execMethodCall(
-						    state, SymbolTable2::const_sig_incr, 1);
+						state.setCallState(SymbolTable2::const_sig_incr, 1);
+						EXECUTE_BLOCK(method_call);
 					}
 				})
 
@@ -966,8 +880,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 						state.top().setNumber(state.top().toNumber() - 1);
 					} else {
 						state.push(ValueTrue);
-						ExecutionEngine::execMethodCall(
-						    state, SymbolTable2::const_sig_decr, 1);
+						state.setCallState(SymbolTable2::const_sig_decr, 1);
+						EXECUTE_BLOCK(method_call);
 					}
 				})
 
@@ -1035,21 +949,22 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 
 #include "objects/iterator_types.h"
 
-#define ITERATE_NEXT_OBJECT_(type)                                            \
-	EXECUTE(iterate_next_object_##type, {                                     \
-		int          offset   = state.nextInt();                              \
-		Value       &it       = state.top();                                  \
-		const Class *c        = it.getClass();                                \
-		int          field    = SymbolTable2::const_field_has_next;           \
-		Value        has_next = c->accessFn(c, it, field);                    \
-		if(has_next.isFalsey()) {                                             \
-			state.drop();                                                     \
-			state.jumpToOffset(offset);                                       \
-		} else {                                                              \
-			Function *functionToCall =                                        \
-			    c->get_fn(SymbolTable2::const_sig_next).toFunction();         \
-			ExecutionEngine::execMethodCall_##type(state, functionToCall, 0); \
-		}                                                                     \
+#define ITERATE_NEXT_OBJECT_(type)                                    \
+	EXECUTE(iterate_next_object_##type, {                             \
+		int          offset   = state.nextInt();                      \
+		Value       &it       = state.top();                          \
+		const Class *c        = it.getClass();                        \
+		int          field    = SymbolTable2::const_field_has_next;   \
+		Value        has_next = c->accessFn(c, it, field);            \
+		if(has_next.isFalsey()) {                                     \
+			state.drop();                                             \
+			state.jumpToOffset(offset);                               \
+		} else {                                                      \
+			Function *functionToCall =                                \
+			    c->get_fn(SymbolTable2::const_sig_next).toFunction(); \
+			state.setCallState(functionToCall, 0);                    \
+			EXECUTE_BLOCK(method_call_##type);                        \
+		}                                                             \
 	})
 				ITERATE_NEXT_OBJECT_(method)
 				ITERATE_NEXT_OBJECT_(builtin)
@@ -1082,8 +997,9 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 							// ValueNil; call the constructor
 							Function *functionToCall =
 							    c->get_fn(sym).toFunction();
-							ExecutionEngine::execMethodCall(
-							    state, functionToCall, numberOfArguments);
+							state.setCallState(functionToCall,
+							                   numberOfArguments);
+							EXECUTE_BLOCK(method_call);
 							break;
 						}
 						case GcObject::Type::BoundMethod: {
@@ -1125,8 +1041,9 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 									break;
 							}
 							Function *functionToCall = b->func;
-							ExecutionEngine::execMethodCall(
-							    state, functionToCall, numberOfArguments);
+							state.setCallState(functionToCall,
+							                   numberOfArguments);
+							EXECUTE_BLOCK(method_call);
 							break;
 						}
 						default:
@@ -1142,37 +1059,109 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 					Value       &v = state.top(-numberOfArguments - 1);
 					const Class *c = v.getClass();
 					Function    *functionToCall = c->get_fn(frame).toFunction();
-					ExecutionEngine::execMethodCall(state, functionToCall,
-					                                numberOfArguments);
+					state.setCallState(functionToCall, numberOfArguments);
+					EXECUTE_BLOCK(method_call);
 				})
 
 				EXECUTE_FALLTHROUGH(call_method_super)
 				EXECUTE(call_method, {
 					int method            = state.nextInt();
 					int numberOfArguments = state.nextInt();
-					ExecutionEngine::execMethodCall(state, method,
-					                                numberOfArguments);
+					state.setCallState(method, numberOfArguments);
+					EXECUTE_BLOCK(method_call);
 				})
 
-				EXECUTE(call_fast_method_soft, {
-					performFastCall<true>(
-					    state, ExecutionEngine::execMethodCall_method);
-				})
+#define EXECUTE_FAST_CALL(label, isSoft)                             \
+	{                                                                \
+		state.CallPatch         = state.InstructionPointer;          \
+		int   idxstart          = state.nextInt();                   \
+		int   numberOfArguments = state.nextInt();                   \
+		Value expected          = state.Locals[idxstart];            \
+		Value received          = state.top(-numberOfArguments - 1); \
+		/* by default, we compare the cached class to the class      \
+		    of the callee object */                                  \
+		bool cacheHit = expected.toClass() == received.getClass();   \
+		if(isSoft) {                                                 \
+			/* if it is a softcall, we directly cache the object     \
+			// or class as required, so instead, we also compare     \
+			// them directly */                                      \
+			cacheHit = expected == received;                         \
+		}                                                            \
+		if(cacheHit) {                                               \
+			Function *functionToCall =                               \
+			    state.Locals[idxstart + 1].toFunction();             \
+			/* if this is a softcall, set the receiver to nil so     \
+			that construct knows to create a new receiver */         \
+			if(isSoft)                                               \
+				state.top(-numberOfArguments - 1) = ValueNil;        \
+			/* ignore the next call opcode */                        \
+			state.skipCall();                                        \
+			/* directly jump to the appropriate call */              \
+			state.setCallState(functionToCall, numberOfArguments);   \
+			EXECUTE_BLOCK(label);                                    \
+		}                                                            \
+		/* otherwise, we'll call a DISPATCH(), which will run        \
+		// the original opcode */                                    \
+	}
 
-				EXECUTE(call_fast_builtin_soft, {
-					performFastCall<true>(
-					    state, ExecutionEngine::execMethodCall_builtin);
-				})
+				EXECUTE(call_fast_method_soft,
+				        { EXECUTE_FAST_CALL(method_call_method, true); })
 
-				EXECUTE(call_fast_method, {
-					performFastCall<false>(
-					    state, ExecutionEngine::execMethodCall_method);
-				})
+				EXECUTE(call_fast_builtin_soft,
+				        { EXECUTE_FAST_CALL(method_call_builtin, true); })
 
-				EXECUTE(call_fast_builtin, {
-					performFastCall<false>(
-					    state, ExecutionEngine::execMethodCall_builtin);
-				})
+				EXECUTE(call_fast_method,
+				        { EXECUTE_FAST_CALL(method_call_method, false); })
+
+				EXECUTE(call_fast_builtin,
+				        { EXECUTE_FAST_CALL(method_call_builtin, false); })
+
+				EXECUTABLE_BLOCK(method_call_method) {
+					state.frameBackup();
+					state.fiber->appendMethodNoBuiltin(
+					    state.callState.functionToCall,
+					    state.callState.numberOfArguments, false);
+					state.frameRestore();
+					DISPATCH_WINC();
+				}
+
+				EXECUTABLE_BLOCK(method_call_builtin) {
+					// backup present frame
+					state.frameBackup();
+					int numberOfArguments = state.callState.numberOfArguments;
+					// call the function
+					Value res = state.callState.functionToCall->func(
+					    &state.top(-numberOfArguments - 1),
+					    numberOfArguments + 1); // include the receiver
+					// after call, drop the arguments
+					state.drop(numberOfArguments + 1);
+					// it may have caused a fiber switch
+					if(state.fiber != ExecutionEngine::currentFiber) {
+						state.fiber = currentFiber;
+					}
+					// present frame may be reallocated elsewhere
+					state.frameRestore();
+					// check if the function raise any exceptions
+					if(pendingExceptions->size == 0) {
+						state.push(res);
+					} else {
+						state.execError();
+					}
+					DISPATCH();
+				}
+
+				EXECUTABLE_BLOCK(method_call) {
+					if(state.CallPatch)
+						patchFastCall(state);
+					switch(state.callState.functionToCall->getType()) {
+						case Function::Type::BUILTIN:
+							EXECUTE_BLOCK(method_call_builtin);
+							break;
+						case Function::Type::METHOD:
+							EXECUTE_BLOCK(method_call_method);
+							break;
+					}
+				}
 
 				EXECUTE(ret, {
 					// Pop the return value
@@ -1414,7 +1403,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 							*state.CallPatch = Bytecode::CODE_store_field_slot;
 							*(state.CallPatch + 2) = (Bytecode::Opcode)v;
 						} else {
-							// this is a static field store, so store the field
+							// this is a static field store, so store the
+							// field
 							*state.CallPatch =
 							    Bytecode::CODE_store_field_static;
 							*(state.CallPatch + 2) =
@@ -1511,7 +1501,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 							v = v.getClass();
 					} else {
 						// it is a non static method
-						// if the top is a class, it is going to be class bound
+						// if the top is a class, it is going to be class
+						// bound
 						if(v.isClass())
 							t = BoundMethod::CLASS_BOUND;
 					}
@@ -1535,7 +1526,8 @@ bool ExecutionEngine::execute(Fiber *fiber2, Value *returnValue) {
 						Object *o = Gc::allocObject(c);
 						// assign the object to slot 0
 						state.base() = Value(o);
-						// if this is a module, store the instance to the class
+						// if this is a module, store the instance to the
+						// class
 						if(c->module == NULL)
 							c->instance = o;
 					}

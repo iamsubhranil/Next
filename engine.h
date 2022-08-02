@@ -92,14 +92,4 @@ class ExecutionEngine {
 	static void setRunningRepl(bool status);
 
 	struct State;
-	static void execMethodCall(State &s, int methodToCall,
-	                           int numberOfArguments);
-	static void execMethodCall(State &s, Function *methodToCall,
-	                           int numberOfArguments);
-	static void patchFastCall(State &s, Function *methodToCall,
-	                          int numberOfArguments);
-	static void execMethodCall_builtin(State &s, Function *methodToCall,
-	                                   int numberOfArguments);
-	static void execMethodCall_method(State &s, Function *methodToCall,
-	                                  int numberOfArguments);
 };
