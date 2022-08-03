@@ -44,52 +44,48 @@ struct ExecutionEngine::State {
 	Bytecode::Opcode *InstructionPointer;
 	Bytecode::Opcode *CallPatch;
 	Value            *Stack;
-	Value            *StackTop;
-	Value            *Locals;
-	Value             returnValue;
-	bool              shouldReturn;
+	// Value            *StackTop;
+	Value *Locals;
+	Value  returnValue;
 
 	struct CallState {
 		int       methodToCall;
 		Function *functionToCall;
 		int       numberOfArguments;
-		void     *blockShortcut;
 	} callState;
 
 	State(Fiber *fib) {
-		fiber        = fib;
-		shouldReturn = false;
-		returnValue  = ValueNil;
-		CallPatch    = nullptr;
+		fiber       = fib;
+		returnValue = ValueNil;
+		CallPatch   = nullptr;
 		frameRestore();
 	}
 
-	inline Value &top(int offset = -1) { return *(StackTop + offset); }
-	inline Value &pop() { return *--StackTop; }
+	inline Value *&StackTop() { return fiber->stackTop; }
+
+	inline Value &top(int offset = -1) { return *(StackTop() + offset); }
+	inline Value &pop() { return *--StackTop(); }
 	inline Value &base(int offset = 0) { return *(Stack + offset); }
-	inline void   push(Value v) { *StackTop++ = v; }
-	inline void   drop(int count = 1) {
-		  StackTop -= count;
-		  fiber->stackTop = StackTop;
-	}
-	inline void jumpTo(int where) {
-		InstructionPointer += where - 1; // we subtract 1 because we assume that
-		                                 // the pointer will be incremented in
-		                                 // the loop BAD ASSUMPTION, SHOULD FIX
+	inline void   push(Value v) { *StackTop()++ = v; }
+	inline void   drop(int count = 1) { StackTop() -= count; }
+	inline void   jumpTo(int where) {
+		  InstructionPointer += where - 1; // we subtract 1 because we assume that
+		                                   // the pointer will be incremented in
+		                                   // the loop BAD ASSUMPTION, SHOULD FIX
 	}
 	inline void jumpToOffset(int offset) {
 		jumpTo(offset - sizeof(int) / sizeof(Bytecode::Opcode));
 	}
 	inline void frameBackup() {
 		presentFrame->code = InstructionPointer;
-		fiber->stackTop    = StackTop;
+		// fiber->stackTop    = StackTop;
 	}
 	inline void frameRestore() {
 		presentFrame       = fiber->getCurrentFrame();
 		InstructionPointer = presentFrame->code;
 		Stack              = presentFrame->stack_;
 		Locals             = presentFrame->locals;
-		StackTop           = fiber->stackTop;
+		// StackTop           = fiber->stackTop;
 	}
 	inline void skipCall() {
 		nextInstruction();
@@ -144,8 +140,7 @@ struct ExecutionEngine::State {
 	struct ReturnFromExecute {};
 	// makes the engine return from current instance of execute
 	void returnFromExecute(Value v) {
-		returnValue  = v;
-		shouldReturn = true;
+		returnValue = v;
 		throw ReturnFromExecute{};
 	}
 
