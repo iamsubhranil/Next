@@ -34,54 +34,54 @@ import mathtest
 import filetest
 import deopt
 
-modules = {prepost: "Pre and post increment/decrements",
-        iftest: "Short circuits",
-        primitivetest: "Primitive method calls",
-        classtest: "Classes",
-        importest: "Imports",
-        opmethod: "Operator methods",
-        subscriptest: "Subscript getter and setter",
-        arraytest: "Arrays",
-        exceptiontest: "Exceptions",
-        rerrtest: "Runtime exceptions",
-        typetest: "Type builtins",
-        truthness: "Truthness evaluation",
-        hashmap: "Hashmaps",
-        fortest: "For loops",
-        iterator: "Iterators",
-        rangetest: "Ranges",
-        formattest: "String formatting",
-        boundmethods: "Bound methods",
-        fibers: "Fibers",
-        static_members: "Static member and methods",
-        vatest: "Variadic arguments",
-        tupletest: "Tuple expressions",
-        inheritance: "Inheritance",
-        settest: "Sets",
-        breaktest: "Break statements",
-        streamtest: "Writing to streams",
-        randtest: "Module: random",
-        bitstest: "Bit arrays",
-        mathtest: "Module: math",
-        filetest: "File I/O",
-        deopt: "Bytecode Deoptimization"}
+modules = [(prepost, "Pre and post increment/decrements"),
+        (iftest, "Short circuits"),
+        (primitivetest, "Primitive method calls"),
+        (classtest, "Classes"),
+        (importest, "Imports"),
+        (opmethod, "Operator methods"),
+        (subscriptest, "Subscript getter and setter"),
+        (arraytest, "Arrays"),
+        (exceptiontest, "Exceptions"),
+        (rerrtest, "Runtime exceptions"),
+        (typetest, "Type builtins"),
+        (truthness, "Truthness evaluation"),
+        (hashmap, "Hashmaps"),
+        (fortest, "For loops"),
+        (iterator, "Iterators"),
+        (rangetest, "Ranges"),
+        (formattest, "String formatting"),
+        (boundmethods, "Bound methods"),
+        (fibers, "Fibers"),
+        (static_members, "Static member and methods"),
+        (vatest, "Variadic arguments"),
+        (tupletest, "Tuple expressions"),
+        (inheritance, "Inheritance"),
+        (settest, "Sets"),
+        (breaktest, "Break statements"),
+        (streamtest, "Writing to streams"),
+        (randtest, "Module: random"),
+        (bitstest, "Bit arrays"),
+        (mathtest, "Module: math"),
+        (filetest, "File I/O"),
+        (deopt, "Bytecode Deoptimization")]
 
 // find the maximum length
 len = 0
-for(v in modules.values()) {
-    if(v.len() > len) {
-        len = v.len()
+for(v in modules) {
+    if(v[1].len() > len) {
+        len = v[1].len()
     }
 }
 
 print(fmt("{0:^{1}}\t\t{2:^12}\n", "Test", len, "Status"))
 print(fmt("{0:-^{1}}\t\t{0:-^12}\n", "-", len))
 
-for(k in modules.keys()) {
-    print(fmt("{0:^{1}}\t\t", modules[k], len))
+for(k in modules) {
+    print(fmt("{0:^{1}}\t\t", k[1], len))
     evalue = ""
     try {
-        res = k.test()
+        res = k[0].test()
     } catch(error err) {
         res = false
         evalue = str(err)
