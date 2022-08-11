@@ -11,7 +11,7 @@ Value next_random_randbits(const Value *args, int numargs) {
 	if(n <= 0) {
 		RERR("Number of bits must be > 0!");
 	}
-	Bits *                                 b = Bits::create(n);
+	Bits                                  *b = Bits::create(n);
 	std::uniform_int_distribution<int64_t> dist(0, INT64_MAX);
 	for(int64_t i = 0; i < b->chunkcount; i++) {
 		b->bytes[i] = dist(Random::Generator);
