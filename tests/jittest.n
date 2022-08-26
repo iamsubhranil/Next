@@ -1,0 +1,12 @@
+import jit
+
+fn cool(x) {
+    println("Running uncompiled!")
+    println(x)
+}
+
+cool(2)
+
+jit.compile(cool@1)
+
+cool("Hello compiled world!")

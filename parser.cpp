@@ -11,6 +11,7 @@ Parser::Parser(Scanner &s) : scanner(s) {
 	prefixParselets.clear();
 	infixParselets.clear();
 	declarations = nullptr;
+	registerParselets();
 }
 
 void Parser::registerParselet(Token::Type t, PrefixParselet *p) {
@@ -100,7 +101,7 @@ Array *Parser::parseAllDeclarations() {
 
 Statement *Parser::parseBlock(bool isStatic) {
 	Token  t = consume(Token::Type::TOKEN_LEFT_BRACE,
-                      "Expected '{' on the starting of a block!");
+	                   "Expected '{' on the starting of a block!");
 	Array2 s = Array::create(1);
 	while(!match(Token::Type::TOKEN_RIGHT_BRACE)) {
 		s->insert(parseStatement());
@@ -202,7 +203,7 @@ Statement *ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	Array2 imports = Array::create(1);
 	do {
 		Token   t = p->consume(Token::Type::TOKEN_IDENTIFIER,
-                             "Expected package/member name!");
+		                       "Expected package/member name!");
 		String2 s = String::from(t.start, t.length);
 		imports->insert(s);
 	} while(p->match(Token::Type::TOKEN_DOT));
@@ -305,7 +306,7 @@ void ClassDeclaration::registerParselet(Token::Type t, StatementParselet *p) {
 
 Statement *ClassDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	Token name    = p->consume(Token::Type::TOKEN_IDENTIFIER,
-                            "Expected name of the class!");
+	                           "Expected name of the class!");
 	Token derived = Token::PlaceholderToken;
 	bool  isd     = false;
 	if(p->match(Token::Type::TOKEN_is)) {
@@ -509,8 +510,8 @@ Expression *NameParselet::parse(Parser *parser, Token t) {
 	// method reference
 	if(parser->match(Token::Type::TOKEN_AT)) {
 		Token       num   = parser->consume(Token::Type::TOKEN_NUMBER,
-                                    "Expected argument count after '@'!");
-		char *      end   = NULL;
+		                                    "Expected argument count after '@'!");
+		char       *end   = NULL;
 		const char *start = (const char *)num.start.source;
 		int         count = strtol(start, &end, 10);
 		if(end == NULL || end - start < num.length) {
@@ -525,7 +526,7 @@ Expression *ThisOrSuperParselet::parse(Parser *parser, Token t) {
 	// if there is a dot, okay
 	if(parser->match(Token::Type::TOKEN_DOT)) {
 		Token       name = parser->consume(Token::Type::TOKEN_IDENTIFIER,
-                                     "Expected identifier after '.'!");
+		                                   "Expected identifier after '.'!");
 		Expression2 refer =
 		    parser->parseExpression(Precedence::REFERENCE, name);
 		return NewExpression(GetThisOrSuper, t, refer);
@@ -596,7 +597,7 @@ Expression *LiteralParselet::parse(Parser *parser, Token t) {
 			return NewExpression(Literal, s, t);
 		}
 		case Token::Type::TOKEN_NUMBER: {
-			char *      end   = NULL;
+			char       *end   = NULL;
 			const char *start = (const char *)t.start.source;
 			double      val   = strtod(start, &end);
 			if(end == NULL || end - start < t.length) {
@@ -675,13 +676,13 @@ Expression *GroupParselet::parse(Parser *parser, Token t) {
 	return NewExpression(Grouping, t, exprs, ist);
 }
 
-Expression *BinaryOperatorParselet::parse(Parser *           parser,
+Expression *BinaryOperatorParselet::parse(Parser            *parser,
                                           const Expression2 &left, Token t) {
 	Expression2 right = parser->parseExpression(getPrecedence() - isRight);
 	return NewExpression(Binary, left, t, right);
 }
 
-Expression *PostfixOperatorParselet::parse(Parser *           parser,
+Expression *PostfixOperatorParselet::parse(Parser            *parser,
                                            const Expression2 &left, Token t) {
 	(void)parser;
 	return NewExpression(Postfix, left, t);
@@ -717,7 +718,7 @@ Expression *CallParselet::parse(Parser *parser, const Expression2 &left,
 Expression *ReferenceParselet::parse(Parser *parser, const Expression2 &obj,
                                      Token t) {
 	Token       name   = parser->consume(Token::Type::TOKEN_IDENTIFIER,
-                                 "Expected identifier after '.'!");
+	                                     "Expected identifier after '.'!");
 	Expression2 member = parser->parseExpression(Precedence::REFERENCE, name);
 	return NewExpression(Get, obj, t, member);
 }
@@ -761,4 +762,103 @@ Expression *HashmapLiteralParselet::parse(Parser *parser, Token t) {
 	return NewExpression(HashmapLiteral, t, keys, values);
 }
 
-// Exceptions
+void Parser::prefix(Token::Type op, int prec) {
+	registerParselet(op, new PrefixOperatorParselet(prec));
+}
+
+void Parser::postfix(Token::Type op, int prec) {
+	registerParselet(op, new PostfixOperatorParselet(prec));
+}
+
+void Parser::infixLeft(Token::Type t, int prec) {
+	registerParselet(t, new BinaryOperatorParselet(prec, false));
+}
+
+void Parser::registerParselets() {
+	registerParselet(Token::Type::TOKEN_IDENTIFIER, new NameParselet());
+	registerParselet(Token::Type::TOKEN_NUMBER, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_HEX, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_OCT, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_BIN, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_STRING, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_nil, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_true, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_false, new LiteralParselet());
+	registerParselet(Token::Type::TOKEN_LEFT_SQUARE,
+	                 new ArrayLiteralParselet());
+	registerParselet(Token::Type::TOKEN_SUBSCRIPT, new ArrayLiteralParselet());
+	registerParselet(Token::Type::TOKEN_LEFT_BRACE,
+	                 new HashmapLiteralParselet());
+
+	registerParselet(Token::Type::TOKEN_this, new ThisOrSuperParselet());
+	registerParselet(Token::Type::TOKEN_super, new ThisOrSuperParselet());
+
+	registerParselet(Token::Type::TOKEN_EQUAL, new AssignParselet());
+	registerParselet(Token::Type::TOKEN_LEFT_PAREN, new GroupParselet());
+	registerParselet(Token::Type::TOKEN_LEFT_PAREN, new CallParselet());
+	registerParselet(Token::Type::TOKEN_DOT, new ReferenceParselet());
+	registerParselet(Token::Type::TOKEN_LEFT_SQUARE, new SubscriptParselet());
+
+	prefix(Token::Type::TOKEN_BANG, Precedence::PREFIX);
+	prefix(Token::Type::TOKEN_PLUS, Precedence::PREFIX);
+	prefix(Token::Type::TOKEN_MINUS, Precedence::PREFIX);
+	prefix(Token::Type::TOKEN_TILDE, Precedence::PREFIX);
+	prefix(Token::Type::TOKEN_PLUS_PLUS, Precedence::PREFIX);
+	prefix(Token::Type::TOKEN_MINUS_MINUS, Precedence::PREFIX);
+
+	postfix(Token::Type::TOKEN_PLUS_PLUS, Precedence::POSTFIX);
+	postfix(Token::Type::TOKEN_MINUS_MINUS, Precedence::POSTFIX);
+
+	infixLeft(Token::Type::TOKEN_or, Precedence::OR);
+	infixLeft(Token::Type::TOKEN_and, Precedence::AND);
+	infixLeft(Token::Type::TOKEN_EQUAL_EQUAL, Precedence::EQUALITY);
+	infixLeft(Token::Type::TOKEN_BANG_EQUAL, Precedence::EQUALITY);
+	infixLeft(Token::Type::TOKEN_GREATER, Precedence::COMPARISON);
+	infixLeft(Token::Type::TOKEN_GREATER_EQUAL, Precedence::COMPARISON);
+	infixLeft(Token::Type::TOKEN_LESS, Precedence::COMPARISON);
+	infixLeft(Token::Type::TOKEN_LESS_EQUAL, Precedence::COMPARISON);
+
+	infixLeft(Token::Type::TOKEN_PLUS, Precedence::SUM);
+	infixLeft(Token::Type::TOKEN_MINUS, Precedence::SUM);
+	infixLeft(Token::Type::TOKEN_in, Precedence::SUM);
+	infixLeft(Token::Type::TOKEN_STAR, Precedence::PRODUCT);
+	infixLeft(Token::Type::TOKEN_SLASH, Precedence::PRODUCT);
+
+	infixLeft(Token::Type::TOKEN_AMPERSAND, Precedence::BITWISE_AND);
+	infixLeft(Token::Type::TOKEN_PIPE, Precedence::BITWISE_OR);
+	infixLeft(Token::Type::TOKEN_CARET, Precedence::BITWISE_XOR);
+	infixLeft(Token::Type::TOKEN_GREATER_GREATER, Precedence::BITWISE_SHIFT);
+	infixLeft(Token::Type::TOKEN_LESS_LESS, Precedence::BITWISE_SHIFT);
+
+	// Top level declarations
+	registerParselet(Token::Type::TOKEN_fn, new FnDeclaration());
+	registerParselet(Token::Type::TOKEN_import, new ImportDeclaration());
+	registerParselet(Token::Type::TOKEN_IDENTIFIER, new VarDeclaration());
+	registerParselet(Token::Type::TOKEN_class, new ClassDeclaration());
+
+	// Statements
+	registerParselet(Token::Type::TOKEN_if, new IfStatementParselet());
+	registerParselet(Token::Type::TOKEN_while, new WhileStatementParselet());
+	registerParselet(Token::Type::TOKEN_do, new DoStatementParselet());
+	registerParselet(Token::Type::TOKEN_try, new TryStatementParselet());
+	registerParselet(Token::Type::TOKEN_throw, new ThrowStatementParselet());
+	registerParselet(Token::Type::TOKEN_ret, new ReturnStatementParselet());
+	registerParselet(Token::Type::TOKEN_for, new ForStatementParselet());
+	registerParselet(Token::Type::TOKEN_break, new BreakStatementParselet());
+
+	// intraclass declarations
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_new,
+	                                   new ConstructorDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_pub,
+	                                   new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_priv,
+	                                   new VisibilityDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_static,
+	                                   new StaticDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_fn,
+	                                   new MethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_op,
+	                                   new OpMethodDeclaration());
+	ClassDeclaration::registerParselet(Token::Type::TOKEN_IDENTIFIER,
+	                                   new MemberDeclaration());
+}
