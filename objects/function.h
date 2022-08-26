@@ -24,10 +24,11 @@ struct Function {
 	GcObject obj;
 
 	String *name;
-	union {
-		Bytecode *      code;
-		next_builtin_fn func;
-	};
+	// we need separate members for bytecode and func,
+	// since a jit'ed function contains both next
+	// bytecode and a builtin func address
+	Bytecode       *code;
+	next_builtin_fn func;
 	// Exception Handlers
 	Exception *exceptions;
 	size_t     numExceptions;
@@ -40,12 +41,13 @@ struct Function {
 	enum Type { METHOD = 0, BUILTIN = 1 } mode;
 	bool static_;
 	bool varArg; // denotes whether the function is a vararg
-	// in case of a vararg function, the arity stores
-	// minimum required arity
-	// i.e.
-	// fn test(a, b, ... extra) // arity -> 2
-	// fn test(... extra)       // arity -> 0
+	             // in case of a vararg function, the arity stores
+	             // minimum required arity
+	             // i.e.
+	             // fn test(a, b, ... extra) // arity -> 2
+	             // fn test(... extra)       // arity -> 0
 
+	inline void           setType(Type t) { mode = t; }
 	inline Function::Type getType() const { return mode; }
 	inline bool           isStatic() const { return static_; }
 	inline bool           isVarArg() const { return varArg; }
@@ -74,7 +76,7 @@ struct Function {
 	// gc functions
 	void mark() {
 		Gc::mark(name);
-		if(getType() != BUILTIN) {
+		if(code) {
 			Gc::mark(code);
 		}
 	}
@@ -93,7 +95,11 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	void          depend() { Gc::depend(name); }
-	const String *gc_repr() { return name; }
+	void depend() {
+		Gc::depend(name);
+	}
+	const String *gc_repr() {
+		return name;
+	}
 #endif
 };

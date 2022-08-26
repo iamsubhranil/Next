@@ -3,7 +3,7 @@ ifeq ($(CXXSTD),)
 endif
 
 override CXXFLAGS += -Wall -Wextra -std=$(CXXSTD)
-override LDFLAGS +=
+override LDFLAGS += -lLLVM-14
 
 RM=rm -f
 NUM_TRIALS=10
