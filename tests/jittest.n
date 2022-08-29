@@ -7,6 +7,8 @@ fn cool(x) {
 
 cool(2)
 
+start = clock()
 jit.compile(cool@1)
-
+end = clock()
 cool("Hello compiled world!")
+println("Compilation took: ", (end - start) / clocks_per_sec, "s")
