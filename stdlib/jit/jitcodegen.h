@@ -15,9 +15,21 @@ struct JITCodegen {
 	LLVMValueRef           func;
 	LLVMTypeRef            nextType;
 
+	void addIsNumber();
+	void addToNumber();
+	void addSetNumber();
+	void addIsBoolean();
+	void addToBoolean();
+	void addSetBoolean();
+	void addIsFalsy();
+
+	LLVMValueRef getConstantInt(int val);
+
+	void init();
+	void initValueHelpers();
+	void initEngine();
+
 	LLVMValueRef    getArg(int i);
-	void            init();
-	void            initEngine();
 	next_builtin_fn getCompiledFn();
 	void            gen(Array *stmt);
 
