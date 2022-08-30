@@ -7,27 +7,14 @@
 #define EXPRTYPE(x) struct x##Expression;
 #include "exprtypes.h"
 
-#define NewExpression(x, ...)                                 \
+#define NewExpression(x, ...)                           \
 	(::new(Gc::allocExpression2(sizeof(x##Expression))) \
 	     x##Expression(__VA_ARGS__))
 
-class ExpressionVisitor {
+template <typename T> class ExpressionVisitor {
   public:
-	virtual void visit(ArrayLiteralExpression *al)    = 0;
-	virtual void visit(AssignExpression *as)          = 0;
-	virtual void visit(BinaryExpression *bin)         = 0;
-	virtual void visit(CallExpression *cal)           = 0;
-	virtual void visit(GetExpression *get)            = 0;
-	virtual void visit(GetThisOrSuperExpression *get) = 0;
-	virtual void visit(GroupingExpression *group)     = 0;
-	virtual void visit(HashmapLiteralExpression *al)  = 0;
-	virtual void visit(LiteralExpression *lit)        = 0;
-	virtual void visit(MethodReferenceExpression *me) = 0;
-	virtual void visit(PrefixExpression *pe)          = 0;
-	virtual void visit(PostfixExpression *pe)         = 0;
-	virtual void visit(SetExpression *sete)           = 0;
-	virtual void visit(SubscriptExpression *sube)     = 0;
-	virtual void visit(VariableExpression *vis)       = 0;
+#define EXPRTYPE(x) virtual T visit(x##Expression *al) = 0;
+#include "exprtypes.h"
 };
 
 struct Expression {
@@ -42,8 +29,18 @@ struct Expression {
 	Token token;
 	Type  type;
 	Expression(Token tok, Type t) : token(tok), type(t){};
-	void accept(ExpressionVisitor *visitor);
-	Type getType() { return type; }
+	template <typename T> void accept(ExpressionVisitor<T> *visitor) {
+		switch(type) {
+#define EXPRTYPE(x) \
+	case EXPR_##x:  \
+		return visitor->visit((x##Expression *)this);
+#include "exprtypes.h"
+			case EXPR_This: return visitor->visit((VariableExpression *)this);
+		}
+	}
+	Type getType() {
+		return type;
+	}
 	bool isAssignable() {
 		return (type == EXPR_Variable) || (type == EXPR_Assign) ||
 		       (type == EXPR_Get) || (type == EXPR_Set) ||
@@ -53,16 +50,19 @@ struct Expression {
 		return (type == EXPR_Get) || (type == EXPR_Set) ||
 		       (type == EXPR_GetThisOrSuper);
 	}
-#define EXPRTYPE(x)                                                 \
-	bool           is##x##Expression() { return type == EXPR_##x; } \
-	x##Expression *to##x##Expression() { return (x##Expression *)this; }
+#define EXPRTYPE(x)                      \
+	bool is##x##Expression() {           \
+		return type == EXPR_##x;         \
+	}                                    \
+	x##Expression *to##x##Expression() { \
+		return (x##Expression *)this;    \
+	}
 #include "exprtypes.h"
 	size_t getSize(); // returns actual allocation size based on type
 	void   mark();
 #ifdef DEBUG_GC
 	// const char *gc_repr();
 #endif
-	friend class ExpressionVisitor;
 };
 
 struct ArrayLiteralExpression : public Expression {
@@ -100,7 +100,7 @@ struct BinaryExpression : public Expression {
 struct CallExpression : public Expression {
   public:
 	Expression *callee;
-	Array *     arguments;
+	Array      *arguments;
 	CallExpression(const Expression2 &cle, Token paren, Array *args)
 	    : Expression(paren, EXPR_Call), callee(cle), arguments(args) {}
 
@@ -229,7 +229,7 @@ struct MethodReferenceExpression : public Expression {
 
 #ifdef DEBUG
 struct WritableStream;
-struct ExpressionPrinter : public ExpressionVisitor {
+struct ExpressionPrinter : public ExpressionVisitor<void> {
   private:
 	WritableStream &os;
 

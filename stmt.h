@@ -7,29 +7,28 @@
 #define STMTTYPE(x) struct x##Statement;
 #include "stmttypes.h"
 
-#define NewStatement(x, ...)                                \
-	(::new(Gc::allocStatement2(sizeof(x##Statement))) \
-	     x##Statement(__VA_ARGS__))
+#define NewStatement(x, ...) \
+	(::new(Gc::allocStatement2(sizeof(x##Statement))) x##Statement(__VA_ARGS__))
 
-class StatementVisitor {
+template <typename T> class StatementVisitor {
   public:
-	virtual void visit(IfStatement *ifs)             = 0;
-	virtual void visit(WhileStatement *ifs)          = 0;
-	virtual void visit(FnStatement *ifs)             = 0;
-	virtual void visit(FnBodyStatement *ifs)         = 0;
-	virtual void visit(ClassStatement *ifs)          = 0;
-	virtual void visit(TryStatement *ifs)            = 0;
-	virtual void visit(CatchStatement *ifs)          = 0;
-	virtual void visit(ImportStatement *ifs)         = 0;
-	virtual void visit(BlockStatement *ifs)          = 0;
-	virtual void visit(ExpressionStatement *ifs)     = 0;
-	virtual void visit(VardeclStatement *ifs)        = 0;
-	virtual void visit(MemberVariableStatement *ifs) = 0;
-	virtual void visit(VisibilityStatement *ifs)     = 0;
-	virtual void visit(ThrowStatement *ifs)          = 0;
-	virtual void visit(ReturnStatement *ifs)         = 0;
-	virtual void visit(ForStatement *ifs)            = 0;
-	virtual void visit(BreakStatement *ifs)          = 0;
+	virtual T visit(IfStatement *ifs)             = 0;
+	virtual T visit(WhileStatement *ifs)          = 0;
+	virtual T visit(FnStatement *ifs)             = 0;
+	virtual T visit(FnBodyStatement *ifs)         = 0;
+	virtual T visit(ClassStatement *ifs)          = 0;
+	virtual T visit(TryStatement *ifs)            = 0;
+	virtual T visit(CatchStatement *ifs)          = 0;
+	virtual T visit(ImportStatement *ifs)         = 0;
+	virtual T visit(BlockStatement *ifs)          = 0;
+	virtual T visit(ExpressionStatement *ifs)     = 0;
+	virtual T visit(VardeclStatement *ifs)        = 0;
+	virtual T visit(MemberVariableStatement *ifs) = 0;
+	virtual T visit(VisibilityStatement *ifs)     = 0;
+	virtual T visit(ThrowStatement *ifs)          = 0;
+	virtual T visit(ReturnStatement *ifs)         = 0;
+	virtual T visit(ForStatement *ifs)            = 0;
+	virtual T visit(BreakStatement *ifs)          = 0;
 };
 
 typedef enum { VIS_PUB, VIS_PROC, VIS_PRIV, VIS_DEFAULT } Visibility;
@@ -45,7 +44,9 @@ struct Statement {
 	Token token;
 	Type  type;
 	Statement(Token to, Type t) : token(to), type(t) {}
-	Type getType() { return type; }
+	Type getType() {
+		return type;
+	}
 	bool isDeclaration() {
 		switch(type) {
 			case STMT_Fn:
@@ -53,12 +54,25 @@ struct Statement {
 			default: return false;
 		};
 	}
-#define STMTTYPE(x)                                               \
-	bool          is##x##Statement() { return type == STMT_##x; } \
-	x##Statement *to##x##Statement() { return (x##Statement *)this; }
+#define STMTTYPE(x)                    \
+	bool is##x##Statement() {          \
+		return type == STMT_##x;       \
+	}                                  \
+	x##Statement *to##x##Statement() { \
+		return (x##Statement *)this;   \
+	}
 #include "stmttypes.h"
-	bool   isImport() { return (type == STMT_Import); }
-	void   accept(StatementVisitor *visitor);
+	bool isImport() {
+		return (type == STMT_Import);
+	}
+	template <typename T> T accept(StatementVisitor<T> *visitor) {
+		switch(type) {
+#define STMTTYPE(x) \
+	case STMT_##x:  \
+		return visitor->visit((x##Statement *)this);
+#include "stmttypes.h"
+		}
+	}
 	void   mark();
 	size_t getSize(); // returns the actual allocated memory based on type
 #ifdef DEBUG_GC
@@ -69,8 +83,8 @@ struct Statement {
 struct IfStatement : public Statement {
   public:
 	Expression *condition;
-	Statement * thenBlock;
-	Statement * elseBlock;
+	Statement  *thenBlock;
+	Statement  *elseBlock;
 	IfStatement(Token it, const Expression2 &cond, const Statement2 &then,
 	            const Statement2 &else_)
 	    : Statement(it, STMT_If), condition(cond), thenBlock(then),
@@ -85,7 +99,7 @@ struct IfStatement : public Statement {
 struct WhileStatement : public Statement {
   public:
 	Expression *condition;
-	Statement * thenBlock;
+	Statement  *thenBlock;
 	bool        isDo;
 	WhileStatement(Token w, const Expression2 &cond, const Statement2 &then,
 	               bool isd)
@@ -99,7 +113,7 @@ struct WhileStatement : public Statement {
 
 struct FnBodyStatement : public Statement {
   public:
-	Array *    args;
+	Array     *args;
 	Statement *body;
 	bool       isva;
 	FnBodyStatement(Token t, const Array2 &ar, const Statement2 &b, bool isv)
@@ -141,7 +155,7 @@ struct ClassStatement : public Statement {
 	Visibility vis;
 	bool       isDerived;
 	Token      derived;
-	Array *    declarations;
+	Array     *declarations;
 	ClassStatement(Token c, Token n, const Array2 &decl, Visibility v)
 	    : Statement(c, STMT_Class), name(n), vis(v), isDerived(false),
 	      declarations(decl) {}
@@ -180,7 +194,7 @@ struct ImportStatement : public Statement {
 struct TryStatement : public Statement {
   public:
 	Statement *tryBlock;
-	Array *    catchBlocks;
+	Array     *catchBlocks;
 	TryStatement(Token t, const Statement2 &tr, const Array2 &catches)
 	    : Statement(t, STMT_Try), tryBlock(tr), catchBlocks(catches) {}
 	void mark() {
@@ -239,8 +253,8 @@ struct ForStatement : public Statement {
   public:
 	bool        is_iterator;
 	Expression *cond;
-	Array *     initializer, *incr;
-	Statement * body;
+	Array      *initializer, *incr;
+	Statement  *body;
 	ForStatement(Token t, bool isi, const Array2 &ini, const Expression2 &c,
 	             const Array2 &inc, const Statement2 &b)
 	    : Statement(t, STMT_For), is_iterator(isi), cond(c), initializer(ini),
@@ -260,9 +274,9 @@ struct BreakStatement : public Statement {
 };
 
 #ifdef DEBUG
-struct StatementPrinter : public StatementVisitor {
+struct StatementPrinter : public StatementVisitor<void> {
   private:
-	WritableStream &  os;
+	WritableStream   &os;
 	ExpressionPrinter ep;
 	int               tabCount;
 	void              printTabs();

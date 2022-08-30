@@ -3,19 +3,6 @@
 #include "objects/string.h"
 #include "printer.h"
 
-void Statement::accept(StatementVisitor *visitor) {
-	switch(type) {
-#define STMTTYPE(x)                           \
-	case STMT_##x:                            \
-		visitor->visit((x##Statement *)this); \
-		break;
-#include "stmttypes.h"
-		default:
-			panic("[Internal Error] Invalid statement type ", (int)type, "!");
-			break;
-	}
-}
-
 void Statement::mark() {
 	switch(type) {
 #define STMTTYPE(x)                     \
