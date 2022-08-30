@@ -7,7 +7,8 @@
 #include "objects/customarray.h"
 #include "objects/string.h"
 
-class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
+class CodeGenerator : public StatementVisitor<void>,
+                      public ExpressionVisitor<void> {
   private:
 	int errorsOccurred; // number of errors occurred while compilation
 
@@ -39,9 +40,9 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 		bool             soft, isStatic;
 	};
 
-	const Class *               corectx;
-	ClassCompilationContext *   mtx;
-	ClassCompilationContext *   ctx;
+	const Class                *corectx;
+	ClassCompilationContext    *mtx;
+	ClassCompilationContext    *ctx;
 	FunctionCompilationContext *ftx;
 	BytecodeCompilationContext *btx;
 	CompilationState            state;
@@ -141,9 +142,9 @@ class CodeGenerator : public StatementVisitor, public ExpressionVisitor {
 	// an appropriate place to refer this/super
 	void validateThisOrSuper(Token tos);
 
-	String *         generateSignature(const Token &name, int arity);
-	String *         generateSignature(const String2 &name, int arity);
-	String *         generateSignature(int arity);
+	String          *generateSignature(const Token &name, int arity);
+	String          *generateSignature(const String2 &name, int arity);
+	String          *generateSignature(int arity);
 	VarInfo          lookForVariable(Token t, bool declare = false,
 	                                 bool       showError = true,
 	                                 Visibility vis       = VIS_DEFAULT);
