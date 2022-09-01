@@ -29,7 +29,7 @@ struct Expression {
 	Token token;
 	Type  type;
 	Expression(Token tok, Type t) : token(tok), type(t){};
-	template <typename T> void accept(ExpressionVisitor<T> *visitor) {
+	template <typename T> T accept(ExpressionVisitor<T> *visitor) {
 		switch(type) {
 #define EXPRTYPE(x) \
 	case EXPR_##x:  \
