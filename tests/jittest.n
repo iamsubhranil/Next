@@ -1,14 +1,48 @@
 import jit
 
-fn cool(x) {
-    println("Running uncompiled!")
-    println(x)
+fn measure(function, name, arg) {
+    start = clock()
+    r = function(arg)
+    end = clock()
+    println(name, " took: ", (end - start) / clocks_per_sec, "s")
+    ret (r, end - start)
 }
 
-cool(2)
+fn cool(w) {
+    count = 0
+    i = 2
+    while(i < w) {
+        isprime = true
+        j = 2
+        while(j < (i / 2)) {
+            val = i / j
+            if(i - ((i / j) * j) == 0) {
+                // break
+                j = i
+                isprime = false
+            } else {
+                j = j + 1
+            }
+            j = j + 1
+        }
+        if(isprime) {
+            count = count + 1
+        }
+        i = i + 1
+    }
+    ret count
+}
 
-start = clock()
-jit.compile(cool@1)
-end = clock()
-cool("Hello compiled world!")
-println("Compilation took: ", (end - start) / clocks_per_sec, "s")
+
+interp = measure(cool@1, "Interpreted Run", 10000000)
+
+comp_time = measure(jit.compile@1, "Compilation", cool@1)
+
+compiled = measure(cool@1, "Compiled Run", 10000000)
+
+if(interp[0] != compiled[0]) {
+    println("[Err] Results do not match! Interp: ", interp, " Compiled: ", compiled)
+} else {
+    println("Result: ", compiled[0])
+    println("Speedup: ", interp[1] / (compiled[1] + comp_time[1]))
+}
