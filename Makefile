@@ -3,7 +3,7 @@ ifeq ($(CXXSTD),)
 endif
 
 override CXXFLAGS += -Wall -Wextra -std=$(CXXSTD)
-override LDFLAGS += -lLLVM-14
+override LDFLAGS += `llvm-config --libs`
 
 RM=rm -f
 NUM_TRIALS=10

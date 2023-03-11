@@ -20,7 +20,7 @@ fn compute_row(n, size, fac, shift, buffer) {
 
         if(x & 7 == 7) {
             res = res + bits
-            buffer.insert_byte(bits)
+            // buffer.insert_byte(bits)
             bits = 0
             seven = -1
         }
@@ -28,7 +28,7 @@ fn compute_row(n, size, fac, shift, buffer) {
     if(shift != 0) {
         bits = bits << shift
         res = res + bits
-        buffer.insert_byte(bits)
+        // buffer.insert_byte(bits)
     }
     ret res
 }
@@ -49,7 +49,7 @@ fn compute(size) {
 }
 
 fn main() {
-    size = 500
+    size = 5000
     start = clock()
     output = compute(size)
     end = clock()
