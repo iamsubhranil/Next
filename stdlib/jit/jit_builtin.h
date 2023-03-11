@@ -9,5 +9,7 @@ JITBUILTIN(IsBoolean, Value, Boolean)
 JITBUILTIN(ToBoolean, Value, Boolean)
 JITBUILTIN(SetBoolean, Boolean, Value)
 JITBUILTIN(IsFalsy, Value, Boolean)
+JITBUILTIN(IsInteger, Value, Boolean)
+JITBUILTIN(ToInteger, Value, Integer)
 
 #undef JITBUILTIN

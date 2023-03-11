@@ -64,7 +64,7 @@ struct JITCodegen : LLVMCodegenBase {
 	LLVMValueRef generateBinNumeric(LLVMValueRef left, LLVMValueRef right,
 	                                LLVMBinInst inst, bool isCmp = false,
 	                                LLVMRealPredicate pred = LLVMRealOEQ);
-	void         generateBinBoolean(LLVMValueRef left, LLVMValueRef right,
+	LLVMValueRef generateBinInteger(LLVMValueRef left, LLVMValueRef right,
 	                                LLVMBinInst inst);
 
 	LLVMValueRef    getWrapperArg(int i);

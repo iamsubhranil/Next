@@ -13,10 +13,10 @@
 #include "printer.h"
 
 ExecutionEngine::ModuleMap *ExecutionEngine::loadedModules         = nullptr;
-Array *                     ExecutionEngine::pendingExceptions     = nullptr;
-Array *                     ExecutionEngine::pendingFibers         = nullptr;
-Fiber *                     ExecutionEngine::currentFiber          = nullptr;
-Object *                    ExecutionEngine::CoreObject            = nullptr;
+Array                      *ExecutionEngine::pendingExceptions     = nullptr;
+Array                      *ExecutionEngine::pendingFibers         = nullptr;
+Fiber                      *ExecutionEngine::currentFiber          = nullptr;
+Object                     *ExecutionEngine::CoreObject            = nullptr;
 size_t                      ExecutionEngine::maxRecursionLimit     = 1024;
 size_t                      ExecutionEngine::currentRecursionDepth = 0;
 bool                        ExecutionEngine::isRunningRepl         = false;
@@ -70,7 +70,7 @@ void ExecutionEngine::printStackTrace(Fiber *fiber) {
 	int               i        = fiber->callFrameCount() - 1;
 	Fiber::CallFrame *root     = &fiber->callFrameBase[i];
 	Fiber::CallFrame *f        = root;
-	String *          lastName = 0;
+	String           *lastName = 0;
 	while(i >= 0) {
 		Token        t;
 		bool         moduleAlreadyPrinted = false;
@@ -191,7 +191,7 @@ Fiber *ExecutionEngine::throwException(Value thrown, Fiber *root) {
 	// Get the type
 	const Class *klass = thrown.getClass();
 	// Now find the frame by unwinding the stack
-	Fiber *           f                  = root;
+	Fiber            *f                  = root;
 	int               num                = f->callFrameCount() - 1;
 	int               instructionPointer = 0;
 	Fiber::CallFrame *matched            = NULL;
@@ -354,7 +354,7 @@ template <typename... K> void createException(const void *message, K... args) {
 
 void createMemberAccessException(const Class *c, int field, int type) {
 	static const char *types[] = {"member", "method"};
-	String *           name    = SymbolTable2::getString(field);
+	String            *name    = SymbolTable2::getString(field);
 	if(name->len() > 2 && *name->str() == 's' && (name->str() + 1) == ' ') {
 		createException(
 		    "No public {} '{}' found in superclass '{}' of class '{}'!",
@@ -388,8 +388,8 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 	Fiber::CallFrame *presentFrame       = fiber->getCurrentFrame();
 	Bytecode::Opcode *InstructionPointer = presentFrame->code;
-	Value *           Stack              = presentFrame->stack_;
-	Value *           Locals             = presentFrame->locals;
+	Value            *Stack              = presentFrame->stack_;
+	Value            *Locals             = presentFrame->locals;
 	Bytecode::Opcode *CallPatch          = nullptr;
 
 #define GOTOERROR() \
@@ -835,7 +835,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 #define ITERATE_NEXT_OBJECT(type)                                     \
 	{                                                                 \
 		int          offset   = next_int();                           \
-		Value &      it       = TOP;                                  \
+		Value       &it       = TOP;                                  \
 		const Class *c        = it.getClass();                        \
 		int          field    = SymbolTable2::const_field_has_next;   \
 		Value        has_next = c->accessFn(c, it, field);            \
@@ -854,7 +854,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 				ITERATE_NEXT_OBJECT(builtin);
 			}
 
-			CASE(iterate_next_object_method) : { ITERATE_NEXT_OBJECT(method); }
+			CASE(iterate_next_object_method) : {
+				ITERATE_NEXT_OBJECT(method);
+			}
 
 			CASE(jumpiftrue) : {
 				Value v   = POP();
@@ -954,7 +956,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			CASE(call_intra) : CASE(call) : {
 				int frame         = next_int();
 				numberOfArguments = next_int();
-				Value &      v    = fiber->stackTop[-numberOfArguments - 1];
+				Value       &v    = fiber->stackTop[-numberOfArguments - 1];
 				const Class *c    = v.getClass();
 				functionToCall    = c->get_fn(frame).toFunction();
 				goto performcall;
@@ -991,9 +993,13 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		DISPATCH();                                                       \
 	}
 
-			CASE(call_fast_builtin_soft) : { FASTCALL_SOFT(builtin); }
+			CASE(call_fast_builtin_soft) : {
+				FASTCALL_SOFT(builtin);
+			}
 
-			CASE(call_fast_method_soft) : { FASTCALL_SOFT(method); }
+			CASE(call_fast_method_soft) : {
+				FASTCALL_SOFT(method);
+			}
 
 #undef FASTCALL_SOFT
 
@@ -1004,7 +1010,7 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		numberOfArguments = next_int();                               \
 		/* get the cached class and function */                       \
 		const Class *c = Locals[idxstart].toClass();                  \
-		Function *   f = Locals[idxstart + 1].toFunction();           \
+		Function    *f = Locals[idxstart + 1].toFunction();           \
 		if(c == fiber->stackTop[-numberOfArguments - 1].getClass()) { \
 			functionToCall = f;                                       \
 			/* ignore the next opcode */                              \
@@ -1016,15 +1022,19 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 		DISPATCH();                                                   \
 	}
 
-			CASE(call_fast_builtin) : { FASTCALL(builtin); }
+			CASE(call_fast_builtin) : {
+				FASTCALL(builtin);
+			}
 
-			CASE(call_fast_method) : { FASTCALL(method); }
+			CASE(call_fast_method) : {
+				FASTCALL(method);
+			}
 
 #undef FASTCALL
 #undef SKIPCALL
 
 		methodcall : {
-			Value &      v = fiber->stackTop[-numberOfArguments - 1];
+			Value       &v = fiber->stackTop[-numberOfArguments - 1];
 			const Class *c = v.getClass();
 			ASSERT_METHOD(methodToCall, c);
 			functionToCall = c->get_fn(methodToCall).toFunction();
@@ -1230,7 +1240,9 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 			STORE_SLOT_POP(5)
 			STORE_SLOT_POP(6)
 			STORE_SLOT_POP(7)
-			CASE(store_slot_pop) : { rightOperand = POP(); }
+			CASE(store_slot_pop) : {
+				rightOperand = POP();
+			}
 
 		do_store_slot : {
 			int slot = next_int();

@@ -45,6 +45,10 @@ struct BuiltinFunctions {
 		return LLVMInt1Type();
 	}
 
+	static LLVMTypeRef IntegerToLLVM() {
+		return LLVMIntType(64);
+	}
+
 	static void init(JITCodegen *codegen) {
 		LLVMTypeRef       inType, type;
 		LLVMBasicBlockRef bb;
@@ -204,6 +208,37 @@ LLVMValueRef JITCodegen::defineIsFalsy(LLVMValueRef func) {
 	return res;
 }
 
+LLVMValueRef JITCodegen::defineIsInteger(LLVMValueRef func) {
+	auto arg       = LLVMGetParam(func, 0);
+	auto is_number = callIsNumber(arg);
+	auto bb        = LLVMAppendBasicBlock(func, "__is_integer_ret_early");
+	auto bb2       = LLVMAppendBasicBlock(func, "__is_integer_check_floor");
+	LLVMBuildCondBr(builder, is_number, bb2, bb);
+	positionBuilderAtEnd(bb);
+	LLVMBuildRet(builder, is_number);
+	positionBuilderAtEnd(bb2);
+
+	auto floorInType = LLVMDoubleType();
+	auto floorType   = LLVMFunctionType(LLVMDoubleType(), &floorInType, 1, 0);
+	auto floorFn     = LLVMAddFunction(module, "floor", floorType);
+
+	auto dval = callToNumber(arg);
+	auto floorRes =
+	    LLVMBuildCall2(builder, floorType, floorFn, &dval, 1, "__floor_res");
+
+	auto ifEq =
+	    LLVMBuildFCmp(builder, LLVMRealOEQ, dval, floorRes, "__is_equal");
+
+	return ifEq;
+}
+
+LLVMValueRef JITCodegen::defineToInteger(LLVMValueRef func) {
+	auto arg      = LLVMGetParam(func, 0);
+	auto toNumber = callToNumber(arg);
+	auto res = LLVMBuildFPToSI(builder, toNumber, LLVMIntType(64), "__int_res");
+	return res;
+}
+
 #define JITBUILTIN(x, in, out)                                       \
 	LLVMValueRef JITCodegen::call##x(LLVMValueRef arg) {             \
 		return LLVMBuildCall2(builder, BuiltinFunctions::x##Fn.type, \
@@ -236,21 +271,6 @@ void JITCodegen::gen(Array *statements) {
 		Printer::Err("Compilation failed: ", (const char *)err);
 	}
 	LLVMDisposeMessage(err);
-
-	LLVMExecutionEngineRef eg;
-	LLVMCreateExecutionEngineForModule(&eg, module, &err);
-
-	auto        targetMachine = LLVMGetExecutionEngineTargetMachine(eg);
-	const char *passes        = "default<O3>";
-	auto        pbo           = LLVMCreatePassBuilderOptions();
-	LLVMPassBuilderOptionsSetLoopUnrolling(pbo, true);
-	LLVMPassBuilderOptionsSetMergeFunctions(pbo, true);
-	LLVMPassBuilderOptionsSetLoopInterleaving(pbo, true);
-	LLVMPassBuilderOptionsSetLoopVectorization(pbo, true);
-	LLVMRunPasses(module, passes, targetMachine, pbo);
-#ifdef DEBUG
-	LLVMDumpModule(module);
-#endif
 }
 
 void JITCodegen::initEngine() {
@@ -258,15 +278,34 @@ void JITCodegen::initEngine() {
 	LLVMLinkInMCJIT();
 	LLVMInitializeNativeTarget();
 	LLVMInitializeNativeAsmPrinter();
-	if(LLVMCreateJITCompilerForModule(&engine, module, 3, &err) != 0) {
+
+	LLVMCreateJITCompilerForModule(&engine, module, 3, &err);
+	// LLVMCreateExecutionEngineForModule(&engine, module, &err);
+
+	if(err) {
 		Printer::Err("Failed to create execution engine: ", (const char *)err);
+		LLVMDisposeMessage(err);
+		return;
 	}
-	LLVMDisposeMessage(err);
+	// auto        targetMachine = LLVMGetExecutionEngineTargetMachine(engine);
+	// const char *passes        = "default<O3>";
+	// auto        pbo           = LLVMCreatePassBuilderOptions();
+	// LLVMPassBuilderOptionsSetLoopUnrolling(pbo, true);
+	// LLVMPassBuilderOptionsSetMergeFunctions(pbo, true);
+	// LLVMPassBuilderOptionsSetLoopInterleaving(pbo, true);
+	// LLVMPassBuilderOptionsSetLoopVectorization(pbo, true);
+	// LLVMRunPasses(module, passes, targetMachine, pbo);
+#ifdef DEBUG
+	// LLVMDumpModule(module);
+#endif
 	LLVMSetModuleDataLayout(module, LLVMGetExecutionEngineTargetData(engine));
 
-	// #define ADD_BUILTIN_FN(name)                                          \
-//	LLVMAddGlobalMapping(engine, LLVMGetNamedFunction(module, #name), \
-//	                     (void *)name);
+	// LLVMDumpValue(LLVMGetNamedFunction(module, "floor"));
+
+#define ADD_BUILTIN_FN(name)                                          \
+	LLVMAddGlobalMapping(engine, LLVMGetNamedFunction(module, #name), \
+	                     (void *)name);
+	// ADD_BUILTIN_FN(floor);
 	//	ADD_BUILTIN_FN(__next_jit_print3);
 }
 
@@ -411,19 +450,31 @@ void JITCodegen::visit(ReturnStatement *s) {
 }
 
 void JITCodegen::visit(WhileStatement *s) {
-	auto entry = LLVMAppendBasicBlock(compiledFunc, "__while_entry");
-	auto exit  = LLVMAppendBasicBlock(compiledFunc, "__while_exit");
-	auto loop  = LLVMAppendBasicBlock(compiledFunc, "__while_loop");
+	if(s->isDo) {
+		auto entry = LLVMAppendBasicBlock(compiledFunc, "__while_entry");
+		auto exit  = LLVMAppendBasicBlock(compiledFunc, "__while_exit");
+		LLVMBuildBr(builder, entry);
+		positionBuilderAtEnd(entry);
+		s->thenBlock->accept(this);
+		auto val = s->condition->accept(this);
+		val      = callIsFalsy(val);
+		LLVMBuildCondBr(builder, val, exit, entry);
+		positionBuilderAtEnd(exit);
+	} else {
+		auto entry = LLVMAppendBasicBlock(compiledFunc, "__while_entry");
+		auto exit  = LLVMAppendBasicBlock(compiledFunc, "__while_exit");
+		auto loop  = LLVMAppendBasicBlock(compiledFunc, "__while_loop");
 
-	LLVMBuildBr(builder, entry);
-	positionBuilderAtEnd(entry);
-	auto val = s->condition->accept(this);
-	val      = callIsFalsy(val);
-	LLVMBuildCondBr(builder, val, exit, loop);
-	positionBuilderAtEnd(loop);
-	s->thenBlock->accept(this);
-	LLVMBuildBr(builder, entry);
-	positionBuilderAtEnd(exit);
+		LLVMBuildBr(builder, entry);
+		positionBuilderAtEnd(entry);
+		auto val = s->condition->accept(this);
+		val      = callIsFalsy(val);
+		LLVMBuildCondBr(builder, val, exit, loop);
+		positionBuilderAtEnd(loop);
+		s->thenBlock->accept(this);
+		LLVMBuildBr(builder, entry);
+		positionBuilderAtEnd(exit);
+	}
 }
 
 void JITCodegen::visit(IfStatement *s) {
@@ -457,9 +508,58 @@ LLVMValueRef JITCodegen::visit(AssignExpression *e) {
 }
 
 LLVMValueRef JITCodegen::visit(BinaryExpression *e) {
-	auto left  = e->left->accept(this);
+	auto left = e->left->accept(this);
+	if(e->token.type == Token::Type::TOKEN_and ||
+	   e->token.type == Token::Type::TOKEN_or) {
+		auto res = registerVariable();
+		LLVMBuildStore(builder, left, res);
+		auto skipBlock  = LLVMAppendBasicBlock(compiledFunc, "__skip_next");
+		auto contBlock  = LLVMAppendBasicBlock(compiledFunc, "__eval_next");
+		auto shouldSkip = callIsFalsy(left);
+		if(e->token.type == Token::Type::TOKEN_or) {
+			shouldSkip = LLVMBuildNot(builder, shouldSkip, "__is_true");
+		}
+		LLVMBuildCondBr(builder, shouldSkip, skipBlock, contBlock);
+		positionBuilderAtEnd(contBlock);
+		auto right = e->right->accept(this);
+		LLVMBuildStore(builder, right, res);
+		LLVMBuildBr(builder, skipBlock);
+		positionBuilderAtEnd(skipBlock);
+		return LLVMBuildLoad2(builder, nextType, res, "__shortcircuit_res");
+	}
 	auto right = e->right->accept(this);
 	return generateBinOp(left, right, e->token.type);
+}
+
+LLVMValueRef JITCodegen::generateBinInteger(LLVMValueRef left,
+                                            LLVMValueRef right,
+                                            LLVMBinInst  inst) {
+	auto isn1         = callIsInteger(left);
+	auto isn2         = callIsInteger(right);
+	auto isBothNumber = LLVMBuildAnd(builder, isn1, isn2, "__both_numbers");
+	auto sumIfNumberBlock =
+	    LLVMAppendBasicBlock(compiledFunc, "__direct_result");
+	auto callIfObjectBlock =
+	    LLVMAppendBasicBlock(compiledFunc, "__call_method");
+	auto continueBlock = LLVMAppendBasicBlock(compiledFunc, "__continue_rest");
+	LLVMBuildCondBr(builder, isBothNumber, sumIfNumberBlock, callIfObjectBlock);
+	auto tempVar = registerVariable();
+	positionBuilderAtEnd(sumIfNumberBlock);
+	auto n1  = callToInteger(left);
+	auto n2  = callToInteger(right);
+	auto res = inst(builder, n1, n2, "__res");
+	auto resNumber =
+	    LLVMBuildSIToFP(builder, res, LLVMDoubleType(), "__res_to_double");
+	auto encodedRes = callSetNumber(resNumber);
+
+	LLVMBuildStore(builder, encodedRes, tempVar);
+	LLVMBuildBr(builder, continueBlock);
+
+	positionBuilderAtEnd(callIfObjectBlock);
+	LLVMBuildBr(builder, continueBlock);
+	positionBuilderAtEnd(continueBlock);
+
+	return LLVMBuildLoad2(builder, nextType, tempVar, "_op_res");
 }
 
 LLVMValueRef JITCodegen::generateBinNumeric(LLVMValueRef left,
@@ -508,6 +608,15 @@ LLVMValueRef JITCodegen::generateBinOp(LLVMValueRef left, LLVMValueRef right,
 		BINNUM(STAR, Mul);
 		BINNUM(SLASH, Div);
 #undef BINNUM
+#define BININT(token, op)            \
+	case Token::Type::TOKEN_##token: \
+		return generateBinInteger(left, right, LLVMBuild##op);
+		BININT(AMPERSAND, And);
+		BININT(PIPE, Or);
+		BININT(CARET, Xor);
+		BININT(LESS_LESS, Shl);
+		BININT(GREATER_GREATER, LShr);
+#undef BININT
 #define BINCMP(token, pred)          \
 	case Token::Type::TOKEN_##token: \
 		return generateBinNumeric(left, right, NULL, true, LLVMRealO##pred);
