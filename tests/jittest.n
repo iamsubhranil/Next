@@ -1,6 +1,6 @@
 import jit
 
-fn compute_row(n, size, fac, shift) {
+fn compute_row(n: i64, size: i64, fac: i64, shift: i64) {
     bits = 0
     ci = (n * fac) - 1.0
     res = 0

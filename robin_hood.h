@@ -420,7 +420,7 @@ namespace robin_hood {
 			void reset() noexcept {
 				size_t numAllocatedElements = calcNumElementsToAlloc() / 2;
 				while(mListForFree) {
-					T *      tmp = *mListForFree;
+					T       *tmp = *mListForFree;
 					uint8_t *m   = (uint8_t *)mListForFree - 1;
 					// check the tag
 					switch(*m) {
@@ -589,9 +589,8 @@ namespace robin_hood {
 
 			// enforce byte alignment of the T's
 #if ROBIN_HOOD(CXX) >= ROBIN_HOOD(CXX14)
-			static constexpr size_t ALIGNMENT =
-			    (std::max)(std::alignment_of<T>::value,
-			               std::alignment_of<T *>::value);
+			static constexpr size_t ALIGNMENT = (std::max)(
+			    std::alignment_of<T>::value, std::alignment_of<T *>::value);
 #else
 			static const size_t ALIGNMENT =
 			    (ROBIN_HOOD_STD::alignment_of<T>::value >
@@ -611,7 +610,7 @@ namespace robin_hood {
 			              "ALIGNED_SIZE mod");
 			static_assert(ALIGNMENT >= sizeof(T *), "ALIGNMENT");
 
-			T * mHead{nullptr};
+			T  *mHead{nullptr};
 			T **mListForFree{nullptr};
 		};
 
@@ -1051,7 +1050,7 @@ namespace robin_hood {
 				void destroyDoNotDeallocate() noexcept {}
 
 				value_type const *operator->() const noexcept { return &mData; }
-				value_type *      operator->() noexcept { return &mData; }
+				value_type       *operator->() noexcept { return &mData; }
 
 				const value_type &operator*() const noexcept { return mData; }
 
@@ -1118,7 +1117,7 @@ namespace robin_hood {
 					    value_type(std::forward<Args>(args)...);
 				}
 
-				DataNode(M &                  ROBIN_HOOD_UNUSED(map) /*unused*/,
+				DataNode(M                   &ROBIN_HOOD_UNUSED(map) /*unused*/,
 				         DataNode<M, false> &&n) noexcept
 				    : mData(std::move(n.mData)) {}
 
@@ -1578,7 +1577,7 @@ namespace robin_hood {
 			// bucket_count is dictated by the standard, but we can ignore it.
 			explicit Table(
 			    size_t          ROBIN_HOOD_UNUSED(bucket_count) /*unused*/ = 0,
-			    const Hash &    h = Hash{},
+			    const Hash     &h = Hash{},
 			    const KeyEqual &equal =
 			        KeyEqual{}) noexcept(noexcept(Hash(h))
 			                                 &&noexcept(KeyEqual(equal)))
@@ -1740,9 +1739,9 @@ namespace robin_hood {
 					                                    numElementsWithBuffer);
 					// sentinel is set in cloneData
 				}
-				WHash::    operator    =(static_cast<const WHash &>(o));
-				WKeyEqual::operator    =(static_cast<const WKeyEqual &>(o));
-				DataPool:: operator    =(static_cast<DataPool const &>(o));
+				WHash::    operator=(static_cast<const WHash &>(o));
+				WKeyEqual::operator=(static_cast<const WKeyEqual &>(o));
+				DataPool:: operator=(static_cast<DataPool const &>(o));
 				mNumElements           = o.mNumElements;
 				mMask                  = o.mMask;
 				mMaxNumElementsAllowed = o.mMaxNumElementsAllowed;
@@ -2441,7 +2440,7 @@ namespace robin_hood {
 			}
 
 			// members are sorted so no padding occurs
-			Node *   mKeyVals = reinterpret_cast<Node *>(&mMask); // 8 byte  8
+			Node    *mKeyVals = reinterpret_cast<Node *>(&mMask); // 8 byte  8
 			uint8_t *mInfo = reinterpret_cast<uint8_t *>(&mMask); // 8 byte 16
 			size_t   mNumElements           = 0;                  // 8 byte 24
 			size_t   mMask                  = 0;                  // 8 byte 32

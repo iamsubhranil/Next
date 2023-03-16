@@ -218,7 +218,7 @@ size_t Writer<Token>::write(const Token &t, WritableStream &stream) {
 }
 
 size_t Writer<CustomArray<Token>>::write(const CustomArray<Token> &tv,
-                                         WritableStream &          stream) {
+                                         WritableStream           &stream) {
 	size_t res = 0;
 	for(auto i : tv) res += stream.write(i);
 	return res;

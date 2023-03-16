@@ -210,24 +210,36 @@ Statement *ImportDeclaration::parse(Parser *p, Token t, Visibility vis) {
 	return NewStatement(Import, t, imports);
 }
 
+Value parseType(Parser *p) {
+	if(p->match(Token::Type::TOKEN_COLON)) {
+		Token t = p->consume(Token::Type::TOKEN_IDENTIFIER,
+		                     "Expected type after ':'!");
+		return Value(String::from(t.start, t.length));
+	}
+	return ValueNil;
+}
+
 Statement *VarDeclaration::parse(Parser *p, Token t, Visibility vis) {
+	Value type = parseType(p);
 	p->consume(Token::Type::TOKEN_EQUAL,
 	           "Expected '=' after top level variable declaration!");
 	Expression2 e = p->parseExpression();
-	return NewStatement(Vardecl, t, e, vis);
+	return NewStatement(Vardecl, t, type, e, vis);
 }
 
 FnBodyStatement *FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative,
                                             int numArgs) {
 	p->consume(Token::Type::TOKEN_LEFT_PAREN,
 	           "Expected '(' after function name!");
-	Array2 args = Array::create(1);
-	bool   isva = false;
+	Array2 args      = Array::create(1);
+	Array2 arg_types = Array::create(1);
+	bool   isva      = false;
 	if(numArgs == -1 || t.type == Token::Type::TOKEN_SUBSCRIPT) {
 		if(!p->match(Token::Type::TOKEN_RIGHT_PAREN)) {
 			do {
 				Token t = p->consume(Token::Type::TOKEN_IDENTIFIER,
 				                     "Expected argument name!");
+				arg_types->insert(parseType(p));
 				args->insert(String::from(t.start, t.length));
 			} while(p->match(Token::Type::TOKEN_COMMA));
 			if(p->lookAhead(0).type == Token::Type::TOKEN_DOT_DOT) {
@@ -254,6 +266,7 @@ FnBodyStatement *FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative,
 		while(numArgs--) {
 			Token t = p->consume(Token::Type::TOKEN_IDENTIFIER,
 			                     "Expected argument for operator!");
+			arg_types->insert(parseType(p));
 			args->insert(String::from(t.start, t.length));
 			if(numArgs > 0)
 				p->consume(Token::Type::TOKEN_COMMA,
@@ -271,7 +284,7 @@ FnBodyStatement *FnDeclaration::parseFnBody(Parser *p, Token t, bool isNative,
 			           "Native functions should not have a body!");
 		}
 	}
-	return NewStatement(FnBody, t, args, block, isva);
+	return NewStatement(FnBody, t, args, arg_types, block, isva);
 }
 
 Statement *FnDeclaration::parseFnStatement(Parser *p, Token t, bool ism,
@@ -383,14 +396,17 @@ Statement *MemberDeclaration::parse(Parser *p, Token t) {
 }
 
 Statement *MemberDeclaration::parse(Parser *p, Token t, bool iss) {
-	Array2 members = Array::create(1);
+	Array2 members      = Array::create(1);
+	Array2 member_types = Array::create(1);
+	member_types->insert(parseType(p));
 	members->insert(String::from(t.start, t.length));
 	while(p->match(Token::Type::TOKEN_COMMA)) {
 		t = p->consume(Token::Type::TOKEN_IDENTIFIER,
 		               "Expected member name after ','!");
+		member_types->insert(parseType(p));
 		members->insert(String::from(t.start, t.length));
 	}
-	return NewStatement(MemberVariable, t, members, iss);
+	return NewStatement(MemberVariable, t, members, member_types, iss);
 }
 
 // Statements
