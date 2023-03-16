@@ -33,21 +33,13 @@ struct BuiltinFunctions {
 #define JITBUILTIN(x, in, out) static Function x##Fn;
 #include "jit_builtin.h"
 
-	static LLVMTypeRef ValueToLLVM() {
-		return LLVMIntType(64);
-	}
+	static LLVMTypeRef ValueToLLVM() { return LLVMIntType(64); }
 
-	static LLVMTypeRef DoubleToLLVM() {
-		return LLVMDoubleType();
-	}
+	static LLVMTypeRef DoubleToLLVM() { return LLVMDoubleType(); }
 
-	static LLVMTypeRef BooleanToLLVM() {
-		return LLVMInt1Type();
-	}
+	static LLVMTypeRef BooleanToLLVM() { return LLVMInt1Type(); }
 
-	static LLVMTypeRef IntegerToLLVM() {
-		return LLVMIntType(64);
-	}
+	static LLVMTypeRef IntegerToLLVM() { return LLVMIntType(64); }
 
 	static void init(JITCodegen *codegen) {
 		LLVMTypeRef       inType, type;

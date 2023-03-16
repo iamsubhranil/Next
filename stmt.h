@@ -44,9 +44,7 @@ struct Statement {
 	Token token;
 	Type  type;
 	Statement(Token to, Type t) : token(to), type(t) {}
-	Type getType() {
-		return type;
-	}
+	Type getType() { return type; }
 	bool isDeclaration() {
 		switch(type) {
 			case STMT_Fn:
@@ -54,17 +52,11 @@ struct Statement {
 			default: return false;
 		};
 	}
-#define STMTTYPE(x)                    \
-	bool is##x##Statement() {          \
-		return type == STMT_##x;       \
-	}                                  \
-	x##Statement *to##x##Statement() { \
-		return (x##Statement *)this;   \
-	}
+#define STMTTYPE(x)                                               \
+	bool          is##x##Statement() { return type == STMT_##x; } \
+	x##Statement *to##x##Statement() { return (x##Statement *)this; }
 #include "stmttypes.h"
-	bool isImport() {
-		return (type == STMT_Import);
-	}
+	bool                    isImport() { return (type == STMT_Import); }
 	template <typename T> T accept(StatementVisitor<T> *visitor) {
 		switch(type) {
 #define STMTTYPE(x) \
@@ -114,14 +106,17 @@ struct WhileStatement : public Statement {
 struct FnBodyStatement : public Statement {
   public:
 	Array     *args;
+	Array     *arg_types;
 	Statement *body;
 	bool       isva;
-	FnBodyStatement(Token t, const Array2 &ar, const Statement2 &b, bool isv)
-	    : Statement(t, STMT_FnBody), args(ar), body(b == nullptr ? nullptr : b),
-	      isva(isv) {}
+	FnBodyStatement(Token t, const Array2 &ar, const Array2 &art,
+	                const Statement2 &b, bool isv)
+	    : Statement(t, STMT_FnBody), args(ar), arg_types(art),
+	      body(b == nullptr ? nullptr : b), isva(isv) {}
 	void mark() {
 		Gc::mark(args);
 		Gc::mark(body);
+		Gc::mark(arg_types);
 	}
 };
 
@@ -142,11 +137,15 @@ struct FnStatement : public Statement {
 
 struct VardeclStatement : public Statement {
   public:
+	Value       type;
 	Expression *expr;
 	Visibility  vis;
-	VardeclStatement(Token name, const Expression2 &e, Visibility v)
-	    : Statement(name, STMT_Vardecl), expr(e), vis(v) {}
-	void mark() { Gc::mark(expr); }
+	VardeclStatement(Token name, Value vt, const Expression2 &e, Visibility v)
+	    : Statement(name, STMT_Vardecl), type(vt), expr(e), vis(v) {}
+	void mark() {
+		Gc::mark(expr);
+		Gc::mark(type);
+	}
 };
 
 struct ClassStatement : public Statement {
@@ -177,10 +176,16 @@ struct VisibilityStatement : public Statement {
 struct MemberVariableStatement : public Statement {
   public:
 	Array *members;
+	Array *member_types;
 	bool   isStatic;
-	MemberVariableStatement(Token t, const Array2 &mem, bool iss)
-	    : Statement(t, STMT_MemberVariable), members(mem), isStatic(iss) {}
-	void mark() { Gc::mark(members); }
+	MemberVariableStatement(Token t, const Array2 &mem, const Array2 &memtypes,
+	                        bool iss)
+	    : Statement(t, STMT_MemberVariable), members(mem),
+	      member_types(memtypes), isStatic(iss) {}
+	void mark() {
+		Gc::mark(members);
+		Gc::mark(member_types);
+	}
 };
 
 struct ImportStatement : public Statement {

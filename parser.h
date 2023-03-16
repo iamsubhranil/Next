@@ -102,7 +102,7 @@ class PostfixOperatorParselet : public InfixParselet {
 	PostfixOperatorParselet(int precedence) : InfixParselet(precedence) {}
 	Expression *parse(Parser *parser, const Expression2 &left, Token t);
 	bool        isAssignment() {
-		       return true; // only ++/--
+        return true; // only ++/--
 	}
 };
 
