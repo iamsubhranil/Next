@@ -75,13 +75,19 @@ struct JITCodegen : LLVMCodegenBase {
 
 	// map
 	std::map<String *, LLVMValueRef> variableMap;
+	std::map<String *, LLVMTypeRef>  typeMap;
 	// visitor helpers
-	void         registerArgs(Array *args);
-	LLVMValueRef registerVariable(String *name = NULL);
-	LLVMValueRef registerVariable(Token name);
+	LLVMTypeRef  getTypeFromString(String *type);
+	void         registerArgs(Array *args, Array *types);
+	LLVMValueRef registerVariable(String     *name = NULL,
+	                              LLVMTypeRef type = LLVMVoidType());
+	LLVMValueRef registerVariable(String *name = NULL, String *type = NULL);
+	LLVMValueRef registerVariable(Token name, Token type);
+	LLVMValueRef registerVariable(Token name, LLVMTypeRef type);
 	bool         hasVariable(Token name);
 	LLVMValueRef getVariable(Token name);
-	LLVMValueRef getOrRegisterVariable(Token name);
+	LLVMValueRef getOrRegisterVariable(Token name, Token type);
+	LLVMValueRef getOrRegisterVariable(Token name, LLVMTypeRef type);
 	void         generateReturn(LLVMValueRef val);
 	LLVMValueRef generateBinOp(LLVMValueRef left, LLVMValueRef right,
 	                           Token::Type op);

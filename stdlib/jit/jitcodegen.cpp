@@ -316,7 +316,21 @@ next_builtin_fn JITCodegen::compile(Array *statements) {
 
 // visitor helpers
 
-LLVMValueRef JITCodegen::registerVariable(String *name) {
+LLVMTypeRef JITCodegen::getTypeFromString(String *type) {
+	if(type == String::const_i1) {
+		return LLVMInt1Type();
+	}
+	if(type == String::const_i64) {
+		return LLVMInt64Type();
+	}
+	if(type == String::const_f64) {
+		return LLVMDoubleType();
+	} else {
+		return nextType;
+	}
+}
+
+LLVMValueRef JITCodegen::registerVariable(String *name, LLVMTypeRef type) {
 	auto bak = currentBlock;
 	auto bb  = LLVMGetFirstBasicBlock(compiledFunc);
 	positionBuilderAtEnd(bb);
@@ -324,19 +338,29 @@ LLVMValueRef JITCodegen::registerVariable(String *name) {
 	if(name) {
 		charname = (char *)name->strb();
 	}
-	auto val          = LLVMBuildAlloca(builder, nextType, charname);
+	auto val          = LLVMBuildAlloca(builder, type, charname);
 	variableMap[name] = val;
 	positionBuilderAtEnd(bak);
 	return val;
 }
 
-LLVMValueRef JITCodegen::registerVariable(Token name) {
-	return registerVariable(String::from(name.start, name.length));
+LLVMValueRef JITCodegen::registerVariable(String *name, String *type) {
+	return registerVariable(name, getTypeFromString(type));
 }
 
-void JITCodegen::registerArgs(Array *args) {
+LLVMValueRef JITCodegen::registerVariable(Token name, Token type) {
+	return registerVariable(String::from(name.start, name.length),
+	                        String::from(type.start, type.length));
+}
+
+LLVMValueRef JITCodegen::registerVariable(Token name, LLVMTypeRef type) {
+	return registerVariable(String::from(name.start, name.length), type);
+}
+
+void JITCodegen::registerArgs(Array *args, Array *types) {
 	for(int i = 0; i < args->size; i++) {
-		auto valptr = registerVariable(args->values[i].toString());
+		auto valptr = registerVariable(args->values[i].toString(),
+		                               types->values[i].toString());
 		auto bak    = LLVMGetLastBasicBlock(compiledFunc);
 		auto bb     = LLVMGetFirstBasicBlock(compiledFunc);
 		positionBuilderAtEnd(bb);
@@ -355,10 +379,16 @@ LLVMValueRef JITCodegen::getVariable(Token name) {
 	return variableMap[s];
 }
 
-LLVMValueRef JITCodegen::getOrRegisterVariable(Token name) {
+LLVMValueRef JITCodegen::getOrRegisterVariable(Token name, Token type) {
 	if(hasVariable(name))
 		return getVariable(name);
-	return registerVariable(name);
+	return registerVariable(name, type);
+}
+
+LLVMValueRef JITCodegen::getOrRegisterVariable(Token name, LLVMTypeRef type) {
+	if(hasVariable(name))
+		return getVariable(name);
+	return registerVariable(name, type);
 }
 
 // visitors
@@ -420,7 +450,7 @@ void JITCodegen::visit(FnBodyStatement *s) {
 	(void)ret;
 	LLVMBuildRet(builder, ret);
 	*/
-	registerArgs(s->args);
+	registerArgs(s->args, s->arg_types);
 	s->body->accept(this);
 }
 
@@ -494,7 +524,7 @@ LLVMValueRef JITCodegen::visit(AssignExpression *e) {
 		defaultPanic("Subscript expression not yet implemented!");
 	}
 	auto val       = e->val->accept(this);
-	auto targetptr = getOrRegisterVariable(e->target->token);
+	auto targetptr = getOrRegisterVariable(e->target->token, LLVMTypeOf(val));
 	LLVMBuildStore(builder, val, targetptr);
 	return val;
 }
@@ -503,7 +533,7 @@ LLVMValueRef JITCodegen::visit(BinaryExpression *e) {
 	auto left = e->left->accept(this);
 	if(e->token.type == Token::Type::TOKEN_and ||
 	   e->token.type == Token::Type::TOKEN_or) {
-		auto res = registerVariable();
+		auto res = registerVariable(NULL, LLVMVoidType());
 		LLVMBuildStore(builder, left, res);
 		auto skipBlock  = LLVMAppendBasicBlock(compiledFunc, "__skip_next");
 		auto contBlock  = LLVMAppendBasicBlock(compiledFunc, "__eval_next");
@@ -535,7 +565,7 @@ LLVMValueRef JITCodegen::generateBinInteger(LLVMValueRef left,
 	    LLVMAppendBasicBlock(compiledFunc, "__call_method");
 	auto continueBlock = LLVMAppendBasicBlock(compiledFunc, "__continue_rest");
 	LLVMBuildCondBr(builder, isBothNumber, sumIfNumberBlock, callIfObjectBlock);
-	auto tempVar = registerVariable();
+	auto tempVar = registerVariable(NULL, LLVMVoidType());
 	positionBuilderAtEnd(sumIfNumberBlock);
 	auto n1  = callToInteger(left);
 	auto n2  = callToInteger(right);
@@ -567,7 +597,7 @@ LLVMValueRef JITCodegen::generateBinNumeric(LLVMValueRef left,
 	    LLVMAppendBasicBlock(compiledFunc, "__call_method");
 	auto continueBlock = LLVMAppendBasicBlock(compiledFunc, "__continue_rest");
 	LLVMBuildCondBr(builder, isBothNumber, sumIfNumberBlock, callIfObjectBlock);
-	auto tempVar = registerVariable();
+	auto tempVar = registerVariable(NULL, LLVMVoidType());
 	positionBuilderAtEnd(sumIfNumberBlock);
 	auto         n1 = callToNumber(left);
 	auto         n2 = callToNumber(right);
