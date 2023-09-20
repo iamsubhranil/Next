@@ -533,7 +533,7 @@ LLVMValueRef JITCodegen::visit(BinaryExpression *e) {
 	auto left = e->left->accept(this);
 	if(e->token.type == Token::Type::TOKEN_and ||
 	   e->token.type == Token::Type::TOKEN_or) {
-		auto res = registerVariable(NULL, LLVMVoidType());
+		auto res = registerVariable(NULL, nextType);
 		LLVMBuildStore(builder, left, res);
 		auto skipBlock  = LLVMAppendBasicBlock(compiledFunc, "__skip_next");
 		auto contBlock  = LLVMAppendBasicBlock(compiledFunc, "__eval_next");
@@ -565,7 +565,7 @@ LLVMValueRef JITCodegen::generateBinInteger(LLVMValueRef left,
 	    LLVMAppendBasicBlock(compiledFunc, "__call_method");
 	auto continueBlock = LLVMAppendBasicBlock(compiledFunc, "__continue_rest");
 	LLVMBuildCondBr(builder, isBothNumber, sumIfNumberBlock, callIfObjectBlock);
-	auto tempVar = registerVariable(NULL, LLVMVoidType());
+	auto tempVar = registerVariable(NULL, nextType);
 	positionBuilderAtEnd(sumIfNumberBlock);
 	auto n1  = callToInteger(left);
 	auto n2  = callToInteger(right);
@@ -597,7 +597,7 @@ LLVMValueRef JITCodegen::generateBinNumeric(LLVMValueRef left,
 	    LLVMAppendBasicBlock(compiledFunc, "__call_method");
 	auto continueBlock = LLVMAppendBasicBlock(compiledFunc, "__continue_rest");
 	LLVMBuildCondBr(builder, isBothNumber, sumIfNumberBlock, callIfObjectBlock);
-	auto tempVar = registerVariable(NULL, LLVMVoidType());
+	auto tempVar = registerVariable(NULL, nextType);
 	positionBuilderAtEnd(sumIfNumberBlock);
 	auto         n1 = callToNumber(left);
 	auto         n2 = callToNumber(right);
