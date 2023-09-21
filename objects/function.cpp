@@ -26,6 +26,7 @@ Function *Function::create(const String2 &str, int arity, bool isva,
 	f->numExceptions = 0;
 	f->exceptions    = NULL;
 	f->varArg        = isva;
+	f->reopt         = false;
 	return f;
 }
 

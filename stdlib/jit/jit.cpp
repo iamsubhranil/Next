@@ -62,7 +62,8 @@ Value next_jit_compile(const Value *args, int numargs) {
 	// compiledFn(compiled_args, 1);
 	// (void)compiledFn;
 	f->setType(Function::Type::BUILTIN);
-	f->func = compiledFn;
+	f->func  = compiledFn;
+	f->reopt = true;
 	// compile_llvm(f);
 	return declarations;
 }
