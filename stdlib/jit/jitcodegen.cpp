@@ -279,14 +279,14 @@ void JITCodegen::initEngine() {
 		LLVMDisposeMessage(err);
 		return;
 	}
-	// auto        targetMachine = LLVMGetExecutionEngineTargetMachine(engine);
-	// const char *passes        = "default<O3>";
-	// auto        pbo           = LLVMCreatePassBuilderOptions();
-	// LLVMPassBuilderOptionsSetLoopUnrolling(pbo, true);
-	// LLVMPassBuilderOptionsSetMergeFunctions(pbo, true);
-	// LLVMPassBuilderOptionsSetLoopInterleaving(pbo, true);
-	// LLVMPassBuilderOptionsSetLoopVectorization(pbo, true);
-	// LLVMRunPasses(module, passes, targetMachine, pbo);
+	auto        targetMachine = LLVMGetExecutionEngineTargetMachine(engine);
+	const char *passes        = "default<O3>";
+	auto        pbo           = LLVMCreatePassBuilderOptions();
+	LLVMPassBuilderOptionsSetLoopUnrolling(pbo, true);
+	LLVMPassBuilderOptionsSetMergeFunctions(pbo, true);
+	LLVMPassBuilderOptionsSetLoopInterleaving(pbo, true);
+	LLVMPassBuilderOptionsSetLoopVectorization(pbo, true);
+	LLVMRunPasses(module, passes, targetMachine, pbo);
 #ifdef DEBUG
 	// LLVMDumpModule(module);
 #endif
