@@ -46,6 +46,10 @@ struct Function {
 	             // i.e.
 	             // fn test(a, b, ... extra) // arity -> 2
 	             // fn test(... extra)       // arity -> 0
+	bool reopt;  // this flag is set by the JIT after
+	             // it compiles a function. this forces
+	             // the engine to deopt any previous
+	             // call optimizations
 
 	inline void           setType(Type t) { mode = t; }
 	inline Function::Type getType() const { return mode; }
@@ -95,11 +99,7 @@ struct Function {
 #endif
 
 #ifdef DEBUG_GC
-	void depend() {
-		Gc::depend(name);
-	}
-	const String *gc_repr() {
-		return name;
-	}
+	void          depend() { Gc::depend(name); }
+	const String *gc_repr() { return name; }
 #endif
 };

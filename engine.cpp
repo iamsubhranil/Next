@@ -1003,31 +1003,38 @@ bool ExecutionEngine::execute(Fiber *fiber, Value *returnValue) {
 
 #undef FASTCALL_SOFT
 
-#define FASTCALL(type)                                                \
-	{                                                                 \
-		CallPatch         = InstructionPointer;                       \
-		int idxstart      = next_int();                               \
-		numberOfArguments = next_int();                               \
-		/* get the cached class and function */                       \
-		const Class *c = Locals[idxstart].toClass();                  \
-		Function    *f = Locals[idxstart + 1].toFunction();           \
-		if(c == fiber->stackTop[-numberOfArguments - 1].getClass()) { \
-			functionToCall = f;                                       \
-			/* ignore the next opcode */                              \
-			SKIPCALL();                                               \
-			/* directly jump to the appropriate call */               \
-			goto perform##type;                                       \
-		}                                                             \
-		/* check failed, run the original opcode */                   \
-		DISPATCH();                                                   \
+#define FASTCALL(type, canChange)                                              \
+	{                                                                          \
+		CallPatch         = InstructionPointer;                                \
+		int idxstart      = next_int();                                        \
+		numberOfArguments = next_int();                                        \
+		/* get the cached class and function */                                \
+		const Class *c = Locals[idxstart].toClass();                           \
+		Function    *f = Locals[idxstart + 1].toFunction();                    \
+		if(c == fiber->stackTop[-numberOfArguments - 1].getClass()) {          \
+			functionToCall = f;                                                \
+			/* ignore the next opcode */                                       \
+			SKIPCALL();                                                        \
+			if(canChange) {                                                    \
+				if(f->reopt) {                                                 \
+					/* f->reopt   = false;                                     \
+					 *CallPatch = Bytecode::Opcode::CODE_call_fast_builtin; */ \
+					goto performbuiltin;                                       \
+				}                                                              \
+			}                                                                  \
+			/* directly jump to the appropriate call */                        \
+			goto perform##type;                                                \
+		}                                                                      \
+		/* check failed, run the original opcode */                            \
+		DISPATCH();                                                            \
 	}
 
 			CASE(call_fast_builtin) : {
-				FASTCALL(builtin);
+				FASTCALL(builtin, false);
 			}
 
 			CASE(call_fast_method) : {
-				FASTCALL(method);
+				FASTCALL(method, true);
 			}
 
 #undef FASTCALL
