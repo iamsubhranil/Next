@@ -8,12 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        compiler: [g++-10, clang++]
+        compiler: [g++-12, clang++]
         target: [debug, all, cgoto]
         cxxstd: [c++11, c++14, c++17, c++20]
       fail-fast: false
 
     steps:
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "16.0.4"
     - uses: actions/checkout@v2
     - name: ${{ matrix.target }} ${{ matrix.compiler }} ${{ matrix.cxxstd }}
       env:
