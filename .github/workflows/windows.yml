@@ -10,6 +10,10 @@ jobs:
         config: [Release, Debug]
       fail-fast: false
     steps:
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "16.0.4"
     - uses: actions/checkout@v2
     - uses: microsoft/setup-msbuild@v1.0.2
     - name: ${{ matrix.config }}
