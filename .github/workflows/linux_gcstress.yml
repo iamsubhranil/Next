@@ -13,10 +13,13 @@ jobs:
       fail-fast: false
 
     steps:
-    - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@v1
-      with:
-        version: "16.0.4"
+    - name: Set up LLVM and GCC
+      run: |
+        sudo apt-get update
+        sudo apt-get install llvm
+        sudo apt-get install clang
+        sudo apt-get install llvm-dev  # For development headers
+        sudo apt-get install gcc-12
     - uses: actions/checkout@v2
     - name: ${{ matrix.compiler }} ${{ matrix.cxxstd }}
       env:
