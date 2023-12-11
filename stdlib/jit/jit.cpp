@@ -1,7 +1,5 @@
 #include "jit.h"
 
-#define NEXT_COMPILE_JIT
-
 #ifdef NEXT_COMPILE_JIT
 #include "../../loader.h"
 #include "../../objects/boundmethod.h"

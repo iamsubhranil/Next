@@ -1,8 +1,12 @@
 #include "jitcodegen.h"
+
+#ifdef NEXT_COMPILE_JIT
+#include "../../engine.h"
 #include "../../expr.h"
 #include "../../objects/array.h"
 #include "../../printer.h"
 #include "../../stmt.h"
+#include "../../value.h"
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/TargetMachine.h>
@@ -19,6 +23,18 @@ uint64_t __next_jit_print3(uint64_t a, uint64_t b, uint64_t c) {
 	__next_jit_print(a);
 	__next_jit_print(b);
 	return __next_jit_print(c);
+}
+
+bool __next_jit_call_method(Value value, int sym, uint64_t numargs, Value *args,
+                            Value *ret) {
+	const Class *o  = value.getClass();
+	Value        fn = o->has_fn(sym) ? o->get_fn(sym) : ValueNil;
+	if(fn == ValueNil) {
+		*ret = RuntimeError::create(String::from("Method does not exist!"));
+		return false;
+	}
+	return ExecutionEngine::execute(value, fn.toFunction(), args, numargs, ret,
+	                                true);
 }
 }
 
@@ -674,3 +690,4 @@ LLVMValueRef JITCodegen::visit(GroupingExpression *e) {
 	}
 	return last;
 }
+#endif
