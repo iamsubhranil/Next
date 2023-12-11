@@ -1,5 +1,8 @@
 #pragma once
 
+#include "jit.h"
+
+#ifdef NEXT_COMPILE_JIT
 #include <llvm-c/Core.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Types.h>
@@ -108,3 +111,4 @@ struct JITCodegen : LLVMCodegenBase {
 	virtual LLVMValueRef visit(LiteralExpression *e);
 	virtual LLVMValueRef visit(GroupingExpression *e);
 };
+#endif
