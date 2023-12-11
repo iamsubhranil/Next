@@ -171,6 +171,12 @@
     <ClCompile Include="objects\classes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="stdlib\jit\jit.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdlib\jit\jitcodegen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="codegen.h">
@@ -408,6 +414,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="objects\classes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\jit\jit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\jit\jit_builtin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdlib\jit\jitcodegen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

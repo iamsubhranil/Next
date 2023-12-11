@@ -127,7 +127,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>PGOptimize</WholeProgramOptimization>
+    <WholeProgramOptimization>PGInstrument</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleasePgoApply|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -371,7 +371,8 @@
     </ClCompile>
     <Link>
       <Profile>true</Profile>
-      <LinkTimeCodeGeneration>PGInstrument</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>/GENPROFILE</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleasePgoApply|x64'">
@@ -384,7 +385,8 @@
     </ClCompile>
     <Link>
       <Profile>true</Profile>
-      <LinkTimeCodeGeneration>PGOptimization</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>/USEPROFILE</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='GcStress|x64'">
@@ -443,6 +445,8 @@
     <ClCompile Include="printer.cpp" />
     <ClCompile Include="scanner.cpp" />
     <ClCompile Include="stdlib\io\io.cpp" />
+    <ClCompile Include="stdlib\jit\jit.cpp" />
+    <ClCompile Include="stdlib\jit\jitcodegen.cpp" />
     <ClCompile Include="stdlib\math\math.cpp" />
     <ClCompile Include="stdlib\random\random.cpp" />
     <ClCompile Include="stmt.cpp" />
@@ -517,6 +521,9 @@
     <ClInclude Include="robin_hood.h" />
     <ClInclude Include="scanner.h" />
     <ClInclude Include="stdlib\io\io.h" />
+    <ClInclude Include="stdlib\jit\jit.h" />
+    <ClInclude Include="stdlib\jit\jitcodegen.h" />
+    <ClInclude Include="stdlib\jit\jit_builtin.h" />
     <ClInclude Include="stdlib\math\math.h" />
     <ClInclude Include="stdlib\math\math_functions.h" />
     <ClInclude Include="stdlib\random\random.h" />
