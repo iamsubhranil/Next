@@ -306,6 +306,11 @@ To build Next with profile guided optimizations, do
 
 $ `make clean && make pgo -j4`
 
+Screenshots
+-----------
+A ray tracer written in Next (tests/benchmark/renderer.n)
+![Renderer](./img/renderer.png)
+
 Contributing
 ------------
 Any and all contributions are welcome!
