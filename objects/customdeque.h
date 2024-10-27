@@ -7,7 +7,7 @@
 template <typename T> struct CustomDeque {
 	const static size_t ItemsPerChunk = 5;
 
-	T **   chunk_map; // chunks are always centered
+	T    **chunk_map; // chunks are always centered
 	size_t chunk_map_size;
 
 	size_t first_chunk_at;
@@ -30,7 +30,7 @@ template <typename T> struct CustomDeque {
 			// allocate the new map
 			chunk_map =
 			    (T **)Gc_realloc(chunk_map, sizeof(T *) * chunk_map_size,
-			                           sizeof(T *) * new_size);
+			                     sizeof(T *) * new_size);
 			// make the new cells null
 			for(size_t i = chunk_map_size; i < new_size; i++)
 				chunk_map[i] = nullptr;
@@ -151,7 +151,7 @@ template <typename T> struct CustomDeque {
 
 	bool empty() { return size() == 0; }
 
-	CustomDeque<T>() {
+	CustomDeque() {
 		// we'll allocate one chunk initially
 		chunk_map      = (T **)Gc_malloc(sizeof(T *));
 		chunk_map_size = 1;
@@ -162,7 +162,7 @@ template <typename T> struct CustomDeque {
 		allocate_chunk_at(0);
 	}
 
-	~CustomDeque<T>() {
+	~CustomDeque() {
 		for(size_t i = 0; i < chunk_map_size; i++)
 			Gc_free(chunk_map[i], sizeof(T) * ItemsPerChunk);
 		Gc_free(chunk_map, sizeof(T *) * chunk_map_size);
