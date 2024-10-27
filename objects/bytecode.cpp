@@ -65,6 +65,7 @@ Bytecode *Bytecode::create() {
 }
 
 #define next_int() (*ip++)
+#define next_int_ignore() (ip++)
 #define next_Value() (values[next_int()])
 Bytecode *Bytecode::create_derived(int offset) {
 	Bytecode2 b     = Bytecode::create();
@@ -100,23 +101,23 @@ Bytecode *Bytecode::create_derived(int offset) {
 					break;
 				}
 				case CODE_call_fast_prepare:
-					next_int(); // ignore the index
+					next_int_ignore(); // ignore the index
 					b->call_fast_prepare(b->add_constant(ValueNil, false),
 					                     next_int());
 					b->add_constant(ValueNil, false);
 					break;
 				case CODE_bcall_fast_prepare:
-					next_int(); // ignore the index
+					next_int_ignore(); // ignore the index
 					b->bcall_fast_prepare(b->add_constant(ValueNil, false));
 					break;
 				case CODE_load_field_fast:
-					next_int(); // ignore the index
-					next_int(); // ignore the slot
+					next_int_ignore(); // ignore the index
+					next_int_ignore(); // ignore the slot
 					b->load_field_fast(b->add_constant(ValueNil, false), 0);
 					break;
 				case CODE_store_field_fast:
-					next_int(); // ignore the index
-					next_int(); // ignore the slot
+					next_int_ignore(); // ignore the index
+					next_int_ignore(); // ignore the slot
 					b->store_field_fast(b->add_constant(ValueNil, false), 0);
 					break;
 
@@ -125,13 +126,9 @@ Bytecode *Bytecode::create_derived(int offset) {
 			continue;
 		}
 #define OPCODE0(w, x) \
-	case CODE_##w:    \
-		b->w();       \
-		break;
-#define OPCODE1(w, x, y)  \
-	case CODE_##w:        \
-		b->w(next_##y()); \
-		break;
+	case CODE_##w: b->w(); break;
+#define OPCODE1(w, x, y) \
+	case CODE_##w: b->w(next_##y()); break;
 #define OPCODE2(w, x, y, z) \
 	case CODE_##w: {        \
 		y Y = next_##y();   \
@@ -163,10 +160,8 @@ void Bytecode::disassemble_Value(WritableStream &os, const Value &v) {
 		case Value::Type::Object: {
 			GcObject *o = v.toGcObject();
 			switch(o->getType()) {
-#define OBJTYPE(n, c)                            \
-	case GcObject::Type::n:                      \
-		os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); \
-		break;
+#define OBJTYPE(n, c) \
+	case GcObject::Type::n: os.fmt("<{}@0x{:x}>", #n, (uintptr_t)o); break;
 #include "../objecttype.h"
 				case GcObject::Type::None:
 					os.write("NONE (THIS IS AN ERROR)");
