@@ -100,3 +100,11 @@ fn main() {
     jit.arch() // "x86_64", for example
 }
 ```
+
+Let's compile two versions of the function. One using argument type hints, and 
+another without. Wrapper will validate whether or not the argument types are 
+valid for the specific arguments passed. If they are, it will dispatch the call 
+to the type specialized version. Otherwise, it will dispatch it to the generic 
+version with all the in-place checks. This will allow the JIT to compile all 
+existing Next code (when support is in place), but also transparently provide 
+huge speedup when arguments are properly annotated and passed.

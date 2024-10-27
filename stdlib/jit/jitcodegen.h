@@ -46,6 +46,8 @@ struct JITCodegen : LLVMCodegenBase {
 	LLVMValueRef           compiledFunc;
 	LLVMTypeRef            nextType;
 	LLVMBasicBlockRef      currentBlock;
+	bool                   hasSpecialization;
+	bool                   compileSpecialized;
 
 	void positionBuilderAtEnd(LLVMBasicBlockRef block);
 
@@ -65,14 +67,21 @@ struct JITCodegen : LLVMCodegenBase {
 	                                       LLVMValueRef, LLVMValueRef,
 	                                       const char *);
 	LLVMValueRef generateBinNumeric(LLVMValueRef left, LLVMValueRef right,
-	                                LLVMBinInst inst, bool isCmp = false,
-	                                LLVMRealPredicate pred = LLVMRealOEQ);
+	                                LLVMBinInst finst, LLVMBinInst iinst,
+	                                bool              isCmp = false,
+	                                LLVMRealPredicate pred  = LLVMRealOEQ,
+	                                LLVMIntPredicate  ipred = LLVMIntEQ);
 	LLVMValueRef generateBinInteger(LLVMValueRef left, LLVMValueRef right,
-	                                LLVMBinInst inst);
-
-	LLVMValueRef    getWrapperArg(int i);
+	                                LLVMBinInst inst, bool isCmp = false,
+	                                LLVMIntPredicate = LLVMIntEQ);
+	LLVMValueRef generateCastOrReturn(LLVMTypeRef targetType, LLVMValueRef val);
+	LLVMValueRef generateNextValueCast(LLVMTypeRef type, LLVMValueRef val);
+	LLVMValueRef generateConstraintCheckForType(LLVMTypeRef  type,
+	                                            LLVMValueRef val);
+	LLVMValueRef getWrapperArg(int i);
 	next_builtin_fn getCompiledFn();
 	void            gen(Array *stmt);
+	void            compileFunction(LLVMValueRef func, FnStatement *s);
 
 	static next_builtin_fn compile(Array *statements);
 

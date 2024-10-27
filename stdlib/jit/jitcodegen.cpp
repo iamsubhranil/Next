@@ -8,6 +8,7 @@
 #include "../../stmt.h"
 #include "../../value.h"
 
+#include <assert.h>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassBuilder.h>
@@ -216,6 +217,11 @@ LLVMValueRef JITCodegen::defineIsFalsy(LLVMValueRef func) {
 	return res;
 }
 
+LLVMValueRef JITCodegen::defineIsTruthy(LLVMValueRef func) {
+	auto IsFalsy = defineIsFalsy(func);
+	return LLVMBuildNot(builder, IsFalsy, "__is_truthy");
+}
+
 LLVMValueRef JITCodegen::defineIsInteger(LLVMValueRef func) {
 	auto arg       = LLVMGetParam(func, 0);
 	auto is_number = callIsNumber(arg);
@@ -268,12 +274,6 @@ void JITCodegen::gen(Array *statements) {
 
 	statements->values[0].toStatement()->accept(this);
 
-	LLVMVerifyFunction(compiledFunc, LLVMPrintMessageAction);
-
-#ifdef DEBUG
-	LLVMDumpModule(module);
-#endif
-
 	char *err = NULL;
 	if(LLVMVerifyModule(module, LLVMReturnStatusAction, &err)) {
 		Printer::Err("Compilation failed: ", (const char *)err);
@@ -290,6 +290,9 @@ void JITCodegen::initEngine() {
 	LLVMCreateJITCompilerForModule(&engine, module, 3, &err);
 	// LLVMCreateExecutionEngineForModule(&engine, module, &err);
 
+#ifdef DEBUG
+	LLVMDumpModule(module);
+#endif
 	if(err) {
 		Printer::Err("Failed to create execution engine: ", (const char *)err);
 		LLVMDisposeMessage(err);
@@ -303,9 +306,6 @@ void JITCodegen::initEngine() {
 	LLVMPassBuilderOptionsSetLoopInterleaving(pbo, true);
 	LLVMPassBuilderOptionsSetLoopVectorization(pbo, true);
 	LLVMRunPasses(module, passes, targetMachine, pbo);
-#ifdef DEBUG
-	// LLVMDumpModule(module);
-#endif
 	LLVMSetModuleDataLayout(module, LLVMGetExecutionEngineTargetData(engine));
 
 	// LLVMDumpValue(LLVMGetNamedFunction(module, "floor"));
@@ -313,6 +313,7 @@ void JITCodegen::initEngine() {
 #define ADD_BUILTIN_FN(name)                                          \
 	LLVMAddGlobalMapping(engine, LLVMGetNamedFunction(module, #name), \
 	                     (void *)name);
+	// ADD_BUILTIN_FN(__next_jit_print);
 	// ADD_BUILTIN_FN(floor);
 	//	ADD_BUILTIN_FN(__next_jit_print3);
 }
@@ -331,6 +332,69 @@ next_builtin_fn JITCodegen::compile(Array *statements) {
 }
 
 // visitor helpers
+
+LLVMValueRef JITCodegen::generateConstraintCheckForType(LLVMTypeRef  type,
+                                                        LLVMValueRef val) {
+	if(type == LLVMInt1Type()) {
+		return callIsBoolean(val);
+	} else if(type == LLVMInt64Type()) {
+		return callIsInteger(val);
+	} else if(type == LLVMDoubleType()) {
+		return callIsNumber(val);
+	}
+	assert("Unknown type!");
+	return getConstantInt(1);
+}
+
+LLVMValueRef JITCodegen::generateNextValueCast(LLVMTypeRef  type,
+                                               LLVMValueRef val) {
+	if(type == LLVMInt1Type()) {
+		return callToBoolean(val);
+	} else if(type == LLVMInt64Type()) {
+		return callToInteger(val);
+	} else if(type == LLVMDoubleType()) {
+		return callToNumber(val);
+	}
+	assert("Unknown type!");
+	return getConstantInt(1);
+}
+
+LLVMValueRef JITCodegen::generateCastOrReturn(LLVMTypeRef  targetType,
+                                              LLVMValueRef val) {
+	if(LLVMTypeOf(val) == targetType)
+		return val;
+
+	auto valType = LLVMTypeOf(val);
+	if(targetType == LLVMDoubleType()) {
+		if(valType == LLVMInt64Type()) {
+			return LLVMBuildSIToFP(builder, val, targetType,
+			                       "__cast_int_to_float");
+		} else if(valType == LLVMInt1Type()) {
+			return LLVMBuildUIToFP(builder, val, targetType,
+			                       "__cast_bool_to_float");
+		}
+		assert("Unknown type!");
+	} else if(targetType == LLVMInt64Type()) {
+		if(valType == LLVMDoubleType()) {
+			return LLVMBuildFPToSI(builder, val, targetType,
+			                       "__cast_float_to_int");
+		} else if(valType == LLVMInt1Type()) {
+			return LLVMBuildZExt(builder, val, targetType,
+			                     "__cast_bool_to_int");
+		}
+	} else if(targetType == LLVMInt1Type()) {
+		if(valType == LLVMDoubleType()) {
+			return LLVMBuildFPToUI(builder, val, targetType,
+			                       "__cast_float_to_bool");
+		} else if(valType == LLVMInt64Type()) {
+			return LLVMBuildIntCast(builder, val, targetType,
+			                        "__cast_int_to_bool");
+		}
+	}
+
+	assert("Unknown type!");
+	return getConstantInt(0);
+}
 
 LLVMTypeRef JITCodegen::getTypeFromString(String *type) {
 	if(type == String::const_i1) {
@@ -354,7 +418,8 @@ LLVMValueRef JITCodegen::registerVariable(String *name, LLVMTypeRef type) {
 	if(name) {
 		charname = (char *)name->strb();
 	}
-	auto val          = LLVMBuildAlloca(builder, type, charname);
+	auto val = LLVMBuildAlloca(builder, compileSpecialized ? type : nextType,
+	                           charname);
 	variableMap[name] = val;
 	positionBuilderAtEnd(bak);
 	return val;
@@ -411,38 +476,122 @@ LLVMValueRef JITCodegen::getOrRegisterVariable(Token name, LLVMTypeRef type) {
 
 void JITCodegen::visit(FnStatement *s) {
 	// generate arg type array
-	LLVMTypeRef argTypes[s->arity];
+	std::vector<LLVMTypeRef> argTypes;
 	for(size_t i = 0; i < s->arity; i++) {
-		argTypes[i] = nextType;
+		argTypes.push_back(nextType);
 	}
-	auto fnType = LLVMFunctionType(nextType, argTypes, s->arity, 0);
+	auto    fnType = LLVMFunctionType(nextType, argTypes.data(), s->arity, 0);
+	String2 fnName = String::from(s->name.start, s->name.length);
 	// declare function
-	compiledFunc = LLVMAddFunction(
-	    module, (char *)String::from(s->name.start, s->name.length)->strb(),
-	    fnType);
+	auto compiledFuncUntyped =
+	    LLVMAddFunction(module, (char *)fnName->strb(), fnType);
+
+	std::vector<LLVMTypeRef> typedArgTypes;
+	hasSpecialization = false;
+	for(size_t i = 0; i < s->arity; i++) {
+		typedArgTypes.push_back(
+		    getTypeFromString(s->body->arg_types->values[i].toString()));
+		hasSpecialization |= s->body->arg_types->values[i] != ValueNil;
+	}
+
+	LLVMTypeRef  typedFnType;
+	LLVMValueRef compiledFuncTyped;
+	if(hasSpecialization) {
+		typedFnType =
+		    LLVMFunctionType(nextType, typedArgTypes.data(), s->arity, 0);
+		compiledFuncTyped = LLVMAddFunction(
+		    module, (char *)String::append(fnName, "_typed", 6)->strb(),
+		    typedFnType);
+	}
+
 	// go back to wrapper
 	auto bb = LLVMAppendBasicBlock(wrapperFunc, "__unwrap");
 	positionBuilderAtEnd(bb);
 	// unpack the arguments
-	LLVMValueRef argValues[s->arity];
+	std::vector<LLVMValueRef> argValues;
 	for(size_t i = 0; i < s->arity; i++) {
-		argValues[i] = getWrapperArg(i);
+		argValues.push_back(getWrapperArg(i));
 	}
-	// create the call to the unwrapped function
-	auto ret = LLVMBuildCall2(builder, fnType, compiledFunc, argValues,
-	                          s->arity, "__func_ret");
+
+	LLVMValueRef ret;
+	if(hasSpecialization) {
+		// check if the constraints hold
+		auto prevResult = LLVMConstInt(LLVMInt1Type(), 1, false);
+		for(size_t i = 0; i < s->arity; i++) {
+			auto llvmType = typedArgTypes[i];
+			auto holdsConstraint =
+			    generateConstraintCheckForType(llvmType, argValues[i]);
+			prevResult = LLVMBuildAnd(builder, prevResult, holdsConstraint,
+			                          "__constraint_check");
+		}
+
+		// create a jump if the constraints hold
+		auto constraintHoldBlock =
+		    LLVMAppendBasicBlock(wrapperFunc, "__constraint_hold");
+		auto constraintBreakBlock =
+		    LLVMAppendBasicBlock(wrapperFunc, "__constraint_fail");
+		auto continueBlock = LLVMAppendBasicBlock(wrapperFunc, "__return_res");
+		LLVMBuildCondBr(builder, prevResult, constraintHoldBlock,
+		                constraintBreakBlock);
+
+		// create the call to the typed function
+		positionBuilderAtEnd(constraintHoldBlock);
+		// extract the typed arguments
+		std::vector<LLVMValueRef> argValuesTyped;
+		for(size_t i = 0; i < s->arity; i++) {
+			argValuesTyped.push_back(
+			    generateNextValueCast(typedArgTypes[i], argValues[i]));
+		}
+		auto retTyped =
+		    LLVMBuildCall2(builder, typedFnType, compiledFuncTyped,
+		                   argValuesTyped.data(), s->arity, "__typed_func_ret");
+		LLVMBuildBr(builder, continueBlock);
+
+		// create the call to the untyped function
+		positionBuilderAtEnd(constraintBreakBlock);
+		auto retUntyped =
+		    LLVMBuildCall2(builder, fnType, compiledFuncUntyped,
+		                   argValues.data(), s->arity, "__func_ret");
+		LLVMBuildBr(builder, continueBlock);
+
+		// create a phi between the results
+		positionBuilderAtEnd(continueBlock);
+		ret = LLVMBuildPhi(builder, nextType, "__ret_value");
+		LLVMValueRef      retValues[] = {retTyped, retUntyped};
+		LLVMBasicBlockRef retBlocks[] = {constraintHoldBlock,
+		                                 constraintBreakBlock};
+		LLVMAddIncoming(ret, retValues, retBlocks, 2);
+	} else {
+		ret = LLVMBuildCall2(builder, fnType, compiledFuncUntyped,
+		                     argValues.data(), s->arity, "__func_ret");
+	}
 	// return from wrapper
 	LLVMBuildRet(builder, ret);
+
+	compileSpecialized = false;
+	compileFunction(compiledFuncUntyped, s);
+	LLVMVerifyFunction(compiledFuncUntyped, LLVMPrintMessageAction);
+
+	if(hasSpecialization) {
+		variableMap.clear();
+		compileSpecialized = true;
+		compileFunction(compiledFuncTyped, s);
+		LLVMVerifyFunction(compiledFuncTyped, LLVMPrintMessageAction);
+	}
+}
+
+void JITCodegen::compileFunction(LLVMValueRef func, FnStatement *s) {
 	// now, go back to the original function
 	// first, generate the alloca block
-	auto allocaBlock = LLVMAppendBasicBlock(compiledFunc, "__allocablock");
+	auto allocaBlock = LLVMAppendBasicBlock(func, "__allocablock");
 	// then, generate our main entry block
-	auto bb_entry = LLVMAppendBasicBlock(compiledFunc, "__entry");
+	auto bb_entry = LLVMAppendBasicBlock(func, "__entry");
 	positionBuilderAtEnd(bb_entry);
+	compiledFunc = func;
 	// now, generate whatever code we have to under __entry
 	s->body->accept(this);
 	// generate a 'ret nil' from last block if it doesn't have a terminator
-	if(!LLVMGetBasicBlockTerminator(LLVMGetLastBasicBlock(compiledFunc))) {
+	if(!LLVMGetBasicBlockTerminator(LLVMGetLastBasicBlock(func))) {
 		auto val = getConstantInt(ValueNil.val.value);
 		LLVMBuildRet(builder, val);
 	}
@@ -454,17 +603,18 @@ void JITCodegen::visit(FnStatement *s) {
 
 void JITCodegen::visit(FnBodyStatement *s) {
 	/*
-	LLVMTypeRef printTypes[3] = {nextType, nextType, nextType};
-	auto        printFnType   = LLVMFunctionType(nextType, printTypes, 3, 0);
-	auto printFn = LLVMAddFunction(module, "__next_jit_print3", printFnType);
+	LLVMTypeRef  printTypes[1] = {nextType};
+	auto         printFnType   = LLVMFunctionType(nextType, printTypes, 1, 0);
+	LLVMValueRef printFn;
 
-	LLVMValueRef args[3] = {LLVMGetParam(compiledFunc, 0),
-	                        LLVMGetParam(compiledFunc, 1),
-	                        LLVMGetParam(compiledFunc, 2)};
-	auto         ret =
-	    LLVMBuildCall2(builder, printFnType, printFn, args, 3, "__print_ret");
-	(void)ret;
-	LLVMBuildRet(builder, ret);
+	if(compileSpecialized) {
+	    printFn = LLVMGetNamedFunction(module, "__next_jit_print");
+	} else
+	    printFn = LLVMAddFunction(module, "__next_jit_print", printFnType);
+
+	LLVMValueRef args[1] = {getConstantInt(
+	    (uintptr_t)String::from(compileSpecialized ? "typed" : "untyped"))};
+	LLVMBuildCall2(builder, printFnType, printFn, args, 1, "__print_ret");
 	*/
 	registerArgs(s->args, s->arg_types);
 	s->body->accept(this);
@@ -495,8 +645,9 @@ void JITCodegen::visit(WhileStatement *s) {
 		positionBuilderAtEnd(entry);
 		s->thenBlock->accept(this);
 		auto val = s->condition->accept(this);
-		val      = callIsFalsy(val);
-		LLVMBuildCondBr(builder, val, exit, entry);
+		val = compileSpecialized ? generateCastOrReturn(LLVMInt1Type(), val)
+		                         : callIsTruthy(val);
+		LLVMBuildCondBr(builder, val, entry, exit);
 		positionBuilderAtEnd(exit);
 	} else {
 		auto entry = LLVMAppendBasicBlock(compiledFunc, "__while_entry");
@@ -506,8 +657,9 @@ void JITCodegen::visit(WhileStatement *s) {
 		LLVMBuildBr(builder, entry);
 		positionBuilderAtEnd(entry);
 		auto val = s->condition->accept(this);
-		val      = callIsFalsy(val);
-		LLVMBuildCondBr(builder, val, exit, loop);
+		val = compileSpecialized ? generateCastOrReturn(LLVMInt1Type(), val)
+		                         : callIsTruthy(val);
+		LLVMBuildCondBr(builder, val, loop, exit);
 		positionBuilderAtEnd(loop);
 		s->thenBlock->accept(this);
 		LLVMBuildBr(builder, entry);
@@ -517,12 +669,13 @@ void JITCodegen::visit(WhileStatement *s) {
 
 void JITCodegen::visit(IfStatement *s) {
 	auto val  = s->condition->accept(this);
-	val       = callIsFalsy(val);
+	val       = compileSpecialized ? generateCastOrReturn(LLVMInt1Type(), val)
+	                               : callIsTruthy(val);
 	auto then = LLVMAppendBasicBlock(compiledFunc, "__then");
 	auto exit = LLVMAppendBasicBlock(compiledFunc, "__if_exit");
 	auto otherwise =
 	    s->elseBlock ? LLVMAppendBasicBlock(compiledFunc, "__else") : exit;
-	LLVMBuildCondBr(builder, val, otherwise, then);
+	LLVMBuildCondBr(builder, val, then, otherwise);
 	positionBuilderAtEnd(then);
 	s->thenBlock->accept(this);
 	LLVMBuildBr(builder, exit);
@@ -549,12 +702,15 @@ LLVMValueRef JITCodegen::visit(BinaryExpression *e) {
 	auto left = e->left->accept(this);
 	if(e->token.type == Token::Type::TOKEN_and ||
 	   e->token.type == Token::Type::TOKEN_or) {
-		auto res = registerVariable(NULL, nextType);
+		auto res = registerVariable(NULL, compileSpecialized ? LLVMTypeOf(left)
+		                                                     : nextType);
 		LLVMBuildStore(builder, left, res);
 		auto skipBlock  = LLVMAppendBasicBlock(compiledFunc, "__skip_next");
 		auto contBlock  = LLVMAppendBasicBlock(compiledFunc, "__eval_next");
-		auto shouldSkip = callIsFalsy(left);
-		if(e->token.type == Token::Type::TOKEN_or) {
+		auto shouldSkip = compileSpecialized
+		                      ? generateCastOrReturn(LLVMInt1Type(), left)
+		                      : callIsTruthy(left);
+		if(e->token.type == Token::Type::TOKEN_and) {
 			shouldSkip = LLVMBuildNot(builder, shouldSkip, "__is_true");
 		}
 		LLVMBuildCondBr(builder, shouldSkip, skipBlock, contBlock);
@@ -571,7 +727,17 @@ LLVMValueRef JITCodegen::visit(BinaryExpression *e) {
 
 LLVMValueRef JITCodegen::generateBinInteger(LLVMValueRef left,
                                             LLVMValueRef right,
-                                            LLVMBinInst  inst) {
+                                            LLVMBinInst inst, bool isCmp,
+                                            LLVMIntPredicate icmp) {
+	if(compileSpecialized) {
+		left  = generateCastOrReturn(LLVMInt64Type(), left);
+		right = generateCastOrReturn(LLVMInt64Type(), right);
+		if(isCmp) {
+			return LLVMBuildICmp(builder, icmp, left, right, "__cmp_res");
+		}
+		return inst(builder, left, right, "__res");
+	}
+
 	auto isn1         = callIsInteger(left);
 	auto isn2         = callIsInteger(right);
 	auto isBothNumber = LLVMBuildAnd(builder, isn1, isn2, "__both_numbers");
@@ -602,8 +768,26 @@ LLVMValueRef JITCodegen::generateBinInteger(LLVMValueRef left,
 
 LLVMValueRef JITCodegen::generateBinNumeric(LLVMValueRef left,
                                             LLVMValueRef right,
-                                            LLVMBinInst inst, bool isCmp,
-                                            LLVMRealPredicate cmp) {
+                                            LLVMBinInst inst, LLVMBinInst iinst,
+                                            bool isCmp, LLVMRealPredicate cmp,
+                                            LLVMIntPredicate icmp) {
+	if(compileSpecialized) {
+		auto lType = LLVMTypeOf(left);
+		auto rType = LLVMTypeOf(right);
+		if(lType != rType) {
+			lType = LLVMDoubleType();
+			rType = LLVMDoubleType();
+			left  = generateCastOrReturn(LLVMDoubleType(), left);
+			right = generateCastOrReturn(LLVMDoubleType(), right);
+		}
+		if(lType == LLVMInt64Type()) {
+			return generateBinInteger(left, right, iinst, isCmp, icmp);
+		}
+		if(isCmp) {
+			return LLVMBuildFCmp(builder, cmp, left, right, "__cmp_res");
+		}
+		return inst(builder, left, right, "__res");
+	}
 	auto isn1         = callIsNumber(left);
 	auto isn2         = callIsNumber(right);
 	auto isBothNumber = LLVMBuildAnd(builder, isn1, isn2, "__both_numbers");
@@ -640,30 +824,33 @@ LLVMValueRef JITCodegen::generateBinOp(LLVMValueRef left, LLVMValueRef right,
 	switch(e) {
 #define BINNUM(token, op)            \
 	case Token::Type::TOKEN_##token: \
-		return generateBinNumeric(left, right, LLVMBuildF##op);
+		return generateBinNumeric(left, right, LLVMBuildF##op, LLVMBuild##op);
 		BINNUM(PLUS, Add);
 		BINNUM(MINUS, Sub);
 		BINNUM(STAR, Mul);
-		BINNUM(SLASH, Div);
 #undef BINNUM
+		case Token::Type::TOKEN_SLASH:
+			return generateBinNumeric(left, right, LLVMBuildFDiv,
+			                          LLVMBuildSDiv);
 #define BININT(token, op)            \
 	case Token::Type::TOKEN_##token: \
 		return generateBinInteger(left, right, LLVMBuild##op);
-		BININT(AMPERSAND, And);
-		BININT(PIPE, Or);
-		BININT(CARET, Xor);
-		BININT(LESS_LESS, Shl);
-		BININT(GREATER_GREATER, LShr);
+			BININT(AMPERSAND, And);
+			BININT(PIPE, Or);
+			BININT(CARET, Xor);
+			BININT(LESS_LESS, Shl);
+			BININT(GREATER_GREATER, LShr);
 #undef BININT
-#define BINCMP(token, pred)          \
-	case Token::Type::TOKEN_##token: \
-		return generateBinNumeric(left, right, NULL, true, LLVMRealO##pred);
-		BINCMP(EQUAL_EQUAL, EQ);
-		BINCMP(BANG_EQUAL, NE);
-		BINCMP(LESS, LT);
-		BINCMP(LESS_EQUAL, LE);
-		BINCMP(GREATER, GT);
-		BINCMP(GREATER_EQUAL, GE);
+#define BINCMP(token, fpred, ipred)                              \
+	case Token::Type::TOKEN_##token:                             \
+		return generateBinNumeric(left, right, NULL, NULL, true, \
+		                          LLVMRealO##fpred, LLVMInt##ipred);
+			BINCMP(EQUAL_EQUAL, EQ, EQ);
+			BINCMP(BANG_EQUAL, NE, NE);
+			BINCMP(LESS, LT, SLT);
+			BINCMP(LESS_EQUAL, LE, SLE);
+			BINCMP(GREATER, GT, SGT);
+			BINCMP(GREATER_EQUAL, GE, SGE);
 #undef BINCMP
 		default:
 			panic("Not implemented for binary op: ", (int)e);
