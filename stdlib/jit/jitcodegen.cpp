@@ -12,6 +12,7 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassBuilder.h>
+#include <vector>
 
 extern "C" {
 uint64_t __next_jit_print(uint64_t d) {
