@@ -506,8 +506,8 @@ void JITCodegen::visit(FnStatement *s) {
 	LLVMTypeRef  typedFnType;
 	LLVMValueRef compiledFuncTyped;
 	if(hasSpecialization) {
-		typedFnType =
-		    LLVMFunctionType(nextType, typedArgTypes.data(), s->arity, 0);
+		typedFnType = LLVMFunctionType(LLVMDoubleType(), typedArgTypes.data(),
+		                               s->arity, 0);
 		compiledFuncTyped = LLVMAddFunction(
 		    module, (char *)String::append(fnName, "_typed", 6)->strb(),
 		    typedFnType);
@@ -714,8 +714,12 @@ LLVMValueRef JITCodegen::visit(AssignExpression *e) {
 	if(e->target->isSubscriptExpression()) {
 		defaultPanic("Subscript expression not yet implemented!");
 	}
-	auto val       = e->val->accept(this);
-	auto targetptr = getOrRegisterVariable(e->target->token, LLVMTypeOf(val));
+	auto val        = e->val->accept(this);
+	auto targetptr  = getOrRegisterVariable(e->target->token, LLVMTypeOf(val));
+	auto targetType = LLVMGetAllocatedType(targetptr);
+	if(compileSpecialized && targetType != LLVMTypeOf(val)) {
+		val = generateCastOrReturn(targetType, val);
+	}
 	LLVMBuildStore(builder, val, targetptr);
 	return val;
 }
@@ -891,9 +895,7 @@ LLVMValueRef JITCodegen::visit(LiteralExpression *e) {
 	if(!compileSpecialized) {
 		return getConstantInt(e->value.val.value);
 	} else {
-		if(e->value.isInteger()) {
-			return getConstantSInt(e->value.toInteger());
-		} else if(e->value.isNumber()) {
+		if(e->value.isNumber()) {
 			return getConstantDouble(e->value.toNumber());
 		} else if(e->value.isBoolean()) {
 			return getConstantInt(e->value.toBoolean(), 1);
