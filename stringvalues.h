@@ -23,7 +23,7 @@ SCONSTANT(str, "str")
 SCONSTANT(nil, "nil")
 SCONSTANT(i64, "i64")
 SCONSTANT(f64, "f64")
-SCONSTANT(i1, "i1")
+SCONSTANT(bool_, "bool")
 #define TYPE(r, n) SCONSTANT(type_##n, #n)
 #include "valuetypes.h"
 

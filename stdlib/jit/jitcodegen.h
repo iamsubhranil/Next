@@ -51,7 +51,9 @@ struct JITCodegen : LLVMCodegenBase {
 
 	void positionBuilderAtEnd(LLVMBasicBlockRef block);
 
-	static LLVMValueRef getConstantInt(uint64_t val);
+	static LLVMValueRef getConstantInt(uint64_t val, int width = 64);
+	static LLVMValueRef getConstantSInt(int64_t val);
+	static LLVMValueRef getConstantDouble(double val);
 
 	void init();
 	void initEngine();

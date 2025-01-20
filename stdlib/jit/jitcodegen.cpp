@@ -139,8 +139,16 @@ void JITCodegen::init() {
 	wrapperFunc = LLVMAddFunction(module, "__next_jit_wrapper", functionType);
 }
 
-LLVMValueRef JITCodegen::getConstantInt(uint64_t val) {
-	return LLVMConstInt(LLVMIntType(64), val, 0);
+LLVMValueRef JITCodegen::getConstantInt(uint64_t val, int width) {
+	return LLVMConstInt(LLVMIntType(width), val, 0);
+}
+
+LLVMValueRef JITCodegen::getConstantSInt(int64_t val) {
+	return LLVMConstInt(LLVMIntType(64), val, 1);
+}
+
+LLVMValueRef JITCodegen::getConstantDouble(double val) {
+	return LLVMConstReal(LLVMDoubleType(), val);
 }
 
 LLVMValueRef JITCodegen::defineIsNumber(LLVMValueRef func) {
@@ -397,7 +405,7 @@ LLVMValueRef JITCodegen::generateCastOrReturn(LLVMTypeRef  targetType,
 }
 
 LLVMTypeRef JITCodegen::getTypeFromString(String *type) {
-	if(type == String::const_i1) {
+	if(type == String::const_bool_) {
 		return LLVMInt1Type();
 	}
 	if(type == String::const_i64) {
@@ -456,6 +464,7 @@ bool JITCodegen::hasVariable(Token name) {
 }
 
 LLVMValueRef JITCodegen::getVariable(Token name) {
+	assert(hasVariable(name) && "Variable doesn't exist!");
 	String2 s = String::from(name.start, name.length);
 	return variableMap[s];
 }
@@ -545,6 +554,19 @@ void JITCodegen::visit(FnStatement *s) {
 		auto retTyped =
 		    LLVMBuildCall2(builder, typedFnType, compiledFuncTyped,
 		                   argValuesTyped.data(), s->arity, "__typed_func_ret");
+
+		// wrap the typed result back to a Next value
+		// before returning
+		auto retType = LLVMTypeOf(retTyped);
+		if(retType == LLVMIntType(64) || retType == LLVMDoubleType()) {
+			retTyped =
+			    callSetNumber(generateCastOrReturn(LLVMDoubleType(), retTyped));
+		} else if(retType == LLVMIntType(1)) {
+			retTyped = callSetBoolean(retTyped);
+		} else {
+			assert("Unknown return type!");
+		}
+
 		LLVMBuildBr(builder, continueBlock);
 
 		// create the call to the untyped function
@@ -860,11 +882,25 @@ LLVMValueRef JITCodegen::generateBinOp(LLVMValueRef left, LLVMValueRef right,
 
 LLVMValueRef JITCodegen::visit(VariableExpression *v) {
 	auto valptr = getVariable(v->token);
-	return LLVMBuildLoad2(builder, nextType, valptr, "__var_load");
+	return LLVMBuildLoad2(
+	    builder, compileSpecialized ? LLVMGetAllocatedType(valptr) : nextType,
+	    valptr, "__var_load");
 }
 
 LLVMValueRef JITCodegen::visit(LiteralExpression *e) {
-	return getConstantInt(e->value.val.value);
+	if(!compileSpecialized) {
+		return getConstantInt(e->value.val.value);
+	} else {
+		if(e->value.isInteger()) {
+			return getConstantSInt(e->value.toInteger());
+		} else if(e->value.isNumber()) {
+			return getConstantDouble(e->value.toNumber());
+		} else if(e->value.isBoolean()) {
+			return getConstantInt(e->value.toBoolean(), 1);
+		} else {
+			panic("Unknown literal: ", e->value, "!");
+		}
+	}
 }
 
 LLVMValueRef JITCodegen::visit(GroupingExpression *e) {
